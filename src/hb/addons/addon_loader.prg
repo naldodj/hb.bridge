@@ -1,0 +1,87 @@
+/*
+ _      _         _            _      _
+| |__  | |__     | |__   _ __ (_)  __| |  __ _   ___
+| '_ \ | '_ \    | '_ \ | '__|| | / _` | / _` | / _ \
+| | | || |_) | _ | |_) || |   | || (_| || (_| ||  __/
+|_| |_||_.__/ (_)|_.__/ |_|   |_| \__,_| \__, | \___|
+                                         |___/
+Released to Public Domain.
+--------------------------------------------------------------------------------------
+*/
+#include "hbhrb.ch"
+#include "fileio.ch"
+
+FUNCTION ExecutarAddonHRB( cAddonName, oParams )
+   LOCAL hHrb, cResult := "", cExt, cFile := "./addons/" + cAddonName
+
+   hb_FNameSplit( cAddonName, NIL, NIL, @cExt )
+
+   IF File( cFile )
+      BEGIN SEQUENCE
+         cExt := Lower( cExt )
+         SWITCH cExt
+         CASE ".prg"
+         CASE ".hb"
+         CASE ".hrb"
+            EXIT
+         OTHERWISE
+            cExt := FileSig( cFile )
+         ENDSWITCH
+         SWITCH cExt
+         CASE ".prg"
+         CASE ".hb"
+            cFile := hb_compileBuf( hb_argv( 0 ), "-n2", "-w", "-es2", "-q0", ;
+               "-D" + "__HBSCRIPT__HBNETIOSRV", cFile )
+            IF cFile != NIL
+               hHrb := hb_hrbLoad( HB_HRB_BIND_FORCELOCAL, cFile )
+            ENDIF
+            IF ! Empty( hHrb )
+                cResult := hb_hrbDo( hHrb, hb_jsonEncode( oParams ) )
+            ENDIF
+            EXIT
+         OTHERWISE
+            // Each active request owns its HRB symbols and statics. Addons may
+            // call host functions, but must not export symbols to other addons.
+            hHrb := hb_hrbLoad( HB_HRB_BIND_FORCELOCAL, cFile )
+            IF ! Empty( hHrb )
+                cResult := hb_hrbDo( hHrb, hb_jsonEncode( oParams ) )
+            ENDIF
+            EXIT
+         ENDSWITCH
+      ALWAYS
+         IF ! Empty( hHrb )
+            hb_hrbUnload( hHrb )
+         ENDIF
+      END SEQUENCE
+   ENDIF
+RETURN cResult
+
+STATIC FUNCTION FileSig( cFile )
+
+   LOCAL hFile
+   LOCAL cBuff, cSig, cExt
+
+   cExt := ".prg"
+   hFile := FOpen( cFile, FO_READ )
+   IF hFile != F_ERROR
+      cSig := hb_hrbSignature()
+      cBuff := Space( hb_BLen( cSig ) )
+      FRead( hFile, @cBuff, hb_BLen( cBuff ) )
+      FClose( hFile )
+      IF cBuff == cSig
+         cExt := ".hrb"
+      ENDIF
+   ENDIF
+
+   RETURN cExt
+
+#pragma begindump
+    #include "hbapi.h"
+
+   extern const char *ZigEngine_Dispatch( const char *json_ptr );
+
+    HB_FUNC( ZIGENGINE_DISPATCH ) {
+      const char *result = ZigEngine_Dispatch( hb_parc( 1 ) );
+      hb_retc( result != NULL ? result : "{\"success\": false, \"error\": \"Engine Zig sem resposta\"}" );
+    }
+#pragma enddump

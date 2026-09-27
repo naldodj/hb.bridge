@@ -1,0 +1,66 @@
+#include "protheus.ch"
+
+#define __IS_THE_ADDONS_EXECUTION_ENABLED__ .T.
+
+procedure U_HBBridgeConnectionTest()
+
+    local jParams:=JSONObject():New() as json
+
+    local jResponse as json
+
+    local lOk:=.T. as logical
+
+    local oClient as object
+
+    jParams["source"]:="protheus"
+    jParams["company"]:="T1"
+    jParams["user"]:="rpc-test"
+    jParams["message"]:="Primeira integracao RPC"
+    jParams["largePayload"]:=Replicate("X", 200000)
+
+    oClient:=hbBridge.client.THBBridgeClient():New("127.0.0.1",1512)
+    jResponse:=oClient:CallService("Health", jParams)
+
+    if ((!jResponse:HasProperty("success")).or.(!jResponse["success"]))
+        ConOut("hbBridge Health falhou: "+jResponse:ToJSON())
+        lOk:=.F.
+    else
+        ConOut("hbBridge Health Protheus OK: "+jResponse:ToJSON())
+    endif
+    FreeObj(@jResponse)
+
+    if (__IS_THE_ADDONS_EXECUTION_ENABLED__)
+        jResponse:=oClient:CallService("ADDON.examples\sample_addon.prg", jParams)
+        if ((!jResponse:HasProperty("success")).or.(!jResponse["success"]))
+            ConOut("hbBridge ADDON. falhou: "+jResponse:ToJSON())
+            lOk:=.F.
+        else
+            ConOut("hbBridge ADDON. Protheus OK: "+jResponse:ToJSON())
+        endif
+        FreeObj(@jResponse)
+    endif
+
+    jResponse:=oClient:CallService("Echo", jParams)
+
+    FreeObj(@oClient)
+
+    if ((!jResponse:HasProperty("success")).or.(!jResponse["success"]))
+        ConOut("hbBridge Echo falhou: "+jResponse:ToJSON())
+        lOk:=.F.
+    elseif (;
+                    (!jResponse:HasProperty("params"));
+                .or.(jResponse["params"]["message"]!=jParams["message"]);
+                .or.(Len(jResponse["params"]["largePayload"])!=200000);
+   )
+        ConOut("hbBridge Echo nao devolveu os dados enviados: "+jResponse:ToJSON())
+        lOk:=.F.
+    endif
+
+    if (lOk)
+        ConOut("hbBridge RPC Protheus OK: "+jResponse:ToJSON())
+    endif
+
+    FreeObj(@jParams)
+    FreeObj(@jResponse)
+
+return

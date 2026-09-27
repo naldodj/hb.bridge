@@ -1,0 +1,31 @@
+/* Encoding: UTF-8 (No BOM)  Notation (in 5th column):
+     * Change  ! Fix  % Optimize  + Add  - Remove  ; Comment
+   Entries may not always be in chronological/commit order.
+   See license at the end of file.
+   (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Initial MVP version commit)"
+ */
+
+2026-09-27 15:08 UTC naldodj (Initial MVP version commit)
+  + docs/README.md
+  + README.md
+  + src/tlpp/thbbridgeclient.tlpp
+  + src/tlpp/trpcdataset.tlpp
+  + tests/harbour/mt_fault.prg
+  + tests/harbour/mt_isolation.prg
+  + tests/harbour/server_mt.prg
+  + tests/protheus/hbbridgeconnectiontest.tlpp
+  + tests/README.md
+  + TODO.md
+  + .gitignore
+  + addons/examples/sample_addon.prg
+  + build.zig
+  + config/examples/connections.enc.json.example
+  + hbbridge.hbp
+  + scripts/build-hbbridge.ps1
+  + scripts/README.md
+  + src/hb/addons/addon_loader.prg
+  + src/hb/dispatcher/dispatcher.prg
+  + src/hb/server/mt_server.prg
+  + src/hb/server/server.prg
+  + src/hb/telemetry/syslog.prg
+  + src/zig/runtime/engine.zig

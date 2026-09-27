@@ -1,0 +1,111 @@
+// src/tlpp/THBBridgeClient.tlpp
+#include "parmtype.ch"
+#include "tlpp-core.th"
+
+namespace hbBridge.client
+
+class THBBridgeClient
+
+    private data cHost as character
+    private data nPort as numeric
+    private data nTimeout as numeric
+
+    public method new(cHost as character, nPort as numeric) as object
+    public method callService(cService as character, jParams as JSON) as JSON
+
+endclass
+
+method new(cHost, nPort,nTimeout) class THBBridgeClient
+
+    paramtype 1 var cHost as character default "127.0.0.1"
+    paramtype 2 var nPort as numeric default 1512
+    paramtype 3 var nTimeout as numeric default 5000
+
+    self:cHost := cHost
+    self:nPort := nPort
+    self:nTimeout := nTimeout
+
+return(self)
+
+method callService(cService,jParams) class THBBridgeClient
+
+    local aHeader := {} as array
+
+    local cChr10:=Chr( 10 ) as character
+    local cJSONReq := "", cFrame := "", cResponse := "", cChunk := "" as character
+    local cHeader := "" as character
+
+    local jReq := JSONObject():New() as JSON
+    local jResp := JSONObject():New() as JSON
+
+    local nFrame:=0, nRet := 0, nReceived := 0 as numeric
+    local nHeaderEnd := 0, nPayloadSize := 0, nPayloadStart := 0 as numeric
+
+    local oSocket as object
+
+    paramtype 1 var cService as character
+    paramtype 2 var jParams as JSON
+
+    jReq["service"] := cService
+    jReq["params"] := jParams
+
+    cJSONReq := jReq:ToJSON()
+
+    FreeObj(@jReq)
+
+    cFrame := "HBS1|JSON|" + tlpp.ToStr( Len( cJSONReq ) ) + cChr10 + cJSONReq
+
+    GzStrComp(cFrame,@cFrame,@nFrame)
+
+    oSocket := TSocketClient():New()
+    nRet := oSocket:Connect(self:nPort, self:cHost, self:nTimeout)
+    if nRet == 0
+        if oSocket:Send(cFrame) == nFrame
+            cChunk := Space( 65535 )
+            nReceived := oSocket:Receive( @cChunk, self:nTimeout )
+            if nReceived > 0
+                GzStrDecomp(cChunk,nReceived,@cChunk)
+                nReceived:=Len(cChunk)
+                cResponse := Left( cChunk, nReceived )
+                nHeaderEnd := At( cChr10, cResponse )
+                do while nHeaderEnd == 0
+                    cChunk := Space( 65535 )
+                    nReceived := oSocket:Receive( @cChunk, self:nTimeout )
+                    if nReceived <= 0
+                        exit
+                    endif
+                    GzStrDecomp(cChunk,nReceived,@cChunk)
+                    nReceived:=Len(cChunk)
+                    cResponse += Left( cChunk, nReceived )
+                    nHeaderEnd := At( cChr10, cResponse )
+                enddo
+                if nHeaderEnd > 0
+                    cHeader := Left( cResponse, nHeaderEnd - 1 )
+                    aHeader := StrToKArr2( cHeader, "|" , .T. )
+                    if Len( aHeader ) == 3 .and. aHeader[1] == "HBS1" .and. ;
+                       aHeader[2] == "JSON"
+                        nPayloadSize := Val( aHeader[3] )
+                        nPayloadStart := nHeaderEnd + 1
+                        do while Len( cResponse ) - nPayloadStart + 1 < nPayloadSize
+                            cChunk := Space( 65535 )
+                            nReceived := oSocket:Receive( @cChunk, self:nTimeout )
+                            if nReceived <= 0
+                                exit
+                            endif
+                            GzStrDecomp(cChunk,nReceived,@cChunk)
+                            nReceived:=Len(cChunk)
+                            cResponse += Left( cChunk, nReceived )
+                        enddo
+                        if Len( cResponse ) - nPayloadStart + 1 >= nPayloadSize
+                            jResp:FromJSON( SubStr( cResponse, nPayloadStart, nPayloadSize ) )
+                        endif
+                    endif
+                endif
+            endif
+        endif
+        oSocket:CloseConnection()
+    endif
+
+    FreeObj(@oSocket)
+
+return(jResp)

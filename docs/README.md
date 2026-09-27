@@ -1,0 +1,68 @@
+# Documentacao
+
+O hbBridge e a ponte RPC entre TOTVS Protheus e Harbour. A proxima etapa e
+integrar as capacidades nativas do Harbour, principalmente `hbnetio`, antes
+de ampliar a integracao com Zig. O [README principal](../README.md) apresenta
+o escopo e o [TODO](../TODO.md) registra a sequencia de implementacao.
+
+## Contrato implementado no MVP
+
+O cliente `src/tlpp/THBBridgeClient.tlpp` envia requisicoes JSON com `service`
+e `params`. O servidor usa um socket TCP em `127.0.0.1:1512` e um dispatcher
+proprio. `Health` ainda responde pela biblioteca Zig; `Echo` devolve os
+parametros recebidos.
+
+Antes da compressao, cada mensagem tem este formato:
+
+```text
+HBS1|JSON|<tamanho-em-bytes-do-JSON>\n<payload-json>
+```
+
+O frame inteiro, incluindo o cabecalho, e comprimido para envio. A indicacao
+`JSON` descreve a representacao dos dados; o comprimento interno descreve o
+JSON descomprimido, nao o total de bytes transmitidos pelo socket.
+
+| Direcao | Compressao | Descompressao |
+| --- | --- | --- |
+| Protheus para Harbour | `GzStrComp` no TLPP | `hb_ZUncompress` no Harbour |
+| Harbour para Protheus | `hb_gzCompress` no Harbour | `GzStrDecomp` no TLPP |
+
+Essa compressao e descompressao de strings ja esta implementada no MVP. O
+cliente nao depende de arquivos temporarios nem das APIs de arquivos
+`GzCompress`/`GzDecomp`.
+
+O servidor valida um limite de 16 MiB para o tamanho do JSON declarado no
+cabecalho, depois de descomprimir. Ainda e preciso limitar os tamanhos
+comprimido e descomprimido durante a recepcao e consolidar o tratamento de
+erros, timeouts e mensagens invalidas. A leitura atual tenta descomprimir
+cada retorno de `Receive`/`hb_socketRecv` isoladamente; a escrita nao repete
+envios parciais. A robustez contra fragmentacao TCP permanece no roadmap.
+
+## Integracao nativa Harbour
+
+O build ja referencia `hbnetio`, mas o servidor atual ainda nao inicializa
+seu RPC. O frame `HBS1` do MVP e um contrato proprio e nao e compativel
+diretamente com o protocolo de rede do `hbnetio`.
+
+A integracao devera definir a adaptacao entre o contrato Protheus e as
+funcoes expostas pelo Harbour, aproveitando o RPC do `hbnetio`, o runtime,
+o carregamento de `.hrb` e os recursos existentes de acesso a dados. O
+trabalho de SQL deve reutilizar RDDSQL/SQLMIX e as contribs de banco
+existentes, conforme a disponibilidade no build escolhido.
+
+`hb_Serialize()`/`hb_Deserialize()` e `HB_SERIALIZE_COMPRESS` sao recursos
+nativos do Harbour. O servidor do MVP nao implementa um codec
+`HB_SERIALIZED`: ele recebe JSON apos a descompressao. A serializacao
+binaria Harbour nao e intercambiavel com JSON nem com o frame comprimido
+do cliente TLPP; seu uso deve seguir o contrato nativo adotado na integracao.
+
+## Syslog
+
+O modulo `src/hb/telemetry/syslog.prg` implementa envio UDP para
+`127.0.0.1:514` e esta incluido no build. O fluxo atual do servidor nao
+chama `SyslogOpen`, `SyslogWrite` ou `SyslogClose`; portanto, nao ha emissao
+Syslog integrada ao atendimento RPC. A conexao desse modulo ao ciclo de
+vida do servidor e a validacao com o receptor ainda precisam ser feitas.
+
+Os documentos de protocolo, arquitetura, seguranca, API de addons e
+implantacao serao detalhados conforme a integracao nativa for estabilizada.

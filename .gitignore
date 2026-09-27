@@ -1,0 +1,15 @@
+.zig-cache/
+zig-out/
+.vscode/
+.github/instructions/
+*.obj
+*.o
+*.lib
+*.a
+*.dll
+*.so
+*.exe
+out/
+bin/
+tmp/
+_commit.txt

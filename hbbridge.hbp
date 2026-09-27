@@ -1,0 +1,13 @@
+-w3 -es2
+-mt
+-oout/hbBridge
+-head=full
+-Lzig-out/lib
+-lhbBridge_zig
+-lhbnetio
+
+src/hb/server/server.prg
+src/hb/server/mt_server.prg
+src/hb/dispatcher/dispatcher.prg
+src/hb/addons/addon_loader.prg
+src/hb/telemetry/syslog.prg

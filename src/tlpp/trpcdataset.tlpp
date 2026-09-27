@@ -1,0 +1,97 @@
+// src/tlpp/TRPCDataSet.tlpp
+#include "tlpp-core.th"
+
+namespace hbBridge.rdd
+
+class TRPCDataSet
+
+    private data oClient as object
+    private data aData as array
+    private data nRowIndex as integer
+    private data nTotalRows as integer
+    private data jHeader as JSON
+
+    public method new() constructor
+    public method openSQL(cAliasProfile as character, cSql as character) as logical
+    public method fieldGet(cFieldName as character) as variant
+    public method skip()
+    public method eof() as logical
+    public method close()
+
+endclass
+
+method new() class TRPCDataSet
+    self:oClient:=hbBridge.client.THBBridgeClient():new()
+    self:aData:={}
+    self:nRowIndex:=0
+    self:nTotalRows:=0
+    self:jHeader:=JSONObject():New()
+return(self)
+
+method openSQL(cAliasProfile as character, cSql as character) as logical class TRPCDataSet
+
+    local aHeaderCols as array
+
+    local jResp:=JSONObject():New() as json
+    local jParams:=JSONObject():New() as json
+
+    local nI:=0 as numeric
+
+    jParams["alias"]:=cAliasProfile
+    jParams["sql"]:=cSql
+    jResp:=self:oClient:callService("RPCRDD.Query", jParams)
+
+    if (;
+             (valtype(jResp)=="J");
+        .and.(jResp:HasProperty("success"));
+        .and.(jResp["success"]);
+    )
+
+        self:aData:=aClone(jResp["rows"])
+        self:nTotalRows:=Len(self:aData)
+        self:nRowIndex:=if(self:nTotalRows>0,1,0)
+        self:jHeader:=JSONObject():New()
+
+        aHeaderCols:=jResp["header"]
+        for nI:=1 to Len(aHeaderCols)
+            self:jHeader[Upper(aHeaderCols[nI])]:=nI
+        next nI
+
+        FreeObj(@jResp)
+        FreeObj(@jParams)
+        FWFreeArray(@aHeaderCols)
+
+        return(.T.)
+
+    endif
+
+    FreeObj(@jResp)
+    FreeObj(@jParams)
+
+return(.F.)
+
+method fieldGet(cFieldName as character) as variant class TRPCDataSet
+    local cKey:=Upper(AllTrim(cFieldName)) as character
+    local nPos:=0 as numeric
+    if (self:jHeader:HasProperty(cKey))
+        nPos:=self:jHeader[cKey]
+        if (;
+                     (self:nRowIndex>0);
+                .and.(self:nRowIndex<=self:nTotalRows);
+        )
+            return(self:aData[self:nRowIndex][nPos])
+        endif
+    endif
+return nil
+
+method skip() class TRPCDataSet
+    self:nRowIndex++
+return
+
+method eof() as logical class TRPCDataSet
+return ((self:nRowIndex>self:nTotalRows).or.(self:nRowIndex==0))
+
+method close() class TRPCDataSet
+    aSize(self:aData,0)
+    self:nRowIndex:=0
+return
