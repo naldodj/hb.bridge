@@ -15,12 +15,16 @@ registra os fundamentos, o estado do MVP e o desenho pretendido.
   contrato interoperável adaptado às capacidades do Protheus.
 - **Extensibilidade:** serviços versionados e descobertos em um registro comum,
   independentes de transporte, codec e linguagem de implementação.
+- **Implementação única:** componentes reutilizáveis em `src/`, exemplo mínimo
+  em `examples/mvp/` e validações migradas para testes de regressão. O histórico
+  Git preserva o MVP original, sem duas cópias ativas do servidor.
 - **Volume:** substituir o teto fixo do MVP por transferência incremental e
   limites técnicos/operacionais negociados; considerar `MAXSTRINGSIZE` no TLPP.
 - **Compressão:** preservar `HBS1` na migração e avaliar `none`/`gzip` no novo
   contrato; usar os mecanismos nativos no caminho Harbour/NETIO.
 - **Rede e serviço:** NETIO em `0.0.0.0:2941`, administração em
-  `127.0.0.1:2940`, com configuração própria e instalação como serviço.
+  `127.0.0.1:2940`, com configuração própria e instalação como serviço. Um único
+  executável hbBridge incorpora `hbnetio` por chamadas de função no mesmo processo.
 
 As caixas concluídas abaixo registram código existente, não homologação geral.
 Recursos disponíveis no Harbour só serão considerados integrados após os aceites.
@@ -53,18 +57,55 @@ produto final e serão substituídas com compatibilidade documentada.
 
 ## Sequência de entrega
 
-1. Consolidar registro de serviços, NETIO nativo e configuração de rede (marco 1).
-2. Especificar o contrato e corrigir transferência; validar versões em paralelo
+1. Separar responsabilidades dos fontes, exemplo MVP e regressões (marco 0).
+2. Consolidar registro de serviços, NETIO nativo e configuração de rede (marco 1).
+3. Especificar o contrato e corrigir transferência; validar versões em paralelo
    com os serviços existentes (marco 2).
-3. Entregar o próximo teste funcional, `RPCRDD.Query` com MSSQL e/ou SQLite,
+4. Entregar o próximo teste funcional, `RPCRDD.Query` com MSSQL e/ou SQLite,
    e integrar DBF via NETIO (marco 3).
-4. Ampliar módulos, contribs e ABI C/Zig conforme os casos de uso (marco 4).
-5. Homologar serviço, administração, acesso e distribuição (marco 5).
-6. Acrescentar jobs, lotes e processamento incremental conforme demanda (marco 6).
+5. Ampliar módulos, contribs e ABI C/Zig conforme os casos de uso (marco 4).
+6. Homologar serviço, administração, acesso e distribuição (marco 5).
+7. Acrescentar jobs, lotes e processamento incremental conforme demanda (marco 6).
 
 Um primeiro teste SQL pode usar o contrato do MVP enquanto o novo é desenvolvido.
 Grandes volumes dependem do marco 2; DBF remoto depende do NETIO do marco 1.
 ABI C/Zig e infraestrutura de serviço podem avançar junto com esses marcos.
+
+## Marco 0 — separar produto, exemplo MVP e regressões
+
+A [estrutura pretendida](README.md#estrutura-pretendida) organiza uma única
+implementação. A reorganização será incremental; nenhuma pasta nova significa,
+por si só, que um componente já foi homologado para produção.
+
+- [ ] Registrar a revisão Git de referência do MVP e os resultados conhecidos
+  de seus cenários antes da reorganização.
+- [ ] Classificar os fontes atuais entre host, núcleo, transportes, serviços,
+  carregamento de addons, telemetria e clientes.
+- [ ] Separar o ponto de entrada e ciclo de vida em `src/hb/host/`, mantendo um
+  único executável para console, serviço e perfil de demonstração.
+- [ ] Extrair registro/despacho/contexto para `src/hb/core/` e handlers para
+  `src/hb/services/`, preservando os comportamentos dos serviços existentes.
+- [ ] Isolar sockets/enquadramento do MVP em `src/hb/transports/protheus/`,
+  mantendo `HBS1` como compatibilidade configurável e testada.
+- [ ] Criar a integração do NETIO nativo em `src/hb/transports/netio/`, que
+  usará a biblioteca existente e o mesmo registro de serviços.
+- [ ] Preservar loader/telemetria em seus módulos; extrair o adaptador C embutido
+  para `src/c/` quando separar build e responsabilidades for útil.
+- [ ] Criar `examples/mvp/` com perfil mínimo e instruções para usar o binário
+  do produto, referenciando addons e clientes compartilhados.
+- [ ] Migrar cenários `Health`/`Echo`/`ADDON.` e os testes de concorrência,
+  isolamento e falhas para `tests/integration/harbour/` e `protheus/`.
+- [ ] Acrescentar regressões em `tests/contract/` para tipos, erros e formatos;
+  criar testes unitários onde houver comportamento independente relevante.
+- [ ] Centralizar composição do build e dependências, sem duplicar fontes
+  de servidor/dispatcher/loader entre exemplo e produto.
+- [ ] Ajustar caminhos do build, testes, scripts, módulos e documentação no
+  mesmo passo de cada extração; comparar comportamento antes e depois.
+
+**Aceite:** execução de referência e exemplo usam a mesma implementação;
+regressões preservam o comportamento conhecido do MVP. A árvore distingue
+produto, demonstração e testes, com um único ponto de entrada e sem cópias
+ativas dos componentes. Novos recursos serão validados diretamente no produto.
 
 ## Marco 1 — núcleo extensível, NETIO e rede configurável
 
@@ -74,8 +115,12 @@ ABI C/Zig e infraestrutura de serviço podem avançar junto com esses marcos.
   recebe/devolve valores Harbour; cada adaptador cuida da representação.
 - [ ] Criar registro de serviços com nome, versão, assinatura, tipos, permissões,
   handler, dependências e modalidades de resultado; expor descoberta de capacidades.
-- [ ] Hospedar NETIO e adaptador Protheus no hbBridge, compartilhando esse núcleo;
-  registrar a alternativa de gateway separado para necessidades de implantação.
+- [ ] Hospedar NETIO e adaptador Protheus no mesmo executável hbBridge,
+  compartilhando núcleo/catálogo e isolando o estado de cada chamada.
+- [ ] Vincular `hbnetio` estaticamente na implantação inicial e integrar suas
+  funções ao host, sem iniciar um segundo executável de servidor.
+- [ ] Reaproveitar o modelo do utilitário upstream para configuração/administração
+  e serviço, mantendo um único ponto de entrada e runtime Harbour.
 - [ ] Integrar as APIs de servidor/RPC do hbnetio e reaproveitar seu atendimento
   multithread, com configuração e ciclo de vida explícitos.
 - [ ] Adotar `_NETIOSRV_IPV4_DEF = "0.0.0.0"` e `_NETIOSRV_PORT_DEF = 2941`
@@ -162,6 +207,8 @@ interoperáveis com seus respectivos clientes.
   comparar custo de CPU, latência e bytes em rede local/remota.
 - [ ] Validar dados vazios, incompressíveis e já comprimidos; tratar falhas de
   `GzStrComp`/`GzStrDecomp`, além das funções Harbour correspondentes.
+- [ ] Homologar amostras binárias gzip nos dois sentidos, diferenciando o formato
+  no fio de zlib/DEFLATE e fixando os identificadores de codec/compressão.
 - [ ] Verificar limitação da expansão durante a descompressão, não apenas o
   tamanho anunciado ou uma checagem após a alocação. Para APIs sem esse controle,
   definir uso de blocos confiáveis ou modo `none` conforme o perfil de conexão.
@@ -242,6 +289,9 @@ novas extensões entram conforme a necessidade e os resultados medidos.
 - [ ] Documentar separadamente Zig como toolchain e como linguagem das extensões.
 - [ ] Formalizar ABI C versionada: ponteiro + tamanho, propriedade/liberação,
   erros, alinhamento, concorrência e ciclo de vida dos resultados.
+- [ ] Manter bibliotecas vinculadas no build inicial. Avaliar DLL apenas quando
+  atualização independente justificar ABI e ciclo de carga próprios, evitando
+  duplicação incompatível do runtime Harbour; processo separado exige caso de isolamento.
 - [ ] Evoluir o adaptador demonstrativo de string terminada em zero para suportar
   binários e buffers grandes, integrando resultados ao contrato de streams.
 - [ ] Definir acesso à VM Harbour a partir de código nativo e evitar compartilhar
@@ -270,7 +320,8 @@ homologação operacional do conjunto.
 - [ ] Publicar modo supervisionado para Linux, com sinais, inicialização,
   recuperação e procedimento de instalação documentados.
 - [ ] Implementar parada controlada: parar admissões, aguardar/delimitar chamadas,
-  cancelar cooperativamente, liberar conexões, cursores, streams e módulos.
+  coordenar listeners NETIO/Protheus/administração, cancelar cooperativamente e
+  liberar conexões, cursores, streams e módulos.
 - [ ] Integrar administração NETIO, status e diagnóstico; manter credenciais,
   interface e permissões separadas das chamadas de aplicação.
 - [ ] Definir autenticação, autorização por serviço/perfil e acesso a arquivos,

@@ -5,6 +5,23 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Initial MVP version commit)"
  */
 
+2026-09-28 17:59 UTC naldodj (Architecture and MVP migration documentation)
+  * README.md
+    * Document a single hbBridge executable with embedded hbnetio and a shared
+      service core for native Harbour and Protheus clients.
+    * Separate the current MVP from the proposed product structure, keeping
+      one implementation and a minimal example backed by regression tests.
+    * Clarify legacy HBS1 compatibility, negotiated block limits and gzip
+      format validation; retain Harbour, C and Zig as project foundations.
+    ! Match documented file paths to their actual lowercase names.
+  * TODO.md
+    + Add milestone 0 for incremental source organization and migration of
+      MVP validation scenarios into product regression tests.
+    * Plan in-process NETIO integration, coordinated listener shutdown and
+      future native library packaging without duplicating the Harbour runtime.
+    ; Documentation update only; source reorganization and runtime changes
+      remain planned work.
+
 2026-09-27 15:08 UTC naldodj (Initial MVP version commit)
   + docs/README.md
   + README.md
