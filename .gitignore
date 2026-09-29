@@ -12,4 +12,5 @@ zig-out/
 out/
 bin/
 tmp/
+brainstorming/
 _commit.txt
