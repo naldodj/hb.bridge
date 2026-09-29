@@ -5,6 +5,23 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Initial MVP version commit)"
  */
 
+2026-09-29 09:57 UTC naldodj (Harbour VF IO and TRPC integration planning)
+  * README.md
+  * TODO.md
+    + Include Harbour VF IO API (hb_vf*) in the file-service scope, with
+      local/NETIO providers, session-owned handles and block transfers.
+    * Define acceptance criteria for binary data, offsets, errors, provider
+      capabilities and integration through the Harbour/C/Zig boundary.
+    * Plan selective reuse of TRPC service metadata, executors and job callbacks
+      while preserving the NETIO and Protheus transport architecture.
+  + docs/harbour-vfio-trpc.md
+    + Record source review, useful TRPC components and adaptation requirements
+      for protocol limits, names, validation, concurrency and authorization.
+  * docs/README.md
+    + Link the VF IO/TRPC analysis and align the MVP summary with current code.
+    ; Documentation and static source review only; runtime integration remains
+      pending implementation and validation.
+
 2026-09-28 17:59 UTC naldodj (Architecture and MVP migration documentation)
   * README.md
     * Document a single hbBridge executable with embedded hbnetio and a shared

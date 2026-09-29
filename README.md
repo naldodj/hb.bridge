@@ -71,6 +71,8 @@ participam dessa evolução com os papéis definidos acima.
 - Priorizar `RPCRDD.Query` com MSSQL via ODBC e/ou SQLite, reutilizando
   `rddsql`/`SQLMIX` e os conectores existentes do Harbour.
 - Integrar o acesso a DBF pelos RDDs nativos do Harbour através do NETIO.
+- Usar a Harbour VF IO API (`hb_vf*`) como base de acesso a arquivos locais
+  e remotos, com uma fachada de serviços para o Protheus.
 - Ampliar posteriormente a homologação para PostgreSQL e MySQL/MariaDB,
   conforme as dependências disponíveis no build.
 - Preservar a compatibilidade do MVP durante a evolução para transferência
@@ -95,6 +97,7 @@ Harbour, preservando a programação xBase na camada de serviços.
 | hbnetio | Biblioteca linkada em `hbbridge.hbp`; o servidor ainda não usa as APIs NETIO nem habilita `HB_EXTERN`. |
 | Dados SQL | `TRPCDataSet` esboça o cliente de `RPCRDD.Query`; faltam o serviço de consulta e o teste com MSSQL e/ou SQLite. |
 | Dados DBF | Acesso por RDDs nativos via NETIO previsto; ainda não integrado ao hbBridge. |
+| VF IO | Integração de `hb_vf*` prevista para arquivos locais/remotos; a fachada de arquivos ainda não existe no servidor. |
 | C e Zig | Ponte pela API C do Harbour e ABI C do Zig integrada ao `Health`; biblioteca Zig e toolchain exigidos pelo build atual. |
 | Limites atuais | JSON declarado limitado a 16 MiB no servidor, compressão obrigatória e buffers de recepção de 65.535 bytes; falta negociação. |
 | Operação | Executável de console; instalação como serviço e listener de administração ainda pendentes. |
@@ -124,7 +127,7 @@ Protheus / AdvPL / TLPP                  Clientes Harbour
        +----------------+------------------+
        |                |                  |
   Harbour/core     dados e arquivos     API C Harbour
-  contribs/addons  SQL / DBF / NETIO        |
+  contribs/addons  SQL / DBF / VF IO        |
                                        ABI C <-> Zig
 
 Administracao separada: 127.0.0.1:2940 (quando habilitada)
@@ -203,7 +206,7 @@ exigir uma alteração no transporte.
 | --- | --- | --- |
 | Funções e rotinas xBase | Core Harbour, contribs e addons `.prg`/`.hb`/`.hrb`. | Publicar rotinas próximas da linguagem do desenvolvedor Protheus. |
 | Consultas e processamento de dados | `rddsql`/`SQLMIX`, conectores, RDDs DBF e NETIO. | Consultar, filtrar e transformar dados no servidor, devolvendo páginas ou resultados agregados. |
-| Arquivos e conteúdo | Entrada/saída Harbour, NETIO, compressão e arquivos ZIP. | Importar/exportar grandes volumes e transferir conteúdo em blocos. |
+| Arquivos e conteúdo | Harbour VF IO API (`hb_vf*`), provedores como NETIO, compressão e arquivos ZIP. | Operar arquivos locais/remotos e transferir conteúdo em blocos. |
 | Integrações externas | Contribs existentes, como `hbcurl` e `hbexpat`. | Consumir APIs e processar XML no servidor, expondo operações de domínio ao cliente. |
 | Processamento nativo | API C Harbour, bibliotecas C e extensões Zig. | Executar transformações e cálculos especializados, medindo seu benefício. |
 | Operações demoradas | Threads Harbour e streams NETIO, com uma camada de jobs a implementar. | Submeter trabalho, consultar progresso, consumir resultados e solicitar cancelamento. |
@@ -280,6 +283,18 @@ incrementais e progresso. O uso dessas APIs deverá respeitar seus buffers e
 o ritmo de consumo do cliente; habilitar um stream não garante memória limitada
 por si só. Essa adaptação ainda faz parte do trabalho da ponte.
 
+### Reaproveitamento de contrib/xhb/trpc.prg
+
+A análise do TRPC identificou referências úteis para descrição e registro de
+funções, associação a executores, progresso e cancelamento. O reaproveitamento
+será seletivo, adaptando esses elementos ao núcleo e aos jobs do hbBridge.
+Seu protocolo `XHBR` é distinto do NETIO e do contrato Protheus; ele não será
+um terceiro transporte obrigatório.
+
+A [avaliação técnica](docs/harbour-vfio-trpc.md) registra os trechos examinados,
+as restrições encontradas e os critérios para extrair código. A análise foi
+estática; nenhuma classe TRPC foi incorporada ao servidor nesta etapa.
+
 ## Módulos e acesso a dados
 
 O utilitário hbnetio oferece `-rpc=<arquivo>` para carregar um módulo `.hrb`
@@ -352,6 +367,25 @@ mediada pela ponte; o cliente TLPP atual ainda não implementa o protocolo
 NETIO. A integração deverá validar abertura, leitura, navegação, índices,
 bloqueios e fechamento. O acesso nativo a DBF é uma frente própria de dados;
 `RPCRDD.Query` é a fachada prevista para as consultas SQL.
+
+### Arquivos com Harbour VF IO API: hb_vf*
+
+O suporte a arquivos deverá usar `hb_vfOpen`, `hb_vfRead`/`hb_vfWrite`,
+`hb_vfReadAt`/`hb_vfWriteAt`, `hb_vfSeek`, `hb_vfSize` e `hb_vfClose`, além
+das operações de diretório, metadados e bloqueios suportadas por cada provedor.
+Clientes Harbour poderão usar a API diretamente sobre arquivos locais e
+caminhos `net:` com o NETIO registrado.
+
+Para Protheus, a família proposta `Files.*` traduzirá essas operações para
+identificadores remotos por sessão, com transferência em blocos, contagem de
+bytes, EOF, erros e fechamento definidos. Ponteiros VF e descritores do sistema
+operacional permanecem no processo que os criou. C e Zig participarão por
+buffers ou pela interface `hb_file*` através da ponte C.
+
+Cada backend terá capacidades homologadas. A transferência incremental usará
+leitura/escrita por blocos; `hb_vfLoad`/`hb_vfSave` serão reservadas a operações
+cujo conteúdo caiba no orçamento de memória. O detalhamento das APIs e da
+integração está em [Harbour VF IO e TRPC](docs/harbour-vfio-trpc.md).
 
 ## Contrato e compressão atuais
 
@@ -541,7 +575,7 @@ hb.bridge/
 |   |   |-- transports/
 |   |   |   |-- netio/               # Adaptacao e ciclo de vida do NETIO nativo
 |   |   |   `-- protheus/            # Novo contrato e compatibilidade HBS1
-|   |   |-- services/                # Health, Echo, ADDON, dados e outras operacoes
+|   |   |-- services/                # Health, Echo, ADDON, SQL, DBF e arquivos VF
 |   |   |-- addons/                  # Compilacao, carga e ciclo de vida dos modulos
 |   |   `-- telemetry/               # Logs e metricas
 |   |-- c/                          # Ponte API Harbour / ABI C, extraida do PRG
@@ -608,7 +642,7 @@ políticas de módulos também fazem parte da consolidação da ponte.
 O próximo teste funcional é `RPCRDD.Query` com MSSQL e/ou SQLite, após
 implementar o serviço e habilitar seu conector. Em paralelo, a base de integração
 deverá ativar NETIO para clientes Harbour, parametrizar rede e homologar o
-contrato de transferência. DBF via NETIO, instalação como serviço, processamento
+contrato de transferência. DBF via NETIO, arquivos pela VF IO API, serviço, processamento
 em lotes/jobs e extensões C/Zig completam a evolução incremental.
 
 Configuração e descoberta deverão informar quais serviços estão disponíveis,

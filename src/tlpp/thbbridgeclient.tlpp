@@ -2,6 +2,9 @@
 #include "parmtype.ch"
 #include "tlpp-core.th"
 
+#define HBBRIDGE_LEGACY_SIGNATURE   "HBS1"
+#define HBBRIDGE_PROTOCOL_SIGNATURE "HBBRIDGE/1"
+
 namespace hbBridge.client
 
 class THBBridgeClient
@@ -53,7 +56,7 @@ method callService(cService,jParams) class THBBridgeClient
 
     FreeObj(@jReq)
 
-    cFrame := "HBS1|JSON|" + tlpp.ToStr( Len( cJSONReq ) ) + cChr10 + cJSONReq
+    cFrame := HBBRIDGE_PROTOCOL_SIGNATURE + "|JSON|" + tlpp.ToStr( Len( cJSONReq ) ) + cChr10 + cJSONReq
 
     GzStrComp(cFrame,@cFrame,@nFrame)
 
@@ -82,7 +85,8 @@ method callService(cService,jParams) class THBBridgeClient
                 if nHeaderEnd > 0
                     cHeader := Left( cResponse, nHeaderEnd - 1 )
                     aHeader := StrToKArr2( cHeader, "|" , .T. )
-                    if Len( aHeader ) == 3 .and. aHeader[1] == "HBS1" .and. ;
+                    if Len( aHeader ) == 3 .and. ;
+                       (aHeader[1] == HBBRIDGE_PROTOCOL_SIGNATURE .or. aHeader[1] == HBBRIDGE_LEGACY_SIGNATURE) .and. ;
                        aHeader[2] == "JSON"
                         nPayloadSize := Val( aHeader[3] )
                         nPayloadStart := nHeaderEnd + 1

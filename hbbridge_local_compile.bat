@@ -1,0 +1,1 @@
+C:\GitHub\hb_compile\out\zig\bin\hbmk2.exe .\hbBridge.hbp

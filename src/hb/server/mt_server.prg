@@ -148,10 +148,10 @@ RETURN .T.
 
 STATIC PROCEDURE HBBridgeClientWorker( hServer, hClientSocket )
 
-   LOCAL cRequest, cResponse, lFramed := .F.
+   LOCAL cRequest, cResponse, cFrameSignature, lFramed := .F.
 
    BEGIN SEQUENCE WITH {| oError | Break( oError ) }
-      IF ReceiveRequest( hClientSocket, @cRequest, @lFramed )
+      IF ReceiveRequest( hClientSocket, @cRequest, @lFramed, @cFrameSignature )
          /* An application error becomes a reply on this connection only. */
          BEGIN SEQUENCE WITH {| oError | Break( oError ) }
             cResponse := DispatcherRequest( cRequest )
@@ -159,7 +159,7 @@ STATIC PROCEDURE HBBridgeClientWorker( hServer, hClientSocket )
             cResponse := '{"success": false, "error": "Falha ao executar servico"}'
             HBBridgeServerLog( hServer, "Erro no servico da thread " + hb_ntos( hb_threadID() ) )
          END SEQUENCE
-         IF ! SendResponse( hClientSocket, cResponse, lFramed )
+         IF ! SendResponse( hClientSocket, cResponse, lFramed, cFrameSignature )
             HBBridgeServerLog( hServer, "Falha ao enviar resposta" )
          ENDIF
       ELSE

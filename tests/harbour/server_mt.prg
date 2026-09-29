@@ -16,6 +16,7 @@ PROCEDURE MTTests()
    hServer := HBBridgeServerStart( 0, 32 )
    MTAssert( HB_ISHASH( hServer ), "server starts on an ephemeral loopback port", @nFailures, @nChecks )
    IF HB_ISHASH( hServer )
+      MTProtocolSignatures( hServer, @nFailures, @nChecks )
       MTIdleClient( hServer, @nFailures, @nChecks )
       MTParallelEcho( hServer, @nFailures, @nChecks )
       MTBadRequests( hServer, @nFailures, @nChecks )
@@ -28,6 +29,21 @@ PROCEDURE MTTests()
 
    ? "MT checks:", nChecks, "failures:", nFailures
    ErrorLevel( iif( nFailures == 0, 0, 1 ) )
+
+RETURN
+
+STATIC PROCEDURE MTProtocolSignatures( hServer, nFailures, nChecks )
+
+   LOCAL cSignature, hResponse
+
+   FOR EACH cSignature IN { "HBBRIDGE/1", "HBS1" }
+      hResponse := MTRequest( hServer[ "port" ], MTEchoJson( 42 ), cSignature )
+      MTAssert( MTEchoMatches( hResponse, 42 ), ;
+         "Echo response preserves protocol signature " + cSignature, @nFailures, @nChecks )
+      hResponse := MTRequest( hServer[ "port" ], '{"service":"Unknown","params":{}}', cSignature )
+      MTAssert( MTIsError( hResponse ), ;
+         "error response preserves protocol signature " + cSignature, @nFailures, @nChecks )
+   NEXT
 
 RETURN
 
@@ -243,23 +259,26 @@ STATIC FUNCTION MTAddonRequest( nPort, nIndex )
 RETURN MTRequest( nPort, hb_jsonEncode( { "service" => "ADDON.hbbridge_mt_isolation", ;
    "params" => { "id" => nIndex } } ) )
 
-STATIC FUNCTION MTRequest( nPort, cJson )
+STATIC FUNCTION MTRequest( nPort, cJson, cSignature )
 
    LOCAL hSocket := MTConnect( nPort ), hResponse := NIL
 
    IF ! Empty( hSocket )
-      hResponse := MTExchange( hSocket, cJson )
+      hResponse := MTExchange( hSocket, cJson, cSignature )
       hb_socketClose( hSocket )
    ENDIF
 
 RETURN hResponse
 
-STATIC FUNCTION MTExchange( hSocket, cJson )
+STATIC FUNCTION MTExchange( hSocket, cJson, cSignature )
 
-   LOCAL cFrame := "HBS1|JSON|" + hb_ntos( hb_BLen( cJson ) ) + hb_BChar( 10 ) + cJson
-   LOCAL nZipError, cCompressed := hb_gzCompress( cFrame, NIL, @nZipError )
+   LOCAL cFrame, nZipError, cCompressed
    LOCAL cResponse := "", cChunk, nReceived, nDeadline := hb_MilliSeconds() + MT_TIMEOUT_MS
    LOCAL nHeaderEnd, aHeader, cBody, hResponse
+
+   hb_default( @cSignature, "HBBRIDGE/1" )
+   cFrame := cSignature + "|JSON|" + hb_ntos( hb_BLen( cJson ) ) + hb_BChar( 10 ) + cJson
+   cCompressed := hb_gzCompress( cFrame, NIL, @nZipError )
 
    IF nZipError != 0
       RETURN NIL
@@ -296,7 +315,7 @@ STATIC FUNCTION MTExchange( hSocket, cJson )
       RETURN NIL
    ENDIF
    cBody := hb_BSubStr( cFrame, nHeaderEnd + 1 )
-   IF aHeader[ 1 ] != "HBS1" .OR. aHeader[ 2 ] != "JSON" .OR. Val( aHeader[ 3 ] ) != hb_BLen( cBody )
+   IF aHeader[ 1 ] != cSignature .OR. aHeader[ 2 ] != "JSON" .OR. Val( aHeader[ 3 ] ) != hb_BLen( cBody )
       RETURN NIL
    ENDIF
    IF hb_jsonDecode( cBody, @hResponse ) != hb_BLen( cBody )

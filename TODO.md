@@ -15,6 +15,8 @@ registra os fundamentos, o estado do MVP e o desenho pretendido.
   contrato interoperável adaptado às capacidades do Protheus.
 - **Extensibilidade:** serviços versionados e descobertos em um registro comum,
   independentes de transporte, codec e linguagem de implementação.
+- **Arquivos:** Harbour VF IO API (`hb_vf*`) como base comum para provedores
+  locais/remotos; clientes TLPP usam uma fachada de serviços com recursos por sessão.
 - **Implementação única:** componentes reutilizáveis em `src/`, exemplo mínimo
   em `examples/mvp/` e validações migradas para testes de regressão. O histórico
   Git preserva o MVP original, sem duas cópias ativas do servidor.
@@ -62,7 +64,7 @@ produto final e serão substituídas com compatibilidade documentada.
 3. Especificar o contrato e corrigir transferência; validar versões em paralelo
    com os serviços existentes (marco 2).
 4. Entregar o próximo teste funcional, `RPCRDD.Query` com MSSQL e/ou SQLite,
-   e integrar DBF via NETIO (marco 3).
+   e integrar DBF via NETIO e arquivos VF IO (marco 3).
 5. Ampliar módulos, contribs e ABI C/Zig conforme os casos de uso (marco 4).
 6. Homologar serviço, administração, acesso e distribuição (marco 5).
 7. Acrescentar jobs, lotes e processamento incremental conforme demanda (marco 6).
@@ -115,6 +117,12 @@ ativas dos componentes. Novos recursos serão validados diretamente no produto.
   recebe/devolve valores Harbour; cada adaptador cuida da representação.
 - [ ] Criar registro de serviços com nome, versão, assinatura, tipos, permissões,
   handler, dependências e modalidades de resultado; expor descoberta de capacidades.
+- [x] Avaliar estaticamente `contrib/xhb/trpc.prg` e o cliente associado;
+  registrar conclusões em [Harbour VF IO e TRPC](docs/harbour-vfio-trpc.md).
+- [ ] Avaliar extração do modelo de descrição/executor de `TRPCFunction` para
+  o registro comum, independente dos sockets e do protocolo `XHBR`.
+- [ ] Adaptar nomes com namespaces, tipos, erros e autorização; manter argumentos
+  por chamada e testar concorrência antes de incorporar código do TRPC.
 - [ ] Hospedar NETIO e adaptador Protheus no mesmo executável hbBridge,
   compartilhando núcleo/catálogo e isolando o estado de cada chamada.
 - [ ] Vincular `hbnetio` estaticamente na implantação inicial e integrar suas
@@ -224,7 +232,7 @@ blocos sem ultrapassar os limites por valor e o orçamento de memória medido.
 O consumidor lento, a descompressão inválida e a desconexão têm comportamento
 testado; o perfil legado tem caminho de migração documentado.
 
-## Marco 3 — MSSQL, SQLite e DBF via NETIO
+## Marco 3 — MSSQL, SQLite, DBF e Harbour VF IO
 
 ### Próximo teste: RPCRDD.Query
 
@@ -265,11 +273,35 @@ testado; o perfil legado tem caminho de migração documentado.
 - [ ] Manter explícita a distinção entre acesso DBF por RDD/NETIO e consultas SQL
   de `RPCRDD.Query`; compartilhar representação de dados onde fizer sentido.
 
+### Arquivos locais/remotos com hb_vf*
+
+- [ ] Usar a Harbour VF IO API para abertura/fechamento, leitura/escrita,
+  acesso por offset, tamanho, diretórios e metadados, conforme o provedor.
+- [ ] Homologar inicialmente arquivos locais e `net:`; configurar/registrar
+  NETIO e anunciar apenas capacidades verificadas por backend.
+- [ ] Definir a família `Files.*` para TLPP no catálogo comum, com perfis de
+  armazenamento, caminhos permitidos, parâmetros e erros versionados.
+- [ ] Mapear identificadores opacos por sessão para handles VF; implementar
+  fechamento, expiração e limpeza na desconexão, sem serializar ponteiros.
+- [ ] Manter `hb_vfHandle` e opções de configuração que exponham descritores
+  internos fora da fachada RPC; selecionar explicitamente operações/opções remotas.
+- [ ] Tratar contagem efetiva, EOF, `FError()`, operações parciais e offsets
+  sem perda de precisão nos dois clientes e na ponte C/Zig.
+- [ ] Integrar blocos negociados e evitar carregar arquivos inteiros por
+  `hb_vfLoad`/`hb_vfSave` fora do orçamento de memória.
+- [ ] Homologar seek, truncamento, flush/commit e locks de bytes por backend;
+  preservar a gestão de registros/índices/bloqueios DBF pelos RDDs.
+- [ ] Testar cópia/renomeação entre provedores e reportar operações não suportadas,
+  sem presumir atomicidade ou equivalência de semântica entre backends.
+- [ ] Validar round-trip binário local/NETIO em Harbour e Protheus, incluindo
+  conteúdo vazio, volume grande, offset, permissão negada e desconexão.
+
 **Aceite inicial:** Protheus e Harbour consultam o primeiro SGBD homologado,
 com tipos, erros e fechamento verificados. **Aceite de evolução:** dataset
 incremental e campo grande respeitam memória/limites do marco 2; cliente
 Harbour acessa DBF via NETIO e Protheus usa a fachada correspondente, incluindo
-validação de índices, bloqueios e isolamento.
+validação de índices, bloqueios e isolamento. A fachada VF transfere arquivos
+locais/remotos em blocos, com integridade binária, erros e liberação verificados.
 
 ## Marco 4 — módulos, contribs e extensões C/Zig
 
@@ -296,6 +328,8 @@ novas extensões entram conforme a necessidade e os resultados medidos.
   binários e buffers grandes, integrando resultados ao contrato de streams.
 - [ ] Definir acesso à VM Harbour a partir de código nativo e evitar compartilhar
   recursos de uma chamada sem regras de sincronização e propriedade.
+- [ ] Integrar buffers VF IO ou `hb_file*` à ponte C/Zig quando necessário,
+  com propriedade e ciclo de vida explícitos dos arquivos e resultados.
 - [ ] Homologar a primeira extensão C/Zig funcional além do diagnóstico `Health`,
   com caso concreto, medição e testes dos dois clientes.
 - [ ] Selecionar serviços adicionais sobre contribs existentes: HTTP/APIs com
@@ -360,6 +394,10 @@ O processamento usa Harbour/contribs e extensões C/Zig conforme cada tarefa.
   de produção; documentar se resultados sobrevivem a reinício e por quanto tempo.
 - [ ] Mapear progresso/resultados para streams NETIO e consumo incremental TLPP,
   sem bloquear o cliente durante toda a execução.
+- [ ] Adaptar os modelos de callbacks, loop/foreach e cancelamento encontrados
+  no TRPC, preservando o contrato hbBridge e seus limites negociados.
+- [ ] Testar cancelamento concorrente com progresso/resultado e revisar o indício
+  de conflito de mensagens no par TRPC antes de reutilizar qualquer trecho desse fluxo.
 - [ ] Separar desconexão de cancelamento e definir idempotência na submissão;
   cancelamento cooperativo não promete interromper qualquer chamada nativa.
 - [ ] Definir chamadas em lote com resultados/erros por item e limites negociados;

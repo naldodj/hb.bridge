@@ -1,16 +1,18 @@
 # Documentacao
 
-O hbBridge e a ponte RPC entre TOTVS Protheus e Harbour. A proxima etapa e
-integrar as capacidades nativas do Harbour, principalmente `hbnetio`, antes
-de ampliar a integracao com Zig. O [README principal](../README.md) apresenta
-o escopo e o [TODO](../TODO.md) registra a sequencia de implementacao.
+O hbBridge disponibiliza recursos de Harbour, C e Zig ao Protheus e a clientes
+Harbour nativos. O [README principal](../README.md) distingue o MVP da
+arquitetura pretendida e o [TODO](../TODO.md) registra as entregas e os aceites.
+
+A analise [Harbour VF IO e TRPC](harbour-vfio-trpc.md) detalha o suporte
+planejado a `hb_vf*` e o reaproveitamento seletivo de `contrib/xhb/trpc.prg`.
 
 ## Contrato implementado no MVP
 
-O cliente `src/tlpp/THBBridgeClient.tlpp` envia requisicoes JSON com `service`
+O cliente `src/tlpp/thbbridgeclient.tlpp` envia requisicoes JSON com `service`
 e `params`. O servidor usa um socket TCP em `127.0.0.1:1512` e um dispatcher
-proprio. `Health` ainda responde pela biblioteca Zig; `Echo` devolve os
-parametros recebidos.
+proprio. `Health` responde pela biblioteca Zig; `Echo` devolve os parametros
+recebidos e `ADDON.` compila/carrega e executa modulos Harbour.
 
 Antes da compressao, cada mensagem tem este formato:
 
@@ -35,8 +37,9 @@ O servidor valida um limite de 16 MiB para o tamanho do JSON declarado no
 cabecalho, depois de descomprimir. Ainda e preciso limitar os tamanhos
 comprimido e descomprimido durante a recepcao e consolidar o tratamento de
 erros, timeouts e mensagens invalidas. A leitura atual tenta descomprimir
-cada retorno de `Receive`/`hb_socketRecv` isoladamente; a escrita nao repete
-envios parciais. A robustez contra fragmentacao TCP permanece no roadmap.
+cada retorno de `Receive`/`hb_socketRecv` isoladamente. O servidor ja repete
+envios parciais; o cliente TLPP ainda precisa desse tratamento. A robustez
+contra fragmentacao TCP permanece no roadmap.
 
 ## Integracao nativa Harbour
 

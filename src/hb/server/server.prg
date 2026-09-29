@@ -12,6 +12,9 @@ Released to Public Domain.
 #include "hbinkey.ch"
 #include "hbsocket.ch"
 
+#define HBBRIDGE_LEGACY_SIGNATURE   "HBS1"
+#define HBBRIDGE_PROTOCOL_SIGNATURE "HBBRIDGE/1"
+
 PROCEDURE Main( ... )
 
    LOCAL hServer, cParam, cValue, nValue
@@ -75,13 +78,14 @@ PROCEDURE Main( ... )
    END SEQUENCE
 RETURN
 
-FUNCTION ReceiveRequest( hSocket, cPayload as character, lFramed as logical )
+FUNCTION ReceiveRequest( hSocket, cPayload as character, lFramed as logical, cFrameSignature as character )
 
    LOCAL cChr10 as character:=hb_BChar( 10 )
    LOCAL cBuffer as character := "", cChunk as character := Space( 65535 ), nBytesRead as numeric, nHeaderEnd as numeric
    LOCAL cHeader as character, aHeader as array, nPayloadSize as numeric, nPayloadStart as numeric
 
    lFramed := .F.
+   cFrameSignature := HBBRIDGE_PROTOCOL_SIGNATURE
    nBytesRead := hb_socketRecv( hSocket, @cChunk, 65535, 0, 5000 )
    IF nBytesRead <= 0
       RETURN .F.
@@ -93,7 +97,11 @@ FUNCTION ReceiveRequest( hSocket, cPayload as character, lFramed as logical )
    nBytesRead := hb_BLen( cChunk )
    cBuffer := hb_BLeft( cChunk, nBytesRead )
 
-   IF hb_BLeft( cBuffer, 5 ) != "HBS1|"
+   IF hb_BLeft( cBuffer, hb_BLen( HBBRIDGE_PROTOCOL_SIGNATURE ) + 1 ) == HBBRIDGE_PROTOCOL_SIGNATURE + "|"
+      cFrameSignature := HBBRIDGE_PROTOCOL_SIGNATURE
+   ELSEIF hb_BLeft( cBuffer, hb_BLen( HBBRIDGE_LEGACY_SIGNATURE ) + 1 ) == HBBRIDGE_LEGACY_SIGNATURE + "|"
+      cFrameSignature := HBBRIDGE_LEGACY_SIGNATURE
+   ELSE
       cPayload := cBuffer
       RETURN .T.
    ENDIF
@@ -119,7 +127,7 @@ FUNCTION ReceiveRequest( hSocket, cPayload as character, lFramed as logical )
 
    cHeader := hb_BLeft( cBuffer, nHeaderEnd - 1 )
    aHeader := hb_ATokens( cHeader, "|" )
-   IF Len( aHeader ) != 3 .OR. aHeader[ 1 ] != "HBS1" .OR. aHeader[ 2 ] != "JSON"
+   IF Len( aHeader ) != 3 .OR. aHeader[ 1 ] != cFrameSignature .OR. aHeader[ 2 ] != "JSON"
       RETURN .F.
    ENDIF
 
@@ -146,7 +154,7 @@ FUNCTION ReceiveRequest( hSocket, cPayload as character, lFramed as logical )
 
 RETURN .T.
 
-FUNCTION SendResponse( hSocket, cPayload as character, lFramed as logical )
+FUNCTION SendResponse( hSocket, cPayload as character, lFramed as logical, cFrameSignature as character )
 
    LOCAL cResponse as character := cPayload
    LOCAL nResponse as numeric, nSent as numeric := 0, nBytes as numeric
@@ -156,7 +164,8 @@ FUNCTION SendResponse( hSocket, cPayload as character, lFramed as logical )
    ENDIF
 
    IF lFramed
-      cResponse := "HBS1|JSON|" + hb_ntos( hb_BLen( cPayload ) ) + hb_BChar( 10 ) + cPayload
+      hb_default( @cFrameSignature, HBBRIDGE_PROTOCOL_SIGNATURE )
+      cResponse := cFrameSignature + "|JSON|" + hb_ntos( hb_BLen( cPayload ) ) + hb_BChar( 10 ) + cPayload
    ENDIF
 
    cResponse := hb_gzCompress( cResponse, NIL, @nResponse )
