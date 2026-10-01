@@ -41,7 +41,7 @@ if ($LASTEXITCODE -ne 0) {
    exit $LASTEXITCODE
 }
 
-& $hbmk2 -comp=zig hbBridge.hbp
+& $hbmk2 -comp=zig hbbridge.hbp
 if ($LASTEXITCODE -ne 0) {
    exit $LASTEXITCODE
 }

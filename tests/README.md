@@ -1,6 +1,6 @@
 # Testes
 
-[protheus/hbbridgeconnectiontest.tlpp](protheus/hbbridgeconnectiontest.tlpp) e o teste manual do MVP. Com o
+[integration/protheus/hbbridgeconnectiontest.tlpp](integration/protheus/hbbridgeconnectiontest.tlpp) e o teste manual do MVP. Com o
 servidor escutando em `0.0.0.0:1512`, configure o cliente local para
 `127.0.0.1:1512`. Com o cliente TLPP compilado no Protheus, execute `U_HBBridgeConnectionTest()`.
 
@@ -25,19 +25,39 @@ no AppServer alvo continua necessario para homologar a interoperabilidade.
 
 ## Regressoes Harbour existentes
 
-[harbour/server_mt.prg](harbour/server_mt.prg), com entrada `MTTests`, contem
+[integration/harbour/server_mt.prg](integration/harbour/server_mt.prg), com entrada `MTTests`, contem
 verificacoes automatizadas de concorrencia, clientes ociosos, erros, limite de
 workers e parada. Inclui `Echo` e resposta de erro com `HBBRIDGE/1` e `HBS1`,
 conferindo que o servidor responde com a assinatura recebida. Atualize o servidor
 antes do cliente TLPP; aceitar respostas antigas nao torna um servidor antigo
 capaz de receber a nova assinatura.
 
-Os cenarios de addons sao condicionais e emitem `SKIP` quando os HRBs de teste
-nao existem. Seu preparo ainda precisa alinhar as chamadas do teste (sem extensao)
-aos nomes dos arquivos `.hrb` preparados para o loader. O helper de conexao tambem usa
-`0.0.0.0` como destino: ajustar para `127.0.0.1` antes de homologar a suite em
-Windows/Linux. A presenca desses testes nao significa que todos os cenarios
-foram executados ou aprovados no ambiente alvo.
+A suite tambem exercita `Health` pela ponte C/Zig e a compilacao em memoria
+do addon PRG de exemplo. Os clientes de teste usam `127.0.0.1` e as chamadas
+das fixtures apontam explicitamente para os arquivos `.hrb` preparados.
+
+Na raiz do projeto, com Zig no PATH e Harbour compilado com Zig:
+
+```powershell
+.\scripts\test-hbbridge.ps1 -HbCompileRoot F:\GitHub\hb_compile
+```
+
+O [runner](../scripts/test-hbbridge.ps1) compila a biblioteca Zig, prepara as
+fixtures em uma pasta exclusiva sob `tmp/` e compila
+[server_mt.hbp](integration/harbour/server_mt.hbp). Esse projeto compartilha
+[hbbridge.hbm](../hbbridge.hbm) com o produto, sem copiar os fontes do servidor.
+O runner executa os testes com os addons isolados, registra `results.log` e
+devolve o codigo de saida da suite. Nao substitui nem encerra `out/hbBridge.exe`.
+Executada manualmente sem fixtures, a suite ainda informa `SKIP`; o runner
+prepara ambas antes da execucao e a validacao registrada nao teve skips.
+
+Validacao de 2026-10-01: **74 verificacoes, zero falhas**, incluindo HRBs de erro
+e isolamento concorrente. A [comparacao com o MVP](../docs/reorganizacao.md)
+explica as correcoes de preparo da suite e a referencia anterior com 72 checks.
+O teste TLPP real depende do AppServer e nao foi executado nessa validacao.
+
+`unit/` e `contract/` reservam as proximas suites. As verificacoes existentes de
+assinatura continuam nesta integracao ate a extracao do contrato comum.
 
 ## Proximas verificacoes
 

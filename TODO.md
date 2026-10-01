@@ -48,7 +48,7 @@ Recursos disponíveis no Harbour só serão considerados integrados após os ace
 - [x] Testes Harbour no repositório para concorrência, isolamento e falhas de addons.
 - [x] Envio parcial tratado no servidor; o cliente TLPP ainda precisa de ajuste.
 - [x] Build Harbour/C com Zig e biblioteca `hbBridge_zig` vinculada.
-- [x] Biblioteca `hbnetio` no link, ainda sem listener NETIO ativo.
+- [x] Biblioteca `hbnetio` na composição `hbbridge.hbm`, ainda sem listener NETIO ativo.
 - [x] Esboço de `TRPCDataSet` para `RPCRDD.Query`, sem implementação no servidor.
 - [x] Módulo Syslog UDP disponível, ainda sem ligação ao fluxo de chamadas.
 - [x] Assinatura `HBBRIDGE/1`; servidor aceita `HBS1` e preserva a assinatura na resposta.
@@ -81,41 +81,46 @@ o desenvolvimento do HBDAP não bloqueia essa primeira entrega.
 
 ## Marco 0 — separar produto, exemplo MVP e regressões
 
-A [estrutura pretendida](README.md#estrutura-pretendida) organiza uma única
-implementação. A reorganização será incremental; nenhuma pasta nova significa,
-por si só, que um componente já foi homologado para produção.
+A [estrutura atual](README.md#estrutura-atual) materializa a organização prevista.
+A reorganização preserva o comportamento do MVP; novas capacidades continuam nos
+marcos seguintes. O [registro da mudança](docs/reorganizacao.md) contém o mapa de
+arquivos e a validação sobre a revisão de referência `b45595b`.
 
-- [ ] Corrigir o destino local da suite Harbour para `127.0.0.1` e alinhar
-  nomes/chamadas das fixtures HRB; registrar testes executados e eventuais skips.
-- [ ] Registrar a revisão Git de referência do MVP e os resultados conhecidos
-  de seus cenários antes da reorganização.
-- [ ] Classificar os fontes atuais entre host, núcleo, transportes, serviços,
+- [x] Corrigir o destino local da suíte Harbour para `127.0.0.1` e alinhar
+  nomes/chamadas das fixtures HRB; automatizar o preparo sem skips na execução validada.
+- [x] Registrar a revisão Git de referência do MVP e comparar as regressões
+  antes/depois da reorganização, distinguindo correções do próprio teste.
+- [x] Classificar os fontes entre host, núcleo, transportes, serviços,
   carregamento de addons, telemetria e clientes.
-- [ ] Separar o ponto de entrada e ciclo de vida em `src/hb/host/`, mantendo um
-  único executável para console, serviço e perfil de demonstração.
-- [ ] Extrair registro/despacho/contexto para `src/hb/core/` e handlers para
-  `src/hb/services/`, preservando os comportamentos dos serviços existentes.
-- [ ] Isolar sockets/enquadramento do MVP em `src/hb/transports/protheus/`,
-  mantendo o perfil `HBBRIDGE/1`/`HBS1` como compatibilidade configurável e testada.
-- [ ] Criar a integração do NETIO nativo em `src/hb/transports/netio/`, que
-  usará a biblioteca existente e o mesmo registro de serviços.
-- [ ] Preservar loader/telemetria em seus módulos; extrair o adaptador C embutido
-  para `src/c/` quando separar build e responsabilidades for útil.
-- [ ] Criar `examples/mvp/` com perfil mínimo e instruções para usar o binário
-  do produto, referenciando addons e clientes compartilhados.
-- [ ] Migrar cenários `Health`/`Echo`/`ADDON.` e os testes de concorrência,
-  isolamento e falhas para `tests/integration/harbour/` e `protheus/`.
-- [ ] Acrescentar regressões em `tests/contract/` para tipos, erros e formatos;
-  criar testes unitários onde houver comportamento independente relevante.
-- [ ] Centralizar composição do build e dependências, sem duplicar fontes
-  de servidor/dispatcher/loader entre exemplo e produto.
-- [ ] Ajustar caminhos do build, testes, scripts, módulos e documentação no
-  mesmo passo de cada extração; comparar comportamento antes e depois.
+- [x] Separar a entrada e o ciclo de vida do console em `src/hb/host/main.prg`;
+  o mesmo host será ampliado para serviço no marco 5.
+- [x] Mover o dispatcher existente para `src/hb/core/` e extrair handlers para
+  `src/hb/services/`. Registro versionado e contexto nativo ficam no marco 1.
+- [x] Isolar sockets/enquadramento do MVP em `src/hb/transports/protheus/`,
+  preservando `HBBRIDGE/1`/`HBS1`, compressão e limites atuais.
+- [x] Reservar `src/hb/transports/netio/` com estado documentado; o listener
+  nativo e sua integração ao núcleo permanecem no marco 1.
+- [x] Preservar loader/telemetria em seus módulos e extrair a ponte C para
+  `src/c/zig_bridge.c`, mantendo a função Zig e o retorno do serviço `Health`.
+- [x] Criar `examples/mvp/` com perfil mínimo/launcher do mesmo binário,
+  referenciando addons e clientes compartilhados.
+- [x] Migrar testes e fixtures para `tests/integration/harbour/` e `protheus/`;
+  verificar `Health` e o addon PRG de exemplo também na suíte Harbour.
+- [x] Criar `tests/unit/` e `tests/contract/` com escopo e estado documentados.
+- [ ] Extrair testes dedicados de tipos, erros e formatos para `tests/contract/`
+  ao evoluir o contrato; criar unitários quando houver comportamento independente.
+  As assinaturas atuais seguem cobertas na integração, sem duplicar testes.
+- [x] Centralizar fontes/flags em `hbbridge.hbm`, compartilhado pelo produto e
+  pelo projeto de testes; manter entradas separadas e uma implementação dos componentes.
+- [x] Ajustar caminhos do build, testes, scripts e documentação; validar 72
+  verificações da referência normalizada e 74 após a extração, sem falhas.
+- [ ] Reexecutar o teste TLPP real no AppServer após atualizar os caminhos
+  de compilação do ambiente; o fonte foi movido sem alteração de comportamento.
 
-**Aceite:** execução de referência e exemplo usam a mesma implementação;
-regressões preservam o comportamento conhecido do MVP. A árvore distingue
-produto, demonstração e testes, com um único ponto de entrada e sem cópias
-ativas dos componentes. Novos recursos serão validados diretamente no produto.
+**Aceite estrutural atingido:** produto e exemplo compartilham implementação e
+binário; a suíte Harbour e o build/CLI do produto foram validados. NETIO, serviço,
+novo contrato e depuração não são entregues por essa movimentação. A homologação
+TLPP no ambiente Protheus e as novas suítes dedicadas continuam registradas acima.
 
 ## Depuração — frente transversal desde o MVP
 

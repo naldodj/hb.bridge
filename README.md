@@ -35,8 +35,8 @@ Harbour permite expor funções ao código xBase, converter parâmetros e
 devolver resultados. A ABI C, o contrato binário de chamada entre os
 componentes, também permite integrar funções exportadas por Zig.
 
-Essa ligação já existe em [addon_loader.prg](src/hb/addons/addon_loader.prg):
-o bloco C embutido usa `HB_FUNC`, `hb_parc` e `hb_retc` para chamar a função
+Essa ligação está em [zig_bridge.c](src/c/zig_bridge.c), extraída do loader:
+o adaptador C usa `HB_FUNC`, `hb_parc` e `hb_retc` para chamar a função
 `ZigEngine_Dispatch` exportada pela [biblioteca Zig](src/zig/runtime/engine.zig).
 O caminho interno é **Harbour ↔ C ↔ Zig**, dentro do servidor.
 
@@ -96,7 +96,7 @@ Harbour, preservando a programação xBase na camada de serviços.
 | Serviços | `Health` chama a biblioteca Zig pela ponte C; `Echo` devolve os parâmetros; `ADDON.<arquivo>` executa um módulo Harbour. |
 | Teste Protheus | `hbbridgeconnectiontest.tlpp` exercita `Health`, `Echo` e `ADDON.examples\sample_addon.prg`, incluindo o retorno de 200.000 caracteres no `Echo`. |
 | Módulos Harbour | Compilação em memória de `.prg`/`.hb` e carregamento de `.hrb` pelo serviço `ADDON.`. |
-| hbnetio | Biblioteca linkada em `hbbridge.hbp`; o servidor ainda não usa as APIs NETIO nem habilita `HB_EXTERN`. |
+| hbnetio | Biblioteca linkada pela composição compartilhada `hbbridge.hbm`; o servidor ainda não usa as APIs NETIO nem habilita `HB_EXTERN`. |
 | Dados SQL | `TRPCDataSet` esboça o cliente de `RPCRDD.Query`; faltam o serviço de consulta e o teste com MSSQL e/ou SQLite. |
 | Dados DBF | Acesso por RDDs nativos via NETIO previsto; ainda não integrado ao hbBridge. |
 | VF IO | Integração de `hb_vf*` prevista para arquivos locais/remotos; a fachada de arquivos ainda não existe no servidor. |
@@ -425,7 +425,7 @@ Esse caminho já funciona no MVP com buffers em memória. Não depende de arquiv
 temporários nem das APIs de arquivo `GzCompress`/`GzDecomp`. O cliente atual
 envia JSON dentro do frame comprimido, e o servidor também comprime a resposta.
 Os detalhes estão em [thbbridgeclient.tlpp](src/tlpp/thbbridgeclient.tlpp) e
-[server.prg](src/hb/server/server.prg).
+[framing.prg](src/hb/transports/protheus/framing.prg).
 
 O limite declarado para o JSON enquadrado é de 16 MiB, uma decisão do MVP.
 O teste manual usa
@@ -588,82 +588,58 @@ remoto, JSON, dados binários e conteúdo com diferentes taxas de compressão.
 
 ## MVP, produto e organização dos fontes
 
-O MVP é uma etapa de validação da arquitetura. A evolução manterá uma única
-implementação dos componentes reutilizáveis em `src/`, organizada por
-responsabilidade. A versão original permanece no histórico Git; as validações
-de `Health`, `Echo`, `ADDON.` e os próximos testes SQL passam a proteger a
-implementação do produto como testes de regressão.
-
-`examples/mvp/` será um cenário mínimo executável com configuração e instruções
-para usar o mesmo binário e núcleo. Poderá selecionar poucos serviços para
-demonstrar a integração, sem manter cópias de servidor, dispatcher, loader ou
-enquadramento. O exemplo acompanhará o núcleo atual; o histórico preservará a
-prova de conceito original.
-
-Comportamentos legados necessários, como `HBS1`, ficam isolados no adaptador
-Protheus e cobertos por testes de compatibilidade. Componentes existentes serão
-extraídos e reorganizados gradualmente, validando o comportamento antes e depois
-de cada mudança. A estrutura de diretórios distingue produto, exemplos e testes;
-a aptidão para produção depende dos critérios de aceite, não do nome da pasta.
+A organização prevista foi aplicada antes da evolução funcional. Os componentes
+reutilizáveis ficam em `src/`, com uma implementação do servidor e um ponto de
+entrada. [examples/mvp](examples/mvp/README.md) oferece o perfil mínimo usando
+o mesmo executável, os clientes e o addon compartilhados. O histórico Git
+preserva o MVP anterior à reorganização.
 
 ### Estrutura atual
 
 ```text
 hb.bridge/
-|-- addons/examples/        # Exemplo de módulo Harbour
-|-- config/examples/        # Esboços de configuração
-|-- docs/                   # Documentação técnica da integração
-|-- scripts/                # Build e operação
-|-- src/hb/                 # Servidor MVP, dispatcher, loader e Syslog
-|-- src/tlpp/               # Cliente RPC e fachada de dataset Protheus
-|-- src/zig/runtime/        # Biblioteca Zig integrada ao Harbour pela ABI C
-|-- tests/                  # Testes Protheus e testes locais Harbour
-|-- build.zig               # Build da biblioteca Zig demonstrativa
-|-- hbbridge.hbp            # Build atual do servidor
-|-- README.md
-`-- TODO.md
-```
-
-### Estrutura pretendida
-
-A árvore abaixo é uma proposta; a movimentação dos fontes ainda não foi feita.
-
-```text
-hb.bridge/
 |-- src/
 |   |-- hb/
-|   |   |-- host/                    # Entrada, configuracao, console/servico
-|   |   |-- core/                    # Registro, despacho, contexto e recursos
+|   |   |-- host/main.prg                 # Entrada e ciclo de vida do console
+|   |   |-- core/dispatcher.prg           # Despacho atual (ainda usa JSON)
 |   |   |-- transports/
-|   |   |   |-- netio/               # Adaptacao e ciclo de vida do NETIO nativo
-|   |   |   `-- protheus/            # Novo contrato e compatibilidade com o MVP
-|   |   |-- services/                # Health, Echo, ADDON, SQL, DBF e arquivos VF
-|   |   |-- addons/                  # Compilacao, carga e ciclo de vida dos modulos
-|   |   `-- telemetry/               # Logs e metricas
-|   |-- c/                          # Ponte API Harbour / ABI C, extraida do PRG
-|   |-- zig/                        # Extensoes nativas
-|   `-- tlpp/                       # Cliente Protheus e TRPCDataSet
-|-- addons/examples/                # Modulos de demonstracao
-|-- examples/mvp/                   # Perfil minimo usando o produto
-|-- config/examples/                # Perfis de rede, dados e operacao
+|   |   |   |-- netio/                   # Espaco reservado; integracao pendente
+|   |   |   `-- protheus/
+|   |   |       |-- tcp_server.prg       # Listener e workers do MVP
+|   |   |       `-- framing.prg          # Recepcao/envio HBBRIDGE/1 e HBS1
+|   |   |-- services/builtin.prg         # Health, Echo e ADDON existentes
+|   |   |-- addons/addon_loader.prg      # Compilacao e carga de modulos
+|   |   `-- telemetry/syslog.prg         # Modulo Syslog existente
+|   |-- c/zig_bridge.c                  # API Harbour / ABI C para Zig
+|   |-- zig/runtime/engine.zig          # Biblioteca Zig demonstrativa
+|   `-- tlpp/                           # Cliente Protheus e TRPCDataSet
+|-- addons/examples/                    # Addon compartilhado
+|-- examples/mvp/                       # README e launcher do mesmo produto
+|-- config/examples/                    # Esbocos de configuracao
 |-- tests/
-|   |-- unit/                       # Componentes Harbour, C e Zig
-|   |-- contract/                   # Tipos, versoes, codecs e amostras de dados
+|   |-- unit/                           # Espaco reservado para testes unitarios
+|   |-- contract/                       # Espaco reservado para o novo contrato
 |   `-- integration/
-|       |-- harbour/                # NETIO, dados, modulos e ciclo de vida
-|       `-- protheus/               # Cliente TLPP, MVP e contrato novo
-|-- docs/                           # Arquitetura, protocolo e operacao
-|-- scripts/                        # Build, empacotamento e instalacao
-|-- hbbridge.hbp                    # Composicao do executavel unico
-`-- build.zig                       # Bibliotecas nativas vinculadas ao produto
+|       |-- harbour/                    # Suite MT e fixtures HRB
+|       `-- protheus/                   # Teste TLPP Health/Echo/ADDON
+|-- docs/                               # Arquitetura, analises e validacao
+|-- scripts/                            # Build e runner de testes
+|-- hbbridge.hbp                        # Executavel: entrada + componentes
+|-- hbbridge.hbm                        # Fontes/flags compartilhados com testes
+`-- build.zig                           # Build da biblioteca Zig
 ```
 
-O build e a lista de componentes serão compartilhados entre execução normal,
-serviço e perfil de demonstração. A migração de `server/` e `dispatcher/` para
-`host/`, `core/`, `transports/` e `services/` será feita por responsabilidade,
-preservando testes e corrigindo caminhos de módulos, scripts e documentação
-no mesmo passo. O C embutido no loader poderá ser extraído para `src/c/` sem
-alterar a fronteira Harbour ↔ C ↔ Zig.
+A estrutura pretendida agora está materializada. O [registro da reorganização](docs/reorganizacao.md)
+detalha os caminhos anteriores, a revisão de referência e a comparação dos testes.
+`hbbridge.hbp` compõe o host com `hbbridge.hbm`; o projeto de testes reutiliza
+esse mesmo conjunto de componentes, com sua própria entrada de teste. O launcher
+do exemplo posiciona o diretório de trabalho para o loader localizar `addons/`.
+
+A extração preserva os retornos e limites atuais. O dispatcher e os handlers
+ainda usam o contrato JSON do MVP; registro versionado e contexto nativo ficam
+no marco 1. NETIO, testes unitários/contratuais dedicados e execução como serviço
+continuam pendentes. Os READMEs das pastas reservadas identificam esse estado;
+a existência dos diretórios não significa que os recursos foram implementados.
 
 ## Depuração: hbdebug primeiro, HBDAP como evolução
 
@@ -676,7 +652,7 @@ console. Referência: [depurador Harbour](https://github.com/harbour/core/tree/m
 O perfil deverá compilar os fontes Harbour com informações de depuração (`-b`),
 vincular o depurador e manter os fontes correspondentes acessíveis. Isso inclui
 os `.prg`/`.hb` compilados em memória pelo loader e os `.hrb` preparados fora
-do servidor. Hoje [hbbridge.hbp](hbbridge.hbp) e a chamada a `hb_compileBuf` no
+do servidor. Hoje a composição [hbbridge.hbm](hbbridge.hbm) e a chamada a `hb_compileBuf` no
 [loader](src/hb/addons/addon_loader.prg) não habilitam `-b`; ter `hbdebug` no
 toolchain não significa que esse fluxo já esteja integrado e homologado.
 No `hbmk2`, `-debug` controla informações para o depurador nativo C; a opção
@@ -754,11 +730,13 @@ das extensões ocorrerá conforme os serviços forem consolidados.
 
 Para testar o MVP, execute `out/hbBridge.exe` a partir da raiz do projeto,
 compile o cliente TLPP e rode `U_HBBridgeConnectionTest()` de
-[hbbridgeconnectiontest.tlpp](tests/protheus/hbbridgeconnectiontest.tlpp) no
+[hbbridgeconnectiontest.tlpp](tests/integration/protheus/hbbridgeconnectiontest.tlpp) no
 Protheus. O teste exercita `Health`, `Echo` e, com
 `__IS_THE_ADDONS_EXECUTION_ENABLED__` habilitado (padrão atual),
 `ADDON.examples\sample_addon.prg`. A execução a partir da raiz permite ao
-servidor localizar o fonte em `addons/examples/`.
+servidor localizar o fonte em `addons/examples/`. O [launcher MVP](examples/mvp/run.ps1)
+prepara esse diretório automaticamente. As regressões Harbour podem ser executadas
+com `scripts/test-hbbridge.ps1`; instruções em [testes](tests/README.md).
 
 ## Operação e próximos passos
 

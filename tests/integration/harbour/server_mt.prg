@@ -2,7 +2,7 @@
 
 #define MT_TIMEOUT_MS 3000
 
-// Compile with the server sources and -main=MTTests; no Zig request is needed.
+// Build server_mt.hbp or run scripts/test-hbbridge.ps1 from the project root.
 PROCEDURE MTTests()
 
    LOCAL hServer, nFailures := 0, nChecks := 0
@@ -14,9 +14,10 @@ PROCEDURE MTTests()
    ENDIF
 
    hServer := HBBridgeServerStart( 0, 32 )
-   MTAssert( HB_ISHASH( hServer ), "server starts on an ephemeral loopback port", @nFailures, @nChecks )
+   MTAssert( HB_ISHASH( hServer ), "server starts on an ephemeral port", @nFailures, @nChecks )
    IF HB_ISHASH( hServer )
       MTProtocolSignatures( hServer, @nFailures, @nChecks )
+      MTBuiltinServices( hServer, @nFailures, @nChecks )
       MTIdleClient( hServer, @nFailures, @nChecks )
       MTParallelEcho( hServer, @nFailures, @nChecks )
       MTBadRequests( hServer, @nFailures, @nChecks )
@@ -46,6 +47,29 @@ STATIC PROCEDURE MTProtocolSignatures( hServer, nFailures, nChecks )
    NEXT
 
 RETURN
+
+STATIC PROCEDURE MTBuiltinServices( hServer, nFailures, nChecks )
+
+   LOCAL hResponse
+
+   hResponse := MTRequest( hServer[ "port" ], '{"service":"Health","params":{}}' )
+   MTAssert( MTIsSuccess( hResponse ), "Health reaches Zig through the extracted C bridge", @nFailures, @nChecks )
+
+   hResponse := MTRequest( hServer[ "port" ], '{"service":"ADDON.examples/sample_addon.prg","params":{}}' )
+   MTAssert( MTIsSuccess( hResponse ), "sample PRG addon compiles and executes", @nFailures, @nChecks )
+
+RETURN
+
+STATIC FUNCTION MTIsSuccess( hResponse )
+
+   IF ! HB_ISHASH( hResponse )
+      RETURN .F.
+   ENDIF
+   IF ! hb_HHasKey( hResponse, "success" )
+      RETURN .F.
+   ENDIF
+
+RETURN hResponse[ "success" ] == .T.
 
 STATIC PROCEDURE MTIdleClient( hServer, nFailures, nChecks )
 
@@ -116,12 +140,12 @@ STATIC PROCEDURE MTAddons( hServer, nFailures, nChecks )
    LOCAL aThreads := {}, hThread, hResponse, nIndex, nStart
 
    IF File( "addons/hbbridge_mt_fault.hrb" )
-      hResponse := MTRequest( hServer[ "port" ], '{"service":"ADDON.hbbridge_mt_fault","params":{}}' )
+      hResponse := MTRequest( hServer[ "port" ], '{"service":"ADDON.hbbridge_mt_fault.hrb","params":{}}' )
       MTAssert( MTIsError( hResponse ), "addon runtime error is contained by its worker", @nFailures, @nChecks )
       MTAssert( MTEchoMatches( MTEchoRequest( hServer[ "port" ], 88 ), 88 ), ;
          "Echo succeeds after addon runtime error", @nFailures, @nChecks )
    ELSE
-      ? "SKIP: compile tests/harbour/mt_fault.prg to addons/hbbridge_mt_fault.hrb"
+      ? "SKIP: compile tests/integration/harbour/mt_fault.prg to addons/hbbridge_mt_fault.hrb"
    ENDIF
 
    IF File( "addons/hbbridge_mt_isolation.hrb" )
@@ -142,7 +166,7 @@ STATIC PROCEDURE MTAddons( hServer, nFailures, nChecks )
       MTAssert( hb_MilliSeconds() - nStart < 1500, ;
          "12 addon calls overlap their 200ms waits", @nFailures, @nChecks )
    ELSE
-      ? "SKIP: compile tests/harbour/mt_isolation.prg to addons/hbbridge_mt_isolation.hrb"
+      ? "SKIP: compile tests/integration/harbour/mt_isolation.prg to addons/hbbridge_mt_isolation.hrb"
    ENDIF
 
 RETURN
@@ -227,7 +251,7 @@ STATIC FUNCTION MTConnect( nPort )
    LOCAL hSocket := hb_socketOpen( HB_SOCKET_AF_INET, HB_SOCKET_PT_STREAM, HB_SOCKET_IPPROTO_IP )
 
    IF ! Empty( hSocket )
-      IF ! hb_socketConnect( hSocket, { HB_SOCKET_AF_INET, "0.0.0.0", nPort }, 1000 )
+      IF ! hb_socketConnect( hSocket, { HB_SOCKET_AF_INET, "127.0.0.1", nPort }, 1000 )
          hb_socketClose( hSocket )
          hSocket := NIL
       ENDIF
@@ -256,7 +280,7 @@ STATIC FUNCTION MTEchoRequest( nPort, nIndex )
 RETURN MTRequest( nPort, MTEchoJson( nIndex ) )
 
 STATIC FUNCTION MTAddonRequest( nPort, nIndex )
-RETURN MTRequest( nPort, hb_jsonEncode( { "service" => "ADDON.hbbridge_mt_isolation", ;
+RETURN MTRequest( nPort, hb_jsonEncode( { "service" => "ADDON.hbbridge_mt_isolation.hrb", ;
    "params" => { "id" => nIndex } } ) )
 
 STATIC FUNCTION MTRequest( nPort, cJson, cSignature )

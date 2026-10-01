@@ -26,11 +26,11 @@ FUNCTION DispatcherRequest( cJsonStr )
       RETURN '{"success": false, "error": "Parametros ausentes"}'
    ENDIF
    IF Left( cService, 6 ) == "ADDON."
-      RETURN ExecutarAddonHRB( SubStr( cService, 7 ), oJson["params"] )
+      RETURN HBBridgeServiceAddon( SubStr( cService, 7 ), oJson["params"] )
    ELSEIF cService == "Health"
-      RETURN ZigEngine_Dispatch( cJsonStr )
+      RETURN HBBridgeServiceHealth( cJsonStr )
    ELSEIF cService == "Echo"
-      RETURN '{"success": true, "service": "Echo", "params": ' + hb_jsonEncode( oJson["params"] ) + '}'
+      RETURN HBBridgeServiceEcho( oJson["params"] )
    ELSE
       RETURN '{"success": false, "error": "Servico nao suportado"}'
    ENDIF

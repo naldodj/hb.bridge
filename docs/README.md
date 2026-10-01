@@ -12,6 +12,9 @@ avalia as propostas locais de `brainstorming/brainstorming.md`: conexões
 persistentes, contexto, TLS/JWT, limitações de `tGrpc` e AMQP opcional.
 As decisões ainda dependem de implementação e homologação, conforme o TODO.
 
+O [registro da reorganização](reorganizacao.md) descreve a estrutura aplicada,
+o mapa de fontes e as verificações antes/depois da extração dos componentes.
+
 ## Contrato implementado no MVP
 
 O cliente `src/tlpp/thbbridgeclient.tlpp` envia requisicoes JSON com `service`

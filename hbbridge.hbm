@@ -1,0 +1,15 @@
+# Shared product components; entry points belong to their .hbp targets.
+-w3 -es2
+-mt
+-head=full
+-Lzig-out/lib
+-lhbBridge_zig
+-lhbnetio
+
+src/hb/transports/protheus/framing.prg
+src/hb/transports/protheus/tcp_server.prg
+src/hb/core/dispatcher.prg
+src/hb/services/builtin.prg
+src/hb/addons/addon_loader.prg
+src/hb/telemetry/syslog.prg
+src/c/zig_bridge.c

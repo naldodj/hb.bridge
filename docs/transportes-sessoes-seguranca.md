@@ -27,8 +27,8 @@ Entregas e critérios de aceite estão no [TODO](../TODO.md).
 O servidor atual faz bind em `0.0.0.0`, com porta padrão `1512` definida pelo
 ponto de entrada. O destino local do cliente é `127.0.0.1`. A assinatura atual
 é `HBBRIDGE/1`, com alias de compatibilidade `HBS1`. O brainstorming descreve a
-versão anterior nesses pontos. Consulte [server.prg](../src/hb/server/server.prg)
-e [mt_server.prg](../src/hb/server/mt_server.prg).
+versão anterior nesses pontos. Consulte [main.prg](../src/hb/host/main.prg)
+e [tcp_server.prg](../src/hb/transports/protheus/tcp_server.prg).
 
 O [cliente TLPP](../src/tlpp/thbbridgeclient.tlpp) cria e fecha o socket dentro de
 `CallService`; o worker atende uma requisição e encerra a conexão. A existência

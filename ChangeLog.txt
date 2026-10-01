@@ -5,6 +5,42 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Initial MVP version commit)"
  */
 
+2026-10-01 14:57 UTC naldodj (Apply product source organization)
+  * src/hb/host/main.prg
+  * src/hb/transports/protheus/framing.prg
+  * src/hb/transports/protheus/tcp_server.prg
+  * src/hb/core/dispatcher.prg
+  + src/hb/services/builtin.prg
+  + src/c/zig_bridge.c
+    * Separate the existing console entry, TCP transport, dispatcher, handlers
+      and Harbour/C/Zig adapter without changing the MVP wire contract.
+  * hbbridge.hbp
+  + hbbridge.hbm
+    + Share product components and flags with the integration test target.
+  * tests/integration/harbour/
+  * tests/integration/protheus/
+  + scripts/test-hbbridge.ps1
+    ! Correct test loopback destination and HRB fixture names; prepare isolated
+      fixtures and exercise the extracted C bridge and sample PRG addon.
+  + examples/mvp/
+  + src/hb/transports/netio/README.md
+  + tests/unit/README.md
+  + tests/contract/README.md
+    + Add a minimal launcher for the same product binary and document reserved areas.
+  * README.md
+  * TODO.md
+  * docs/README.md
+  * docs/transportes-sessoes-seguranca.md
+  + docs/reorganizacao.md
+  * scripts/README.md
+  * scripts/build-hbbridge.ps1
+  * tests/README.md
+    * Update paths, organization status and validation instructions.
+    ; Normalized pre-move suite: 72 checks, 0 failures. Reorganized suite:
+      74 checks, 0 failures, no skips. Product build and CLI checks passed.
+    ; Protheus/AppServer runtime validation remains pending; NETIO, service,
+      new protocol and debugging integration are not implemented by this move.
+
 2026-10-01 08:58 UTC naldodj (Debugging roadmap and VS Code integration)
   * README.md
   * TODO.md

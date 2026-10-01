@@ -1,0 +1,5 @@
+-main=MTTests
+-gtstd
+-oserver_mt
+server_mt.prg
+../../../hbbridge.hbm
