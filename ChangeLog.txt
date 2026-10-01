@@ -5,6 +5,36 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Initial MVP version commit)"
  */
 
+2026-10-01 08:58 UTC naldodj (Debugging roadmap and VS Code integration)
+  * README.md
+  * TODO.md
+    + Define native hbdebug as the initial debugging path for handlers and addons,
+      with debug builds, source mapping, worker control and RPC timeout validation.
+    + Plan optional HBDAP integration and the Harbour DAP VS Code extension,
+      including compatible runtime revisions, VSIX setup and launch/attach tests.
+    * Distinguish existing debugger resources from pending hbBridge integration;
+      require separate validation for worker concurrency and dynamic HRB modules.
+    ; Documentation only; private debugger repositories were inspected locally.
+
+2026-09-30 20:45 UTC naldodj (Brainstorming feasibility and roadmap review)
+  * README.md
+  * TODO.md
+  * docs/README.md
+    + Plan sequential persistent calls, bounded pools and explicit session
+      resources before optional multiplexing and authenticated resumption.
+    + Prioritize TLS/JWT validation; distinguish JWT signatures from encryption.
+    + Gate gRPC on the documented TOTVS Smartlink contract and make AMQP optional.
+    * Preserve Harbour/C/Zig foundations, embedded NETIO and a single implementation.
+    ! Align MVP documentation with existing HBBRIDGE/1, legacy HBS1 and 0.0.0.0 bind.
+  + docs/transportes-sessoes-seguranca.md
+    + Record feasibility, official references, dependencies and acceptance criteria.
+    ; Preserve the original brainstorming as proposal history.
+  * tests/README.md
+  * scripts/README.md
+    ! Correct test/build references and document existing regression limitations.
+    ; Documentation review only; transport/security prototypes and Protheus runtime
+      validation remain pending. No source relocation or runtime change in this entry.
+
 2026-09-29 09:57 UTC naldodj (Harbour VF IO and TRPC integration planning)
   * README.md
   * TODO.md

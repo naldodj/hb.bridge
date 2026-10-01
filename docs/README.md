@@ -7,18 +7,28 @@ arquitetura pretendida e o [TODO](../TODO.md) registra as entregas e os aceites.
 A analise [Harbour VF IO e TRPC](harbour-vfio-trpc.md) detalha o suporte
 planejado a `hb_vf*` e o reaproveitamento seletivo de `contrib/xhb/trpc.prg`.
 
+A análise [Transportes, sessões e segurança](transportes-sessoes-seguranca.md)
+avalia as propostas locais de `brainstorming/brainstorming.md`: conexões
+persistentes, contexto, TLS/JWT, limitações de `tGrpc` e AMQP opcional.
+As decisões ainda dependem de implementação e homologação, conforme o TODO.
+
 ## Contrato implementado no MVP
 
 O cliente `src/tlpp/thbbridgeclient.tlpp` envia requisicoes JSON com `service`
-e `params`. O servidor usa um socket TCP em `127.0.0.1:1512` e um dispatcher
+e `params`. O servidor escuta em `0.0.0.0:1512` (cliente local: `127.0.0.1`) e usa dispatcher
 proprio. `Health` responde pela biblioteca Zig; `Echo` devolve os parametros
 recebidos e `ADDON.` compila/carrega e executa modulos Harbour.
 
 Antes da compressao, cada mensagem tem este formato:
 
 ```text
-HBS1|JSON|<tamanho-em-bytes-do-JSON>\n<payload-json>
+HBBRIDGE/1|JSON|<tamanho-em-bytes-do-JSON>\n<payload-json>
 ```
+
+O servidor tambem aceita a assinatura legada `HBS1` e responde com a recebida.
+O TLPP envia `HBBRIDGE/1` e aceita ambas nas respostas; atualize o servidor antes
+dos clientes. A assinatura atual nao implica negociacao de capacidades.
+Hoje cada chamada abre uma conexao e o servidor fecha apos a resposta.
 
 O frame inteiro, incluindo o cabecalho, e comprimido para envio. A indicacao
 `JSON` descreve a representacao dos dados; o comprimento interno descreve o
@@ -44,7 +54,7 @@ contra fragmentacao TCP permanece no roadmap.
 ## Integracao nativa Harbour
 
 O build ja referencia `hbnetio`, mas o servidor atual ainda nao inicializa
-seu RPC. O frame `HBS1` do MVP e um contrato proprio e nao e compativel
+seu RPC. O frame `HBBRIDGE/1` do MVP (alias `HBS1`) e um contrato proprio e nao e compativel
 diretamente com o protocolo de rede do `hbnetio`.
 
 A integracao devera definir a adaptacao entre o contrato Protheus e as

@@ -68,6 +68,8 @@ participam dessa evolução com os papéis definidos acima.
   multithread, sua serialização e os recursos de administração.
 - Disponibilizar funções do core vinculadas ao executável com `HB_EXTERN`.
 - Reutilizar a execução de `.hrb` e a compilação de `.prg`/`.hb` do Harbour.
+- Incorporar a depuração ao ciclo de desenvolvimento: inicialmente com o
+  `hbdebug` nativo do Harbour e, futuramente, com integração opcional ao HBDAP.
 - Priorizar `RPCRDD.Query` com MSSQL via ODBC e/ou SQLite, reutilizando
   `rddsql`/`SQLMIX` e os conectores existentes do Harbour.
 - Integrar o acesso a DBF pelos RDDs nativos do Harbour através do NETIO.
@@ -89,8 +91,8 @@ Harbour, preservando a programação xBase na camada de serviços.
 
 | Recurso | Situação no código atual |
 | --- | --- |
-| Servidor local | TCP multithread em `127.0.0.1:1512` por padrão, com dispatcher próprio. |
-| Cliente Protheus | `THBBridgeClient`, JSON com frame `HBS1` e compressão em memória nos dois sentidos. |
+| Servidor TCP | Bind `0.0.0.0`, porta padrão `1512`, multithread e dispatcher próprio; cliente local usa `127.0.0.1`. |
+| Cliente Protheus | `THBBridgeClient`, JSON com assinatura `HBBRIDGE/1`, compatibilidade `HBS1` e compressão em memória nos dois sentidos; uma conexão por chamada. |
 | Serviços | `Health` chama a biblioteca Zig pela ponte C; `Echo` devolve os parâmetros; `ADDON.<arquivo>` executa um módulo Harbour. |
 | Teste Protheus | `hbbridgeconnectiontest.tlpp` exercita `Health`, `Echo` e `ADDON.examples\sample_addon.prg`, incluindo o retorno de 200.000 caracteres no `Echo`. |
 | Módulos Harbour | Compilação em memória de `.prg`/`.hb` e carregamento de `.hrb` pelo serviço `ADDON.`. |
@@ -102,6 +104,7 @@ Harbour, preservando a programação xBase na camada de serviços.
 | Limites atuais | JSON declarado limitado a 16 MiB no servidor, compressão obrigatória e buffers de recepção de 65.535 bytes; falta negociação. |
 | Operação | Executável de console; instalação como serviço e listener de administração ainda pendentes. |
 | Syslog | Módulo UDP disponível no projeto, ainda sem chamadas no fluxo do servidor. |
+| Depuração | `hbdebug` disponível no Harbour; falta preparar e validar o perfil de depuração do hbBridge e dos addons. HBDAP ainda não integrado. |
 
 Com `Health`, `Echo` e `ADDON.` exercitados pelo teste Protheus, o próximo
 teste funcional é `RPCRDD.Query` com MSSQL e/ou SQLite. A integração do hbnetio
@@ -161,9 +164,9 @@ separado poderá ser útil para isolar alguma carga específica. Essas opções
 não são necessárias à integração inicial do NETIO. Drivers ODBC e bibliotecas
 de conectores continuam como dependências conforme o build escolhido.
 
-O frame `HBS1` do MVP não é o protocolo NETIO. O endpoint Protheus deve ter
-endereço e porta próprios configuráveis; `127.0.0.1:1512` permanece como perfil
-de compatibilidade do MVP durante a transição. Simplesmente alterar a porta
+O frame `HBBRIDGE/1` do MVP, com alias legado `HBS1`, não é o protocolo NETIO.
+O endpoint Protheus deve ter endereço e porta próprios configuráveis. Hoje o
+servidor escuta em `0.0.0.0:1512`; `127.0.0.1:1512` é o destino do cliente local. Simplesmente alterar a porta
 do cliente TLPP para 2941 não o torna um cliente NETIO. Compartilhamento de
 porta só poderá ser adotado após um mecanismo explícito de multiplexação e
 testes de interoperabilidade; ele não é necessário ao desenho inicial.
@@ -176,7 +179,7 @@ Os padrões pretendidos acompanham o utilitário servidor hbnetio:
 | --- | --- | --- | --- |
 | Dados/RPC NETIO | `0.0.0.0` | `2941` | Clientes Harbour, RPC e arquivos remotos. |
 | Administração | `127.0.0.1` | `2940` | Gestão separada do tráfego de aplicações. |
-| Adaptador Protheus | Configurável | Configurável | Contrato interoperável e compatibilidade `HBS1`. |
+| Adaptador Protheus | Configurável | Configurável | Contrato interoperável e compatibilidade com o MVP `HBBRIDGE/1`/`HBS1`. |
 
 Esses valores correspondem a `_NETIOSRV_IPV4_DEF`, `_NETIOSRV_PORT_DEF`,
 `_NETIOMGM_IPV4_DEF` e `_NETIOMGM_PORT_DEF`. `0.0.0.0` é o bind do servidor;
@@ -401,8 +404,14 @@ Uma requisição JSON contém `service` e `params`:
 Antes da compressão, o frame tem o formato:
 
 ```text
-HBS1|JSON|<tamanho-em-bytes-do-JSON>\n<payload-json>
+HBBRIDGE/1|JSON|<tamanho-em-bytes-do-JSON>\n<payload-json>
 ```
+
+`HBBRIDGE/1` identifica o produto e a versão atual do frame. O servidor aceita
+também `HBS1` e responde com a assinatura recebida; o cliente TLPP envia a nova
+e aceita ambas nas respostas. Atualize primeiro o servidor e depois os clientes:
+um servidor antigo não passa a aceitar a nova assinatura automaticamente.
+Essa identificação ainda não implementa a negociação prevista para o produto.
 
 O frame inteiro é comprimido para envio. O tamanho declarado é o do JSON
 descomprimido, sem o cabeçalho, e não o tamanho transmitido no socket.
@@ -423,15 +432,15 @@ O teste manual usa
 200.000 caracteres repetidos, um caso bastante compressível; a robustez com
 dados pouco compressíveis, fragmentação TCP, envios parciais e limites antes
 da descompressão ainda precisa de validação e ajustes. O fallback para conteúdo
-sem `HBS1` ocorre depois da descompressão, e não constitui suporte documentado
+sem as assinaturas reconhecidas ocorre depois da descompressão, e não constitui suporte documentado
 a JSON cru no socket.
 
 Atualmente, cliente e servidor tentam descomprimir cada leitura do socket,
 embora TCP possa dividir ou juntar mensagens. O servidor já repete envios
 parciais; o cliente TLPP ainda precisa desse tratamento. A nova versão deverá
 enquadrar o conteúdo transmitido antes de descomprimir e tratar a recepção
-como um fluxo de bytes. A compressão atual será mantida no perfil `HBS1`
-durante sua migração; desligá-la exige um contrato reconhecido pelos dois lados.
+como um fluxo de bytes. A compressão atual será mantida no perfil do MVP
+(`HBBRIDGE/1` e alias `HBS1`) durante sua migração; desligá-la exige um contrato reconhecido pelos dois lados.
 
 ## Evolução do contrato e da transferência
 
@@ -448,8 +457,8 @@ compressão, tamanho por bloco e modos de transferência. Clientes Harbour farã
 a descoberta de serviços pela conexão NETIO já estabelecida, preservando seu
 handshake nativo. O cliente deverá declarar limites que consegue cumprir;
 quando não puder obter sua configuração efetiva, usará um perfil explícito
-homologado para aquele ambiente. O perfil legado `HBS1` mantém sua entrada
-comprimida direta enquanto estiver em suporte.
+homologado para aquele ambiente. O perfil do MVP (`HBBRIDGE/1` e alias `HBS1`)
+mantém sua entrada comprimida direta enquanto estiver em suporte.
 
 | Parte do contrato proposto | Definição necessária |
 | --- | --- |
@@ -469,6 +478,59 @@ de descomprimir, sem depender de quantos bytes cada `Receive` devolveu.
 Novas tentativas após desconexão respeitarão a semântica do serviço: o mesmo
 identificador de chamada não garante, sozinho, execução única. Operações que
 alteram dados precisarão de idempotência ou consulta do resultado anterior.
+
+### Conexões persistentes e contexto de execução
+
+O brainstorming foi avaliado em [Transportes, sessões e segurança](docs/transportes-sessoes-seguranca.md).
+As decisões abaixo são evolução planejada: o cliente atual abre um socket por
+chamada e o worker encerra a conexão após uma requisição.
+
+A sequência será corrigir o enquadramento TCP, reutilizar uma conexão para
+chamadas sequenciais e depois oferecer um pool limitado. Compartilhar um socket
+entre chamadas simultâneas exige uma etapa adicional de multiplexação: correlação,
+leitor único, despacho de respostas, escritas coordenadas e controle de fluxo.
+Persistência reduz handshakes e pressão sobre portas efêmeras; não elimina todos
+os limites de concorrência. Conexões ociosas também consomem recursos do servidor.
+
+Harbour já oferece `hb_socketSetKeepAlive` e `hb_socketSetNoDelay`. Keepalive
+depende dos temporizadores do sistema; prazos de chamada e eventual heartbeat
+tratam a vivacidade da aplicação. `TCP_NODELAY` será configurável e medido.
+Reconexão usará espera progressiva com variação aleatória, sem repetir operações
+com efeitos cujo resultado ficou desconhecido.
+
+Cada chamada terá contexto explícito de identidade, empresa/filial autorizadas,
+correlação e prazo, com limpeza de áreas de trabalho, transações e buffers mesmo
+em falhas. O princípio é **isolamento por chamada e estado explícito por sessão**.
+Cursores SQL, transações e handles VF IO têm proprietário, expiração e fechamento;
+um identificador opaco não os torna duráveis ou transferíveis entre processos.
+Retomada autenticada e balanceamento com recursos vivos exigem capacidade própria
+e encaminhamento ao proprietário. Jobs só sobrevivem a reinício quando persistidos.
+
+### TLS, JWT e adaptadores opcionais
+
+| Proposta | Decisão para o hbBridge |
+| --- | --- |
+| TLS no cliente Protheus | Priorizar prova de interoperabilidade `TSSLClient` ↔ `hbssl`/OpenSSL, com validação de certificado e nome do servidor. |
+| JWT | Usar como opção de autenticação/autorização sobre transporte protegido; validar assinatura, emissor, audiência, validade e escopo. |
+| `tSktSslSrv` / `tSktSslConn` | Reservar para um caso futuro que exija o Protheus recebendo conexões; o fluxo atual pede um cliente TLS. |
+| gRPC por `tGrpc` | Investigar: a API TOTVS documenta o modelo Smartlink predefinido, sem comprovar suporte a um `.proto` arbitrário. |
+| AMQP por `tAMQP` | Adaptador opcional para jobs/eventos via RabbitMQ AMQP 0.9.1, com idempotência e recuperação de falhas. |
+| Transporte nativo em Zig | Evoluir em `src/zig/` pela ABI C, reutilizando bibliotecas e medindo ganhos antes de substituir componentes. |
+
+Referências: [TSSLClient](https://tdn.totvs.com/display/tec/Classe+TSSLClient),
+[tJWT](https://tdn.totvs.com/display/tec/tJWT),
+[tGrpc](https://tdn.totvs.com/display/tec/tGrpc) e
+[tAMQP](https://tdn.totvs.com/display/tec/tAMQP).
+JWT assinado não cifra o payload nem protege, sozinho, o restante da comunicação;
+o contrato deve combinar identidade verificada com TLS e autorização por serviço.
+Veja a [RFC 8725](https://www.rfc-editor.org/rfc/rfc8725.html).
+
+Os adaptadores compartilharão catálogo, contexto e erros do núcleo. RabbitMQ será
+uma dependência externa somente de implantações que habilitem AMQP. A referência
+continua sendo um executável hbBridge com NETIO incorporado; gRPC, AMQP e callbacks
+não bloqueiam `RPCRDD.Query`, VF IO nem a evolução do contrato Protheus.
+Zig mantém seus papéis fundamentais no toolchain e nas extensões; sua escolha
+para um novo transporte dependerá da biblioteca, compatibilidade e medições.
 
 ### Volume total, memória e limites do cliente
 
@@ -574,7 +636,7 @@ hb.bridge/
 |   |   |-- core/                    # Registro, despacho, contexto e recursos
 |   |   |-- transports/
 |   |   |   |-- netio/               # Adaptacao e ciclo de vida do NETIO nativo
-|   |   |   `-- protheus/            # Novo contrato e compatibilidade HBS1
+|   |   |   `-- protheus/            # Novo contrato e compatibilidade com o MVP
 |   |   |-- services/                # Health, Echo, ADDON, SQL, DBF e arquivos VF
 |   |   |-- addons/                  # Compilacao, carga e ciclo de vida dos modulos
 |   |   `-- telemetry/               # Logs e metricas
@@ -589,7 +651,7 @@ hb.bridge/
 |   |-- contract/                   # Tipos, versoes, codecs e amostras de dados
 |   `-- integration/
 |       |-- harbour/                # NETIO, dados, modulos e ciclo de vida
-|       `-- protheus/               # Cliente TLPP, HBS1 e contrato novo
+|       `-- protheus/               # Cliente TLPP, MVP e contrato novo
 |-- docs/                           # Arquitetura, protocolo e operacao
 |-- scripts/                        # Build, empacotamento e instalacao
 |-- hbbridge.hbp                    # Composicao do executavel unico
@@ -602,6 +664,72 @@ serviço e perfil de demonstração. A migração de `server/` e `dispatcher/` p
 preservando testes e corrigindo caminhos de módulos, scripts e documentação
 no mesmo passo. O C embutido no loader poderá ser extraído para `src/c/` sem
 alterar a fronteira Harbour ↔ C ↔ Zig.
+
+## Depuração: hbdebug primeiro, HBDAP como evolução
+
+A depuração fará parte do desenvolvimento dos serviços e addons desde o MVP,
+usando a mesma implementação do produto. A primeira etapa será aproveitar o
+**`hbdebug`, depurador nativo do Harbour**, com breakpoints, execução passo a
+passo e inspeção de pilha e variáveis em uma execução de desenvolvimento em
+console. Referência: [depurador Harbour](https://github.com/harbour/core/tree/master/src/debug).
+
+O perfil deverá compilar os fontes Harbour com informações de depuração (`-b`),
+vincular o depurador e manter os fontes correspondentes acessíveis. Isso inclui
+os `.prg`/`.hb` compilados em memória pelo loader e os `.hrb` preparados fora
+do servidor. Hoje [hbbridge.hbp](hbbridge.hbp) e a chamada a `hb_compileBuf` no
+[loader](src/hb/addons/addon_loader.prg) não habilitam `-b`; ter `hbdebug` no
+toolchain não significa que esse fluxo já esteja integrado e homologado.
+No `hbmk2`, `-debug` controla informações para o depurador nativo C; a opção
+Harbour `-b` tem outra função. Veja o [hbmk2](https://github.com/harbour/core/blob/master/utils/hbmk2/hbmk2.prg).
+
+A validação inicial usará uma chamada e um worker controlados, com pausa em um
+handler e em um addon, inspeção e retomada até a resposta ao cliente. Precisam
+ser definidos o uso do terminal/GT, os efeitos da pausa nos timeouts RPC e a
+limpeza de recursos. A operação como serviço continuará sem interação obrigatória;
+o perfil de depuração será ativado explicitamente em ambiente de desenvolvimento.
+
+### Integração futura com HBDAP
+
+O **HBDAP** é o projeto privado em desenvolvimento, disponível neste ambiente em
+`F:\GitHub\hbdap`, que adapta o motor de depuração Harbour ao **Debug Adapter
+Protocol (DAP)**. A intenção é oferecer depuração por clientes DAP, como IDEs e
+CLI, preservando o depurador tradicional como caminho inicial. O caminho local
+é uma referência de desenvolvimento, não uma dependência fixa da instalação.
+
+No VS Code, a interface prevista será a extensão **Harbour DAP**, desenvolvida
+no projeto `hbdap-vscode-extension`, disponível localmente em
+`F:\GitHub\hbdap-vscode-extension`. Ela registra o tipo de depuração
+`harbour-dap` usado no `launch.json` e conecta o editor ao runtime habilitado
+para DAP, diretamente ou por um adaptador, conforme o modo escolhido.
+O fluxo pretendido no hbBridge é **VS Code → extensão Harbour DAP → HBDAP →
+motor hbdebug no hbBridge**. O HBDAP também poderá ser usado por outros clientes
+DAP, como o CLI; a extensão é a integração específica com o editor.
+
+O pacote VSIX da extensão contém a integração com o VS Code. O runtime Harbour,
+a biblioteca HBDAP e as ferramentas de adaptação exigidas pelo modo escolhido
+são preparados separadamente. O roteiro do hbBridge deverá fixar versões
+compatíveis, configurar executável/fontes e homologar launch/attach com um
+handler e um addon reais. Esse fluxo completo ainda é uma integração futura
+no hbBridge, mesmo existindo testes próprios nos projetos HBDAP e da extensão.
+
+A documentação local do HBDAP descreve uma base experimental com bridge para
+`hbdebug` e transportes DAP. Sua integração atual depende de hooks/patches no
+runtime Harbour e de recompilação; a combinação de revisões e toolchain deverá
+ser fixada e validada antes de incorporá-la ao hbBridge. A depuração multithread
+e o ciclo de carga/descarga dos addons HRB exigem homologação específica no
+servidor: suporte DAP básico não comprova controle dos workers do hbBridge.
+
+O canal de depuração será separado dos protocolos RPC Protheus/NETIO e da
+administração, com ativação explícita e acesso local/controlado. Logs e saída
+do servidor não poderão interferir no framing DAP. Um adaptador ou cliente
+externo será ferramenta de desenvolvimento opcional; o produto mantém seu
+executável único. Breakpoints, stepping, pilha, variáveis e desconexão deverão
+passar pelos critérios registrados no [TODO](TODO.md#depuração--frente-transversal-desde-o-mvp).
+
+A inspeção aqui é da execução Harbour no hbBridge. O código AdvPL/TLPP usa as
+ferramentas de depuração do AppServer; C e Zig precisam de símbolos e depurador
+nativo compatível com o toolchain. A correlação da chamada ajudará a acompanhar
+essas fronteiras, sem pressupor uma sessão única de stepping entre runtimes.
 
 ## Build do código atual
 
