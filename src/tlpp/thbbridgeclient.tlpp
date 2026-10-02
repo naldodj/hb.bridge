@@ -1,3 +1,14 @@
+/*
+ _      _         _            _      _
+| |__  | |__     | |__   _ __ (_)  __| |  __ _   ___
+| '_ \ | '_ \    | '_ \ | '__|| | / _` | / _` | / _ \
+| | | || |_) | _ | |_) || |   | || (_| || (_| ||  __/
+|_| |_||_.__/ (_)|_.__/ |_|   |_| \__,_| \__, | \___|
+                                         |___/
+Released to Public Domain.
+--------------------------------------------------------------------------------------
+*/
+
 // src/tlpp/THBBridgeClient.tlpp
 #include "parmtype.ch"
 #include "tlpp-core.th"
@@ -13,7 +24,7 @@ class THBBridgeClient
     private data nPort as numeric
     private data nTimeout as numeric
 
-    public method new(cHost as character, nPort as numeric) as object
+    public method new(cHost as character, nPort as numeric, nTimeout as numeric) as object
     public method callService(cService as character, jParams as JSON) as JSON
 
 endclass

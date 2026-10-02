@@ -1,8 +1,9 @@
 #include "protheus.ch"
+#include "parmtype.ch"
 
 #define __IS_THE_ADDONS_EXECUTION_ENABLED__ .T.
 
-procedure U_HBBridgeConnectionTest()
+procedure U_HBBridgeConnectionTest(cHost, nPort, nTimeout)
 
     local jParams:=JSONObject():New() as json
 
@@ -12,13 +13,17 @@ procedure U_HBBridgeConnectionTest()
 
     local oClient as object
 
+    paramtype 1 var cHost as character default "127.0.0.1"
+    paramtype 2 var nPort as numeric default 1512
+    paramtype 3 var nTimeout as numeric default 5000
+
     jParams["source"]:="protheus"
     jParams["company"]:="T1"
     jParams["user"]:="rpc-test"
     jParams["message"]:="Primeira integracao RPC"
     jParams["largePayload"]:=Replicate("X", 200000)
 
-    oClient:=hbBridge.client.THBBridgeClient():New("127.0.0.1",1512)
+    oClient:=hbBridge.client.THBBridgeClient():New(cHost,nPort,nTimeout)
     jResponse:=oClient:CallService("Health", jParams)
 
     if ((!jResponse:HasProperty("success")).or.(!jResponse["success"]))

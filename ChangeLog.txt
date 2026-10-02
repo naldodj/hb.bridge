@@ -2,8 +2,29 @@
      * Change  ! Fix  % Optimize  + Add  - Remove  ; Comment
    Entries may not always be in chronological/commit order.
    See license at the end of file.
-   (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Initial MVP version commit)"
+   (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Add native service registry and host runtime)"
  */
+
+2026-10-02 10:03 UTC naldodj (Add native service registry and host runtime)
+  This commit replaces the old ad-hoc JSON dispatcher with a registry-based service contract, adds config parsing and lifecycle management for Protheus and NETIO endpoints, and introduces explicit adapters for native and legacy request handling.
+  It also adds validation, permission checks, addon path controls, and a broader Harbour test suite covering configuration, service contracts, and native startup/shutdown behavior.
+    + src/hb/host/config.prg
+    + src/hb/host/lifecycle.prg
+    + src/hb/transports/netio/server.prg
+    + src/hb/transports/protheus/adapter.prg
+    + tests/contract/services.prg
+    + tests/integration/harbour/native.prg
+    + tests/unit/config_test.prg
+    * hbbridge.hbm
+    * src/hb/addons/addon_loader.prg
+    * src/hb/core/dispatcher.prg
+    * src/hb/host/main.prg
+    * src/hb/services/builtin.prg
+    * src/hb/transports/protheus/tcp_server.prg
+    * src/tlpp/thbbridgeclient.tlpp
+    * tests/integration/harbour/server_mt.hbp
+    * tests/integration/harbour/server_mt.prg
+    * tests/integration/protheus/hbbridgeconnectiontest.tlpp -> src/tlpp/tests/protheus/hbbridgeconnectiontest.tlpp
 
 2026-10-01 14:57 UTC naldodj (Apply product source organization)
   * src/hb/host/main.prg

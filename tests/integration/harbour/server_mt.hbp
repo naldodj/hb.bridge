@@ -2,4 +2,7 @@
 -gtstd
 -oserver_mt
 server_mt.prg
+native.prg
+../../unit/config_test.prg
+../../contract/services.prg
 ../../../hbbridge.hbm

@@ -28,6 +28,10 @@ PROCEDURE MTTests()
    MTWorkerLimit( @nFailures, @nChecks )
    MTGracefulStop( @nFailures, @nChecks )
 
+   M1ConfigTests( @nFailures, @nChecks )
+   M1ServiceTests( @nFailures, @nChecks )
+   M1NativeTests( @nFailures, @nChecks )
+
    ? "MT checks:", nChecks, "failures:", nFailures
    ErrorLevel( iif( nFailures == 0, 0, 1 ) )
 
@@ -283,7 +287,7 @@ STATIC FUNCTION MTAddonRequest( nPort, nIndex )
 RETURN MTRequest( nPort, hb_jsonEncode( { "service" => "ADDON.hbbridge_mt_isolation.hrb", ;
    "params" => { "id" => nIndex } } ) )
 
-STATIC FUNCTION MTRequest( nPort, cJson, cSignature )
+FUNCTION MTRequest( nPort, cJson, cSignature )
 
    LOCAL hSocket := MTConnect( nPort ), hResponse := NIL
 

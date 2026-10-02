@@ -14,12 +14,19 @@ Released to Public Domain.
  * client socket and a fresh VM context (no inherited PUBLIC/PRIVATE vars).
  * Only lifecycle flags and counters are shared, always under the mutex.
  */
-FUNCTION HBBridgeServerStart( nPort, nMaxWorkers )
+FUNCTION HBBridgeServerStart( nPort, nMaxWorkers, cHost, hRegistry, hContext )
 
    LOCAL hListenSocket, hServer, aAddress
 
-   hb_default( @nPort, 8080 )
+   hb_default( @nPort, 1512 )
    hb_default( @nMaxWorkers, 64 )
+   hb_default( @cHost, "0.0.0.0" )
+   IF hRegistry == NIL
+      hRegistry := HBBridgeBuiltinRegistry()
+   ENDIF
+   IF hContext == NIL
+      hContext := HBBridgeContext( "protheus" )
+   ENDIF
    IF ! hb_mtvm()
       RETURN NIL
    ENDIF
@@ -36,7 +43,7 @@ FUNCTION HBBridgeServerStart( nPort, nMaxWorkers )
       RETURN NIL
    ENDIF
    hb_socketSetReuseAddr( hListenSocket, .T. )
-   IF ! hb_socketBind( hListenSocket, { HB_SOCKET_AF_INET, "0.0.0.0", nPort } ) .OR. ;
+   IF ! hb_socketBind( hListenSocket, { HB_SOCKET_AF_INET, cHost, nPort } ) .OR. ;
       ! hb_socketListen( hListenSocket, 128 )
       hb_socketClose( hListenSocket )
       RETURN NIL
@@ -46,7 +53,7 @@ FUNCTION HBBridgeServerStart( nPort, nMaxWorkers )
    hServer := { "mutex" => hb_mutexCreate(), "stopMutex" => hb_mutexCreate(), ;
       "logMutex" => hb_mutexCreate(), "stopping" => .F., "active" => 0, ;
       "port" => aAddress[ HB_SOCKET_ADINFO_PORT ], "maxWorkers" => nMaxWorkers, ;
-      "listener" => NIL }
+      "listener" => NIL, "host" => cHost, "registry" => hRegistry, "context" => hContext }
    hServer[ "listener" ] := hb_threadStart( 0, @HBBridgeAcceptLoop(), hServer, hListenSocket )
    IF Empty( hServer[ "listener" ] )
       hb_socketClose( hListenSocket )
@@ -154,7 +161,7 @@ STATIC PROCEDURE HBBridgeClientWorker( hServer, hClientSocket )
       IF ReceiveRequest( hClientSocket, @cRequest, @lFramed, @cFrameSignature )
          /* An application error becomes a reply on this connection only. */
          BEGIN SEQUENCE WITH {| oError | Break( oError ) }
-            cResponse := DispatcherRequest( cRequest )
+            cResponse := DispatcherRequest( cRequest, hServer[ "registry" ], hServer[ "context" ] )
          RECOVER
             cResponse := '{"success": false, "error": "Falha ao executar servico"}'
             HBBridgeServerLog( hServer, "Erro no servico da thread " + hb_ntos( hb_threadID() ) )

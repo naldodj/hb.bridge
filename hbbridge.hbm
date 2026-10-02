@@ -5,9 +5,14 @@
 -Lzig-out/lib
 -lhbBridge_zig
 -lhbnetio
+-prgflag=-DHB_EXTERN
 
 src/hb/transports/protheus/framing.prg
+src/hb/transports/protheus/adapter.prg
 src/hb/transports/protheus/tcp_server.prg
+src/hb/transports/netio/server.prg
+src/hb/host/config.prg
+src/hb/host/lifecycle.prg
 src/hb/core/dispatcher.prg
 src/hb/services/builtin.prg
 src/hb/addons/addon_loader.prg

@@ -11,8 +11,11 @@ Released to Public Domain.
 #include "hbhrb.ch"
 #include "fileio.ch"
 
-FUNCTION ExecutarAddonHRB( cAddonName, oParams )
-   LOCAL hHrb, cResult := "", cExt, cFile := "./addons/" + cAddonName
+FUNCTION ExecuteAddonHRB( cAddonName, oParams, cAddonRoot )
+   LOCAL hHrb, cResult := "", cExt, cFile
+
+   hb_default( @cAddonRoot, "./addons" )
+   cFile := hb_DirSepAdd( cAddonRoot ) + cAddonName
 
    hb_FNameSplit( cAddonName, NIL, NIL, @cExt )
 
