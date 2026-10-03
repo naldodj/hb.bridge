@@ -765,6 +765,8 @@ licença permanece no roadmap, antes da primeira distribuição pública.
 ---
 
 ## ⭐Gostou do projeto? Deixa uma estrelinha(⭐) aí no topo! Isso ajuda muito!
+[![Stars](https://img.shields.io/github/stars/naldodj/hb.bridge?style=social)](https://github.com/naldodj/hb.bridge)
+![Clones](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/naldodj/hb.bridge/refs/heads/master/clone-badge.json)
 
 ## 💼 Suporte Corporativo & Consultoria Especializada
 
