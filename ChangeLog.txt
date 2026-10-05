@@ -1,9 +1,475 @@
 /* Encoding: UTF-8 (No BOM)  Notation (in 5th column):
      * Change  ! Fix  % Optimize  + Add  - Remove  ; Comment
    Entries may not always be in chronological/commit order.
-   See license at the end of file.
+   Licensing status and proposal: docs/licensing.md.
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Add native service registry and host runtime)"
  */
+
+2026-10-04 22:12 UTC naldodj (Make execution generic and own the build toolchain)
+  * src/tlpp/hbbridgeclient.tlpp
+  * src/tlpp/hbbridgerpcdataset.tlpp
+  * src/tlpp/hbbridgetime.tlpp
+  * src/tlpp/hbbridgeconfig.tlpp
+  * src/hb/**/hbbridge*.prg
+  * src/c/hbbridge*.c
+  * src/zig/runtime/hbbridgeruntime.zig
+  * hbbridge.hbp
+  * hbbridge.hbm
+  * build.zig
+    * Rename files and classes consistently: HBBridgeClient/HBBridgeRPCDataSet,
+      PascalCase classes, lowercase namespaces/functions/methods and files,
+      four-space own source indentation. Retain published U_ test entries.
+    * Use matching module conventions across Harbour/TLPP/C/Zig; preserve
+      external APIs, native symbol macros and third-party notices/formatting.
+    * Define hbBridge as generic executor: Protheus supplies resolved business,
+      tenant/company/branch/xFilial/table inputs. No implicit ERP resolution.
+    ! Remove sqlite_demo library fallback. SQLProfile is optional/empty; each
+      dataset/call chooses an opaque alias, including mssql/pData. Query test
+      reports PROFILE_REQUIRED before I/O when none is selected.
+    + Add multiple-profile INI example and alias slash/case regressions.
+      SQLite/MSSQL drivers exist; Oracle connector acceptance remains pending.
+  + scripts/bootstrap.ps1
+  + scripts/toolchain.ps1
+  + config/dependencies.json
+  * scripts/build-hbbridge.ps1
+  * scripts/test-hbbridge.ps1
+  * scripts/build-totvs.cmd
+    + Resolve pinned project-owned hb_compile/Harbour/Zig, verify official
+      archive SHA256 and compile required libraries/tools, including hbrun.
+    * Use managed tools and scoped compiler environment; no fixed developer
+      checkout or global Zig. Parameterize external licensed TOTVS paths.
+    * Allow isolated product outputs without stopping installed processes.
+      Linux native preparation/build path added; Linux acceptance pending.
+  + .hbcommit/
+  + scripts/commit-check.ps1
+    * Move validation sources out of bin; use project-built hbrun rather than
+      a bundled Harbour runtime. Preserve old local helpers in ignored tmp.
+    ! Correct check/commit root, failure status and modern project conventions.
+      Validate vendor provenance/hashes read-only; prohibit forced bypass.
+    + Mandatory check.hb, commit.hb and 3rdpatch.hb gate with staged snapshot
+      option, paired-doc/class/indentation checks and non-overwriting hook setup.
+  * README.md and README.pt-BR.md
+  * TODO.md and TODO.pt-BR.md
+  * docs/ and subdirectory README language pairs
+  + docs/architecture.md and architecture.pt-BR.md
+  + docs/standards.md and standards.pt-BR.md
+  + docs/dependencies.md and dependencies.pt-BR.md
+  + docs/credentials.md and credentials.pt-BR.md
+  - config/examples/connections.enc.json.example
+    * Document portable encrypted-INI/external-key design and future local CLI,
+      with optional OS vaults. Encryption/editor remain proposals; do not imply
+      implemented protection with encrypted_secret placeholders.
+    ; Fresh own Windows Harbour build and isolated product build passed.
+      Runner: 416 checks, zero failures, no skips. Earlier 412-check run stays
+      historical. Managed hbrun passed all three commit tools (124 files).
+      Multiple-profile --config-info and unchanged-toolchain bootstrap passed.
+    ; Product candidate: tmp/managed-product/hbbridge.exe, SHA256
+      5443466A05A5206D7E6E1BC53F86DB604059EEF8F687A0C1B22973CFB7A76B18.
+      Run log: tmp/tests-d1b829ff332c414f816a6e70748152d1/results.log.
+    ; Renamed TLPP/revised 16-check configuration test, real MSSQL, Linux and
+      credential editor are pending; previous operator acceptance is preserved.
+
+
+2026-10-04 10:34 UTC naldodj (Record Protheus INI, clock and SQLite acceptance)
+  * README.md
+  * TODO.md
+  * docs/configuracao.md
+  * docs/homologacao.md
+  * docs/marco1.md
+  * docs/marco2-framing.md
+  * docs/marco3-sql.md
+  * docs/README.md
+  * tests/README.md
+  * scripts/README.md
+  * examples/sql/README.md
+    ; Record the operator's new manual acceptance: all 13 client configuration
+      checks and 29 SQLite query checks true, plus Health/ADDON/two Echo calls.
+    ; Record Windows clock OK: raw delta 1097.692700 and normalized 1097.773500
+      ms after Sleep(1000), Unix=false. Keep Linux and expanded clock validation
+      separate from this result.
+    * Mark client configuration runtime acceptance complete, preserving the
+      earlier agent compile failures as history. Retain pending non-default
+      destinations, MSSQL and forced socket timeout/failure/partial-send tests.
+    ; The report did not supply execution time/thread, arguments, artifact hashes
+      or compile log. No runtime sources/configuration changed or tests rerun.
+
+2026-10-04 10:27 UTC naldodj (Review licensing options and source provenance)
+  + docs/licensing.md
+  * README.md
+  * TODO.md
+  * docs/README.md
+  * ChangeLog.txt
+    + Propose standard MIT for independently authored code, subject to
+      provenance review; keep dependency terms and an explicit notice inventory.
+    + Distinguish Harbour library linking exception from GPL utilities without
+      that exception and the MIT license published by the Zig project.
+    ; Record FileSig matching the upstream hbnetio utility and the documented
+      StopWatch adaptation as provenance items to resolve before formalization.
+    ; Preserve existing source notices. No project-wide license was adopted
+      and no runtime sources were changed; operator tests can continue.
+
+2026-10-04 10:18 UTC naldodj (Add server INI and AppServer client configuration)
+  + src/hb/host/ini.prg
+  * src/hb/host/config.prg
+  * src/hb/host/main.prg
+  * hbbridge.hbm
+    + Adapt strict INI sections to the same validated configuration used by
+      JSON. Preserve ODBC/password punctuation; reject malformed entries,
+      duplicates and includes. Resolve file paths against the config directory.
+    + Load hbbridge.ini beside the executable when no config is selected.
+      Keep defaults < one file < explicit CLI precedence.
+    + Add --config-info for validated metadata without starting listeners,
+      opening databases or exposing credentials/storage paths.
+  + config/examples/hbbridge.ini
+  + config/examples/sqlite.ini
+  + config/examples/mssql.ini
+  + config/examples/protheus-appserver.ini
+  + docs/configuracao.md
+  * .gitignore
+  * scripts/run-hbbridge.ps1
+  * examples/mvp/run.ps1
+  * examples/sql/run.ps1
+    * Forward only explicitly supplied CLI overrides; obtain INI SQL profile
+      metadata from the product instead of duplicating its parser.
+  + src/tlpp/config.tlpp
+  * src/tlpp/thbbridgeclient.tlpp
+  * src/tlpp/tests/protheus/hbbridgeconnectiontest.tlpp
+  * src/tlpp/tests/protheus/hbbridgequerytest.tlpp
+  + src/tlpp/tests/protheus/hbbridgeconfigtest.tlpp
+    + Read [hbBridge] from the INI selected by GetSrvIniName using
+      GetPvProfString. Use a namespaced static class and JSONObject.
+    + Resolve Host, Port, TimeoutMs, transfer budgets/chunk and SQLProfile
+      with explicit arguments taking precedence. Reject invalid settings
+      before network I/O; omitted test arguments follow the AppServer INI.
+    ; Added the section to the local AppServer INI while preserving existing
+      bytes and saving a local backup. TOTVS compile was not started because
+      stopping its processes failed. New client config acceptance is pending.
+  + tests/unit/config_ini_test.prg
+  * tests/integration/harbour/server_mt.hbp
+  * tests/integration/harbour/server_mt.prg
+  * src/hb/services/sql_query.prg
+  * tests/integration/harbour/sql_query_test.prg
+    ! Compare INI numbers, SQL driver and ordering direction strictly;
+      Harbour prefix comparisons could otherwise accept invalid suffixes.
+    ; Full Harbour runner: 412 checks, zero failures, no skips.
+      Isolated product rebuild, INI metadata and paginated SQLite query
+      through the INI launcher passed. Installed executable was not replaced.
+    ; Operator accepted the earlier SQLite Protheus client on 2026-10-04
+      at 00:40:06 local time: all 29 checks true, thread 41228. MSSQL and
+      the new AppServer client configuration still require acceptance.
+  * README.md
+  * TODO.md
+  * docs/README.md
+  * docs/marco1.md
+  * docs/marco3-sql.md
+  * docs/homologacao.md
+  * examples/mvp/README.md
+  * examples/sql/README.md
+  * scripts/README.md
+  * tests/README.md
+  * tests/unit/README.md
+    * Record configuration rules, completed SQLite acceptance and remaining
+      client compilation/runtime and MSSQL validation separately.
+
+2026-10-04 03:34 UTC naldodj (Add SQL acceptance launcher using the product host)
+  + scripts/run-hbbridge.ps1
+  * examples/mvp/run.ps1
+  + examples/sql/run.ps1
+    + Share canonical executable launch and workspace/config path resolution.
+      The minimal example keeps its port/worker defaults and accepts Config.
+    + Prepare SQL acceptance with sqlite_demo by default; validate profiles
+      and show the explicit Protheus call. Accept MSSQL/custom configuration.
+    * Preserve JSON port/worker settings unless SQL CLI overrides are supplied.
+    ; PowerShell syntax and paginated query through the launcher passed with
+      the canonical executable, isolated ports and an explicit port override.
+  + examples/sql/README.md
+  * examples/mvp/README.md
+  * scripts/README.md
+  * docs/marco3-sql.md
+  * tests/README.md
+  * README.md
+  * TODO.md
+    * Document server preparation separately from manual AppServer execution.
+
+2026-10-04 03:29 UTC naldodj (Explain unavailable SQL service during acceptance)
+  * src/hb/host/main.prg
+    + Report whether RPCRDD.Query is enabled and the SQL profile count at
+      startup; do not print connection strings, paths or credentials.
+  * src/tlpp/tests/protheus/hbbridgequerytest.tlpp
+    + Explain SERVICE_NOT_FOUND with server configuration guidance and
+      distinguish a missing named SQL profile.
+  * docs/marco3-sql.md
+  * docs/homologacao.md
+    ; Record operator's 2026-10-04 00:27:04 Protheus attempt and live discovery
+      without RPCRDD.Query. SQL acceptance remains pending; start the updated
+      host with config/examples/sqlite.json before repeating the test.
+    ; Isolated product rebuild and paginated SQL request passed with the
+      enabled-profile startup diagnostic. Installed process was not replaced.
+
+2026-10-04 03:18 UTC naldodj (Add native SQL queries and database-side pagination)
+  * hbbridge.hbm
+  + src/hb/services/sql_query.prg
+  * src/hb/services/builtin.prg
+  * src/hb/host/config.prg
+  * src/hb/host/lifecycle.prg
+    + Register RPCRDD.Query when server-side SQL profiles are configured.
+      Reuse SQLMIX, sddsqlt3 and sddodbc for SQLite and MSSQL/ODBC.
+    + Return keyed headers/rows, type metadata, count and result version.
+    + Apply ROW_NUMBER/BETWEEN in the database, with one sentinel row for
+      hasNext, explicit ordering and exact ordinal validation; no MVP row cap.
+    * Serialize the native process-global RDDSQL connection lifecycle; close
+      areas/connections and restore caller state. Sanitize driver failures.
+    ! Preserve absolute/root-relative Windows paths during normalization.
+  + config/examples/sqlite.json
+  + config/examples/mssql.json
+  * config/examples/hbbridge.json
+  * src/tlpp/trpcdataset.tlpp
+  + src/tlpp/tests/protheus/hbbridgequerytest.tlpp
+    + Implement JSONObject dataset and explicit OpenPage/NextPage navigation,
+      keyed field access, EOF, Close and service error reporting.
+  + tests/integration/harbour/sql_query_test.prg
+  * tests/integration/harbour/server_mt.hbp
+  * tests/integration/harbour/server_mt.prg
+  * tests/unit/config_test.prg
+    + Test persistent SQLite, paging, aliases, bounds, cleanup, concurrency
+      and identical native NETIO/TCP datasets. Isolate NETIO fixture password
+      from the native client's inherited credential.
+    ; Full Harbour runner: 383 checks, zero failures, no skips; SQLite 3.53.4.
+    ; Isolated product build and CLI-profile SQL page request also passed.
+    ; New TLPP compilation was blocked before the compiler when stopping
+      TOTVS processes; Protheus SQL and real MSSQL acceptance remain pending.
+  * README.md
+  * TODO.md
+  * docs/README.md
+  + docs/marco3-sql.md
+  * docs/homologacao.md
+  * scripts/README.md
+  * tests/README.md
+    * Document SQL/paging contracts, dependencies and outstanding acceptance.
+    ; Record operator-confirmed Protheus Health/ADDON/two Echo acceptance:
+      200000 identical bytes, fragmented-case request gzip of 152964 bytes.
+
+2026-10-03 21:49 UTC naldodj (Prefer keyed structures for named project data)
+  * AGENTS.md
+  * README.md
+  * TODO.md
+    * Prefer Harbour hashes and TLPP JSONObject/THashMap or native HashMap
+      functions for named records, configuration, metadata and keyed lookups.
+    ; Use arrays only when strictly required by a concrete technical need, such
+      as API/contract formats; consider allocation, copying and lookup costs.
+
+2026-10-03 21:43 UTC naldodj (Use namespaced static methods for TLPP clock utilities)
+  * src/tlpp/clock.tlpp
+  * src/tlpp/thbbridgeclient.tlpp
+  * src/tlpp/tests/protheus/hbbridgeconnectiontest.tlpp
+    * Keep the user's HBBridgeTime class in namespace hbBridge.client.
+    ! Bind client and tests to its static methods, replacing removed function
+      calls and references to the nonexistent HBBridgeRemaining class.
+    * Preserve procedure U_HBBridgeConnectionTest: the Protheus preprocessor
+      also maps User Function declarations to U_ symbols; no conversion is
+      needed. File-local static helpers remain.
+  + AGENTS.md
+  * README.md
+  * TODO.md
+  * docs/README.md
+  * docs/marco2-framing.md
+  * docs/homologacao.md
+  * tests/README.md
+    * Prefer namespaced classes for public Protheus APIs; allow test functions
+      and procedures prefixed with U_. Record these conventions,
+      four-space indentation and English identifiers for future changes.
+    ; Source references reviewed; TLPP compilation/homologation remains pending.
+
+2026-10-03 21:08 UTC naldodj (Use monotonic time for Harbour deadlines and uptime)
+  + src/c/monotonic_clock.c
+  * hbbridge.hbm
+    + Expose HBBridgeMonotonicMs using GetTickCount64 on Windows and
+      clock_gettime(CLOCK_MONOTONIC) on POSIX, without a civil-time fallback.
+  * src/hb/transports/protheus/framing.prg
+  * src/hb/host/lifecycle.prg
+    ! Replace civil-time hb_MilliSeconds in transfer deadlines and host uptime.
+  + src/tlpp/clock.tlpp
+  * src/tlpp/thbbridgeclient.tlpp
+    ! Replace Date/Seconds with one TimeCounter read per sample, adapting
+      dna.tech.StopWatch.__GetCurrentTimeStamp without importing the class.
+    + Expire the budget if a counter sample regresses relative to the previous
+      sample or the start, instead of extending the request's deadline.
+  * src/tlpp/tests/protheus/hbbridgeconnectiontest.tlpp
+    + Check scale/elapsed time after Sleep(1000), repeated reads, budget expiry,
+      fractional values, counter regression and a budget above 24 hours.
+    ; Unix x1000 handles the platform-unit difference reproduced in issue #12:
+      https://github.com/naldodj/totvs-protheus-open-issues/issues/12
+      Preserve the scale check to detect future AppServer behavior changes.
+      TimeCounter monotonicity/wrap is not guaranteed by the documentation.
+  + tests/unit/clock_test.prg
+  * tests/integration/harbour/server_mt.hbp
+  * tests/integration/harbour/server_mt.prg
+  * tests/integration/harbour/native.prg
+  * tests/integration/harbour/protocol_framing.prg
+    + Add 29 clock checks, including sleep and eight concurrent readers.
+    ; Runner: 305 checks, 0 failures, no skips; isolated product build/--help passed.
+      Log: tmp/tests-1156a4ae33964edc925ff65e09748ddb/results.log.
+      POSIX clock source compiled; Linux runtime and updated TLPP not homologated.
+  * README.md
+  * TODO.md
+  * docs/marco2-framing.md
+    ; hb_MilliSeconds also depended on civil time; the issue affected both sides.
+      Both paths now use elapsed-time counters; TLPP validation remains pending.
+    ; A monotonic clock does not interrupt blocking Send, gzip or JSON calls.
+
+2026-10-03 20:54 UTC naldodj (Replace arbitrary MVP caps with runtime capacities and optional policies)
+  * includes/hbbridge.h
+  * config/examples/hbbridge.json
+  * src/hb/host/config.prg
+  * src/hb/transports/protheus/tcp_server.prg
+  * src/hb/transports/protheus/framing.prg
+  * src/hb/transports/netio/server.prg
+    - Remove fixed 16 MiB payload/wire caps, eight-digit lengths and 128-byte headers.
+    + Default payload/wire policies to 0 (no additional application cap), with
+      explicit positive policies available through JSON configuration and CLI.
+    * Use a configurable 65,536-byte IO buffer and 30,000 ms total IO deadlines;
+      Harbour TCP timeout 0 disables the deadline, NETIO timeout 0 maps to native -1.
+    ; Protheus shutdown drains admitted calls; timeout 0 can leave it waiting
+      indefinitely for a client that neither finishes nor disconnects.
+      NETIO closes its connections on shutdown; forced call cancellation is pending.
+    ! Validate canonical decimal lengths against the exact body size and derive
+      the header bound from its structure and the runtime string capacity.
+  * src/c/stream_decoder.c
+    + Expose real string, socket long, zlib uInt and NETIO int capacities through
+      HBBridgeRuntimeLimits; bound the IO buffer by both socket and zlib limits.
+  + src/c/stream_compressor.c
+  * hbbridge.hbm
+    + Stream gzip output with Harbour's linked zlib, GC-owned state and explicit
+      release instead of materializing the complete compressed response.
+  * src/tlpp/thbbridgeclient.tlpp
+  * src/tlpp/tests/protheus/hbbridgeconnectiontest.tlpp
+    + Extend New with optional payload/wire policies and read-buffer size while
+      retaining the first three arguments; default to 0, 0 and 65,536 bytes.
+    ! Keep a positive configurable TLPP deadline measured with Date/Seconds;
+      remove the artificial one-day ceiling and retain exact frame validation.
+    + Add an optional Echo payload size to measure the AppServer's real capacity.
+    ; TLPP still compresses/decompresses complete strings; MAXSTRINGSIZE and
+      available memory apply. New TLPP compilation/homologation remains pending.
+  * tests/unit/config_test.prg
+  * tests/integration/harbour/protocol_framing.prg
+  * tests/integration/harbour/server_mt.prg
+    + Cover zero/positive size policies, incremental compression, native IO
+      capacities, positive/disabled Harbour deadlines and nine-digit headers.
+    ; Current runner: 276 checks, 0 failures, no skips; Echo preserved all
+      24,000,000 bytes, with JSON and gzip above 16 MiB in both directions.
+    ; Result: tmp/tests-0eec16b437f446f689c134789f85a1e4/results.log.
+    ; Compressed-response budgets and zlib-chunk checks passed. The final isolated
+      product build and --help passed with the latest capacity guards.
+  * README.md
+  * TODO.md
+  * docs/README.md
+  * docs/marco1.md
+  * docs/marco2-framing.md
+  * docs/homologacao.md
+  * tests/README.md
+  * scripts/README.md
+  * src/hb/transports/netio/README.md
+    * Document HBBRIDGE/1 and ADDON.Execute as the sole active Protheus contract;
+      retain prior 159/196-check results as historical validation records.
+    ; Logical blocks, handshake and codec/compression negotiation remain pending;
+      zero application caps do not make whole-JSON transfers unlimited.
+
+2026-10-03 15:35 UTC naldodj (Implement product TCP framing and standardize indentation)
+  + .editorconfig
+  * src/hb/
+  * src/c/zig_bridge.c
+  * addons/examples/sample_addon.prg
+  * tests/**/*.prg
+    * Use four spaces per indentation level in project-owned Harbour/C sources;
+      preserve existing content and third-party headers.
+  + src/c/stream_decoder.c
+  + src/c/third_party/zlib/
+  + includes/hbbridge.h
+  * hbbridge.hbm
+  * src/hb/transports/protheus/framing.prg
+    ! Preserve gzip state across TCP reads, validate CRC/end and bound
+      compressed/expanded input; enforce exact decimal framing and total IO deadlines.
+    + Reuse Harbour's linked zlib with unmodified public headers and license notice.
+    - Remove HBS1, unframed JSON and zlib wire fallbacks; use HBBRIDGE/1 only.
+  * src/hb/transports/protheus/adapter.prg
+    - Remove ADDON.<file> aliases; both clients call ADDON.Execute with module/params.
+  * scripts/build-totvs.cmd
+    ! Resolve shared protocol includes relative to the current checkout.
+  * src/tlpp/thbbridgeclient.tlpp
+  * src/tlpp/tests/protheus/hbbridgeconnectiontest.tlpp
+    ! Accumulate a complete gzip response, check socket/compression/JSON results,
+      handle positive partial sends and return structured client errors.
+    + Compare Echo contents exactly and add a varied fixture whose gzip exceeds
+      65,535 bytes; log concise results instead of the complete payload.
+  + tests/integration/harbour/protocol_framing.prg
+  * tests/integration/harbour/server_mt.hbp
+  * tests/integration/harbour/server_mt.prg
+    + Cover fragmented headers/trailers, incompressible data, CRC, truncation,
+      expansion budgets, strict lengths, unsupported formats and slow-client deadline.
+    ; Harbour runner: 196 checks, 0 failures, no skips; isolated product build passed.
+  + docs/marco2-framing.md
+  * README.md
+  * TODO.md
+  * docs/README.md
+  * docs/homologacao.md
+  * tests/README.md
+    * Separate the first Marco 2 delivery from future handshake/blocks/negotiation.
+    ; New TLPP compilation and FIN/timeout interoperability remain pending;
+      GzStrDecomp has no bounded-output API and Send has no timeout argument.
+
+2026-10-03 11:02 UTC naldodj (Confirm Protheus compilation and integration test)
+  + scripts/build-totvs.cmd
+    ! Correct the AppServer path and resolve TLPP sources relative to the project;
+      stop on shutdown failures, preserve compiler status and skip restart pause.
+  * .gitignore
+    + Ignore temporary source lists generated by the TOTVS command-line compiler.
+  * README.md
+  * TODO.md
+  * tests/README.md
+  * scripts/README.md
+  * docs/marco1.md
+  * docs/homologacao.md
+    + Record the user's confirmed compilation and real WebApp test, corroborated
+      by local logs: 3 sources, 3 successes, 0 compile errors; Health/ADDON/Echo
+      succeeded and Echo returned all 200,000 characters unchanged.
+    ; The agent's restart attempt was denied by Windows process permissions;
+      successful compilation and test were performed by the user.
+
+2026-10-03 10:29 UTC naldodj (Validate native runtime and align milestone documentation)
+  * src/hb/host/config.prg
+    ! Reject numeric/IPv4 suffixes with exact string comparisons, before
+      Harbour's SET EXACT behavior can accept a prefix match.
+    ! Reject NUL before path normalization and incomplete configuration hashes;
+      resolve rooted paths and reject ambiguous drive-relative paths.
+  * tests/unit/config_test.prg
+  * tests/integration/harbour/native.prg
+    + Cover configuration edge cases, concurrent native calls and incorrect
+      administrative credentials, preserving the legacy regression suite.
+  * scripts/test-hbbridge.ps1
+    ! Pass an extensionless build target to hbmk2.
+  + config/examples/hbbridge.json
+  + docs/marco1.md
+  + docs/homologacao.md
+  * README.md
+  * TODO.md
+  * docs/README.md
+  * docs/reorganizacao.md
+  * docs/harbour-vfio-trpc.md
+  * scripts/README.md
+  * examples/mvp/README.md
+  * tests/README.md
+  * tests/unit/README.md
+  * tests/contract/README.md
+  * src/hb/transports/netio/README.md
+    * Document implemented registry/NETIO/admin/VF IO capabilities and pending
+      AppServer validation; align links to src/tlpp/tests/protheus and English
+      identifiers, including the user's ExecuteAddonHRB rename.
+  * .gitignore
+    + Ignore runtime data and the local installation configuration.
+    ; Harbour 3.2.1dev r2608271822 / Zig 0.16.0 / Windows x64:
+      159 checks, 0 failures, no skips. Isolated product build and CLI passed.
+    ; Pre-Marco-1 Protheus homologation was confirmed by the user; the new
+      functional changes still require a run on the documented AppServer.
 
 2026-10-02 10:03 UTC naldodj (Add native service registry and host runtime)
   This commit replaces the old ad-hoc JSON dispatcher with a registry-based service contract, adds config parsing and lifecycle management for Protheus and NETIO endpoints, and introduces explicit adapters for native and legacy request handling.

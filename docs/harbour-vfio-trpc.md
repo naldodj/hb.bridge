@@ -1,127 +1,109 @@
-# Harbour VF IO e avaliação do TRPC
+# Harbour VF IO and the TRPC review
 
-Esta análise orienta a implementação do hbBridge. O suporte descrito abaixo
-entra no escopo e no roadmap; a fachada de arquivos e a adaptação do TRPC ainda
-não estão implementadas no servidor.
+[Português (Brasil)](harbour-vfio-trpc.pt-BR.md)
 
-Foram consultados os fontes Harbour da revisão local
-`bee221e83e580d45076dfc9afa1ce43d9aba521b`, em 2026-09-29. O `trpc.prg`
-coincidia com o upstream consultado, após normalização dos finais de linha.
-As conclusões sobre seu comportamento são de leitura estática, sem execução
-de testes TRPC nesta revisão.
+This analysis guides implementation; the TLPP file facade and TRPC adaptation
+are not delivered. Harbour sources were reviewed on 2026-09-29 at local revision
+`bee221e83e580d45076dfc9afa1ce43d9aba521b`. trpc.prg matched the consulted
+upstream after newline normalization. Conclusions come from static reading,
+not TRPC execution tests.
 
-## VF IO como base da camada de arquivos
+## VF IO as the file layer
 
-`hb_vf*` é a interface PRG para a Harbour FILE IO API. Ela despacha operações
-para os provedores registrados; o NETIO registra um desses provedores para
-acesso remoto. A integração aproveitará essa abstração em vez de criar uma
-implementação de arquivos para cada transporte. Fontes:
-[vfile.c](https://github.com/harbour/core/blob/master/src/rtl/vfile.c),
-[interface C](https://github.com/harbour/core/blob/master/include/hbapifs.h) e
-[provedor NETIO](https://github.com/harbour/core/blob/master/contrib/hbnetio/netiocli.c).
+`hb_vf*` is the PRG interface to Harbour FILE IO, dispatching to registered
+providers, including NETIO. Reuse this abstraction across transports.
+References: [vfile.c](https://github.com/harbour/core/blob/master/src/rtl/vfile.c),
+[C interface](https://github.com/harbour/core/blob/master/include/hbapifs.h),
+[NETIO provider](https://github.com/harbour/core/blob/master/contrib/hbnetio/netiocli.c).
 
-| Grupo | APIs Harbour a integrar |
+| Group | APIs |
 | --- | --- |
-| Ciclo de vida | `hb_vfOpen`, `hb_vfClose`, `hb_vfTempFile`. |
-| Transferência | `hb_vfRead`, `hb_vfReadLen`, `hb_vfWrite`, `hb_vfReadAt`, `hb_vfWriteAt`. |
-| Posição e tamanho | `hb_vfSeek`, `hb_vfSize`, `hb_vfEof`, `hb_vfTrunc`. |
-| Persistência e bloqueios | `hb_vfFlush`, `hb_vfCommit`, `hb_vfLock`, `hb_vfUnlock`, `hb_vfLockTest`. |
-| Nomes e metadados | `hb_vfExists`, `hb_vfDirectory`, `hb_vfRename`, `hb_vfCopyFile`, `hb_vfErase`, atributos e datas. |
-| Provedor | `hb_vfIsLocal` e opções de `hb_vfConfig` suportadas pelo backend. |
+| Lifecycle | hb_vfOpen, hb_vfClose, hb_vfTempFile. |
+| Transfer | hb_vfRead, hb_vfReadLen, hb_vfWrite, hb_vfReadAt, hb_vfWriteAt. |
+| Position/size | hb_vfSeek, hb_vfSize, hb_vfEof, hb_vfTrunc. |
+| Persistence/locks | hb_vfFlush, hb_vfCommit, hb_vfLock, hb_vfUnlock, hb_vfLockTest. |
+| Names/metadata | hb_vfExists, hb_vfDirectory, hb_vfRename, hb_vfCopyFile, hb_vfErase, attributes/dates. |
+| Provider | hb_vfIsLocal and backend-supported hb_vfConfig options. |
 
-Disponibilidade e semântica precisam ser homologadas por provedor: seek,
-truncamento, bloqueio, flush e commit não serão anunciados indiscriminadamente.
-`hb_vfLoad`/`hb_vfSave` operam conteúdo em memória; transferência grande usará
-leitura/escrita em blocos. Os retornos e `FError()` precisam ser capturados
-conforme a operação; não há um retorno de sucesso uniforme para toda a família.
+Validate availability/semantics per provider: seek, truncate, locks, flush and
+commit cannot be advertised universally. hb_vfLoad/hb_vfSave materialize content;
+large transfers use blocks. Capture return values and FError according to each
+API; the family has no uniform success return.
 
-### Integração dos clientes
+### Client integration
 
-- **Harbour:** usar `hb_vf*` diretamente para arquivos locais e `net:` após a
-  configuração/registro do NETIO. O handle permanece no processo do cliente.
-- **Protheus:** expor uma família `Files.*` no registro de serviços. `Open`,
-  `Read`, `Write`, `Seek`, `Stat` e `Close` são nomes propostos, ainda sujeitos
-  ao versionamento do contrato. O servidor guarda o handle VF e entrega um
-  identificador opaco ligado à sessão.
-- **C/Zig:** consumir buffers com tamanho explícito ou a interface `hb_file*`
-  através da ponte C, respeitando propriedade, threads e fechamento. A ABI
-  não deverá transformar ponteiros internos em identificadores de rede.
+- **Harbour:** direct hb_vf* for local/net: files after NETIO registration.
+  The client's handle stays local.
+- **Protheus:** a registered Files.* family. Open/Read/Write/Seek/Stat/Close are
+  proposed service names subject to versioning. The server holds the VF handle
+  and returns a session-owned opaque identifier.
+- **C/Zig:** sized buffers or C hb_file* through the bridge, respecting ownership,
+  threads and closure. Internal pointers are not network identifiers.
 
-O contexto da sessão resolve perfis de armazenamento e caminhos permitidos.
-Handles não serão serializados nem expostos como descritores do sistema
-operacional por `hb_vfHandle`. O mesmo vale para opções de `hb_vfConfig` que
-revelem handles internos: somente opções aprovadas entram na fachada remota.
+Session context selects storage profiles and permitted paths. Do not serialize
+handles or expose OS descriptors through hb_vfHandle. Exclude hb_vfConfig options
+that reveal internal handles; approve remote options explicitly.
 
-As operações de leitura e escrita retornarão contagem efetiva, EOF e erro
-distintos. O contrato deverá tratar operações parciais, offsets sem perda de
-precisão e fechamento em desconexão/expiração. Cada bloco respeitará a
-negociação de memória, compressão e `MAXSTRINGSIZE`.
+Read/write contracts distinguish actual byte count, EOF and errors, handling
+partial operations, exact offsets and disconnect/expiry cleanup.
+Each block respects negotiated memory/compression/MAXSTRINGSIZE.
+Acceptance includes binary local/NETIO round trips for both clients, offsets,
+errors, denied access and resource release. Add providers only after acceptance.
+VF IO handles bytes; DBF RDDs retain record/index/lock semantics.
 
-O aceite incluirá round-trip binário em armazenamento local e NETIO, ambos os
-clientes, offsets, erros, permissões e liberação de recursos. Outros provedores
-serão adicionados por homologação. VF IO cuida da entrada/saída; operações DBF
-continuam usando os RDDs para semântica de registros, índices e bloqueios.
+## Selective reuse of contrib/xhb/trpc.prg
 
-## O que aproveitar de contrib/xhb/trpc.prg
+The file contains TRPCFunction, TRPCServeCon and TRPCService; its client is
+trpccli.prg. It offers function descriptions/registration, authorization levels,
+threaded execution, loop/foreach and progress/cancellation callbacks.
+Adapt ideas to the shared registry/jobs.
+[Server source](https://github.com/harbour/core/blob/master/contrib/xhb/trpc.prg).
 
-O arquivo contém `TRPCFunction`, `TRPCServeCon` e `TRPCService`; o cliente está
-em `trpccli.prg`. Há registro e descrição de funções, nível de autorização,
-execução em thread, loop/foreach e callbacks de progresso/cancelamento.
-A recomendação é adaptar essas ideias ao núcleo de serviços e jobs do hbBridge.
-[Fonte do servidor](https://github.com/harbour/core/blob/master/contrib/xhb/trpc.prg).
-
-| Elemento | Destino proposto no hbBridge |
+| Upstream element | Proposed destination |
 | --- | --- |
-| Descrição de função, parâmetros e versão | Registro em `core/`, com tipos e nomes do contrato hbBridge. |
-| Associação entre função e executor | Handlers de `services/`, com estado da chamada separado do catálogo. |
-| Callbacks de execução | Eventos de progresso, resultado, erro e cancelamento dos jobs. |
-| Loop/foreach | Referência para lotes com resultados por item e controle de recursos. |
-| Descoberta do cliente | Referência para consulta de capacidades, mantendo os canais escolhidos. |
+| Function description, arguments/version | Core registry with hbBridge names/types. |
+| Function/executor association | Service handlers, separating call state from catalog. |
+| Execution callbacks | Job progress/result/error/cancellation events. |
+| Loop/foreach | Batch item results and resource control. |
+| Discovery | Capability discovery on existing transports. |
 
-O `TRPCClient` implementa um protocolo próprio `XHBR`, com descoberta UDP e
-chamadas TCP. Compartilhar serialização Harbour não o torna compatível com
-NETIO ou `HBS1`. Seus mecanismos de conexão/recepção não serão acrescentados
-como um terceiro transporte obrigatório.
-[Fonte do cliente](https://github.com/harbour/core/blob/master/contrib/xhb/trpccli.prg).
+TRPCClient uses its own XHBR protocol, UDP discovery and TCP calls.
+Shared Harbour serialization does not make it compatible with NETIO/HBBRIDGE/1.
+It will not be added as a mandatory third transport.
+[Client source](https://github.com/harbour/core/blob/master/contrib/xhb/trpccli.prg).
 
-### Pontos que exigem adaptação
+### Adaptation requirements
 
-No servidor analisado:
+Static findings:
 
-- `RecvFunction` rejeita comprimento original maior que **65.000 bytes** e
-  aloca `Space(nComp)` a partir do tamanho comprimido recebido.
-- `SendResult`/`SendProgress` usam compressão acima de **512 bytes**.
-- A gramática de nomes não aceita ponto, como em `RPCRDD.Query`.
-- `CheckTypes` compara `ValType`; `Run` modifica o array de chamada da instância.
-- Metadados inválidos podem executar `Alert`/`QUIT`; `Authorize` retorna nível
-  1 quando não há callback configurado.
+- RecvFunction rejects expanded content above **65,000 bytes** and allocates
+  Space(nComp) from the received compressed length.
+- SendResult/SendProgress compress above **512 bytes**.
+- Function-name grammar rejects dots, including RPCRDD.Query.
+- CheckTypes compares ValType; Run mutates the instance call array.
+- Invalid metadata may call Alert/QUIT; Authorize defaults to level 1 without
+  a callback.
 
-Esses trechos exigem ajuste de limites, concorrência, validação e autorização
-antes de qualquer extração de código.
-[Implementação avaliada](https://github.com/harbour/core/blob/master/contrib/xhb/trpc.prg).
+These need changes to limits, concurrency, validation and authorization before
+code extraction. A suspected cancellation mismatch also needs reproduction:
+the server sends XHBR34, while the client reads it as progress with data.
+Validate the paired implementation before reusing that flow.
 
-Há também um indício a reproduzir: o servidor envia `XHBR34` no cancelamento,
-enquanto o cliente interpreta esse código como progresso acompanhado de dados.
-É necessária validação do par cliente/servidor antes de reutilizar esse fluxo.
-[Recepção no cliente](https://github.com/harbour/core/blob/master/contrib/xhb/trpccli.prg).
+Compatibility wrappers forward StartThread to hb_threadStart and translate
+hb_DeserialNext to hb_Deserialize. Prefer native APIs already used by hbBridge.
+References: [xhbmt.prg](https://github.com/harbour/core/blob/master/contrib/xhb/xhbmt.prg),
+[xhbfunc.c](https://github.com/harbour/core/blob/master/contrib/xhb/xhbfunc.c).
 
-A contrib inclui camadas de compatibilidade: `StartThread` encaminha para
-`hb_threadStart`; `hb_DeserialNext` é traduzida para `hb_Deserialize`.
-O aproveitamento deve preferir as APIs Harbour nativas já usadas no produto.
-Fontes: [xhbmt.prg](https://github.com/harbour/core/blob/master/contrib/xhb/xhbmt.prg)
-e [xhbfunc.c](https://github.com/harbour/core/blob/master/contrib/xhb/xhbfunc.c).
+## Decision and next implementation
 
-## Decisão e próxima implementação
+**VF IO is the file foundation; TRPC is a selective design reference.**
+NETIO remains embedded; Protheus keeps its interoperability contract.
 
-**VF IO será a base de arquivos; TRPC será uma referência de reaproveitamento
-seletivo.** NETIO continua incorporado ao executável como transporte nativo,
-e o adaptador Protheus mantém seu contrato próprio.
+[Milestone 1](milestone1.md) used description/handler separation as a reference:
+the registry is socket-independent, with per-call arguments and hbBridge
+namespaces/types. No XHBR protocol or mutable executor was incorporated.
+Progress/batches follow the jobs milestone.
 
-A primeira extração candidata do TRPC é o modelo de descrição e associação
-entre serviço e executor. Ela deverá ser independente de sockets, ter argumentos
-por chamada e aceitar nomes/tipos do hbBridge. Só haverá incorporação de código
-depois de testes de contrato, erro e concorrência. Progresso e lotes serão
-adaptados quando a frente de jobs avançar.
-
-As entregas e os critérios de aceite estão no [TODO](../TODO.md); a arquitetura
-geral permanece no [README](../README.md).
+Harbour already tests NETIO-backed open/read/write/seek/close with binary byte
+comparison. The TLPP facade, session resources and DBF acceptance remain
+[Milestone 3](milestone3-sql.md)/[TODO](../TODO.md) work.

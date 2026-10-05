@@ -1,0 +1,222 @@
+/* Codificação: UTF-8 sem BOM. Versão inglesa: ChangeLog.txt.
+   * Alteração  ! Correção  % Otimização  + Adição  - Remoção  ; Comentário
+   Os registros não precisam seguir a ordem dos commits.
+   Licenciamento: docs/licensing.pt-BR.md; não há licença global adotada.
+   Caminhos antigos descrevem os arquivos existentes na época.
+ */
+
+2026-10-04 22:12 UTC naldodj (Executor genérico e toolchain próprio)
+  * Arquivos/classes TLPP e módulos Harbour/C/Zig usam nomes correspondentes:
+    HBBridgeClient/HBBridgeRPCDataSet, classes PascalCase; arquivos, namespaces,
+    funções e métodos em minúsculas e inglês. Fontes próprios usam quatro
+    espaços; entradas U_, APIs externas, macros nativas e avisos são preservados.
+  * Protheus resolve regras, tenant, empresa, filial/xFilial e nomes físicos.
+    hbBridge executa consultas/parâmetros explícitos, sem inferência ERP.
+  ! A biblioteca não usa mais sqlite_demo como padrão. SQLProfile é opcional
+    e vazio; cada dataset/chamada escolhe alias opaco, como mssql/pData.
+    Sem seleção, o teste retorna PROFILE_REQUIRED antes da rede.
+  + Exemplo INI com múltiplos perfis e regressões de barra/maiúsculas no alias.
+    Drivers atuais sqlite/mssql; conector Oracle e seu aceite são futuros.
+  + scripts/bootstrap.ps1, toolchain.ps1 e config/dependencies.json resolvem
+    hb_compile/Harbour/Zig próprios, fixados, com checksum do arquivo oficial.
+    Compilam bibliotecas/ferramentas e hbrun, sem checkout local fixo/Zig global.
+  * Build/teste usam ambiente temporário restaurado, candidatos isolados e
+    caminhos TOTVS parametrizados. Linux tem preparação/build nativo planejado
+    no script, mas execução Linux permanece sem homologação.
+  * Ferramentas bin migradas para .hbcommit; runtime/helper antigos preservados
+    em tmp ignorado. Hbrun vem do build próprio, sem bin/harbour distribuído.
+  ! Correções de raiz/status/regras em check/commit; 3rdpatch valida procedência
+    e hashes sem downloads/patches. O crivo inclui os três, convenções, pares
+    documentais, snapshot do índice e instalação de hook sem sobrescrita.
+  + Documentação inglesa e pt-BR: arquitetura, padrões, dependências,
+    credenciais, README, TODO e guias; nomes de base em inglês.
+  - Removido connections.enc.json.example, cujo encrypted_secret não protegia
+    nada implementado. Senha autenticada no INI com chave externa e CLI local
+    continuam propostas; cofres do SO seriam opcionais, sem requisito Windows.
+  ; Runtime próprio Windows e build isolado do produto passaram. A suíte teve
+    416 verificações, zero falhas, sem skips. Os três validadores passaram em
+    124 arquivos; metadados multiperfil e reutilização do bootstrap passaram.
+  ; Candidato tmp/managed-product/hbbridge.exe SHA256:
+    5443466A05A5206D7E6E1BC53F86DB604059EEF8F687A0C1B22973CFB7A76B18.
+    Log tmp/tests-d1b829ff332c414f816a6e70748152d1/results.log.
+  ; TLPP renomeado/16 checks novos, MSSQL real, Linux e editor de credenciais
+    aguardam aceite; resultados manuais anteriores não homologam esses pontos.
+
+2026-10-04 10:34 UTC naldodj (Registrar aceite Protheus INI, relógio e SQLite)
+  * README/TODO, configuração/homologação/marcos e instruções de exemplos/testes.
+  ; Operador informou 13 checks cliente e 29 Query verdadeiros, Health/ADDON e
+    dois Echo. Relógio Windows: delta 1097.692700, normalizado 1097.773500 ms
+    após Sleep(1000), Unix=false, OK. Linux/wrap/precisão continuam separados.
+  * Aceite do cliente supera as tentativas anteriores de parada bloqueada.
+    Destinos não padrão, MSSQL e timeout/falha/envio parcial forçados pendentes.
+  ; Sem horário/thread/hash/argumentos/log do compilador. Só documentação mudou.
+
+2026-10-04 10:27 UTC naldodj (Licenciamento e procedência)
+  + docs/licensing.md propõe MIT para código autoral independente, sujeito a
+    revisão; distinguir exceção de link Harbour, utilitários GPL e Zig MIT.
+  ; FileSig coincide com hbnetio e StopWatch tem adaptação documentada.
+    Avisos preservados; nenhuma licença global adotada ou mudança de runtime.
+
+2026-10-04 10:18 UTC naldodj (INI servidor e configuração cliente AppServer)
+  + Parser estrito em src/hb/host/ini.prg, integrado a config/main/hbbridge.hbm.
+    Preserva pontuação ODBC/senhas, rejeita erros/duplicatas/includes e resolve
+    caminhos pelo arquivo. Autoload hbbridge.ini ao lado do executável;
+    padrões < arquivo único < CLI. --config-info sem listeners/DB/segredos.
+  + Exemplos hbbridge/sqlite/mssql INI e template AppServer; launchers preservam
+    somente overrides explícitos e usam metadados nativos INI.
+  + HBBridgeConfig estática com namespace lê GetSrvIniName/GetPvProfString,
+    host/porta/timeout/budgets/chunk/SQLProfile; explícitos têm prioridade.
+    Valores inválidos são rejeitados antes da rede. Testes/configuração cliente.
+  ; Seção local acrescentada com backup e bytes originais preservados. Parada
+    TOTVS bloqueou compilação do agente; novo aceite cliente então pendente.
+  + 26 checks INI e três rejeições SQL estritas; comparação prefixada Harbour
+    foi corrigida. Suíte 412 checks/zero falhas/sem skips, candidato/INI/página
+    via launcher passaram, sem substituir executável instalado.
+  ; SQLite anterior aceito às 00:40:06, 29 checks, thread 41228; MSSQL e novo
+    INI cliente ainda aguardavam homologação naquele registro.
+
+2026-10-04 03:34 UTC naldodj (Launcher de homologação SQL do mesmo produto)
+  + run-hbbridge compartilhado, SQL launcher e Config no exemplo mínimo;
+    resolução de diretórios e candidato canônico sem duplicar implementação.
+  * sqlite_demo é padrão do exemplo; valida perfis e mostra chamada explícita
+    Protheus, aceita MSSQL/configuração própria e preserva opções JSON salvo CLI.
+  ; Sintaxe PowerShell e página via launcher/portas isoladas passaram.
+    Documentado que iniciar servidor e executar teste AppServer são passos distintos.
+
+2026-10-04 03:29 UTC naldodj (Explicar serviço SQL indisponível)
+  + Startup informa Query habilitada/contagem de perfis, sem segredos/caminhos.
+    Teste diferencia SERVICE_NOT_FOUND de perfil desconhecido e orienta config.
+  ; Tentativa Protheus 00:27:04 e descoberta não tinham Query. Candidato/página
+    com perfis passaram; processo instalado não foi substituído.
+
+2026-10-04 03:18 UTC naldodj (Query nativa e paginação no SGBD)
+  + SQLMIX/sddsqlt3/sddodbc, registro condicionado a perfis, headers/rows por
+    chave, tipos/contagem/versão. ROW_NUMBER/BETWEEN, sentinel hasNext, ordem
+    explícita/ordinais exatos, sem teto MVP. Ciclo global RDDSQL protegido por
+    mutex, áreas/conexões fechadas, estado restaurado e falhas sanitizadas.
+  ! Normalização Windows preserva caminhos absolutos/raiz.
+  + Perfis JSON SQLite/MSSQL e TRPCDataSet JSONObject com OpenPage/NextPage,
+    campos nomeados, EOF/Close/erros. Teste Protheus e SQLite persistente,
+    páginas/aliases/faixas/limpeza/concorrência/NETIO igual ao TCP.
+  ; Suíte 383 checks/zero falhas/sem skips, SQLite 3.53.4; candidato/página CLI
+    passaram. TOTVS bloqueou antes do compilador; SQL Protheus/MSSQL pendentes.
+    Operador confirmou Health/ADDON/dois Echo: 200000 bytes íntegros e gzip
+    variado 152964 bytes. Contratos/dependências/pendências documentados.
+
+2026-10-03 21:49 UTC naldodj (Estruturas por chave)
+  * AGENTS/README/TODO preferem hashes e JSONObject/THashMap/HashMap para dados
+    nomeados. Arrays só por necessidade concreta, considerando alocação/cópia/busca.
+
+2026-10-03 21:43 UTC naldodj (Relógio TLPP em classe estática)
+  * HBBridgeTime do usuário em hbBridge.client, clientes/testes vinculados aos
+    métodos existentes; removidas referências à classe inexistente Remaining.
+  * U_HBBridgeConnectionTest preservada; pré-processador já transforma User
+    Function em U_. Helpers locais estáticos permitidos; APIs públicas em
+    classes com namespace. Convenções de inglês/quatro espaços documentadas.
+  ; Referências revisadas; compilação/aceite TLPP ainda pendentes naquele ponto.
+
+2026-10-03 21:08 UTC naldodj (Tempo monotônico em deadlines/uptime)
+  + C GetTickCount64/clock_gettime(CLOCK_MONOTONIC), sem fallback civil.
+    Substituídos hb_MilliSeconds no framing e ciclo de vida.
+  ! TLPP usa uma amostra TimeCounter, adaptação StopWatch sem importar classe;
+    regredir expira orçamento em vez de ampliar prazo. Teste escala/Sleep,
+    repetição/fração/regressão/expiração e prazo maior que 24 horas.
+  ; Unix ×1000 corresponde à issue12; manter detecção de correção futura.
+    Monotonicidade/wrap não são garantidos pela documentação TimeCounter.
+  + 29 checks de relógio, oito leitores concorrentes. Suíte 305/zero/sem skips,
+    candidato/help passaram; POSIX compilado, Linux/TLPP não homologados.
+    Contador não interrompe Send/gzip/JSON bloqueantes.
+
+2026-10-03 20:54 UTC naldodj (Trocar tetos MVP por capacidades e políticas)
+  - Tetos 16MiB/rede, oito dígitos e header128. Budgets opcionais padrão0;
+    buffer65536/deadline30000ms; servidor0desliga, NETIO0→-1 nativo.
+  ; Stop Protheus drena chamadas; deadline0 pode aguardar indefinidamente.
+    NETIO fecha conexões; cancelamento forçado futuro.
+  ! Comprimento canônico/exato, header derivado da capacidade real.
+  + RuntimeLimits expõe string/socket long/zlib uInt/NETIO int; buffer limitado
+    por socket+codec. Compressor incremental com zlib vinculada/GC/liberação.
+  * New TLPP preserva três argumentos e acrescenta budgets/chunk. Nessa etapa
+    Date/Seconds ainda media prazo positivo, sem teto de dia; Echo opcional.
+  ; MAXSTRINGSIZE/memória seguem reais. Suíte 276/zero/sem skips, Echo24000000
+    bytes, JSON/gzip>16MiB, limites/compressor/help passaram. Rodadas159/196
+    mantidas como história; blocos/handshake/negociação/TLPP pendentes.
+
+2026-10-03 15:35 UTC naldodj (Framing real e indentação)
+  + .editorconfig, quatro espaços nos fontes próprios, cabeçalhos preservados.
+  + Decoder C/zlib/includes compartilham contrato. Estado gzip entre leituras,
+    CRC/final, budgets/length/deadline; zlib vinculada e headers licenciados.
+  - Fallbacks HBS1/JSON aberto/zlib e ADDON.arquivo; somente HBBRIDGE/1 e
+    ADDON.Execute(module,params). Includes relativos ao checkout TOTVS.
+  ! TLPP acumula gzip completo, valida socket/codec/JSON, envios parciais,
+    erros estruturados; Echo variado gzip>65535 e conteúdo integral sem dump.
+  + Testes fragmentação/CRC/truncamento/expansão/length/formatos/deadline lento.
+  ; 196 checks/zero/sem skips, candidato passou. Handshake/blocos são futuros;
+    TLPP/FIN/timeout pendentes, GzStrDecomp sem saída limitada e Send sem timeout.
+
+2026-10-03 11:02 UTC naldodj (Compilação/teste Protheus confirmados)
+  ! Utility TOTVS corrige caminho/árvore/includes, aborta parada falha, preserva
+    status de compilação, evita pausa no reinício; listas temporárias ignoradas.
+  ; Usuário confirmou manualmente, logs: três fontes/três sucessos/zero erros,
+    Health/ADDON/Echo e 200000 caracteres íntegros. Reinício pelo agente negado
+    por permissões Windows; execução e compilação bem-sucedidas foram do usuário.
+
+2026-10-03 10:29 UTC naldodj (Runtime nativo e documentação dos marcos)
+  ! Config rejeita sufixos numéricos/IPv4, NUL, hashes incompletos e caminhos
+    drive-relativos ambíguos; comparação exata e caminhos enraizados.
+  + Casos extremos/concorrência/credencial admin; hbmk2 alvo sem extensão.
+    Config JSON, marcos/matriz/guias/instruções/paths/ExecuteAddonHRB alinhados;
+    dados/config de instalação ignorados.
+  ; Harbour3.2.1dev r2608271822/Zig0.16/Windowsx64:159 checks/zero/sem skips,
+    candidato/CLI passaram. Aceite Protheus pré-marco1 confirmado; mudanças
+    funcionais ainda exigiam execução no ambiente registrado.
+
+2026-10-02 10:03 UTC naldodj (Registro nativo e runtime host)
+  + Config/ciclo de vida/NETIO/adapter/unit/contract/native tests; registry
+    substitui dispatcher JSON ad hoc. Validadores/permissões/controle de paths
+    de addons e testes amplos startup/shutdown/config/contrato.
+  * Componentes/main/loader/core/builtin/TCP/TLPP/testes/hbm atualizados;
+    testes Protheus movidos para src/tlpp/tests/protheus.
+
+2026-10-01 14:57 UTC naldodj (Organização dos fontes)
+  * Separação console/transporte/dispatcher/handlers/ponte C sem alterar o
+    contrato MVP daquela revisão. hbbridge.hbm compartilhado com testes.
+  ! Loopback/HRBs corrigidos, fixtures isoladas, Health C e PRG addon exercitados.
+  + Launcher mínimo do mesmo binário, áreas reservadas/guias/paths atualizados.
+  ; Referência normalizada72checks, reorganizada74, zero falhas/sem skips,
+    produto/CLI passaram. NETIO/serviço/novo protocolo/debug não eram entregues
+    pelo movimento; aceite AppServer ainda pendente.
+
+2026-10-01 08:58 UTC naldodj (Depuração e VS Code)
+  + hbdebug inicial com build/fontes/workers/timeouts; HBDAP/Harbour DAP VSCode
+    opcionais, revisões compatíveis, VSIX e launch/attach. Distinguir recursos
+    existentes da integração pendente; testes específicos concorrência/HRB.
+  ; Só documentação; projetos privados inspecionados localmente.
+
+2026-09-30 20:45 UTC naldodj (Brainstorming e roadmap)
+  + Persistência sequencial/pool limitado/recursos antes de multiplex/retomada
+    autenticada; TLS/JWT, Smartlink como requisito gRPC, AMQP opcional.
+  * Preservados Harbour/C/Zig, NETIO integrado e implementação única.
+  ! Documentação MVP alinhada a HBBRIDGE/1, HBS1 legado e bind0.0.0.0.
+  + Análise com referências/dependências/aceites e brainstorming histórico.
+  ; Só revisão documental, sem novos transportes/segurança/movimentos/runtime;
+    limitações dos testes/build e pendências Protheus registradas.
+
+2026-09-29 09:57 UTC naldodj (VF IO e TRPC)
+  + Escopo hb_vf*, provedores local/NETIO, handles por sessão e blocos.
+    Aceites binário/offset/erros/capacidades/ABI, reutilização seletiva de
+    metadata/executores/callbacks TRPC preservando arquitetura de transportes.
+  + Análise de protocolos/nomes/validação/concorrência/autorização e índice.
+  ; Documentação/análise estática; integração runtime ainda pendente.
+
+2026-09-28 17:59 UTC naldodj (Arquitetura e migração MVP)
+  * Um host NETIO/core, clientes Harbour/Protheus, implementação única/exemplo
+    mínimo/regressões; legado HBS1, blocos/negociação/gzip e fundamentos.
+  ! Caminhos em minúsculas alinhados. Marco0 organização/migração de testes,
+    NETIO no processo, shutdown coordenado e bibliotecas sem runtime duplicado.
+  ; Só documentação; movimento de fontes/runtime permanecia futuro.
+
+2026-09-27 15:08 UTC naldodj (Versão MVP inicial)
+  + README/TODO/docs/testes/.gitignore, clientes thbbridgeclient/trpcdataset,
+    testes MT fault/isolation/server e conexão Protheus, addon exemplo,
+    build Zig/hbp/scripts/config de exemplo, loader/dispatcher/servidores,
+    Syslog e engine Zig. Lista original de arquivos em ChangeLog.txt.

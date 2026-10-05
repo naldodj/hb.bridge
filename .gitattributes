@@ -19,6 +19,7 @@ ChangeLog.txt ident
 *.bat     text
 *.c       text
 *.cfg     text
+*.cmd     text
 *.ch      text
 *.cpp     text
 *.css     text
@@ -35,6 +36,7 @@ ChangeLog.txt ident
 *.html    text
 *.in      text
 *.ini     text
+*.json    text
 *.js      text
 *.log     text
 *.lst     text
@@ -74,6 +76,13 @@ ChangeLog.txt ident
 *.xsl     text
 *.y       text
 *.yml     text
+*.yaml    text
+*.zig     text
+*.zon     text
+*.example text
+*.svg     text
+*.diff    text
+*.patch   text
 *.yyc     text
 *.yyh     text
 

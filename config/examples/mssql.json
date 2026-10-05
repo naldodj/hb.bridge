@@ -1,0 +1,8 @@
+{
+    "sqlProfiles": {
+        "mssql_demo": {
+            "driver": "mssql",
+            "connectionString": "DSN=hbBridgeMSSQL;Trusted_Connection=Yes;"
+        }
+    }
+}

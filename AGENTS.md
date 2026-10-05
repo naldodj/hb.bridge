@@ -1,0 +1,37 @@
+# hbBridge conventions
+
+[Português](AGENTS.pt-BR.md) · [Detailed standards](docs/standards.md)
+
+- Use four spaces per indentation level in project-owned sources. Preserve
+  upstream formatting, copyright and license notices in third-party files.
+- Use English identifiers and lowercase filenames, functions, procedures,
+  methods and namespaces. Classes use PascalCase, as explicitly agreed with
+  the project owner. A class file uses its exact class name in lowercase:
+  `HBBridgeClient` lives in `hbbridgeclient.tlpp`.
+- Use the same module naming convention for Harbour, TLPP, C and Zig;
+  extensions identify the language. Product modules start with `hbbridge`.
+- Preserve conventional Git document names (`README`, `LICENSE`, `AGENTS`,
+  `TODO`, `ChangeLog`) and the agreed `.pt-BR` locale suffix. Pair English
+  documentation with Portuguese. Other document basenames are lowercase English.
+- Preserve external API spellings, case-sensitive protocol/JSON fields and
+  compiler-required C macros/symbols, including uppercase `HB_FUNC` symbols.
+- Prefer Harbour hashes for records, settings, metadata and keyed lookups.
+  Prefer TLPP `JSONObject` for JSON contracts and `THashMap` for suitable
+  internal maps. Use arrays only where a native API or contract requires them;
+  document the concrete allocation/copy/search tradeoff.
+- Expose public Protheus APIs through classes with explicit namespaces. Use
+  static methods for utilities without state; local helpers may be static
+  functions. Existing test procedures with the `U_` prefix keep their
+  published names, such as `U_HBBridgeConnectionTest`.
+- Keep hbBridge generic. Protheus resolves its business rules, tenant, company,
+  branch, `xFilial` and physical table names; services/addons receive explicit
+  inputs. SQL aliases are opaque keys, never automatic ERP context resolvers.
+  The TLPP library must not force a demo database profile.
+- The Protheus preprocessor turns `User Function Name` into `U_Name`.
+  Existing direct `procedure U_Name` declarations need no conversion.
+- Resolve build dependencies with `scripts/bootstrap.ps1` and the pinned
+  `config/dependencies.json`. Do not hardcode a developer's SDK checkout or
+  use the former bundled `bin/harbour` runtime.
+- Before every commit, run `scripts/commit-check.ps1`: it must pass
+  `.hbcommit/check.hb`, `.hbcommit/commit.hb` and the read-only validation mode
+  of `.hbcommit/3rdpatch.hb`. Do not bypass failed checks or mutate the index.

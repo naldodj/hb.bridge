@@ -1,0 +1,8 @@
+# Header provenance for .hbcommit/3rdpatch.hb -validate; not a build target.
+# ORIGIN https://github.com/harbour/core
+# VER 1.3.1-harbour-8d94c31367104a57eb9ae6fa248cca2abb8db309
+# URL https://github.com/harbour/core/archive/8d94c31367104a57eb9ae6fa248cca2abb8db309.zip
+# MAP zlib.h zlib.h
+# MAP zconf.h zconf.h
+# SHA256 zlib.h 0df9bb16bf83cba5b19273085434593751c72cc29fe994a4bfea3f076a2a3e62
+# SHA256 zconf.h 08604f35fb21f82b530792c4250f25afdbfe0c1afadc0f7a5f2b16953e635fa3

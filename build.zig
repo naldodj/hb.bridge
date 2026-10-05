@@ -6,9 +6,9 @@ pub fn build(b: *std.Build) void {
 
     const lib = b.addLibrary(.{
         .linkage = .static,
-        .name = "hbBridge_zig",
+        .name = "hbbridge_zig",
         .root_module = b.createModule(.{
-            .root_source_file = b.path("src/zig/runtime/engine.zig"),
+            .root_source_file = b.path("src/zig/runtime/hbbridgeruntime.zig"),
             .target = target,
             .optimize = optimize,
         }),

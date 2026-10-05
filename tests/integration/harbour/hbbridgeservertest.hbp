@@ -1,0 +1,12 @@
+-main=mttests
+-gtstd
+-ohbbridgeservertest
+hbbridgeservertest.prg
+hbbridgenetiotest.prg
+hbbridgeframingtest.prg
+hbbridgequerytest.prg
+../../unit/hbbridgeconfigtest.prg
+../../unit/hbbridgeconfiginitest.prg
+../../unit/hbbridgetimetest.prg
+../../contract/hbbridgeservicestest.prg
+../../../hbbridge.hbm

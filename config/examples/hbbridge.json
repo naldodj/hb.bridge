@@ -1,0 +1,19 @@
+{
+    "protheusHost": "0.0.0.0",
+    "protheusPort": 1512,
+    "protheusMaxPayloadBytes": 0,
+    "protheusMaxWireBytes": 0,
+    "protheusReadChunkBytes": 65536,
+    "protheusTimeoutMs": 30000,
+    "netioHost": "0.0.0.0",
+    "netioPort": 2941,
+    "netioRoot": "../../data",
+    "netioPassword": "",
+    "adminHost": "127.0.0.1",
+    "adminPort": 2940,
+    "adminPassword": "",
+    "addonRoot": "../../addons",
+    "maxWorkers": 64,
+    "netioTimeout": 0,
+    "sqlProfiles": {}
+}

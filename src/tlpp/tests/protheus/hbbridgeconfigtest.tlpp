@@ -1,0 +1,116 @@
+#include "protheus.ch"
+#include "tlpp-core.th"
+
+procedure U_HBBridgeConfigTest()
+
+    local jValues := JSONObject():new() as JSON
+    local jOverrides := JSONObject():new() as JSON
+    local jChecks := JSONObject():new() as JSON
+    local jConfig as JSON
+    local lOk := .T. as logical
+
+    jConfig := hbbridge.client.HBBridgeConfig():resolve(jValues, jOverrides)
+    jChecks["missingSectionDefaults"] := jConfig["success"] .and. ;
+        jConfig["host"] == "127.0.0.1" .and. jConfig["port"] == 1512 .and. ;
+        jConfig["timeoutMs"] == 30000 .and. jConfig["maxPayloadBytes"] == 0 .and. ;
+        jConfig["maxWireBytes"] == 0 .and. jConfig["readChunkBytes"] == 65536 .and. ;
+        jConfig["sqlProfile"] == ""
+    lOk := lOk .and. jChecks["missingSectionDefaults"]
+    FreeObj(@jConfig)
+
+    jValues["host"] := "bridge.example.local"
+    jValues["port"] := "1712"
+    jValues["timeoutMs"] := "45000"
+    jValues["readChunkBytes"] := "8192"
+    jValues["sqlProfile"] := "mssql/pData"
+    jConfig := hbbridge.client.HBBridgeConfig():resolve(jValues, jOverrides)
+    jChecks["iniValues"] := jConfig["success"] .and. jConfig["host"] == "bridge.example.local" .and. ;
+        jConfig["port"] == 1712 .and. jConfig["timeoutMs"] == 45000 .and. ;
+        jConfig["readChunkBytes"] == 8192 .and. jConfig["sqlProfile"] == "mssql/pData"
+    lOk := lOk .and. jChecks["iniValues"]
+    FreeObj(@jConfig)
+
+    jOverrides["sqlProfile"] := "sqlite_demo"
+    jConfig := hbbridge.client.HBBridgeConfig():resolve(jValues, jOverrides)
+    jChecks["explicitProfile"] := jConfig["success"] .and. jConfig["sqlProfile"] == "sqlite_demo"
+    lOk := lOk .and. jChecks["explicitProfile"]
+    FreeObj(@jConfig)
+    jOverrides["sqlProfile"] := ""
+    jConfig := hbbridge.client.HBBridgeConfig():resolve(jValues, jOverrides)
+    jChecks["noForcedProfile"] := jConfig["success"] .and. jConfig["sqlProfile"] == ""
+    lOk := lOk .and. jChecks["noForcedProfile"]
+    FreeObj(@jConfig)
+    jOverrides["sqlProfile"] := Chr(0)
+    jConfig := hbbridge.client.HBBridgeConfig():resolve(jValues, jOverrides)
+    jChecks["invalidProfile"] := !jConfig["success"]
+    lOk := lOk .and. jChecks["invalidProfile"]
+    FreeObj(@jConfig)
+    jOverrides["sqlProfile"] := "mssql/pData"
+
+    jOverrides["host"] := "0.0.0.0"
+    jConfig := hbbridge.client.HBBridgeConfig():resolve(jValues, jOverrides)
+    jChecks["wildcardIsNotDestination"] := !jConfig["success"]
+    lOk := lOk .and. jChecks["wildcardIsNotDestination"]
+    FreeObj(@jConfig)
+    jOverrides["host"] := "bridge.example.local"
+
+    jValues["port"] := "1712x"
+    jConfig := hbbridge.client.HBBridgeConfig():resolve(jValues, jOverrides)
+    jChecks["invalidIniNumber"] := !jConfig["success"] .and. jConfig["code"] == "INVALID_CONFIGURATION"
+    lOk := lOk .and. jChecks["invalidIniNumber"]
+    FreeObj(@jConfig)
+    jOverrides["port"] := 1812
+    jOverrides["maxPayloadBytes"] := 0
+    jValues["maxPayloadBytes"] := "2048"
+    jConfig := hbbridge.client.HBBridgeConfig():resolve(jValues, jOverrides)
+    jChecks["explicitOverridesInvalidIni"] := jConfig["success"] .and. jConfig["port"] == 1812
+    jChecks["explicitZeroDisablesBudget"] := jConfig["maxPayloadBytes"] == 0
+    lOk := lOk .and. jChecks["explicitOverridesInvalidIni"] .and. jChecks["explicitZeroDisablesBudget"]
+    FreeObj(@jConfig)
+
+    jOverrides["port"] := 65536
+    jConfig := hbbridge.client.HBBridgeConfig():resolve(jValues, jOverrides)
+    jChecks["invalidExplicitPort"] := !jConfig["success"]
+    lOk := lOk .and. jChecks["invalidExplicitPort"]
+    FreeObj(@jConfig)
+    jOverrides["port"] := 1812
+    jOverrides["timeoutMs"] := 0
+    jConfig := hbbridge.client.HBBridgeConfig():resolve(jValues, jOverrides)
+    jChecks["invalidTimeout"] := !jConfig["success"]
+    lOk := lOk .and. jChecks["invalidTimeout"]
+    FreeObj(@jConfig)
+    jOverrides["timeoutMs"] := 45000
+    jOverrides["readChunkBytes"] := 2147483648
+    jConfig := hbbridge.client.HBBridgeConfig():resolve(jValues, jOverrides)
+    jChecks["nativeChunkCapacity"] := !jConfig["success"]
+    lOk := lOk .and. jChecks["nativeChunkCapacity"]
+    FreeObj(@jConfig)
+    jOverrides["readChunkBytes"] := 8192
+    jOverrides["maxWireBytes"] := -1
+    jConfig := hbbridge.client.HBBridgeConfig():resolve(jValues, jOverrides)
+    jChecks["negativeBudget"] := !jConfig["success"]
+    lOk := lOk .and. jChecks["negativeBudget"]
+    FreeObj(@jConfig)
+    jOverrides["maxWireBytes"] := 0.5
+    jConfig := hbbridge.client.HBBridgeConfig():resolve(jValues, jOverrides)
+    jChecks["fractionalBudget"] := !jConfig["success"]
+    lOk := lOk .and. jChecks["fractionalBudget"]
+    FreeObj(@jConfig)
+    jOverrides["maxWireBytes"] := "2147483648"
+    jConfig := hbbridge.client.HBBridgeConfig():resolve(jValues, jOverrides)
+    jChecks["budgetBeyondSocketChunk"] := jConfig["success"] .and. jConfig["maxWireBytes"] == 2147483648
+    lOk := lOk .and. jChecks["budgetBeyondSocketChunk"]
+    FreeObj(@jConfig)
+
+    jConfig := hbbridge.client.HBBridgeConfig():read()
+    jChecks["activeAppServerIni"] := jConfig["success"]
+    lOk := lOk .and. jChecks["activeAppServerIni"]
+    FreeObj(@jConfig)
+
+    ConOut("hbBridge client configuration checks: " + jChecks:ToJSON())
+    ConOut("hbBridge client configuration Protheus " + IIf(lOk, "OK", "FAILED"))
+    FreeObj(@jChecks)
+    FreeObj(@jOverrides)
+    FreeObj(@jValues)
+
+return

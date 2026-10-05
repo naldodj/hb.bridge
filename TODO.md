@@ -1,599 +1,464 @@
-# Roadmap do hbBridge
-
-O objetivo é disponibilizar os recursos de Harbour, C e Zig ao Protheus e a
-clientes Harbour nativos por uma integração extensível. O [README.md](README.md)
-registra os fundamentos, o estado do MVP e o desenho pretendido.
-
-## Premissas a preservar
-
-- **Harbour:** a familiaridade sintática xBase com AdvPL/TLPP facilita a
-  programação dos serviços; runtime, RDDs e contribs fornecem a base funcional.
-- **C:** a API nativa Harbour e a ABI C conectam o runtime às bibliotecas e ao Zig.
-- **Zig:** interoperabilidade com C, modernização de componentes nativos e
-  toolchain de build são fundamentos do projeto e evoluem junto com a ponte.
-- **Dois perfis de cliente:** NETIO e serialização nativa para Harbour;
-  contrato interoperável adaptado às capacidades do Protheus.
-- **Extensibilidade:** serviços versionados e descobertos em um registro comum,
-  independentes de transporte, codec e linguagem de implementação.
-- **Arquivos:** Harbour VF IO API (`hb_vf*`) como base comum para provedores
-  locais/remotos; clientes TLPP usam uma fachada de serviços com recursos por sessão.
-- **Implementação única:** componentes reutilizáveis em `src/`, exemplo mínimo
-  em `examples/mvp/` e validações migradas para testes de regressão. O histórico
-  Git preserva o MVP original, sem duas cópias ativas do servidor.
-- **Depuração:** adotar inicialmente `hbdebug`, já nativo do Harbour; evoluir
-  para HBDAP opcional conforme a maturidade do projeto privado e os testes no hbBridge.
-- **Volume:** substituir o teto fixo do MVP por transferência incremental e
-  limites técnicos/operacionais negociados; considerar `MAXSTRINGSIZE` no TLPP.
-- **Compressão:** preservar o MVP `HBBRIDGE/1`/`HBS1` e avaliar `none`/`gzip` no novo
-  contrato; usar os mecanismos nativos no caminho Harbour/NETIO.
-- **Rede e serviço:** NETIO em `0.0.0.0:2941`, administração em
-  `127.0.0.1:2940`, com configuração própria e instalação como serviço. Um único
-  executável hbBridge incorpora `hbnetio` por chamadas de função no mesmo processo.
-
-As caixas concluídas abaixo registram código existente, não homologação geral.
-Recursos disponíveis no Harbour só serão considerados integrados após os aceites.
-
-## Base existente — preservar e ampliar
-
-- [x] Servidor TCP multithread, bind `0.0.0.0` e porta padrão `1512`; destino local `127.0.0.1`.
-- [x] Dispatcher com `Health`, `Echo` e `ADDON.<arquivo>`.
-- [x] `Health` exercitando Harbour → C → Zig no build atual.
-- [x] Cliente TLPP com frame `HBBRIDGE/1|JSON|<bytes-do-JSON>\n<payload-json>`.
-- [x] Compressão em memória nos dois sentidos com `GzStrComp`/`hb_ZUncompress`
-  e `hb_gzCompress`/`GzStrDecomp`.
-- [x] Teste Protheus de `Health`, `Echo` e `ADDON.examples\sample_addon.prg`,
-  incluindo retorno de 200.000 caracteres repetidos no `Echo`.
-- [x] Compilação em memória de `.prg`/`.hb` e carregamento de `.hrb`, com
-  símbolos locais à chamada e descarregamento do módulo.
-- [x] Testes Harbour no repositório para concorrência, isolamento e falhas de addons.
-- [x] Envio parcial tratado no servidor; o cliente TLPP ainda precisa de ajuste.
-- [x] Build Harbour/C com Zig e biblioteca `hbBridge_zig` vinculada.
-- [x] Biblioteca `hbnetio` na composição `hbbridge.hbm`, ainda sem listener NETIO ativo.
-- [x] Esboço de `TRPCDataSet` para `RPCRDD.Query`, sem implementação no servidor.
-- [x] Módulo Syslog UDP disponível, ainda sem ligação ao fluxo de chamadas.
-- [x] Assinatura `HBBRIDGE/1`; servidor aceita `HBS1` e preserva a assinatura na resposta.
-- [x] Regressões Harbour de `Echo` e erro com ambas as assinaturas no código de testes.
-- [x] Análise do [brainstorming](docs/transportes-sessoes-seguranca.md), sem integrar novos transportes nesta etapa.
-
-**Dívidas do MVP:** JSON limitado a 16 MiB no servidor, compressão obrigatória,
-descompressão por leitura TCP, bind fixo, uma conexão por chamada e ausência de serviço
-de sistema/administração. O teste com dados repetidos não valida transferência
-grande pouco compressível nem fragmentação. Essas restrições não definem o
-produto final e serão substituídas com compatibilidade documentada.
-
-## Sequência de entrega
-
-1. Separar responsabilidades dos fontes, exemplo MVP e regressões (marco 0).
-2. Consolidar registro de serviços, NETIO nativo e configuração de rede (marco 1).
-3. Especificar o contrato e corrigir transferência; validar versões em paralelo
-   com os serviços existentes (marco 2).
-4. Entregar o próximo teste funcional, `RPCRDD.Query` com MSSQL e/ou SQLite,
-   e integrar DBF via NETIO e arquivos VF IO (marco 3).
-5. Ampliar módulos, contribs e ABI C/Zig conforme os casos de uso (marco 4).
-6. Homologar serviço, administração, acesso e distribuição (marco 5).
-7. Acrescentar jobs, lotes e processamento incremental conforme demanda (marco 6).
-
-Um primeiro teste SQL pode usar o contrato do MVP enquanto o novo é desenvolvido.
-Grandes volumes dependem do marco 2; DBF remoto depende do NETIO do marco 1.
-ABI C/Zig e infraestrutura de serviço podem avançar junto com esses marcos.
-A depuração com `hbdebug` começa em paralelo ao marco 0 e acompanha os serviços;
-o desenvolvimento do HBDAP não bloqueia essa primeira entrega.
-
-## Marco 0 — separar produto, exemplo MVP e regressões
-
-A [estrutura atual](README.md#estrutura-atual) materializa a organização prevista.
-A reorganização preserva o comportamento do MVP; novas capacidades continuam nos
-marcos seguintes. O [registro da mudança](docs/reorganizacao.md) contém o mapa de
-arquivos e a validação sobre a revisão de referência `b45595b`.
-
-- [x] Corrigir o destino local da suíte Harbour para `127.0.0.1` e alinhar
-  nomes/chamadas das fixtures HRB; automatizar o preparo sem skips na execução validada.
-- [x] Registrar a revisão Git de referência do MVP e comparar as regressões
-  antes/depois da reorganização, distinguindo correções do próprio teste.
-- [x] Classificar os fontes entre host, núcleo, transportes, serviços,
-  carregamento de addons, telemetria e clientes.
-- [x] Separar a entrada e o ciclo de vida do console em `src/hb/host/main.prg`;
-  o mesmo host será ampliado para serviço no marco 5.
-- [x] Mover o dispatcher existente para `src/hb/core/` e extrair handlers para
-  `src/hb/services/`. Registro versionado e contexto nativo ficam no marco 1.
-- [x] Isolar sockets/enquadramento do MVP em `src/hb/transports/protheus/`,
-  preservando `HBBRIDGE/1`/`HBS1`, compressão e limites atuais.
-- [x] Reservar `src/hb/transports/netio/` com estado documentado; o listener
-  nativo e sua integração ao núcleo permanecem no marco 1.
-- [x] Preservar loader/telemetria em seus módulos e extrair a ponte C para
-  `src/c/zig_bridge.c`, mantendo a função Zig e o retorno do serviço `Health`.
-- [x] Criar `examples/mvp/` com perfil mínimo/launcher do mesmo binário,
-  referenciando addons e clientes compartilhados.
-- [x] Migrar testes e fixtures para `tests/integration/harbour/` e `protheus/`;
-  verificar `Health` e o addon PRG de exemplo também na suíte Harbour.
-- [x] Criar `tests/unit/` e `tests/contract/` com escopo e estado documentados.
-- [ ] Extrair testes dedicados de tipos, erros e formatos para `tests/contract/`
-  ao evoluir o contrato; criar unitários quando houver comportamento independente.
-  As assinaturas atuais seguem cobertas na integração, sem duplicar testes.
-- [x] Centralizar fontes/flags em `hbbridge.hbm`, compartilhado pelo produto e
-  pelo projeto de testes; manter entradas separadas e uma implementação dos componentes.
-- [x] Ajustar caminhos do build, testes, scripts e documentação; validar 72
-  verificações da referência normalizada e 74 após a extração, sem falhas.
-- [ ] Reexecutar o teste TLPP real no AppServer após atualizar os caminhos
-  de compilação do ambiente; o fonte foi movido sem alteração de comportamento.
-
-**Aceite estrutural atingido:** produto e exemplo compartilham implementação e
-binário; a suíte Harbour e o build/CLI do produto foram validados. NETIO, serviço,
-novo contrato e depuração não são entregues por essa movimentação. A homologação
-TLPP no ambiente Protheus e as novas suítes dedicadas continuam registradas acima.
-
-## Depuração — frente transversal desde o MVP
-
-A [estratégia de depuração](README.md#depuração-hbdebug-primeiro-hbdap-como-evolução)
-usa os mesmos fontes e serviços do produto. `hbdebug` existe no Harbour, mas
-o build/loader atuais ainda não habilitam o perfil descrito abaixo.
-
-### Etapa inicial — hbdebug nativo
-
-- [ ] Criar perfil de desenvolvimento com `-b`, vinculação de `hbdebug` e
-  terminal/GT adequado; documentar ativação, saída e localização dos fontes.
-  Separar informações Harbour das informações nativas C/Zig (`-debug` no hbmk2).
-- [ ] Aplicar a escolha de depuração também ao `hb_compileBuf` para `.prg`/`.hb`
-  e ao preparo de `.hrb`, preservando identificação de módulo, fonte e linhas.
-- [ ] Validar breakpoint e stepping em um handler Harbour e em um addon,
-  com pilha, variáveis locais e retomada até a resposta RPC correta.
-- [ ] Começar com requisição/worker controlado; definir propriedade do terminal
-  e comportamento das demais threads durante uma pausa, antes de ampliar concorrência.
-- [ ] Definir timeouts do perfil de depuração e comportamento de desconexão do
-  cliente enquanto o worker está parado, sem repetir operações com efeitos.
-- [ ] Testar carga/descarga de HRB, falha no addon, retomada e encerramento,
-  verificando liberação de recursos e ausência de estado de debug obsoleto.
-- [ ] Manter ativação explícita; validar execução normal e serviço sem interação
-  obrigatória com o depurador, compartilhando fontes e composição do build.
-- [ ] Documentar um roteiro reproduzível com `Echo` e um addon; registrar build,
-  resultado e limitações. Vincular correlação RPC aos logs para investigar o TLPP
-  no AppServer e a fronteira C/Zig com suas ferramentas próprias.
-
-**Aceite inicial:** uma chamada a partir de Protheus ou cliente de teste Harbour
-para em um breakpoint, permite inspecionar pilha/variáveis e retoma com resposta
-correta. Handler e addon são exercitados; perfil normal continua sem UI de debug.
-
-### Etapa futura — integração opcional ao HBDAP
-
-Referências locais de desenvolvimento: projeto privado `F:\GitHub\hbdap`
-e extensão Harbour DAP para VS Code em `F:\GitHub\hbdap-vscode-extension`.
-Os itens abaixo tratam da integração no hbBridge; a existência de recursos no
-HBDAP ou na extensão não os torna entregues ou homologados neste servidor.
-
-- [ ] Fixar revisões Harbour/HBDAP, versão da extensão/VS Code, toolchain e
-  requisitos dos hooks/patches do runtime; validar a base suportada do HBDAP
-  antes do primeiro teste hbBridge.
-- [ ] Integrar a bridge DAP de forma opcional, preservando o fluxo com `hbdebug`
-  e configurando a localização da dependência sem caminhos de máquina fixos.
-- [ ] Definir o modo de conexão suportado, canal separado e acesso local/controlado;
-  isolar stdout/stderr/logs do framing DAP e limpar a sessão após desconexão.
-- [ ] Validar breakpoints, continue, stepping, pilha e variáveis em um cliente DAP;
-  anunciar somente as capacidades comprovadas na combinação runtime/adaptador.
-- [ ] Documentar instalação da extensão Harbour DAP por VSIX e configuração
-  `launch.json` com tipo `harbour-dap`, executável, diretório de trabalho e fontes;
-  homologar os modos launch/attach escolhidos e o adaptador quando necessário.
-  Preparar runtime/biblioteca/ferramentas separadamente do pacote da extensão.
-- [ ] Validar a extensão instalada no VS Code contra o hbBridge real: breakpoint
-  em handler e addon, pilha, variáveis, stepping, retomada e desconexão limpa.
-  Reutilizar os cenários de integração DAP, com um subconjunto representativo no
-  editor, distinguindo testes com protocolo simulado daqueles com runtime real.
-- [ ] Homologar identidade de workers/threads, escopo de pausa/retomada e isolamento
-  entre sessões antes de oferecer depuração concorrente. O HBDAP consultado ainda
-  não garante suporte multithread/process; manter essa dependência explícita.
-- [ ] Validar fontes e breakpoints de `.prg`/`.hb`/`.hrb` carregados dinamicamente,
-  inclusive recarga, descarga e referências invalidadas durante a sessão.
-- [ ] Repetir os cenários aceitos com `hbdebug` pela bridge DAP; testar attach no
-  modo escolhido, perda do cliente de debug, término da chamada e parada do servidor.
-- [ ] Documentar limites da depuração Harbour e o procedimento separado para
-  código TLPP e C/Zig; não anunciar stepping unificado sem implementação própria.
-
-**Aceite futuro:** sessão DAP reproduzível no hbBridge com handler e addon,
-validada também pela extensão instalada no VS Code, com recursos liberados ao
-desconectar e capacidades/limitações documentadas.
-Depuração concorrente só será anunciada após suporte e testes dos workers.
-
-## Marco 1 — núcleo extensível, NETIO e rede configurável
-
-- [ ] Fixar versões/revisões Harbour e Zig, plataformas e contribs do build;
-  registrar a matriz de versões AppServer/TLPP suportadas.
-- [ ] Separar handlers de negócio dos adaptadores de transporte. O núcleo
-  recebe/devolve valores Harbour; cada adaptador cuida da representação.
-- [ ] Criar registro de serviços com nome, versão, assinatura, tipos, permissões,
-  handler, dependências e modalidades de resultado; expor descoberta de capacidades.
-- [x] Avaliar estaticamente `contrib/xhb/trpc.prg` e o cliente associado;
-  registrar conclusões em [Harbour VF IO e TRPC](docs/harbour-vfio-trpc.md).
-- [ ] Avaliar extração do modelo de descrição/executor de `TRPCFunction` para
-  o registro comum, independente dos sockets e do protocolo `XHBR`.
-- [ ] Adaptar nomes com namespaces, tipos, erros e autorização; manter argumentos
-  por chamada e testar concorrência antes de incorporar código do TRPC.
-- [ ] Hospedar NETIO e adaptador Protheus no mesmo executável hbBridge,
-  compartilhando núcleo/catálogo e isolando o estado de cada chamada.
-- [ ] Vincular `hbnetio` estaticamente na implantação inicial e integrar suas
-  funções ao host, sem iniciar um segundo executável de servidor.
-- [ ] Reaproveitar o modelo do utilitário upstream para configuração/administração
-  e serviço, mantendo um único ponto de entrada e runtime Harbour.
-- [ ] Integrar as APIs de servidor/RPC do hbnetio e reaproveitar seu atendimento
-  multithread, com configuração e ciclo de vida explícitos.
-- [ ] Adotar `_NETIOSRV_IPV4_DEF = "0.0.0.0"` e `_NETIOSRV_PORT_DEF = 2941`
-  como padrões do listener nativo; permitir configuração de interface e porta.
-- [ ] Adotar `_NETIOMGM_IPV4_DEF = "127.0.0.1"` e `_NETIOMGM_PORT_DEF = 2940`
-  para administração, habilitada com configuração/credencial própria.
-- [ ] Dar ao adaptador Protheus endpoint independente configurável, com perfil
-  MVP em `0.0.0.0:1512` e opção de bind local; validar conflitos e configuração inválida.
-- [ ] Externalizar host/porta do cliente TLPP e do teste; clientes usam IP/DNS
-  do servidor, nunca `0.0.0.0` como endereço de destino.
-- [ ] Documentar precedência entre parâmetros, arquivo e padrões, incluindo
-  diretórios de dados/addons, timeouts, concorrência e orçamento de memória.
-- [ ] Habilitar `-prgflag=-DHB_EXTERN` e `REQUEST __HB_EXTERN__` no executável
-  que hospeda o RPC; disponibilizar explicitamente as contribs adicionais.
-- [ ] Validar `-rpc`/`-rpc=<módulo>` no servidor de referência e definir o filtro
-  de chamadas do hbBridge. Vinculação de símbolos não autoriza todas as funções.
-- [ ] Criar cliente Harbour de integração usando NETIO, com chamada ao core
-  e aos mesmos serviços acessíveis ao Protheus.
-- [ ] Aproveitar a serialização nativa de argumentos/resultados do NETIO;
-  homologar `hb_Serialize`/`hb_Deserialize` quando um serviço usa blocos serializados.
-- [ ] Definir tipos permitidos no perfil Harbour, codepages e compatibilidade
-  entre versões; tratar recursos vivos por identificadores de serviço.
-
-**Aceite:** cliente Harbour remoto conecta-se ao listener NETIO em 2941 e
-executa um serviço registrado e uma função do core. O Protheus continua
-executando `Health`, `Echo` e `ADDON.` pelo adaptador. Interfaces e portas são
-configuráveis; administração usa canal separado. Os protocolos permanecem
-interoperáveis com seus respectivos clientes.
-
-## Marco 2 — contrato, grandes volumes e compressão negociada
-
-### Contrato de serviços e compatibilidade
-
-- [ ] Versionar protocolo e serviços separadamente, com descoberta e tratamento
-  de versões/capacidades não suportadas.
-- [ ] Especificar handshake pequeno e sem compressão para o novo adaptador TLPP;
-  no NETIO, consultar capacidades via RPC após a conexão nativa.
-- [ ] Negociar codecs, compressão, tamanho transmitido/expandido por bloco e
-  suporte a páginas/streams, considerando a capacidade nos dois sentidos.
-- [ ] Mapear configuração efetiva/build do AppServer e `MAXSTRINGSIZE` para um
-  perfil de cliente; definir configuração explícita quando não houver descoberta.
-- [ ] Definir identificador da chamada, serviço/versão, parâmetros, contexto,
-  prazo, resultado, metadados e erro estruturado com código/origem.
-- [ ] Especificar nulo versus vazio, inteiros, decimal/moeda sem perda de precisão,
-  datas/timestamps/fuso, texto, binários, arrays/hashes e tipos nativos adicionais.
-- [ ] Definir encoding e contagem de bytes, incluindo Unicode, zeros em binários
-  e expansão de JSON/base64; homologar APIs TLPP usadas para cada representação.
-- [ ] Preservar/migrar explicitamente retornos de `Health`, `Echo`, `ADDON.` e
-  `header`/`rows` esperados por `TRPCDataSet`, com testes entre versões.
-- [ ] Definir prazos, cancelamento cooperativo, idempotência e política de nova
-  tentativa. Não repetir automaticamente operações com efeitos após desconexão.
-
-### Conexões persistentes, pool e sessão
-
-- [ ] Implementar primeiro o enquadramento incremental da seção seguinte;
-  persistência será uma capacidade negociada do novo perfil, sem alterar o legado.
-- [ ] Manter socket aberto no cliente TLPP e loop de requisições no servidor,
-  começando com uma chamada em andamento por conexão e fechamento explícito.
-- [ ] Definir prazos de conexão, leitura, escrita, chamada e ociosidade; tornar
-  keepalive configurável e medir `TCP_NODELAY` com as APIs nativas Harbour.
-- [ ] Validar heartbeat quando necessário, sem confundir conexão TCP viva com
-  aplicação responsiva; limitar conexões ociosas e ocupação de workers.
-- [ ] Implementar pool limitado por endpoint, perfil TLS e identidade/sessão,
-  com empréstimo exclusivo, fila limitada e expurgo; validar ciclo de vida por
-  job/thread TLPP antes de compartilhar objetos de socket entre execuções.
-- [ ] Reconectar com backoff e jitter; separar reconexão de reenvio, tratando
-  resultado desconhecido, idempotência e prazo total da chamada.
-- [ ] Definir contexto imutável por chamada: correlação, identidade verificada,
-  empresa/filial autorizadas e prazo. Metadados do cliente não concedem acesso.
-- [ ] Garantir limpeza em sucesso/erro/cancelamento: áreas de trabalho, opções
-  SET, transações e buffers; testar STATIC/PUBLIC/PRIVATE e drivers sob concorrência.
-- [ ] Manter registro de recursos por sessão/usuário/tenant com TTL, proprietário,
-  fechamento explícito e proteção contra uso por outra sessão.
-- [ ] Definir desconexão por perfil: liberar recursos transitórios por padrão;
-  retomada exige autenticação, prazo, revalidação e encaminhamento ao proprietário.
-  Não prometer migração de handles/transações nem durabilidade sem armazenamento.
-- [ ] Avaliar multiplexação somente após persistência/pool: IDs por chamada,
-  leitor único, demultiplexação, escrita coordenada, cancelamento e backpressure.
-- [ ] Testar chamadas sucessivas, frames coalescidos/fragmentados, consumidor lento,
-  token expirado, queda de rede e interrupção do AppServer; medir memória, workers,
-  sockets, latência e isolamento entre tenants.
-
-**Aceite incremental:** várias chamadas sequenciais usam uma conexão; o pool
-respeita seu limite; falhas não repetem escritas nem vazam recursos/contexto.
-Multiplexação e retomada permanecem indisponíveis até seus testes específicos.
-
-### Enquadramento e consumo incremental
-
-- [ ] Especificar os bytes do novo frame externo: versão, codec, compressão,
-  identificação da chamada/stream, sequência/final e comprimentos transmitido
-  e expandido, validados antes de alocar ou descomprimir.
-- [ ] Tratar TCP como fluxo: cabeçalhos/corpos parciais, mensagens coalescidas,
-  envio parcial, EOF, truncamento, timeout e reconexão.
-- [ ] Corrigir o envio TLPP e substituir a descompressão de cada `Receive`
-  pela leitura da unidade completa. Verificar retornos de socket e compressão.
-- [ ] Definir a migração do enquadramento `HBBRIDGE/1`/`HBS1`, sem confundir seu comprimento
-  JSON descomprimido com o comprimento transmitido; não desligar gzip no legado.
-- [ ] Substituir o teto fixo de 16 MiB no novo contrato por limites configuráveis
-  e negociados por bloco/conexão, mantendo compatibilidade explícita do legado.
-- [ ] Inventariar limites de runtime, arquitetura, campos dos protocolos e APIs
-  Harbour/NETIO/TLPP/conectores; evitar promessas de tamanhos infinitos.
-- [ ] Diferenciar volume lógico total, limite por valor/mensagem e orçamento
-  operacional de memória, incluindo cópias e expansão durante a descompressão.
-- [ ] Implementar fluxo em blocos/páginas sem remontagem integral, com controle
-  do ritmo do produtor e quantidade de blocos em trânsito.
-- [ ] Tratar campos individuais grandes/BLOBs por stream ou identificador remoto;
-  um dataset paginado ainda pode conter uma coluna maior que `MAXSTRINGSIZE`.
-- [ ] Avaliar streams NETIO de dados/itens, fechamento, buffering e ritmo de
-  consumo; manter essas APIs nativas no caminho Harbour.
-- [ ] Definir propriedade, expiração, cancelamento e limpeza de recursos em
-  desconexão. Retomada só será anunciada para serviços que a implementem.
-
-### Compressão e validação
-
-- [ ] Implementar `none` e `gzip` negociados no adaptador Protheus; cada bloco
-  comprimido será uma unidade independente compatível com as APIs de strings.
-- [ ] Medir tamanho mínimo e ganho necessários para política automática;
-  comparar custo de CPU, latência e bytes em rede local/remota.
-- [ ] Validar dados vazios, incompressíveis e já comprimidos; tratar falhas de
-  `GzStrComp`/`GzStrDecomp`, além das funções Harbour correspondentes.
-- [ ] Homologar amostras binárias gzip nos dois sentidos, diferenciando o formato
-  no fio de zlib/DEFLATE e fixando os identificadores de codec/compressão.
-- [ ] Verificar limitação da expansão durante a descompressão, não apenas o
-  tamanho anunciado ou uma checagem após a alocação. Para APIs sem esse controle,
-  definir uso de blocos confiáveis ou modo `none` conforme o perfil de conexão.
-- [ ] Usar configuração nativa de compressão NETIO; medir separadamente
-  `HB_SERIALIZE_COMPRESS` e evitar compressão redundante das mesmas informações.
-- [ ] Testar ambos os clientes com dados íntegros, pequenos/grandes, Unicode,
-  binários, fragmentação, coalescência, falhas e versões incompatíveis.
-
-**Aceite:** ambos os perfis acessam serviços com tipos/erros consistentes.
-O novo adaptador funciona com e sem gzip e transfere volume total maior que
-16 MiB e que o limite de uma string do perfil Protheus homologado, consumindo
-blocos sem ultrapassar os limites por valor e o orçamento de memória medido.
-O consumidor lento, a descompressão inválida e a desconexão têm comportamento
-testado; o perfil legado tem caminho de migração documentado.
-
-## Marco 3 — MSSQL, SQLite, DBF e Harbour VF IO
-
-### Próximo teste: RPCRDD.Query
-
-- [ ] Escolher MSSQL via ODBC e/ou SQLite para o primeiro teste real e registrar
-  versões do servidor, bibliotecas cliente e dependências do build.
-- [ ] Habilitar `rddsql`/`SQLMIX` com `sddodbc` para MSSQL e `sddsqlt3` para SQLite;
-  avaliar `hbodbc`/`hbsqlit3` quando a operação exigir a API direta.
-- [ ] Implementar `RPCRDD.Query` no registro/dispatcher, com perfil lógico de
-  conexão, `alias`, `sql` e retorno compatível com `success`, `header`, `rows`.
-- [ ] Atualizar exemplos de perfis para MSSQL/SQLite, mantendo credenciais no
-  servidor; o arquivo atual é apenas esboço e não implementa criptografia.
-- [ ] Integrar o teste Protheus e `TRPCDataSet`: leitura por nome, navegação,
-  resultado vazio, consulta inválida, conexão indisponível e fechamento.
-- [ ] Exercitar o mesmo serviço a partir de cliente Harbour nativo.
-
-### Evolução do acesso a dados
-
-- [ ] Adicionar parâmetros SQL e metadados de tipo, tamanho, precisão e nulos,
-  com evolução compatível do cabeçalho atual.
-- [ ] Implementar páginas/cursores, prazo, fechamento/expiração e campos grandes;
-  adaptar `TRPCDataSet` para consumo incremental.
-- [ ] Medir materialização/cache do conector/RDD desde a consulta; paginação da
-  resposta não garante que o servidor deixou de carregar todas as linhas.
-- [ ] Definir transações por sessão/operação, commit/rollback e comportamento
-  na falha/desconexão; isolar conexões e áreas de trabalho entre chamadas.
-- [ ] Avaliar reutilização de conexões, concorrência e processamento em lote
-  com as APIs existentes, preservando o ciclo de vida dos recursos.
-- [ ] Ampliar homologação para PostgreSQL (`sddpg`/`hbpgsql`) e MySQL/MariaDB
-  (`sddmy`), registrando diferenças dos conectores e bibliotecas cliente.
-
-### DBF e arquivos nativos
-
-- [ ] Habilitar diretório raiz e acesso `net:` para RDDs nativos no cliente Harbour.
-- [ ] Homologar DBF, índices e memos: abrir, ler, navegar, localizar, escrever,
-  bloquear/desbloquear e fechar, incluindo acesso concorrente e desconexão.
-- [ ] Definir serviços equivalentes para o cliente TLPP, com identificadores
-  remotos de áreas/cursores, autorização e limpeza ao encerrar a sessão.
-- [ ] Manter explícita a distinção entre acesso DBF por RDD/NETIO e consultas SQL
-  de `RPCRDD.Query`; compartilhar representação de dados onde fizer sentido.
-
-### Arquivos locais/remotos com hb_vf*
-
-- [ ] Usar a Harbour VF IO API para abertura/fechamento, leitura/escrita,
-  acesso por offset, tamanho, diretórios e metadados, conforme o provedor.
-- [ ] Homologar inicialmente arquivos locais e `net:`; configurar/registrar
-  NETIO e anunciar apenas capacidades verificadas por backend.
-- [ ] Definir a família `Files.*` para TLPP no catálogo comum, com perfis de
-  armazenamento, caminhos permitidos, parâmetros e erros versionados.
-- [ ] Mapear identificadores opacos por sessão para handles VF; implementar
-  fechamento, expiração e limpeza na desconexão, sem serializar ponteiros.
-- [ ] Manter `hb_vfHandle` e opções de configuração que exponham descritores
-  internos fora da fachada RPC; selecionar explicitamente operações/opções remotas.
-- [ ] Tratar contagem efetiva, EOF, `FError()`, operações parciais e offsets
-  sem perda de precisão nos dois clientes e na ponte C/Zig.
-- [ ] Integrar blocos negociados e evitar carregar arquivos inteiros por
-  `hb_vfLoad`/`hb_vfSave` fora do orçamento de memória.
-- [ ] Homologar seek, truncamento, flush/commit e locks de bytes por backend;
-  preservar a gestão de registros/índices/bloqueios DBF pelos RDDs.
-- [ ] Testar cópia/renomeação entre provedores e reportar operações não suportadas,
-  sem presumir atomicidade ou equivalência de semântica entre backends.
-- [ ] Validar round-trip binário local/NETIO em Harbour e Protheus, incluindo
-  conteúdo vazio, volume grande, offset, permissão negada e desconexão.
-
-**Aceite inicial:** Protheus e Harbour consultam o primeiro SGBD homologado,
-com tipos, erros e fechamento verificados. **Aceite de evolução:** dataset
-incremental e campo grande respeitam memória/limites do marco 2; cliente
-Harbour acessa DBF via NETIO e Protheus usa a fachada correspondente, incluindo
-validação de índices, bloqueios e isolamento. A fachada VF transfere arquivos
-locais/remotos em blocos, com integridade binária, erros e liberação verificados.
-
-## Marco 4 — módulos, contribs e extensões C/Zig
-
-Esta frente evolui com os serviços. A integração C/Zig existente é preservada;
-novas extensões entram conforme a necessidade e os resultados medidos.
-
-- [ ] Integrar `ADDON.` ao registro comum mantendo a chamada do MVP; evoluir
-  de caminho de arquivo para nome/versão de módulo com mapeamento compatível.
-- [ ] Reutilizar compilação `.prg`/`.hb` e execução `.hrb`; validar
-  `HBNETIOSRV_RPCMAIN` nos módulos usados no modo `-rpc=<arquivo>` do hbnetio.
-- [ ] Definir metadados de módulos, dependências, tipos, permissões e erros;
-  permitir consumo pelos dois perfis de cliente.
-- [ ] Configurar diretórios permitidos e canonicalização, publicação e política
-  de confiança; preservar isolamento de símbolos e estáticos já implementado.
-- [ ] Definir cache, descarregamento e atualização sem invalidar chamadas ativas;
-  avaliar isolamento por processo quando exigido pelo módulo.
-- [ ] Documentar separadamente Zig como toolchain e como linguagem das extensões.
-- [ ] Formalizar ABI C versionada: ponteiro + tamanho, propriedade/liberação,
-  erros, alinhamento, concorrência e ciclo de vida dos resultados.
-- [ ] Manter bibliotecas vinculadas no build inicial. Avaliar DLL apenas quando
-  atualização independente justificar ABI e ciclo de carga próprios, evitando
-  duplicação incompatível do runtime Harbour; processo separado exige caso de isolamento.
-- [ ] Evoluir o adaptador demonstrativo de string terminada em zero para suportar
-  binários e buffers grandes, integrando resultados ao contrato de streams.
-- [ ] Definir acesso à VM Harbour a partir de código nativo e evitar compartilhar
-  recursos de uma chamada sem regras de sincronização e propriedade.
-- [ ] Integrar buffers VF IO ou `hb_file*` à ponte C/Zig quando necessário,
-  com propriedade e ciclo de vida explícitos dos arquivos e resultados.
-- [ ] Homologar a primeira extensão C/Zig funcional além do diagnóstico `Health`,
-  com caso concreto, medição e testes dos dois clientes.
-- [ ] Selecionar serviços adicionais sobre contribs existentes: HTTP/APIs com
-  `hbcurl`, XML com `hbexpat`, arquivos/ZIP e transformações de dados.
-- [ ] Anunciar no catálogo somente componentes habilitados e homologados;
-  retornar erro de capacidade indisponível para dependências ausentes.
-
-**Aceite:** novo addon ou serviço de contrib e uma extensão C/Zig acessíveis
-por Protheus e Harbour, com contrato versionado, buffers/erros testados e
-disponibilidade consultável, sem alterar os transportes para cada extensão.
-
-## Marco 5 — serviço, administração e operação
-
-Configuração e acesso orientam os marcos anteriores. Esta etapa reúne a
-homologação operacional do conjunto.
-
-- [ ] Integrar execução como serviço Windows com a base `hbwin` usada pelo hbnetio;
-  definir nome próprio, instalação, desinstalação e inicialização automática.
-- [ ] Garantir console/serviço com a mesma configuração, sem entrada interativa
-  obrigatória e com caminhos independentes do diretório de trabalho.
-- [ ] Publicar modo supervisionado para Linux, com sinais, inicialização,
-  recuperação e procedimento de instalação documentados.
-- [ ] Implementar parada controlada: parar admissões, aguardar/delimitar chamadas,
-  coordenar listeners NETIO/Protheus/administração, cancelar cooperativamente e
-  liberar conexões, cursores, streams e módulos.
-- [ ] Integrar administração NETIO, status e diagnóstico; manter credenciais,
-  interface e permissões separadas das chamadas de aplicação.
-- [ ] Definir autenticação, autorização por serviço/perfil e acesso a arquivos,
-  aproveitando os filtros nativos; separar funções do core vinculadas e expostas.
-- [ ] Prototipar `TSSLClient` (AppServer 19.3.1.0+ documentado) com `hbssl`/OpenSSL
-  no listener Protheus; homologar build real, `SSLConfigure`, certificados,
-  cadeia de confiança, nome do servidor, prazos e renovação. Falha não rebaixa para TCP aberto.
-- [ ] Fixar versões TLS aceitas no perfil de produção; validar mTLS se exigido,
-  sem copiar habilitação de SSL antigo dos exemplos históricos.
-- [ ] Definir proteção separada para NETIO/administração conforme capacidades
-  comprovadas; não presumir que a integração TLS Protheus protege os outros canais.
-- [ ] Integrar JWT opcional ao contexto comum usando biblioteca existente:
-  algoritmo permitido, assinatura, emissor, audiência, expiração, `nbf`, chaves
-  confiáveis e rotação; validar interoperabilidade com `tJWT` (17.3.0.19+ documentado).
-- [ ] Definir emissão/renovação de credenciais, autorização por serviço/tenant e
-  revalidação em conexões persistentes; proibir tokens e segredos nos logs.
-- [ ] Testar assinatura/chave inválida, audiência errada, expiração, tenant não
-  autorizado e certificado inválido. JWT assinado exige transporte protegido;
-  decodificar claims não equivale a autenticar a chamada.
-- [ ] Definir armazenamento de perfis/segredos, usando bibliotecas existentes
-  quando houver criptografia em repouso e chaves externas ao repositório.
-- [ ] Tornar concorrência, timeouts, filas e memória configuráveis; validar
-  compatibilidade com threads das rotinas, drivers e extensões escolhidos.
-- [ ] Conectar Syslog ao ciclo do servidor e às chamadas, preservando operação
-  quando o coletor estiver indisponível e excluindo credenciais dos logs.
-- [ ] Registrar correlação, latência, erros, bytes transmitidos/expandidos,
-  memória e recursos ativos; distinguir vida do processo e prontidão dos serviços.
-- [ ] Automatizar build e regressões `Health`/`Echo`/`ADDON.`, NETIO, SQL, DBF,
-  binários, limites negociados, concorrência e falhas de rede/módulo/driver.
-- [ ] Homologar instalação, inicialização após reinício, parada e recuperação
-  do serviço em Windows e Linux, incluindo porta ocupada e configuração inválida.
-- [ ] Criar empacotamento reproduzível com dependências e versões explícitas;
-  atualizar `docs/`, `tests/` e scripts conforme cada comportamento for entregue.
-- [ ] Documentar instalação, diagnóstico, atualização e recuperação; definir a
-  licença e criar `LICENSE` antes da primeira distribuição pública.
-
-**Aceite:** instalação como serviço reproduzível, conexão remota com os binds
-documentados, administração separada, parada/recuperação testadas e recursos
-liberados. Testes, métricas e instruções permitem verificar o ambiente instalado.
-
-## Marco 6 — jobs, lotes e processamento incremental
-
-Depende do registro de serviços e do ciclo de vida de recursos dos marcos 1–2.
-O processamento usa Harbour/contribs e extensões C/Zig conforme cada tarefa.
-
-- [ ] Definir contratos para submeter, consultar progresso/estado, obter resultado
-  e cancelar jobs; estabelecer propriedade por sessão/usuário e expiração.
-- [ ] Definir fila, concorrência e orçamento de recursos, com controle do ritmo
-  de produção; documentar se resultados sobrevivem a reinício e por quanto tempo.
-- [ ] Mapear progresso/resultados para streams NETIO e consumo incremental TLPP,
-  sem bloquear o cliente durante toda a execução.
-- [ ] Adaptar os modelos de callbacks, loop/foreach e cancelamento encontrados
-  no TRPC, preservando o contrato hbBridge e seus limites negociados.
-- [ ] Testar cancelamento concorrente com progresso/resultado e revisar o indício
-  de conflito de mensagens no par TRPC antes de reutilizar qualquer trecho desse fluxo.
-- [ ] Separar desconexão de cancelamento e definir idempotência na submissão;
-  cancelamento cooperativo não promete interromper qualquer chamada nativa.
-- [ ] Definir chamadas em lote com resultados/erros por item e limites negociados;
-  atomicidade/transação será uma capacidade explícita do serviço.
-- [ ] Demonstrar importação/exportação ou transformação de grande volume feita
-  no servidor, com páginas/blocos e devolução somente do resultado necessário.
-
-**Aceite:** Protheus e Harbour acompanham uma operação longa, recebem seu
-resultado incrementalmente e exercitam cancelamento/falha com limpeza e consumo
-de recursos medidos. Durabilidade e retomada só são anunciadas se implementadas.
-
-### AMQP opcional para jobs e eventos
-
-- [ ] Prototipar `tAMQP` ↔ RabbitMQ ↔ consumidor hbBridge com AMQP 0.9.1,
-  adaptando mensagens ao mesmo registro/contexto de serviços.
-- [ ] Registrar build TOTVS e biblioteca C/integração ABI C/Zig homologados;
-  confirmar TLS, virtual hosts, publisher confirms e rejeição/requeue disponíveis.
-  O parâmetro vhost da classe TOTVS é documentado a partir de 24.3.0.6.
-- [ ] Definir correlação, ReplyTo, prazos, tamanho de mensagem e referências a
-  resultados grandes; limitar prefetch/concorrência e autorizar destinos de resposta.
-- [ ] Definir filas duráveis, mensagens persistentes, confirmação de publicação
-  e ack após resultado persistido; admitir redelivery com deduplicação/idempotência.
-- [ ] Testar queda do produtor/worker/broker, mensagens duplicadas, retries limitados
-  e fila de falhas; documentar capacidades ausentes na API TLPP sem prometer exactly-once.
-
-**Aceite opcional:** job atravessa falha/reentrega sem duplicar seu efeito segundo
-o contrato de idempotência; instalação sem AMQP continua funcional sem broker.
-
-## Investigações condicionadas — gRPC e transporte Zig
-
-Estas provas de conceito não bloqueiam os marcos principais. A avaliação está em
-[Transportes, sessões e segurança](docs/transportes-sessoes-seguranca.md).
-
-- [ ] Obter o `smartlink.proto` correspondente ao AppServer alvo: `tGrpc` documenta
-  somente o modelo Smartlink predefinido, disponível a partir de 20.3.1.0.
-- [ ] Confirmar os métodos reais, incluindo a divergência documental
-  `sendMessages`/`sendMessage`; verificar restrições de build/distribuição do contrato.
-- [ ] Fazer chamada mínima ao servidor de prova e validar TLS, credenciais,
-  metadados, tenant, erros, deadlines e modos de streaming efetivamente expostos.
-- [ ] Avaliar biblioteca gRPC existente com ABI C ou wrapper C para integração
-  Harbour/C/Zig; não implementar HTTP/2, HPACK e Protobuf do zero nesta etapa.
-- [ ] Decidir adotar ou adiar pelo resultado da interoperabilidade, dependências,
-  licença e custo. Não anunciar `HB_Grpc` genérico com base apenas em `tGrpc`.
-- [ ] Medir protótipo de transporte/buffers em `src/zig/` contra a base Harbour:
-  latência p95/p99, vazão, CPU, memória, cópias e comportamento sob falha/carga.
-- [ ] Homologar propriedade/liberação dos buffers e acesso à VM pela ABI C;
-  anunciar zero-copy somente nos trechos medidos que efetivamente o implementem.
-- [ ] Manter `tSktSslSrv`/`tSktSslConn` fora do caminho principal; reconsiderar
-  apenas diante de um requisito concreto de conexões recebidas pelo Protheus.
-
-**Aceite da investigação:** decisão registrada com contrato/build e resultados
-reproduzíveis. HTTP/2 multiplexa streams, mas continua sujeito ao bloqueio do TCP
-por perda de pacotes; essa prova não deve prometer eliminar tal limitação.
-
-## Decisões a fechar durante a implementação
-
-- Especificação exata do novo frame/handshake e período de suporte ao MVP `HBBRIDGE/1`/`HBS1`.
-- Configuração padrão do endpoint Protheus, distinta dos canais NETIO/administração.
-- MSSQL ou SQLite no primeiro teste, builds Protheus e versões de conectores homologadas.
-- Tipos adicionais do perfil nativo Harbour e regras de conversão para TLPP.
-- Tamanhos de bloco, orçamento de memória e política automática de compressão,
-  escolhidos por medição no ambiente, respeitando limites técnicos.
-- Primeiro caso funcional C/Zig e ordem de exposição das contribs.
-- Modelo de acesso, emissão de tokens, publicação de módulos e durabilidade de jobs.
-- Escopo do pool TLPP, retomada/afinidade de sessões e bibliotecas TLS/gRPC/AMQP homologadas.
-- Licença do projeto e formato da distribuição.
-
-As referências técnicas oficiais e as distinções entre MVP e proposta estão
-no [README.md](README.md). Decisões futuras devem preservar os motivos para
-Harbour, C e Zig, o suporte aos dois clientes e a reutilização dos recursos nativos.
+# hbBridge roadmap
+
+[Português](TODO.pt-BR.md)
+
+Bring Harbour, C and Zig capabilities to Protheus and native Harbour clients
+through one extensible implementation. [README](README.md) describes the
+current product and intended architecture. A checked item records implemented
+code or specifically identified evidence, not unrestricted platform acceptance.
+
+## Principles to preserve
+
+- Harbour's familiar xBase syntax makes services approachable to AdvPL/TLPP
+  developers; its runtime, RDDs and contribs supply the functional base.
+- Harbour's native C API and the C ABI connect libraries and Zig; Zig provides
+  native components and a build toolchain, with ownership/error contracts.
+- NETIO/native serialization serves Harbour; an interoperable contract serves
+  Protheus. Services and versions are shared independently of transport/codec.
+- **Generic executor:** Protheus resolves business rules, tenant ID, company,
+  branch, `xFilial`, dictionary/table sharing and physical table names. hbBridge
+  executes supplied queries/parameters; application addons receive explicit
+  business inputs. Generic authorization never invents ERP predicates/context.
+- SQL profiles are an opaque keyed map. Each call/dataset chooses an alias;
+  the library has no demo default. Oracle alias naming does not imply an
+  implemented Oracle connector. See [architecture](docs/architecture.md).
+- Reuse VF IO `hb_vf*` for local/remote files; TLPP's future facade uses opaque
+  session-owned resources, never serialized pointers.
+- Keep one implementation in `src/`; examples launch it and tests share its
+  components. Earlier proof-of-concept code is retained in Git history.
+- Prefer Harbour hashes and TLPP JSONObject/THashMap. Arrays require a concrete
+  native API/contract and documented allocation/copy/search considerations.
+- Four-space own-source indentation, lowercase English files/functions/methods
+  and namespaces, PascalCase classes matching their lowercase filenames.
+  Preserve external API/native symbols and upstream formatting/notices.
+- English documentation plus `.pt-BR` counterparts; use the three mandatory
+  commit tools via the project-owned hbrun. See [standards](docs/standards.md).
+- Start debugging with native `hbdebug`; HBDAP and its VS Code extension are
+  optional later integrations, with separate worker/runtime acceptance.
+- Remove arbitrary payload caps; distinguish runtime/API capacities from
+  optional budgets. Negotiate blocks respecting MAXSTRINGSIZE and memory.
+- Current Protheus contract is HBBRIDGE/1, framed JSON and gzip; future none/gzip
+  negotiation is distinct from NETIO's native mechanisms.
+- One host incorporates NETIO: data0.0.0.0:2941, administration127.0.0.1:2940
+  with a separate credential, Protheus0.0.0.0:1512; all configurable.
+
+## Existing foundation
+
+- [x] Multithreaded TCP host, shared registry/dispatcher, Health/Echo/ADDON.Execute.
+- [x] Health exercises Harbour → C → Zig; static hbnetio composition in hbbridge.hbm.
+- [x] TLPP frame HBBRIDGE/1|JSON|<JSON-byte-count> with complete string gzip;
+  incremental zlib C codecs on the Harbour side.
+- [x] In-memory PRG/HB compilation and HRB loading, local symbols per call,
+  unloading and MT addon isolation/error regressions.
+- [x] Server/client partial-send code and structured errors; forced TLPP failure
+  and positive partial-send acceptance remain pending.
+- [x] Protheus Health/ADDON/two200000byte Echo calls manually accepted;
+  varied request gzip152964bytes, identical complete result.
+- [x] SQLMIX/SQLite/MSSQL-ODBC Query, keyed dataset and database-side pagination.
+  Operator accepted29SQLite checks on2026-10-04; real MSSQL remains pending.
+- [x] Syslog UDP module exists; integration into call lifecycle is pending.
+- [x] Shared protocol constants, rejection of other signatures/formats and
+  [brainstorming transport review](docs/transports-sessions-security.md).
+
+Intermediate behavior: mandatory gzip, whole JSON materialization, one
+connection per call and no OS service. Optional payload/wire budgets default0;
+buffers/timeouts/workers are settings within real runtime capacities. Pages are
+implemented; streaming/negotiation remain pending. A repeated-character Echo
+alone is not proof of fragmented/incompressible transfer; the later varied
+Echo acceptance supplies that normal-flow evidence.
+
+## Delivery sequence
+
+0. Organization, shared composition and baseline regressions.
+1. Extensible registry, embedded NETIO, configurable networking and client INI.
+2. Product framing repair, negotiated transfer, persistence and memory policy.
+3. SQL/ODBC acceptance, pages, DBF/NETIO and VF IO facade.
+4. Addons, contrib services and useful C/Zig extensions.
+5. OS service, security, administration, packaging and operational acceptance.
+6. Jobs, batches and incremental processing; optional AMQP.
+
+SQL can use today's contract while block transfer evolves. Large values depend
+on milestone2; DBF needs NETIO from milestone1. Debugging, C/Zig and service
+infrastructure can advance alongside those stages; HBDAP does not block hbdebug.
+
+## Milestone0: organization and independent tooling
+
+Historical [reorganization](docs/reorganization.md) preserved reference
+revisionb45595b, with normalized72checks and74after extraction; distinguish
+test-fixture fixes from implementation changes.
+
+- [x] Normalize local client127.0.0.1 and fixture HRB identities; automate setup
+  without skips. Compare the baseline before/after and record the reference.
+- [x] Separate host/lifecycle, dispatcher, transports, handlers, addon loader,
+  telemetry and clients; maintain shared hbbridge.hbm with separate entry points.
+- [x] Keep examples/mvp as a launcher of the product, not duplicated sources.
+- [x] Move Harbour integration/unit/contract tests and compile all Protheus
+  tests with the `src/tlpp/` tree. Exercise Health and the PRG addon in Harbour.
+- [x] Validate product build/CLI and structural TLPP acceptance separately;
+  milestone1 AppServer behavior was accepted2026-10-03.
+- [x] Rename TLPP files/classes consistently and related Harbour/C/Zig modules;
+  retain published U_ test entry names and PascalCase classes.
+- [x] Move maintenance tools to .hbcommit; preserve upstream notices and remove
+  the bundled bin/harbour runtime from the layout.
+- [x] Pin and resolve project-owned hb_compile, Harbour and checksum-verified Zig;
+  compile the required runtime/tools/contribs rather than depend on local SDKs.
+- [x] Parameterize proprietary TOTVS SDK directories/environment and optional
+  operator stop/start scripts. Pair English/Portuguese docs and document setup.
+- [ ] Recompile/run renamed TLPP classes and revised optional-profile checks
+  on the AppServer. Earlier accepted binaries do not cover these new names.
+- [ ] Execute Linux bootstrap/build/runtime acceptance and other architectures;
+  Windows results do not certify them. Record build receipts and exact artifacts.
+
+## Debugging: cross-cutting work
+
+Native hbdebug exists, but current loader/build does not yet enable a debug
+profile. Keep Harbour debug metadata distinct from native C/Zig `-debug`.
+
+- [ ] Development profile with -b, hbdebug linkage, suitable GT/terminal and
+  documented activation/source paths. Apply it to PRG/HB compilation and HRB
+  preparation, preserving module/source/line identity.
+- [ ] Breakpoint/step/stack/locals/resume in a handler and addon, returning the
+  correct RPC response. Start with a controlled request/worker and terminal owner.
+- [ ] Specify other-worker behavior during pause, debug timeouts and client
+  disconnect without replaying side effects.
+- [ ] Load/unload/fault/resume/stop cleanup without stale debug state; normal
+  console/service must require no debugger UI. Provide an Echo/addon recipe
+  with build/results, RPC correlation and separate TLPP/C/Zig investigation.
+
+Initial acceptance: a real call stops, exposes stack/locals and resumes
+correctly in both handler and addon; normal execution remains noninteractive.
+
+Future HBDAP references: private hbdap and hbdap-vscode-extension repositories,
+currently local development paths F:\GitHub\hbdap and
+F:\GitHub\hbdap-vscode-extension. Existing upstream features are not delivered
+or accepted in hbBridge automatically.
+
+- [ ] Pin Harbour/HBDAP/hooks/patches, VS Code/extension/toolchain revisions;
+  confirm supported runtime before optional integration with configurable paths.
+- [ ] Separate controlled DAP channel, stdout/stderr/logs from DAP framing;
+  clean sessions after disconnect and preserve native hbdebug operation.
+- [ ] Validate breakpoints/continue/step/stack/locals in a real DAP client;
+  advertise only proven capabilities. Install VSIX and document harbour-dap
+  launch.json, executable/CWD/sources and chosen launch/attach modes.
+- [ ] Test the installed VS Code extension against real handlers/addons,
+  distinguishing simulated protocol tests from runtime tests.
+- [ ] Validate worker identity, pause/resume scope and isolation before
+  concurrent debugging; inspected HBDAP does not guarantee multithread/process.
+- [ ] Dynamic PRG/HB/HRB source/breakpoint reload/unload invalidation, attach,
+  lost debug client, call completion and host shutdown. Repeat hbdebug scenarios.
+- [ ] Document separate TLPP/native debugging; do not claim unified stepping.
+
+Acceptance: reproducible handler/addon DAP session also through installed
+VS Code extension, with cleanup and documented capabilities/limitations.
+
+## Milestone1: common core, NETIO and network configuration
+
+- [x] Record reference Harbour3.2.1dev r2608271822/Zig0.16.0/Windowsx64 and
+  AppServer24.3.1.5; [acceptance](docs/acceptance.md) records exact scope.
+- [x] Separate service handlers and transport representations; common registry
+  includes name/version/signature/types/permissions/handler/dependencies/modes
+  and exposes capability discovery.
+- [x] Review xhb/trpc.prg/client and reuse its description/handler model,
+  not XHBR wire format or mutable executor; keep parameters local to each call.
+- [x] Namespaced services, structured types/errors and channel permissions;
+  user/tenant authorization is future generic security, not ERP rule resolution.
+- [x] One executable links hbnetio statically and hosts native NETIO plus
+  Protheus adapters, sharing the core and isolating calls/resources.
+- [x] Explicit host ownership of multithread listener connections and lifecycle,
+  including restart/rollback; upstream operational patterns reused selectively.
+- [x] NETIO data bind0.0.0.0:2941 and separate admin127.0.0.1:2940 with credential;
+  configurable Protheus0.0.0.0:1512, conflict/invalid-setting checks.
+- [x] Configurable TLPP/test destination IP/DNS/port/timeout; reject0.0.0.0
+  as a destination. One strict INI/JSON schema with defaults < file < CLI,
+  config-relative directories, executable-adjacent hbbridge.ini and --config-info.
+- [x] Read active AppServer INI through namespaced static HBBridgeConfig:
+  settings and optional SQLProfile, explicit overrides first. No demo default.
+- [x] Earlier operator acceptance:13config checks, clock/RPC and29SQLite
+  checks in report recorded2026-10-04. Prior agent stop-process failure is
+  historical; no later compiler log/time/thread/hash was supplied.
+- [ ] Test nondefault host/port/profile with omitted arguments and record
+  binary/configuration identity, then revised16config checks after rename.
+- [x] Optional size/time budgets and configurable chunks/workers validated
+  against real capacities;0disables application caps/server deadline.
+- [ ] Operational memory budgets and negotiated transfer capacities in stage2.
+- [x] HB_EXTERN/REQUEST __HB_EXTERN__ and explicit contrib availability;
+  native symbol linkage never authorizes all functions.
+- [x] RPC filters HBBridge.Call and admin HBBridge.Admin.Status.
+- [ ] Additional upstream -rpc/-rpc=module evaluation; these flags are not
+  exposed by hbBridge's registry/ADDON.Execute host.
+- [x] Native Harbour client/core/services integration, NETIO serialization and
+  service-level hb_Serialize/hb_Deserialize blobs.
+- [x] U/C/L/N/D/T/A/H types, binary/hash string keys; reject cycles, objects,
+  blocks and live pointers. Test admin/filter/credentials/VF IO/shutdown.
+- [ ] Cross-codepage/runtime serialization compatibility and session resource IDs.
+- [x] Prior milestone1 TLPP compile/RPC accepted2026-10-03:3sources without
+  compiler errors; new rename/profile behavior requires renewed acceptance.
+
+Acceptance: native remote/core service, continued Protheus Health/Echo/addons,
+configurable channels and separate admin, with each client's interoperable
+protocol. An arbitrary tenant/company remains explicit caller data.
+
+## Milestone2: framing, volumes and compression negotiation
+
+Initial framing repair is delivered; handshake, persistence, blocks and
+negotiated compression remain pending. See [milestone2](docs/milestone2-framing.md).
+
+- [x] Four-space Harbour sources/.editorconfig and shared HBBRIDGE/1 constants.
+- [x] Incremental gzip send/receive on Harbour, CRC/final validation, canonical
+  decimal JSON length, runtime-derived header capacity, truncation/length errors.
+- [x] Remove fixed16MiB/wire/header128byte/eight-digit limits; expose
+  hbbridgeruntimelimits: string/socket/zlib chunk and native NETIO timeout capacity.
+- [x] Optional payload/wire0, read chunk65536, server timeout30000ms (0off),
+  NETIO0→native-1, maxWorkers64; CLI/file policy validation.
+- [x] Fragmentation beyond65535compressed bytes, header/trailer fragmentation,
+  exact24000000byte Echo, JSON/gzip beyond16MiB, positive/zero policies and
+  incremental compressor; earlier305check baseline passed.
+- [x] TLPP complete-unit gzip reads, partial writes, structured errors,
+  full comparison and incompressible fixture, optional constructor budgets;
+  first3arguments retained, positive30000ms default timeout.
+- [x] TLPP TimeCounter replaces Date/Seconds/day cap; regression expires budget.
+  Adapt StopWatch's reported Windows ms/Linux seconds×1000 through HBBridgeTime.
+- [x] Native monotonic C clock for Harbour deadlines/uptime, replacing civil-time
+  hb_MilliSeconds; test advancement and concurrent reads.
+- [x] Preserve U_HBBridgeConnectionTest and namespaced static utility APIs;
+  [issue12](https://github.com/naldodj/totvs-protheus-open-issues/issues/12)
+  documents reproduced units.
+- [x] Windows operator clock acceptance:Unix=false, delta1097.692700,
+  normalized1097.773500ms after Sleep(1000), OK2026-10-04.
+- [ ] Linux clock, precision, clock adjustments/wrap and future build-unit changes.
+- [x] Normal Protheus Health/ADDON/two200000byte Echo calls accepted2026-10-03
+  and reconfirmed2026-10-04; varied request gzip152964bytes.
+- [ ] Forced socket failure/timeout/positive partial Send and exact host artifact;
+  blocking Send has no timeout argument, and codec/JSON work is not budget-limited.
+
+### Service/version contract
+
+- [ ] Separate protocol/service versioning, discovery and unsupported capabilities.
+- [ ] Small uncompressed handshake for TLPP; native NETIO capability RPC after connect.
+- [ ] Negotiate codecs/compression/wire+expanded block sizes/pages/streams in
+  both directions. Discover effective AppServer MAXSTRINGSIZE or configure it.
+- [ ] Call ID, version, params, explicit authenticated context, deadline,
+  result/metadata and code/origin errors; bind tenant as opaque caller context.
+- [ ] Null/empty, exact integers/decimal/money, date/time/timezone, Unicode,
+  binary/base64, named maps/arrays and byte counts; accept actual TLPP APIs.
+- [ ] Versioned Health/Echo/ADDON/header/rows expectations with contract tests.
+- [ ] Cooperative cancellation, idempotence and retries; never replay side
+  effects automatically after an unknown/disconnected outcome.
+
+### Persistence, pool and sessions
+
+- [ ] Incremental framing first, then one in-flight request per persistent
+  connection, explicit close, connect/read/write/call/idle deadlines.
+- [ ] Configurable keepalive; measure TCP_NODELAY, needed heartbeat and
+  idle/worker limits without equating live TCP with responsive application.
+- [ ] Bounded pool keyed by endpoint/TLS/verified identity, exclusive lease,
+  bounded queue/expiry and TLPP job/thread lifecycle before socket sharing.
+- [ ] Reconnect backoff/jitter, separate retransmission/idempotence/unknown
+  result and total budget; immutable correlation/identity/context per call.
+- [ ] Cleanup areas/SET/transactions/buffers in every outcome; test
+  STATIC/PUBLIC/PRIVATE and connector concurrency.
+- [ ] Opaque session/user/tenant resources, TTL, owner validation and explicit
+  close; disconnection releases transient resources by default.
+- [ ] Resume requires authentication/deadline/revalidation/owner affinity;
+  no automatic handle/transaction migration or storage-free durability.
+- [ ] Multiplex only after pool: IDs, single reader, demultiplexed replies,
+  coordinated writes/cancellation/backpressure.
+- [ ] Sequential/coalesced/fragmented calls, slow consumers, expired tokens,
+  network/AppServer failures; memory/workers/sockets/latency/tenant isolation.
+
+Acceptance: sequential reuse and bounded pool, no write replay/context/resource
+leaks; resume/multiplexing require their own tests.
+
+### Incremental framing and consumption
+
+- [ ] Version/codec/compression/call+stream ID/sequence/final/wire+expanded
+  length validated before allocation/decompression. TCP is a byte stream.
+- [ ] Partial/coalesced headers/bodies/writes, EOF/truncation/timeout/reconnect;
+  evolve HBBRIDGE/1 without confusing JSON and transmitted lengths.
+- [x] Read whole compressed response rather than decompress each Receive;
+  normal varied Echo accepted, failure scenarios still pending.
+- [ ] Inventory runtime/architecture/protocol/API capacities, logical volume,
+  per-value/message limits, copies/expansion and installation memory policy.
+- [x] Document NETIO64byte credential,8192open files/connection and certain
+  uint32RPC/stream units, separately from Protheus frames/file volume.
+- [ ] Negotiate per-block/connection limits in both directions; consume pages/
+  blocks without full reassembly, producer pacing and bounded in-flight blocks.
+- [ ] Large single fields/BLOB streams or remote IDs; a page can contain a
+  column larger than MAXSTRINGSIZE. Evaluate native NETIO data/item streams.
+- [ ] Ownership/expiry/cancel/disconnect cleanup; resume only where implemented.
+
+### Compression and validation
+
+- [ ] Negotiate none/gzip; independently compressed TLPP blocks compatible
+  with native string APIs. Measure minimum size/gain/CPU/latency/local/remote use.
+- [ ] Empty/incompressible/already-compressed data and native codec errors;
+  interoperable binary fixtures, exact gzip vs zlib/DEFLATE wire identity.
+- [ ] Expansion control during decode, not after allocation; trusted blocks
+  or none profile where native APIs cannot bound expansion.
+- [ ] Native NETIO compression versus HB_SERIALIZE_COMPRESS separately;
+  avoid redundant compression. Unicode/binary/sizes/coalescence/failures/versions.
+
+Acceptance: consistent types/errors on both clients; negotiated compression
+and logical volume greater than a TLPP string, bounded measured memory and
+per-value limits; tested slow-consumer/invalid-decode/disconnect behavior.
+
+## Milestone3: SQL, DBF and Harbour VF IO
+
+### First Query and acceptance
+
+- [x] SQLite first real backend and MSSQL/SDDODBC second; SQLMIX/RDDSQL and
+  keyed alias/sql/header/rows/count/version through shared registry.
+- [x] Server-owned plaintext configuration profiles in INI/JSON; never imply
+  implemented encryption. [Credential proposal](docs/credentials.md) is portable.
+- [x] HBBridgeRPCDataSet with JSONObject, U_HBBridgeQueryTest, explicit pages,
+  errors/EOF/close, common SQL/minimal launchers and alternate profile/config.
+- [x] SQL aliases are opaque/case-sensitive, including mssql/pData; multiple
+  profiles coexist. Optional client default is empty; explicit call wins.
+- [x] SQLite file/concurrency/NETIO-vs-TCP regressions; operator29check dataset/
+  pagination acceptance2026-10-04 00:40:06 and later reconfirmation.
+- [ ] Real MSSQL connect/query/page acceptance: driver/DSN/server/client versions.
+- [ ] Unavailable connector, broader type/null coverage and real volume in
+  Protheus; unknown alias is not connector-failure proof.
+- [ ] hbodbc/hbsqlit3 direct API where operations require it.
+
+### Data-access evolution
+
+- [ ] SQL bind values and size/precision/null type metadata; identifier resolution
+  stays with the caller. Generic connector/dialect registry, including Oracle
+  after real type/pagination acceptance; PostgreSQL sddpg/hbpgsql and MySQL sddmy.
+- [x] ROW_NUMBER/BETWEEN pages, sentinel hasNext, explicit order, openpage/
+  nextpage; gaps in business IDs do not control ordinal pagination.
+- [ ] Keyset/cursors/snapshots/deadlines/expiry/large fields and write-stability
+  acceptance; measure connector materialization rather than assume pages stream.
+- [ ] Explicit transaction scope/commit/rollback/failure, isolated connections/
+  workareas, reuse/concurrency/batch lifecycle. No implicit Protheus rule/lock.
+
+### DBF and VF IO
+
+- [ ] Root/net: native RDD access; DBF/index/memo open/read/seek/write/lock/
+  unlock/close under concurrency/disconnection.
+- [ ] Equivalent authorized TLPP cursor/area IDs and cleanup; distinguish DBF
+  RDD/NETIO from SQL Query, reusing representations only where appropriate.
+- [ ] hb_vf* open/close/read/write/offset/size/directory/metadata by backend;
+  local/net: first, advertise only verified features.
+- [ ] Versioned Files.* TLPP facade, storage profiles/allowed paths, opaque
+  session handles/TTL/close/disconnect; never serialize pointers or expose
+  hb_vfHandle/configuration that leaks internal descriptors.
+- [ ] Actual count/EOF/FError/partial operations/precise offsets, negotiated
+  blocks without whole-file hb_vfLoad/Save outside memory policy.
+- [ ] Seek/truncate/flush/commit/byte locks by provider; preserve RDD index/
+  record locking. Cross-provider copy/rename with explicit unsupported errors,
+  no assumed atomicity/equivalent semantics.
+- [ ] Binary empty/large/offset/permission/disconnect round trips on both clients.
+
+Acceptance: first SQL backend values/errors/close; then incremental datasets/
+large fields within negotiated budgets, DBF indexes/locking/isolation and VF
+binary integrity/errors/resource release. MSSQL/Oracle claims need evidence.
+
+## Milestone4: modules, contribs and C/Zig
+
+- [x] ADDON.Execute shared module/params contract for both clients.
+- [ ] Registered module name/version rather than path; native PRG/HB/HRB reuse
+  and HBNETIOSRV_RPCMAIN review for upstream -rpc=file modules.
+- [ ] Module metadata/dependencies/types/permissions/errors, canonical allowed
+  directories, publication/trust, existing symbol/static isolation.
+- [ ] Cache/unload/update without invalidating active calls; process isolation
+  only where justified. Business inputs remain explicit caller parameters.
+- [ ] Distinguish Zig toolchain from extension language; versioned C ABI
+  pointer+length/ownership/free/errors/alignment/threading/result lifetime.
+- [ ] Static libraries first; DLLs only for justified independent update/ABI
+  lifecycle, avoiding duplicate incompatible Harbour runtimes.
+- [ ] Replace demonstration NUL-string ABI with binary/large buffers/streams,
+  VM entry rules and synchronized resource ownership; integrate hb_vf/hb_file
+  buffers where needed.
+- [ ] First useful C/Zig extension beyond Health with measured case and both
+  clients. Select hbcurl HTTP/APIs, hbexpat XML, ZIP/file/data transformations.
+- [ ] Discovery advertises only enabled/accepted dependencies; explicit unavailable
+  capability errors. Versioned contracts permit new services without transports.
+
+## Milestone5: services, security and operations
+
+- [ ] Windows hbwin service install/uninstall/name/autostart and same config
+  as console; noninteractive startup independent of working directory.
+- [ ] Linux supervised/signals/start/recovery/install; stop admissions, bounded
+  draining/cooperative cancel and coordinated NETIO/Protheus/admin/resource cleanup.
+- [ ] Admin status/diagnostics with separate credentials/interfaces/permissions;
+  generic service/profile/file authorization, distinct linked/exposed core symbols.
+- [ ] TSSLClient (documented AppServer19.3.1.0+) with hbssl/OpenSSL; real build,
+  SSLConfigure/certificate chain/hostname/deadline/renewal tests, no plaintext fallback.
+- [ ] Production TLS versions/mTLS where needed; secure NETIO/admin separately,
+  never assume Protheus TLS covers every channel or copy old SSL examples.
+- [ ] Optional JWT with existing library/tJWT (17.3.0.19+ documented): allowed
+  algorithm, signature/issuer/audience/exp/nbf/trusted keys/rotation; decoding
+  claims is not authentication and signed tokens still need protected transport.
+- [ ] Identity/token renewal, service/explicit-tenant authorization and persistent
+  revalidation; invalid key/signature/audience/expiry/context/certificate tests,
+  no secrets/tokens in logs. ERP context remains caller-resolved.
+- [ ] Portable authenticated encrypted INI secret/key-provider contract, external
+  keys, local CLI set/delete/test/rotate and later shared-core GUI; tamper/wrong
+  key/nonce/ODBC escaping/atomic writes/backup/migration/service-identity tests.
+  OS vaults optional, not a Windows-only requirement.
+- [ ] Configurable concurrency/timeout/queues/memory and driver/thread acceptance;
+  connect Syslog lifecycle/calls, collector-failure resilience and redaction.
+- [ ] Correlation/latency/errors/wire+expanded bytes/memory/active resources;
+  distinguish process liveness and service readiness.
+- [ ] Automated RPC/NETIO/SQL/DBF/binary/limit/concurrency/network/module/driver
+  regressions, Windows/Linux restart/stop/recovery/port-conflict/bad-config tests.
+- [ ] Reproducible packaging with explicit versions, installation/diagnosis/
+  upgrade/recovery docs, dependency notices and implemented-feature evidence.
+- [x] Official Harbour/Zig licensing comparison and [proposal](docs/licensing.md).
+- [ ] Resolve FileSig/loader hbnetio GPL provenance and StopWatch TLPP adaptation;
+  preserve imported GPL maintenance tools, confirm owners/permissions before
+  project LICENSE/notices/SPDX/adoption. No global license adopted yet.
+
+Acceptance: reproducible service install, remote/configurable binds, separate
+admin, tested stop/recovery/cleanup and verifiable environment/metrics/docs.
+
+## Milestone6: jobs, batches and incremental processing
+
+- [ ] Submit/status/progress/result/cancel contracts, explicit session/user
+  owner/expiry, bounded queue/concurrency/resource pacing and stated durability.
+- [ ] NETIO streams/TLPP incremental consumption without blocking the whole job;
+  adapt TRPC callbacks/loop/foreach/cancel while preserving hbBridge contract.
+- [ ] Concurrent cancel/progress/result and suspected TRPC message conflict
+  review; disconnect differs from cancel, native calls may not be interruptible.
+- [ ] Idempotent submission, batch item results/errors, negotiated limits and
+  explicitly advertised atomicity/transactions.
+- [ ] Large import/export/transform on the server, only necessary returned
+  results; measured memory/cancel/fault/cleanup, durability/resume only if built.
+
+### Optional AMQP
+
+- [ ] tAMQP ↔ RabbitMQ ↔ hbBridge consumer on AMQP0.9.1, same registry/context;
+  record TOTVS/C/C-Zig library build and TLS/vhost/confirms/requeue capabilities.
+  TOTVS vhost parameter documented from24.3.0.6.
+- [ ] Correlation/ReplyTo/deadlines/message limits/large-result references,
+  bounded prefetch/concurrency and authorized reply destinations.
+- [ ] Durable queues/persistent messages/publisher confirms/ack after persisted
+  result; redelivery/deduplication/idempotence, bounded retries and failure queue.
+- [ ] Producer/worker/broker failure/duplicate tests; no exactly-once promise
+  where the API cannot support it. Broker-free installations remain functional.
+
+## Conditional investigations: gRPC and Zig transport
+
+- [ ] Obtain target smartlink.proto: tGrpc documents a predefined Smartlink
+  contract from20.3.1.0, not arbitrary gRPC. Verify actual sendMessage(s),
+  build/distribution constraints and supported streaming/deadline/error modes.
+- [ ] Minimal interoperable TLS/credentials/metadata/explicit-context proof;
+  use existing C ABI/wrapper libraries, not new HTTP2/HPACK/Protobuf stacks.
+- [ ] Adopt/defer based on evidence/dependencies/license/cost; do not infer
+  generic HB_Grpc support. HTTP2streams still share TCP packet-loss blocking.
+- [ ] Compare Zig transport/buffers against Harbour: p95/p99 latency,
+  throughput/CPU/memory/copies/failure/load, VM ownership/free and measured
+  zero-copy only where actually implemented.
+- [ ] Keep tSktSslSrv/Conn outside the primary path unless Protheus inbound
+  connections have a concrete requirement. Document proof/build/decision.
+
+## Decisions still to make
+
+Exact versioned handshake/frame, block sizes/memory/compression thresholds,
+accepted AppServer/connector/platform matrix, extra types/TLPP conversion,
+first useful C/Zig service and contrib order, access/token/module/job durability,
+TLPP pool scope/session affinity/TLS-gRPC-AMQP dependencies, credential editor/
+key rotation and global license/distribution. Preserve xBase familiarity,
+native reuse, generic execution and both client profiles throughout.

@@ -1,0 +1,37 @@
+/* Released to Public Domain. */
+#include "tlpp-core.th"
+
+namespace hbbridge.client
+
+class HBBridgeTime
+
+    static method hbbridgetimems() as numeric
+    static method hbbridgeremainingms(nStarted as numeric, nTimeout as numeric, ;
+        nCurrent as numeric, nPrevious as numeric) as numeric
+
+endclass
+
+// Adapted from dna.tech.StopWatch.__GetCurrentTimeStamp().
+// Reported units: Windows milliseconds; Linux fractional seconds.
+// https://github.com/naldodj/totvs-protheus-open-issues/issues/12
+// ClockWorks checks whether the target build still requires this normalization.
+static method hbbridgetimems() class HBBridgeTime
+
+    local nCounter := TimeCounter() as numeric
+
+    if IsSrvUnix()
+        nCounter *= 1000
+    endif
+
+return(nCounter)
+
+static method hbbridgeremainingms(nStarted, nTimeout, nCurrent, nPrevious) class HBBridgeTime
+
+    local nElapsed := nCurrent - nStarted as numeric
+
+    // A regressing/reset counter must not extend a request's budget.
+    if nElapsed < 0 .or. nCurrent < nPrevious
+        return 0
+    endif
+
+return(Max(0, Int(nTimeout - nElapsed)))

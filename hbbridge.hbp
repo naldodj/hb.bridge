@@ -1,4 +1,4 @@
 # Product executable; the MVP example runs this same binary.
--oout/hbBridge
-src/hb/host/main.prg
+-oout/hbbridge
+src/hb/host/hbbridgemain.prg
 hbbridge.hbm

@@ -1,71 +1,220 @@
 #include "protheus.ch"
 #include "parmtype.ch"
+#include "hbbridge.h"
 
 #define __IS_THE_ADDONS_EXECUTION_ENABLED__ .T.
 
-procedure U_HBBridgeConnectionTest(cHost, nPort, nTimeout)
+procedure U_HBBridgeConnectionTest(cHost, nPort, nTimeout, nLargePayloadBytes)
 
-    local jParams:=JSONObject():New() as json
+    local jParams := JSONObject():new() as json
+    local jProbe := JSONObject():new() as json
 
+    local jAddonParams as json
     local jResponse as json
 
-    local lOk:=.T. as logical
+    local cProbe := "", cCompressed := "" as character
+
+    local lOk := .T. as logical
+    local lCompressed := .F. as logical
+
+    local nCompressed := 0 as numeric
 
     local oClient as object
 
-    paramtype 1 var cHost as character default "127.0.0.1"
-    paramtype 2 var nPort as numeric default 1512
-    paramtype 3 var nTimeout as numeric default 5000
+    // Omitted connection settings are resolved by the client from the AppServer INI.
+    paramtype 4 var nLargePayloadBytes as numeric default 0
 
-    jParams["source"]:="protheus"
-    jParams["company"]:="T1"
-    jParams["user"]:="rpc-test"
-    jParams["message"]:="Primeira integracao RPC"
-    jParams["largePayload"]:=Replicate("X", 200000)
+    if nLargePayloadBytes < 0 .or. nLargePayloadBytes != Int(nLargePayloadBytes)
+        ConOut("hbBridge optional Echo payload size must be a non-negative integer.")
+        FreeObj(@jProbe)
+        FreeObj(@jParams)
+        return
+    endif
 
-    oClient:=hbBridge.client.THBBridgeClient():New(cHost,nPort,nTimeout)
-    jResponse:=oClient:CallService("Health", jParams)
+    if !clockworks()
+        ConOut("hbBridge clock FAILED: validate TimeCounter units on this AppServer before testing RPC.")
+        FreeObj(@jProbe)
+        FreeObj(@jParams)
+        return
+    endif
 
-    if ((!jResponse:HasProperty("success")).or.(!jResponse["success"]))
-        ConOut("hbBridge Health falhou: "+jResponse:ToJSON())
-        lOk:=.F.
+    jParams["source"] := "protheus"
+    jParams["company"] := "T1"
+    jParams["user"] := "rpc-test"
+    jParams["message"] := "Primeira integracao RPC"
+    jParams["largePayload"] := Replicate("X", 200000)
+
+    oClient := hbbridge.client.HBBridgeClient():new(cHost, nPort, nTimeout)
+    jResponse := oClient:callservice("Health", jParams)
+
+    if !responsesucceeded(jResponse)
+        ConOut("hbBridge Health falhou: " + Left(jResponse:ToJSON(), 1024))
+        lOk := .F.
     else
-        ConOut("hbBridge Health Protheus OK: "+jResponse:ToJSON())
+        ConOut("hbBridge Health Protheus OK: " + Left(jResponse:ToJSON(), 1024))
     endif
     FreeObj(@jResponse)
 
     if (__IS_THE_ADDONS_EXECUTION_ENABLED__)
-        jResponse:=oClient:CallService("ADDON.examples\sample_addon.prg", jParams)
-        if ((!jResponse:HasProperty("success")).or.(!jResponse["success"]))
-            ConOut("hbBridge ADDON. falhou: "+jResponse:ToJSON())
-            lOk:=.F.
+        jAddonParams := JSONObject():new()
+        jAddonParams["module"] := "examples\hbbridgesampleaddon.prg"
+        jAddonParams["params"] := jParams
+        jResponse := oClient:callservice("ADDON.Execute", jAddonParams)
+        FreeObj(@jAddonParams)
+        if !responsesucceeded(jResponse)
+            ConOut("hbBridge ADDON.Execute falhou: " + Left(jResponse:ToJSON(), 1024))
+            lOk := .F.
         else
-            ConOut("hbBridge ADDON. Protheus OK: "+jResponse:ToJSON())
+            ConOut("hbBridge ADDON.Execute Protheus OK: " + Left(jResponse:ToJSON(), 1024))
         endif
         FreeObj(@jResponse)
     endif
 
-    jResponse:=oClient:CallService("Echo", jParams)
-
-    FreeObj(@oClient)
-
-    if ((!jResponse:HasProperty("success")).or.(!jResponse["success"]))
-        ConOut("hbBridge Echo falhou: "+jResponse:ToJSON())
-        lOk:=.F.
-    elseif (;
-                    (!jResponse:HasProperty("params"));
-                .or.(jResponse["params"]["message"]!=jParams["message"]);
-                .or.(Len(jResponse["params"]["largePayload"])!=200000);
-   )
-        ConOut("hbBridge Echo nao devolveu os dados enviados: "+jResponse:ToJSON())
-        lOk:=.F.
+    jResponse := oClient:callservice("Echo", jParams)
+    if !echomatches(jResponse, jParams)
+        ConOut("hbBridge Echo falhou na comparacao exata: " + Left(jResponse:ToJSON(), 1024))
+        lOk := .F.
+    else
+        ConOut("hbBridge Echo Protheus OK: 200000 bytes, conteudo identico.")
     endif
-
-    if (lOk)
-        ConOut("hbBridge RPC Protheus OK: "+jResponse:ToJSON())
-    endif
-
-    FreeObj(@jParams)
     FreeObj(@jResponse)
 
+    // Repeated X compresses very well and does not exercise a split gzip.
+    jParams["message"] := "Echo with multiple TCP receives"
+    jParams["largePayload"] := randomascii(200000)
+    jProbe["service"] := "Echo"
+    jProbe["params"] := jParams
+    cProbe := jProbe:ToJSON()
+    cProbe := HBBRIDGE_PROTOCOL_SIGNATURE + "|JSON|" + tlpp.ToStr(Len(cProbe)) + Chr(10) + cProbe
+    lCompressed := GzStrComp(cProbe, @cCompressed, @nCompressed)
+    FreeObj(@jProbe)
+    cProbe := ""
+    cCompressed := ""
+
+    if !lCompressed .or. nCompressed <= HBBRIDGE_IO_CHUNK_DEFAULT_BYTES
+        ConOut("hbBridge Echo fragmented fixture falhou: gzip deve ultrapassar o buffer de recepcao.")
+        lOk := .F.
+    else
+        jResponse := oClient:callservice("Echo", jParams)
+        if !echomatches(jResponse, jParams)
+            ConOut("hbBridge Echo fragmented falhou: " + Left(jResponse:ToJSON(), 1024))
+            lOk := .F.
+        else
+            ConOut("hbBridge Echo fragmented Protheus OK: 200000 bytes, conteudo identico; gzip request=" + AllTrim(Str(nCompressed)) + " bytes.")
+        endif
+        FreeObj(@jResponse)
+    endif
+
+    // Opt-in: the operator chooses a size supported by the AppServer runtime.
+    if nLargePayloadBytes > 0
+        jParams["message"] := "Echo with configured payload size"
+        jParams["largePayload"] := Replicate("X", nLargePayloadBytes)
+        jResponse := oClient:callservice("Echo", jParams)
+        if !echomatches(jResponse, jParams)
+            ConOut("hbBridge Echo configured size falhou: " + Left(jResponse:ToJSON(), 1024))
+            lOk := .F.
+        else
+            ConOut("hbBridge Echo configured size Protheus OK: " + tlpp.ToStr(nLargePayloadBytes) + " bytes, conteudo identico.")
+        endif
+        FreeObj(@jResponse)
+    endif
+
+    if lOk
+        ConOut("hbBridge RPC Protheus OK: todos os testes solicitados passaram.")
+    else
+        ConOut("hbBridge RPC Protheus FAILED.")
+    endif
+
+    FreeObj(@oClient)
+    FreeObj(@jParams)
+
 return
+
+static function clockworks() as logical
+
+    local nStarted := hbbridge.client.HBBridgeTime():hbbridgetimems() as numeric
+    local nCurrent := nStarted, nElapsed := 0, nRawElapsed := 0 as numeric
+    local nRawStarted := TimeCounter() as numeric
+    local nIndex := 0 as numeric
+    local lOk := .T. as logical
+
+    // Compare the normalized elapsed value with a known wait duration.
+    Sleep(1000)
+    nRawElapsed := TimeCounter() - nRawStarted
+    nCurrent := hbbridge.client.HBBridgeTime():hbbridgetimems()
+    nElapsed := nCurrent - nStarted
+    lOk := nElapsed >= 750 .and. nElapsed < 10000
+
+    for nIndex := 1 to 1000
+        nStarted := nCurrent
+        nCurrent := hbbridge.client.HBBridgeTime():hbbridgetimems()
+        if nCurrent < nStarted
+            lOk := .F.
+        endif
+    next
+
+    // Boundaries also cover >24h budgets, fractions, and a counter reset.
+    lOk := lOk .and. hbbridge.client.HBBridgeTime():hbbridgeremainingms(1000, 100, 1050, 1000) == 50
+    lOk := lOk .and. hbbridge.client.HBBridgeTime():hbbridgeremainingms(1000, 100, 1100, 1050) == 0
+    lOk := lOk .and. hbbridge.client.HBBridgeTime():hbbridgeremainingms(1000, 100, 1101, 1050) == 0
+    lOk := lOk .and. hbbridge.client.HBBridgeTime():hbbridgeremainingms(1000, 100, 999, 1000) == 0
+    lOk := lOk .and. hbbridge.client.HBBridgeTime():hbbridgeremainingms(1000, 100, 1050, 1060) == 0
+    lOk := lOk .and. hbbridge.client.HBBridgeTime():hbbridgeremainingms(1000, 100, 1000.25, 1000) == 99
+    lOk := lOk .and. hbbridge.client.HBBridgeTime():hbbridgeremainingms(1000, 90000000, 86401000, 86400000) == 3600000
+
+    ConOut("hbBridge clock: Unix=" + IIf(IsSrvUnix(), "true", "false") + ;
+        "; TimeCounter delta=" + tlpp.ToStr(nRawElapsed) + "; normalized=" + tlpp.ToStr(nElapsed) + ;
+        " ms after Sleep(1000); result=" + IIf(lOk, "OK", "FAILED"))
+
+return(lOk)
+
+static function responsesucceeded(jResponse as json) as logical
+
+    if !jResponse:HasProperty("success")
+        return .F.
+    endif
+    if ValType(jResponse["success"]) != "L"
+        return .F.
+    endif
+
+return(jResponse["success"])
+
+static function echomatches(jResponse as json, jParams as json) as logical
+
+    if !responsesucceeded(jResponse)
+        return .F.
+    endif
+    if !jResponse:HasProperty("params")
+        return .F.
+    endif
+    if !(ValType(jResponse["params"]) $ "JO")
+        return .F.
+    endif
+    if !jResponse["params"]:HasProperty("message") .or. !jResponse["params"]:HasProperty("largePayload")
+        return .F.
+    endif
+    if ValType(jResponse["params"]["message"]) != "C" .or. ValType(jResponse["params"]["largePayload"]) != "C"
+        return .F.
+    endif
+
+return(jResponse["params"]["message"] == jParams["message"] .and. ;
+    jResponse["params"]["largePayload"] == jParams["largePayload"])
+
+static function randomascii(nSize as numeric) as character
+
+    local cAlphabet := "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.:" as character
+    local cPayload := "", cBlock := "" as character
+
+    local nState := 12345, nIndex := 0, nBlockSize := 0 as numeric
+
+    do while Len(cPayload) < nSize
+        nBlockSize := Min(1024, nSize - Len(cPayload))
+        cBlock := ""
+        for nIndex := 1 to nBlockSize
+            nState := (nState * 48271) % 2147483647
+            cBlock += SubStr(cAlphabet, (nState % Len(cAlphabet)) + 1, 1)
+        next
+        cPayload += cBlock
+    enddo
+
+return(cPayload)

@@ -10,8 +10,15 @@ zig-out/
 *.so
 *.exe
 out/
-bin/
+.deps/
+.hbcommit/config.ini
 tmp/
+data/
+config/hbbridge.json
+config/hbbridge.ini
+/hbbridge.ini
+src/tmp*_generated*.lst
 brainstorming/
 _commit.txt
 hbbridge_local_compile.bat
+hb_totvs_mcp.log

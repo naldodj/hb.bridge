@@ -1,0 +1,283 @@
+/* Released to Public Domain. */
+#include "tlpp-core.th"
+
+namespace hbbridge.rdd
+
+class HBBridgeRPCDataSet
+
+    private data oClient as object
+    private data jResult as json
+    private data nRowIndex as numeric
+    private data nTotalRows as numeric
+    private data cErrorCode as character
+    private data cErrorMessage as character
+    private data cAliasProfile as character
+    private data cSql as character
+    private data cOrderBy as character
+
+    public method new(oClient as object) as object
+    public method opensql(cAliasProfile as character, cSql as character, jPage as json) as logical
+    public method openpage(cAliasProfile as character, cSql as character, nPage as numeric, nSize as numeric, cOrderBy as character) as logical
+    public method nextpage() as logical
+    public method hasnextpage() as logical
+    public method pagenumber() as numeric
+    public method pagesize() as numeric
+    public method fieldget(cFieldName as character) as variant
+    public method skip()
+    public method eof() as logical
+    public method close()
+    public method rowcount() as numeric
+    public method errorcode() as character
+    public method errormessage() as character
+
+endclass
+
+method new(oClient) class HBBridgeRPCDataSet
+
+    self:oClient := oClient
+    if ValType(self:oClient) == "U"
+        self:oClient := hbbridge.client.HBBridgeClient():new()
+    endif
+    self:jResult := Nil
+    self:nRowIndex := 0
+    self:nTotalRows := 0
+    self:cErrorCode := ""
+    self:cErrorMessage := ""
+    self:cAliasProfile := ""
+    self:cSql := ""
+    self:cOrderBy := ""
+
+return(self)
+
+method opensql(cAliasProfile, cSql, jPage) class HBBridgeRPCDataSet
+
+    local jParams := JSONObject():new() as json
+    local jResponse as json
+    local cRowKey := "" as character
+    local nRow := 0 as numeric
+    local lValid := .F. as logical
+
+    self:close()
+    self:cErrorCode := ""
+    self:cErrorMessage := ""
+    jParams["alias"] := cAliasProfile
+    jParams["sql"] := cSql
+    if ValType(jPage) $ "JO"
+        jParams["page"] := jPage
+    endif
+    jResponse := self:oClient:callservice("RPCRDD.Query", jParams)
+    FreeObj(@jParams)
+
+    if jResponse:HasProperty("success")
+        if ValType(jResponse["success"]) == "L"
+            lValid := jResponse["success"]
+        endif
+    endif
+    if !lValid
+        self:cErrorCode := "QUERY_FAILED"
+        self:cErrorMessage := "SQL query failed."
+        if jResponse:HasProperty("code")
+            if ValType(jResponse["code"]) == "C"
+                self:cErrorCode := jResponse["code"]
+            endif
+        endif
+        if jResponse:HasProperty("error")
+            if ValType(jResponse["error"]) == "C"
+                self:cErrorMessage := jResponse["error"]
+            endif
+        endif
+        FreeObj(@jResponse)
+        return(.F.)
+    endif
+
+    lValid := jResponse:HasProperty("header") .and. jResponse:HasProperty("rows") .and. ;
+        jResponse:HasProperty("rowCount") .and. jResponse:HasProperty("resultVersion")
+    if lValid
+        lValid := ValType(jResponse["header"]) $ "JO" .and. ;
+            ValType(jResponse["rows"]) $ "JO" .and. ;
+            ValType(jResponse["rowCount"]) == "N" .and. ;
+            ValType(jResponse["resultVersion"]) == "N"
+    endif
+    if lValid
+        lValid := jResponse["resultVersion"] == 1 .and. jResponse["rowCount"] >= 0 .and. ;
+            jResponse["rowCount"] == Int(jResponse["rowCount"])
+    endif
+    if lValid
+        if ValType(jPage) $ "JO"
+            lValid := jResponse:HasProperty("page")
+            if lValid
+                lValid := ValType(jResponse["page"]) $ "JO"
+            endif
+            if lValid
+                lValid := jResponse["page"]:HasProperty("number") .and. ;
+                    jResponse["page"]:HasProperty("size") .and. ;
+                    jResponse["page"]:HasProperty("hasNext") .and. ;
+                    jResponse["page"]:HasProperty("firstRow") .and. ;
+                    jResponse["page"]:HasProperty("lastRow")
+            endif
+            if lValid
+                lValid := ValType(jResponse["page"]["number"]) == "N" .and. ;
+                    ValType(jResponse["page"]["size"]) == "N" .and. ;
+                    ValType(jResponse["page"]["hasNext"]) == "L" .and. ;
+                    ValType(jResponse["page"]["firstRow"]) == "N" .and. ;
+                    ValType(jResponse["page"]["lastRow"]) == "N"
+            endif
+            if lValid
+                lValid := jResponse["page"]["number"] == jPage["number"] .and. ;
+                    jResponse["page"]["size"] == jPage["size"] .and. ;
+                    jResponse["rowCount"] <= jPage["size"]
+            endif
+            if lValid
+                lValid := !jResponse["page"]["hasNext"] .or. jResponse["rowCount"] == jPage["size"]
+                if jResponse["rowCount"] == 0
+                    lValid := lValid .and. jResponse["page"]["firstRow"] == 0 .and. ;
+                        jResponse["page"]["lastRow"] == 0
+                else
+                    lValid := lValid .and. jResponse["page"]["firstRow"] == ;
+                        (jPage["number"] - 1) * jPage["size"] + 1 .and. ;
+                        jResponse["page"]["lastRow"] == ;
+                        jResponse["page"]["firstRow"] + jResponse["rowCount"] - 1
+                endif
+            endif
+        endif
+    endif
+    if lValid
+        for nRow := 1 to jResponse["rowCount"]
+            cRowKey := tlpp.ToStr(nRow)
+            if !jResponse["rows"]:HasProperty(cRowKey)
+                lValid := .F.
+                exit
+            endif
+            if !(ValType(jResponse["rows"][cRowKey]) $ "JO")
+                lValid := .F.
+                exit
+            endif
+        next
+    endif
+    if !lValid
+        self:cErrorCode := "INVALID_RESULT"
+        self:cErrorMessage := "SQL query result does not match the keyed dataset contract."
+        FreeObj(@jResponse)
+        return(.F.)
+    endif
+
+    // Own the complete response so nested JSON objects retain their lifetime.
+    self:jResult := jResponse
+    self:nTotalRows := jResponse["rowCount"]
+    self:nRowIndex := IIf(self:nTotalRows > 0, 1, 0)
+    self:cAliasProfile := cAliasProfile
+    self:cSql := cSql
+    if ValType(jPage) $ "JO"
+        self:cOrderBy := jPage["orderBy"]
+    endif
+
+return(.T.)
+
+method openpage(cAliasProfile, cSql, nPage, nSize, cOrderBy) class HBBridgeRPCDataSet
+
+    local jPage := JSONObject():new() as json
+    local lOpened := .F. as logical
+
+    jPage["number"] := nPage
+    jPage["size"] := nSize
+    jPage["orderBy"] := cOrderBy
+    lOpened := self:opensql(cAliasProfile, cSql, jPage)
+    FreeObj(@jPage)
+
+return(lOpened)
+
+method nextpage() class HBBridgeRPCDataSet
+
+    local cAliasProfile := self:cAliasProfile as character
+    local cSql := self:cSql as character
+    local cOrderBy := self:cOrderBy as character
+    local nPage := self:pagenumber() + 1 as numeric
+    local nSize := self:pagesize() as numeric
+
+    if !self:hasnextpage()
+        return(.F.)
+    endif
+
+return(self:openpage(cAliasProfile, cSql, nPage, nSize, cOrderBy))
+
+method hasnextpage() class HBBridgeRPCDataSet
+
+    if ValType(self:jResult) $ "JO"
+        if self:jResult:HasProperty("page")
+            return(self:jResult["page"]["hasNext"])
+        endif
+    endif
+
+return(.F.)
+
+method pagenumber() class HBBridgeRPCDataSet
+
+    if ValType(self:jResult) $ "JO"
+        if self:jResult:HasProperty("page")
+            return(self:jResult["page"]["number"])
+        endif
+    endif
+
+return(0)
+
+method pagesize() class HBBridgeRPCDataSet
+
+    if ValType(self:jResult) $ "JO"
+        if self:jResult:HasProperty("page")
+            return(self:jResult["page"]["size"])
+        endif
+    endif
+
+return(0)
+
+method fieldget(cFieldName) class HBBridgeRPCDataSet
+
+    local cKey := Upper(AllTrim(cFieldName)) as character
+    local cRowKey := tlpp.ToStr(self:nRowIndex) as character
+
+    if self:eof()
+        return Nil
+    endif
+    if self:jResult["header"]:HasProperty(cKey)
+        if self:jResult["rows"][cRowKey]:HasProperty(cKey)
+            return(self:jResult["rows"][cRowKey][cKey])
+        endif
+    endif
+
+return Nil
+
+method skip() class HBBridgeRPCDataSet
+
+    if !self:eof()
+        self:nRowIndex++
+    endif
+
+return
+
+method eof() as logical class HBBridgeRPCDataSet
+return(self:nRowIndex == 0 .or. self:nRowIndex > self:nTotalRows)
+
+method close() class HBBridgeRPCDataSet
+
+    local jResponse := self:jResult as json
+
+    self:jResult := Nil
+    self:nRowIndex := 0
+    self:nTotalRows := 0
+    self:cAliasProfile := ""
+    self:cSql := ""
+    self:cOrderBy := ""
+    if ValType(jResponse) $ "JO"
+        FreeObj(@jResponse)
+    endif
+
+return
+
+method rowcount() class HBBridgeRPCDataSet
+return(self:nTotalRows)
+
+method errorcode() class HBBridgeRPCDataSet
+return(self:cErrorCode)
+
+method errormessage() class HBBridgeRPCDataSet
+return(self:cErrorMessage)

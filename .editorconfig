@@ -1,0 +1,13 @@
+root = true
+
+[*.{prg,hb,ch,tlpp,c,h,zig,ps1}]
+indent_style = space
+indent_size = 4
+
+[src/c/third_party/zlib/*.h]
+indent_style = unset
+indent_size = unset
+
+# Preserve the upstream formatting of imported Harbour maintenance utilities.
+[.hbcommit/*.{hb,ucf}]
+indent_size = unset

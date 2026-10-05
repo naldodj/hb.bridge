@@ -1,0 +1,150 @@
+/* Released to Public Domain. */
+#include "tlpp-core.th"
+#include "hbbridge.h"
+
+namespace hbbridge.client
+
+class HBBridgeConfig
+
+    static method read(jOverrides as JSON, cIniFile as character) as JSON
+    static method resolve(jValues as JSON, jOverrides as JSON) as JSON
+
+endclass
+
+// Read the INI selected by this AppServer, including custom INI filenames.
+// Each client takes a snapshot; existing clients keep their original settings.
+static method read(jOverrides, cIniFile) class HBBridgeConfig
+
+    local jValues := JSONObject():new() as JSON
+    local jResult as JSON
+
+    if ValType(cIniFile) == "U"
+        cIniFile := GetSrvIniName()
+    endif
+
+    jValues["host"] := GetPvProfString("hbBridge", "Host", "127.0.0.1", cIniFile)
+    jValues["port"] := GetPvProfString("hbBridge", "Port", "1512", cIniFile)
+    jValues["timeoutMs"] := GetPvProfString("hbBridge", "TimeoutMs", ;
+        tlpp.ToStr(HBBRIDGE_IO_TIMEOUT_DEFAULT_MS), cIniFile)
+    jValues["maxPayloadBytes"] := GetPvProfString("hbBridge", "MaxPayloadBytes", "0", cIniFile)
+    jValues["maxWireBytes"] := GetPvProfString("hbBridge", "MaxWireBytes", "0", cIniFile)
+    jValues["readChunkBytes"] := GetPvProfString("hbBridge", "ReadChunkBytes", ;
+        tlpp.ToStr(HBBRIDGE_IO_CHUNK_DEFAULT_BYTES), cIniFile)
+    // Optional installation default; demonstrations never define library policy.
+    jValues["sqlProfile"] := GetPvProfString("hbBridge", "SQLProfile", "", cIniFile)
+
+    jResult := hbbridge.client.HBBridgeConfig():resolve(jValues, jOverrides)
+    FreeObj(@jValues)
+
+return(jResult)
+
+// Resolve before validating so an explicit value can replace an invalid INI value.
+// Only integers exactly representable by the JSON/numeric contract are accepted.
+static method resolve(jValues, jOverrides) class HBBridgeConfig
+
+    local jResult := JSONObject():new() as JSON
+
+    jResult["success"] := .T.
+    jResult["code"] := ""
+    jResult["error"] := ""
+    jResult["host"] := configtext(configvalue(jValues, jOverrides, "host", "127.0.0.1"), "Host", jResult)
+    if jResult["host"] == "0.0.0.0"
+        configerror("Host", jResult)
+    endif
+    jResult["port"] := configinteger(configvalue(jValues, jOverrides, "port", 1512), ;
+        "Port", 1, 65535, jResult)
+    jResult["timeoutMs"] := configinteger(configvalue(jValues, jOverrides, "timeoutMs", ;
+        HBBRIDGE_IO_TIMEOUT_DEFAULT_MS), "TimeoutMs", 1, 9007199254740991, jResult)
+    jResult["maxPayloadBytes"] := configinteger(configvalue(jValues, jOverrides, "maxPayloadBytes", 0), ;
+        "MaxPayloadBytes", 0, 9007199254740991, jResult)
+    jResult["maxWireBytes"] := configinteger(configvalue(jValues, jOverrides, "maxWireBytes", 0), ;
+        "MaxWireBytes", 0, 9007199254740991, jResult)
+    // One socket call accepts a signed 32-bit length; this is not a message limit.
+    jResult["readChunkBytes"] := configinteger(configvalue(jValues, jOverrides, "readChunkBytes", ;
+        HBBRIDGE_IO_CHUNK_DEFAULT_BYTES), "ReadChunkBytes", 1, 2147483647, jResult)
+    jResult["sqlProfile"] := configtext(configvalue(jValues, jOverrides, "sqlProfile", ""), ;
+        "SQLProfile", jResult, .T.)
+
+return(jResult)
+
+static function configvalue(jValues as JSON, jOverrides as JSON, cKey as character, xDefault as variant) as variant
+
+    if ValType(jOverrides) != "U"
+        if jOverrides:HasProperty(cKey)
+            return jOverrides[cKey]
+        endif
+    endif
+    if ValType(jValues) != "U"
+        if jValues:HasProperty(cKey)
+            return jValues[cKey]
+        endif
+    endif
+
+return(xDefault)
+
+static function configtext(xValue as variant, cKey as character, jResult as JSON, ;
+    lAllowEmpty as logical) as character
+
+    if ValType(lAllowEmpty) != "L"
+        lAllowEmpty := .F.
+    endif
+    if ValType(xValue) == "C"
+        xValue := AllTrim(xValue)
+        if (!Empty(xValue) .or. lAllowEmpty) .and. ;
+            At(Chr(0), xValue) == 0 .and. ;
+            At(Chr(10), xValue) == 0 .and. At(Chr(13), xValue) == 0
+            return xValue
+        endif
+    endif
+    configerror(cKey, jResult)
+
+return("")
+
+static function configinteger(xValue as variant, cKey as character, nMinimum as numeric, ;
+    nMaximum as numeric, jResult as JSON) as numeric
+
+    local cValue := "" as character
+    local nValue := 0, nIndex := 0, nDigit := 0 as numeric
+
+    if ValType(xValue) == "C"
+        cValue := AllTrim(xValue)
+        if Empty(cValue)
+            configerror(cKey, jResult)
+            return 0
+        endif
+        // Val() accepts numeric prefixes; reject suffixes and fractions explicitly.
+        for nIndex := 1 to Len(cValue)
+            nDigit := Asc(SubStr(cValue, nIndex, 1)) - Asc("0")
+            if nDigit < 0 .or. nDigit > 9
+                configerror(cKey, jResult)
+                return 0
+            endif
+            if nValue > Int((nMaximum - nDigit) / 10)
+                configerror(cKey, jResult)
+                return 0
+            endif
+            nValue := nValue * 10 + nDigit
+        next
+    elseif ValType(xValue) == "N"
+        nValue := xValue
+    else
+        configerror(cKey, jResult)
+        return 0
+    endif
+
+    if nValue < nMinimum .or. nValue > nMaximum .or. nValue != Int(nValue)
+        configerror(cKey, jResult)
+        return 0
+    endif
+
+return(nValue)
+
+static function configerror(cKey as character, jResult as JSON)
+
+    if jResult["success"]
+        jResult["success"] := .F.
+        jResult["code"] := "INVALID_CONFIGURATION"
+        jResult["error"] := "Invalid hbBridge client setting: " + cKey + ". Check [hbBridge] in the AppServer INI or the explicit argument."
+    endif
+
+return

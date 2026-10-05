@@ -1,0 +1,8 @@
+{
+    "sqlProfiles": {
+        "sqlite_demo": {
+            "driver": "sqlite",
+            "database": ":memory:"
+        }
+    }
+}

@@ -1,51 +1,53 @@
 #Requires -Version 7.0
 [CmdletBinding()]
 param(
-   [string] $HbCompileRoot = (Join-Path $PSScriptRoot '..\..\hb_compile')
+    [string] $HbCompileRoot,
+    [string] $ZigPath
 )
 
 $ErrorActionPreference = 'Stop'
-$projectRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
-$hbCompileBin = Join-Path $HbCompileRoot 'out\zig\bin'
-$hbmk2 = Join-Path $hbCompileBin 'hbmk2.exe'
-if (-not (Test-Path -LiteralPath $hbmk2)) {
-   throw "hbmk2 nao encontrado em: $hbmk2"
-}
-$hbmk2 = (Resolve-Path -LiteralPath $hbmk2).Path
-$zig = Get-Command 'zig.exe' -ErrorAction Stop
-$previousPath = $env:PATH
-$env:PATH = "$hbCompileBin;$env:PATH"
-$runRoot = Join-Path $projectRoot ('tmp\tests-' + [Guid]::NewGuid().ToString('N'))
+$projectRoot = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot 'toolchain.ps1')
+$toolchain = resolve-hbbridgetoolchain -ProjectRoot $projectRoot -HbCompileRoot $HbCompileRoot -ZigPath $ZigPath
+$runRoot = Join-Path $projectRoot ('tmp/tests-' + [Guid]::NewGuid().ToString('N'))
 $addonRoot = Join-Path $runRoot 'addons'
 $buildRoot = Join-Path $runRoot 'build'
 New-Item -ItemType Directory -Path $addonRoot, $buildRoot | Out-Null
 New-Item -ItemType Directory -Path (Join-Path $addonRoot 'examples') | Out-Null
-Copy-Item -LiteralPath (Join-Path $projectRoot 'addons\examples\sample_addon.prg') -Destination (Join-Path $addonRoot 'examples\sample_addon.prg')
+Copy-Item -LiteralPath (Join-Path $projectRoot 'addons/examples/hbbridgesampleaddon.prg') `
+    -Destination (Join-Path $addonRoot 'examples/hbbridgesampleaddon.prg')
 
+$previousEnvironment = enter-hbbridgetoolchain -Toolchain $toolchain
 Push-Location -LiteralPath $projectRoot
 try {
-   & $zig.Source build
-   if ($LASTEXITCODE -ne 0) { throw 'Falha no build da biblioteca Zig.' }
+    & $toolchain.Zig build
+    if ($LASTEXITCODE -ne 0) { throw 'The Zig library build failed.' }
 
-   foreach ($fixture in @('mt_fault', 'mt_isolation')) {
-      $source = Join-Path $projectRoot "tests\integration\harbour\$fixture.prg"
-      $target = Join-Path $addonRoot "hbbridge_$fixture"
-      & $hbmk2 -gh -n2 -w3 -es2 $source "-o$target"
-      if ($LASTEXITCODE -ne 0) { throw "Falha ao compilar fixture $fixture." }
-   }
+    # Map source names by key, preserving the addon contract's runtime identities.
+    $fixtures = @{
+        hbbridgefaultaddon = 'hbbridge_mt_fault'
+        hbbridgeisolationaddon = 'hbbridge_mt_isolation'
+    }
+    foreach ($fixture in $fixtures.GetEnumerator()) {
+        $source = Join-Path $projectRoot "tests/integration/harbour/$($fixture.Key).prg"
+        $target = Join-Path $addonRoot $fixture.Value
+        & $toolchain.Hbmk2 -gh -n2 -w3 -es2 $source "-o$target"
+        if ($LASTEXITCODE -ne 0) { throw "Could not compile addon fixture $($fixture.Key)." }
+    }
 
-   $testExe = Join-Path $runRoot 'server_mt.exe'
-   & $hbmk2 -comp=zig tests/integration/harbour/server_mt.hbp "-o$testExe" "-workdir=$buildRoot"
-   if ($LASTEXITCODE -ne 0) { throw 'Falha no build dos testes Harbour.' }
+    $testTarget = Join-Path $runRoot 'hbbridgeservertest'
+    $testExecutable = $testTarget + $toolchain.ExecutableExtension
+    & $toolchain.Hbmk2 "-comp=$($toolchain.Compiler)" tests/integration/harbour/hbbridgeservertest.hbp `
+        "-o$testTarget" "-workdir=$buildRoot"
+    if ($LASTEXITCODE -ne 0) { throw 'The Harbour test executable build failed.' }
 
-   # Run against the isolated addon fixtures, preserving the product binary.
-   Set-Location -LiteralPath $runRoot
-   & $testExe 2>&1 | Tee-Object -FilePath (Join-Path $runRoot 'results.log')
-   $testExit = $LASTEXITCODE
-   Write-Host "Artefatos e log: $runRoot"
+    Set-Location -LiteralPath $runRoot
+    & $testExecutable 2>&1 | Tee-Object -FilePath (Join-Path $runRoot 'results.log')
+    $testExit = $LASTEXITCODE
+    Write-Host "Test artifacts and log: $runRoot"
 }
 finally {
-   Pop-Location
-   $env:PATH = $previousPath
+    Pop-Location
+    exit-hbbridgetoolchain -PreviousEnvironment $previousEnvironment
 }
 exit $testExit
