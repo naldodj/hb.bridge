@@ -39,8 +39,8 @@ Os nomes dos arquivos próprios usam inglês e minúsculas. Mantêm-se os
 nomes convencionais `README`, `AGENTS`, `TODO`, `LICENSE` e `ChangeLog` e o
 sufixo de idioma `.pt-BR`. O nome-base de um arquivo de classe TLPP deve
 corresponder ao nome PascalCase da classe convertido para minúsculas.
-Funções, procedures, métodos e namespaces próprios Harbour e TLPP usam
-minúsculas; entradas de teste existentes `U_` mantêm a compatibilidade.
+Funções, procedures, métodos, namespaces e classes próprios usam PascalCase
+e identificadores em inglês; entradas de teste existentes `U_` mantêm a compatibilidade.
 A indentação dos fontes próprios usa quatro espaços. APIs nativas e
 convenções dos fontes de terceiros conservam sua grafia e formatação.
 

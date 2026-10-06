@@ -25,7 +25,7 @@ Os limites técnicos dos fontes Harbour examinados são:
 | Credencial NETIO | Até 64 bytes (`NETIO_PASSWD_MAX`); o host rejeita valores maiores para evitar truncamento. |
 | Arquivos abertos | Até 8.192 por conexão (`NETIO_FILES_MAX`). |
 | Determinadas unidades RPC/streams | Campos de comprimento `uint32`, conforme cada operação. |
-| Timeout nativo | Faixa do `int`; `hbbridgeruntimelimits()["netioTimeoutMsMax"]` informa a capacidade do build. |
+| Timeout nativo | Faixa do `int`; `HBBridgeRuntimeLimits()["netioTimeoutMsMax"]` informa a capacidade do build. |
 
 Os comprimentos nativos de RPC/streams não são o campo decimal do frame
 Protheus `HBBRIDGE/1` nem o volume lógico total de um arquivo. Serialização,

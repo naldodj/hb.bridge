@@ -41,7 +41,8 @@ locais analisados; as chaves descrevem recursos próprios do hbBridge.
 | `[Protheus]` | `Host`, `Port`, `MaxPayloadBytes`, `MaxWireBytes`, `ReadChunkBytes`, `TimeoutMs` |
 | `[NETIO]` | `Host`, `Port`, `Root`, `Password`, `TimeoutMs` |
 | `[Admin]` | `Host`, `Port`, `Password` |
-| `[SQL/nome_do_perfil]` | `Driver` e `Database` para SQLite; `Driver` e `ConnectionString` para MSSQL/ODBC |
+| `[HTTP]` | `Enabled`, `Host`, `Port`, `Password`, `TLS`, `Certificate`, `PrivateKey` |
+| `[SQL/profile_name]` | `Driver` e `Database` para SQLite; `Driver` e `ConnectionString` para MSSQL/ODBC |
 
 Exemplo mínimo para o teste SQLite:
 
@@ -114,6 +115,15 @@ INI não altera os limites: payload/rede padrão zero, buffer e prazos
 operacionais seguem as mesmas regras do [Marco 2](milestone2-framing.pt-BR.md).
 Os arquivos de configuração não implementam criptografia nesta etapa.
 
+## Listener HTTP
+
+`[HTTP]` é opcional e desativado por padrão, com bind em loopback
+`127.0.0.1:8080`. Ative-o explicitamente com senha de serviço própria;
+admin usa o adminPassword existente e precisa de senha diferente. JSON
+usa as chaves `http*` equivalentes. HTTPS exige build hbssl/OpenSSL,
+certificado e chave privada. Rotas, autorização, comportamento HTTP nativo
+e dependências de build estão no [guia HTTP](http.pt-BR.md).
+
 ## Cliente Protheus no INI do AppServer
 
 Adicione a seção abaixo ao arquivo usado pelo AppServer. O
@@ -135,6 +145,12 @@ SQLProfile=
 ou DNS; `0.0.0.0` serve ao bind do servidor, não é destino do cliente.
 `SQLProfile` seleciona um alias declarado no INI/JSON do hbBridge; a conexão
 ODBC e as credenciais do banco permanecem naquele servidor.
+É opcional e vazio por padrão. Cada consulta/dataset pode informar outro
+alias, como `mssql/pData`; `sqlite_demo` pertence somente ao exemplo SQLite.
+Sem perfil explícito nem configuração, o teste retorna `PROFILE_REQUIRED`
+antes do acesso à rede. Aliases são opacos e preservam maiúsculas/minúsculas;
+não resolvem tenant, empresa, filial/xFilial ou tabelas físicas do Protheus.
+Veja [arquitetura](architecture.pt-BR.md).
 
 `TimeoutMs` mantém o prazo positivo do cliente. Payload/rede em `0` não
 acrescentam tetos de aplicação; valores positivos ativam políticas locais.
@@ -145,20 +161,20 @@ ainda serão implementados. Nenhum valor é derivado automaticamente de
 `MAXSTRINGSIZE` nesta entrega.
 
 A classe estática [HBBridgeConfig](../src/tlpp/hbbridgeconfig.tlpp), no namespace
-`hbBridge.client`, usa `GetSrvIniName()` para selecionar inclusive um nome
+`HBBridge.Client`, usa `GetSrvIniName()` para selecionar inclusive um nome
 de INI customizado e `GetPvProfString()` para ler a seção. A seleção nativa
 do arquivo é descrita no [TDN](https://tdn.totvs.com/display/tec/GetSrvIniName).
 A precedência cliente é **padrões < seção INI < argumentos explícitos**;
 seção/chaves ausentes mantêm os padrões. Números inválidos, portas fora da
-faixa e valores vazios são recusados com `INVALID_CONFIGURATION` antes de
+faixa e valores obrigatórios vazios são recusados com `INVALID_CONFIGURATION` antes de
 abrir o socket. Um argumento explícito válido pode substituir um valor INI
 inválido da mesma chave.
 
 ```tlpp
 // Uses [hbBridge] from the INI of this AppServer.
-oClient := hbbridge.client.HBBridgeClient():New()
+oClient := HBBridge.Client.HBBridgeClient():New()
 // Overrides Host/Port; the other settings still come from the INI.
-oClient := hbbridge.client.HBBridgeClient():New("bridge.example.local", 1512)
+oClient := HBBridge.Client.HBBridgeClient():New("bridge.example.local", 1512)
 ```
 
 Cada novo cliente guarda uma cópia dos valores lidos; objetos existentes
@@ -180,4 +196,6 @@ Não foram informados argumentos da chamada, valores efetivos de Host/Port,
 horário/thread, hash dos artefatos nem log de compilação dessa rodada.
 O check do INI ativo confirma a leitura válida; destino diferente dos
 padrões e chamada sem argumentos precisam ser identificados em rodada
-própria. As 412 verificações Harbour permanecem um resultado independente.
+própria. As 412 verificações Harbour daquela rodada permanecem um resultado
+independente. A validação gerenciada posterior teve 416 checks em 2026-10-04;
+renomes de classes e os 16 checks revisados ainda exigem novo aceite Protheus.

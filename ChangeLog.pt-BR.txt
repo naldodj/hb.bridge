@@ -5,6 +5,38 @@
    Caminhos antigos descrevem os arquivos existentes na época.
  */
 
+2026-10-06 10:27 UTC naldodj (Padronizar PascalCase e incorporar HTTP)
+  ! Convenções corrigidas: identificadores em inglês, arquivos em minúsculas;
+    funções, procedures, métodos, namespaces e classes em PascalCase. Nomes de
+    arquivos correspondem às classes em minúsculas; entradas U_ são preservadas.
+  * Fontes/testes Harbour/TLPP/C/Zig e helpers PowerShell padronizados,
+    incluindo HBBridge.Client/HBBridge.RDD e exports C/Zig correspondentes.
+    O crivo valida declarações nas linguagens, classes/arquivos e quatro espaços;
+    símbolos exigidos pelo compilador, APIs e fontes upstream são preservados.
+  + Adaptador hbhttpd no mesmo executável: REST/RPC JSON e status web autenticado,
+    reutilizando o registro/executor de Health, Echo, addons e SQL. Protheus
+    permanece responsável por regras ERP, contexto e nomes físicos de tabelas.
+  + HTTP opcional/desativado, bind/porta configuráveis, credencial bearer própria
+    e Basic administrativo separado, sem senhas padrão. Painel de status do
+    hbBridge/NETIO somente leitura; ações administrativas ficam no roadmap.
+  + Dependências hbhttpd/hbtcpio fixadas; -hblib é modo de gerar biblioteca,
+    não uma contrib. Build TLS opcional hbssl/OpenSSL exige aceite próprio.
+  + prepare-http.ps1 e patch com checksum em cópia gerenciada isolada preservam
+    corpos/erros JSON, configuram workers, rejeitam Transfer-Encoding não suportado
+    e Content-Length ambíguo, permitem inicializar/parar sob tráfego contínuo e
+    preservam avisos/semântica do firewall nativo, configurado pelo adaptador.
+  ! Framing HTTP contado por bytes e UTF8EX restrito à requisição, restaurando
+    o codepage do worker. Codecs JSON UTF-8 explícitos e validador nativo Harbour
+    via src/c/hbbridgeutf8.c; credenciais comparadas por bytes.
+  + Testes HTTP reais de autenticação/permissões, serviços/SQL/addons, corpos
+    inválidos, equivalência NETIO, concorrência, ciclo de vida e rollback.
+  + docs/http.md e http.pt-BR.md; INI/JSON, host/build e documentos bilíngues
+    alinhados com executor genérico, perfis e fontes atuais. Aceites históricos
+    mantêm contagens e caminhos de sua época.
+  ! Teste de isolamento mantém 12 HRBs carregados simultaneamente, com barreira
+    e proprietário por chamada, sem pressupor que recarga reinicie STATIC.
+    Reuso nativo de STATIC documentado; FORCELOCAL e loader são preservados.
+
 2026-10-04 22:12 UTC naldodj (Executor genérico e toolchain próprio)
   * Arquivos/classes TLPP e módulos Harbour/C/Zig usam nomes correspondentes:
     HBBridgeClient/HBBridgeRPCDataSet, classes PascalCase; arquivos, namespaces,

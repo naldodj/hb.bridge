@@ -22,6 +22,18 @@ Entregas e critérios de aceite estão no [TODO](../TODO.pt-BR.md).
 | AMQP | Viável como adaptador opcional de jobs/eventos. | Marco 6, com broker e garantias de entrega definidas. |
 | Zig para buffers/transporte | Manter como frente de extensão com ABI C e medição. | Marco 4 e protótipos; sem reescrever stacks por antecipação. |
 
+## Inclusão HTTP em 2026-10-06
+
+O projeto adota **hbhttpd** para serviços HTTP e administração web no mesmo
+processo. Seu adaptador usa o registro comum, com credenciais separadas de
+dados/admin. A página administrativa inicial apresenta somente status
+compartilhado, incluindo NETIO. Ações administrativas e um modelo REST
+versionado permanecem extensões do núcleo genérico. **hbtcpio** fornece VF IO
+TCP nativo; **hbssl/OpenSSL** são dependências opcionais de HTTPS direto;
+`-hblib` é um modo de build. Veja [rotas e estado HTTP](http.pt-BR.md) e
+[dependências](dependencies.pt-BR.md). Essa inclusão é posterior à análise
+original; os resultados históricos não a homologam.
+
 ## Estado observado e persistência
 
 O servidor atual faz bind em `0.0.0.0`, com porta padrão `1512` definida pelo
@@ -60,8 +72,11 @@ streams causado por perda no TCP, conforme a
 
 O contrato deve garantir **isolamento por chamada**, sem prometer que toda
 operação seja stateless. Cada requisição identifica correlação, prazo e contexto
-autorizado. Empresa/filial informadas pelo cliente são conferidas contra sua
-identidade; elas não constituem autorização por si mesmas.
+autorizado explícito. O Protheus resolve tenant, empresa, filial, xFilial e
+nomes físicos das tabelas. A autorização genérica futura poderá validar o
+contexto recebido contra a identidade, sem inferir regras do ERP; esses
+campos não constituem autorização por si mesmos. Veja as
+[responsabilidades da aplicação](architecture.pt-BR.md).
 
 Áreas de trabalho, opções SET, transações, buffers e estado de módulos precisam
 de propriedade e limpeza garantidas. Uma nova thread não comprova isolamento
@@ -82,7 +97,9 @@ A TOTVS documenta [TSSLClient](https://tdn.totvs.com/display/tec/Classe+TSSLClie
 como cliente de socket TLS genérico, disponível desde AppServer 19.3.1.0,
 configurado pela seção `SSLConfigure`. É o candidato direto para o TLPP chamar
 o hbBridge. O Harbour dispõe de [hbssl](https://github.com/harbour/core/tree/master/contrib/hbssl),
-com bindings OpenSSL; isso fornece uma base, ainda não integrada ao listener.
+com bindings OpenSSL; isso fornece uma base, ainda não integrada ao listener
+TCP Protheus. O adaptador HTTP separado permite build HTTPS opcional, cujo
+aceite está no [guia HTTP](http.pt-BR.md).
 
 A prova deve verificar versões TLS, cadeia de confiança e nome do servidor,
 certificado inválido/expirado, renovação, prazos e encerramento. mTLS depende do

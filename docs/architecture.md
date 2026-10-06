@@ -46,13 +46,13 @@ such as `mssql/pData` lives in `[SQL/mssql/pData]`.
 The TLPP library has **no `sqlite_demo` default**. `SQLProfile` in the AppServer
 INI is optional, installation-specific and can be empty. The query test uses an
 explicit argument first, that optional default second, and otherwise reports
-`PROFILE_REQUIRED` before network I/O. Each dataset's `opensql(alias, sql)`
-or `openpage(alias, ...)` chooses its own profile; two datasets can use different
+`PROFILE_REQUIRED` before network I/O. Each dataset's `OpenSQL(alias, sql)`
+or `OpenPage(alias, ...)` chooses its own profile; two datasets can use different
 profiles on the same client. Server profiles and credentials remain server-side.
 
 ```advpl
-oSQLite:opensql("sqlite_demo", cSQLiteSql)
-oMssql:opensql("mssql/pData", cResolvedProtheusSql)
+oSQLite:OpenSQL("sqlite_demo", cSQLiteSql)
+oMssql:OpenSQL("mssql/pData", cResolvedProtheusSql)
 ```
 
 Use [databases.ini](../config/examples/databases.ini) as a multiple-profile

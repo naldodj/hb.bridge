@@ -45,13 +45,13 @@ seleciona um conector suportado. No INI, `mssql/pData` usa `[SQL/mssql/pData]`.
 A biblioteca TLPP **não tem padrão `sqlite_demo`**. `SQLProfile` no INI do
 AppServer é opcional, da instalação, e pode estar vazio. O teste prioriza
 argumento explícito, depois esse padrão opcional; sem ambos, retorna
-`PROFILE_REQUIRED` antes da rede. Cada `opensql(alias, sql)` ou
-`openpage(alias, ...)` escolhe seu perfil; datasets no mesmo cliente podem
+`PROFILE_REQUIRED` antes da rede. Cada `OpenSQL(alias, sql)` ou
+`OpenPage(alias, ...)` escolhe seu perfil; datasets no mesmo cliente podem
 usar perfis diferentes. Credenciais e definições de perfil ficam no servidor.
 
 ```advpl
-oSQLite:opensql("sqlite_demo", cSQLiteSql)
-oMssql:opensql("mssql/pData", cResolvedProtheusSql)
+oSQLite:OpenSQL("sqlite_demo", cSQLiteSql)
+oMssql:OpenSQL("mssql/pData", cResolvedProtheusSql)
 ```
 
 [databases.ini](../config/examples/databases.ini) exemplifica múltiplos perfis.

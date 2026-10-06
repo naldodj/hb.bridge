@@ -9,7 +9,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 . (Join-Path $PSScriptRoot 'toolchain.ps1')
-$toolchain = resolve-hbbridgetoolchain -ProjectRoot $projectRoot -HbCompileRoot $HbCompileRoot -ZigPath $ZigPath
+$toolchain = Resolve-HBBridgeToolchain -ProjectRoot $projectRoot -HbCompileRoot $HbCompileRoot -ZigPath $ZigPath
 if ([string]::IsNullOrWhiteSpace($OutputDirectory)) { $OutputDirectory = Join-Path $projectRoot 'out' }
 $outputRoot = [System.IO.Path]::GetFullPath($OutputDirectory)
 $executable = Join-Path $outputRoot "hbbridge$($toolchain.ExecutableExtension)"
@@ -23,7 +23,7 @@ if ($IsWindows) {
 New-Item -ItemType Directory -Force -Path $outputRoot | Out-Null
 $buildRoot = Join-Path $outputRoot ('build-' + [Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $buildRoot | Out-Null
-$previousEnvironment = enter-hbbridgetoolchain -Toolchain $toolchain
+$previousEnvironment = Enter-HBBridgeToolchain -Toolchain $toolchain
 Push-Location -LiteralPath $projectRoot
 try {
     & $toolchain.Zig build
@@ -35,5 +35,5 @@ try {
 }
 finally {
     Pop-Location
-    exit-hbbridgetoolchain -PreviousEnvironment $previousEnvironment
+    Exit-HBBridgeToolchain -PreviousEnvironment $previousEnvironment
 }

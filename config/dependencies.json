@@ -7,7 +7,11 @@
     "harbour": {
         "repository": "https://github.com/harbour/core.git",
         "revision": "6deac9cf3ad977ae829e5bca543d553b92dd4b6d",
-        "contribs": "hbnetio hbmzip hbsqlit3 rddsql sddsqlt3 sddodbc hbodbc hbct hbexpat hbmemio hbunix hbwin hbrun"
+        "contribs": "hbnetio hbmzip hbsqlit3 rddsql sddsqlt3 sddodbc hbodbc hbct hbexpat hbmemio hbunix hbwin hbrun hbhttpd hbtcpio hbssl",
+        "httpPatch": {
+            "path": "config/patches/hbhttpd.patch",
+            "sha256": "ab6de8a46ec4aa3b01493db5ad5c90dd005f1b76ed61f8d38c6356602a3f3d1c"
+        }
     },
     "zig": {
         "version": "0.16.0",

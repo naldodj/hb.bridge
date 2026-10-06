@@ -16,7 +16,7 @@ typedef struct
     HB_BOOL failed;
 } HBBRIDGE_INFLATER;
 
-static void * bridge_zalloc( void * cargo, uInt items, uInt size )
+static void * BridgeZAlloc( void * cargo, uInt items, uInt size )
 {
     HB_SYMBOL_UNUSED( cargo );
     if( items == 0 || size == 0 || ( HB_SIZE ) items > HB_SIZE_MAX / size )
@@ -24,14 +24,14 @@ static void * bridge_zalloc( void * cargo, uInt items, uInt size )
     return hb_xalloc( ( HB_SIZE ) items * size );
 }
 
-static void bridge_zfree( void * cargo, void * address )
+static void BridgeZFree( void * cargo, void * address )
 {
     HB_SYMBOL_UNUSED( cargo );
     if( address )
         hb_xfree( address );
 }
 
-static void bridge_inflate_end( HBBRIDGE_INFLATER * state )
+static void BridgeInflateEnd( HBBRIDGE_INFLATER * state )
 {
     if( state->initialized )
     {
@@ -40,18 +40,18 @@ static void bridge_inflate_end( HBBRIDGE_INFLATER * state )
     }
 }
 
-static HB_GARBAGE_FUNC( bridge_inflate_release )
+static HB_GARBAGE_FUNC( BridgeInflateRelease )
 {
-    bridge_inflate_end( ( HBBRIDGE_INFLATER * ) Cargo );
+    BridgeInflateEnd( ( HBBRIDGE_INFLATER * ) Cargo );
 }
 
 static const HB_GC_FUNCS bridge_inflate_gc =
 {
-    bridge_inflate_release,
+    BridgeInflateRelease,
     hb_gcDummyMark
 };
 
-static HB_SIZE bridge_string_limit( void )
+static HB_SIZE BridgeStringLimit( void )
 {
     HB_MAXUINT sizeLimit = ( HB_MAXUINT ) HB_SIZE_MAX - 1;
     HB_MAXUINT integerLimit = ( HB_MAXUINT ) HB_VMLONG_MAX;
@@ -60,7 +60,7 @@ static HB_SIZE bridge_string_limit( void )
 }
 
 /* maximum is always an exact unsigned form of a nonnegative HB_MAXINT. */
-static HB_BOOL bridge_integer_value( PHB_ITEM item, HB_MAXUINT maximum, HB_MAXINT * result )
+static HB_BOOL BridgeIntegerValue( PHB_ITEM item, HB_MAXUINT maximum, HB_MAXINT * result )
 {
     HB_MAXINT integer;
 
@@ -95,16 +95,16 @@ HB_FUNC( HBBRIDGEINTEGERVALID )
 {
     HB_MAXINT maximum;
     HB_MAXINT value;
-    HB_BOOL valid = bridge_integer_value( hb_param( 2, HB_IT_NUMERIC ),
+    HB_BOOL valid = BridgeIntegerValue( hb_param( 2, HB_IT_NUMERIC ),
         ( HB_MAXUINT ) HB_VMLONG_MAX, &maximum );
 
     if( valid )
-        valid = bridge_integer_value( hb_param( 1, HB_IT_NUMERIC ),
+        valid = BridgeIntegerValue( hb_param( 1, HB_IT_NUMERIC ),
             ( HB_MAXUINT ) maximum, &value );
     hb_retl( valid );
 }
 
-static void bridge_hash_limit( PHB_ITEM hash, const char * name, HB_MAXINT limit )
+static void BridgeHashLimit( PHB_ITEM hash, const char * name, HB_MAXINT limit )
 {
     PHB_ITEM key = hb_itemPutC( NULL, name );
     PHB_ITEM value = hb_itemPutNInt( NULL, limit );
@@ -117,33 +117,33 @@ static void bridge_hash_limit( PHB_ITEM hash, const char * name, HB_MAXINT limit
 /* Representable lengths, not promises about available process memory. */
 HB_FUNC( HBBRIDGERUNTIMELIMITS )
 {
-    HB_SIZE stringLimit = bridge_string_limit();
+    HB_SIZE stringLimit = BridgeStringLimit();
     HB_SIZE socketLimit = stringLimit < ( HB_SIZE ) LONG_MAX ? stringLimit : ( HB_SIZE ) LONG_MAX;
     HB_SIZE zlibLimit = stringLimit < ( HB_SIZE ) UINT_MAX ? stringLimit : ( HB_SIZE ) UINT_MAX;
     PHB_ITEM limits = hb_hashNew( NULL );
 
-    bridge_hash_limit( limits, "stringBytesMax", ( HB_MAXINT ) stringLimit );
-    bridge_hash_limit( limits, "socketChunkBytesMax", ( HB_MAXINT ) socketLimit );
-    bridge_hash_limit( limits, "zlibChunkBytesMax", ( HB_MAXINT ) zlibLimit );
-    bridge_hash_limit( limits, "netioTimeoutMsMax", ( HB_MAXINT ) INT_MAX );
+    BridgeHashLimit( limits, "stringBytesMax", ( HB_MAXINT ) stringLimit );
+    BridgeHashLimit( limits, "socketChunkBytesMax", ( HB_MAXINT ) socketLimit );
+    BridgeHashLimit( limits, "zlibChunkBytesMax", ( HB_MAXINT ) zlibLimit );
+    BridgeHashLimit( limits, "netioTimeoutMsMax", ( HB_MAXINT ) INT_MAX );
     hb_itemReturnRelease( limits );
 }
 
 HB_FUNC( HBBRIDGEINFLATEOPEN )
 {
-    HB_SIZE stringLimit = bridge_string_limit();
+    HB_SIZE stringLimit = BridgeStringLimit();
     HB_MAXINT limit;
     HBBRIDGE_INFLATER * state;
 
-    if( ! bridge_integer_value( hb_param( 1, HB_IT_NUMERIC ),
+    if( ! BridgeIntegerValue( hb_param( 1, HB_IT_NUMERIC ),
         ( HB_MAXUINT ) stringLimit, &limit ) )
         return;
     state = ( HBBRIDGE_INFLATER * ) hb_gcAllocate( sizeof( *state ), &bridge_inflate_gc );
     memset( state, 0, sizeof( *state ) );
     /* Zero disables the application cap; representation checks remain. */
     state->limit = limit == 0 ? stringLimit : ( HB_SIZE ) limit;
-    state->stream.zalloc = bridge_zalloc;
-    state->stream.zfree = bridge_zfree;
+    state->stream.zalloc = BridgeZAlloc;
+    state->stream.zfree = BridgeZFree;
     /* HBBRIDGE/1 requires gzip; zlib and raw DEFLATE are not wire profiles. */
     state->initialized = inflateInit2( &state->stream, 15 + 16 ) == Z_OK;
     state->failed = ! state->initialized;
@@ -161,7 +161,7 @@ HB_FUNC( HBBRIDGEINFLATEFEED )
     HB_SIZE consumed = 0;
 
     if( state && state->initialized && ! state->failed && ! state->finished &&
-        HB_ISCHAR( 2 ) && length <= UINT_MAX && length <= bridge_string_limit() )
+        HB_ISCHAR( 2 ) && length <= UINT_MAX && length <= BridgeStringLimit() )
     {
         unsigned char output[ 32768 ];
         state->stream.next_in = ( Bytef * ) HB_UNCONST( hb_parc( 2 ) );
@@ -219,7 +219,7 @@ HB_FUNC( HBBRIDGEINFLATEFEED )
         state->stream.next_out = NULL;
     }
     if( state && status != 0 )
-        bridge_inflate_end( state );
+        BridgeInflateEnd( state );
     if( status < 0 )
     {
         if( state )
@@ -238,7 +238,7 @@ HB_FUNC( HBBRIDGEINFLATECLOSE )
     HBBRIDGE_INFLATER * state = ( HBBRIDGE_INFLATER * ) hb_parptrGC( &bridge_inflate_gc, 1 );
     if( state )
     {
-        bridge_inflate_end( state );
+        BridgeInflateEnd( state );
         state->failed = HB_TRUE;
     }
     hb_retl( state != NULL );

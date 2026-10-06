@@ -4,8 +4,8 @@
 
 - Use four spaces per indentation level in project-owned sources. Preserve
   upstream formatting, copyright and license notices in third-party files.
-- Use English identifiers and lowercase filenames, functions, procedures,
-  methods and namespaces. Classes use PascalCase, as explicitly agreed with
+- Use English identifiers. Files are lowercase. Functions, procedures,
+  methods, namespaces and classes use PascalCase, as explicitly agreed with
   the project owner. A class file uses its exact class name in lowercase:
   `HBBridgeClient` lives in `hbbridgeclient.tlpp`.
 - Use the same module naming convention for Harbour, TLPP, C and Zig;
@@ -27,6 +27,9 @@
   branch, `xFilial` and physical table names; services/addons receive explicit
   inputs. SQL aliases are opaque keys, never automatic ERP context resolvers.
   The TLPP library must not force a demo database profile.
+- Reuse native `hbhttpd` for HTTP/REST and web administration through the
+  shared service core. Keep runtime dependencies and enabled capabilities
+  explicit; `-hblib` is a build mode, not a separate Harbour contrib.
 - The Protheus preprocessor turns `User Function Name` into `U_Name`.
   Existing direct `procedure U_Name` declarations need no conversion.
 - Resolve build dependencies with `scripts/bootstrap.ps1` and the pinned

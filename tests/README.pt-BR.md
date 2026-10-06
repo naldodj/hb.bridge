@@ -23,7 +23,7 @@ o tamanho declarado no cabecalho corresponde aos bytes do JSON
 descomprimido. O contrato ativo é único: `HBBRIDGE/1`, JSON e gzip, com
 constantes compartilhadas em [includes/hbbridge.h](../includes/hbbridge.h).
 
-Antes do RPC, verifica os métodos estáticos de `hbbridge.client.HBBridgeTime`
+Antes do RPC, verifica os métodos estáticos de `HBBridge.Client.HBBridgeTime`
 em [hbbridgetime.tlpp](../src/tlpp/hbbridgetime.tlpp): diferença
 de `TimeCounter()` após `Sleep(1000)`, unidade normalizada, leituras sem regressão
 e aritmética do prazo. O fator Unix × 1000 trata a diferença reproduzida na
@@ -73,9 +73,15 @@ Para MSSQL, configure um DSN ODBC e use
 `.\examples\sql\run.ps1 -Config config/examples/mssql.ini -Profile mssql_demo`,
 seguido de `U_HBBridgeQueryTest("mssql_demo", "127.0.0.1", 1512, 30000)` no
 Protheus. O link sem argumentos usa `SQLProfile`, `Host` e `Port` dessa seção
-cliente, com fallback `sqlite_demo` e `127.0.0.1:1512`. Alinhe a seção para
+cliente, com destino padrão `127.0.0.1:1512`. `SQLProfile` é opcional e vazio
+por padrão; configure-o ou informe o alias explicitamente. Sem alias, o
+teste retorna `PROFILE_REQUIRED` antes do acesso à rede. `sqlite_demo` é
+somente o perfil do exemplo. Alinhe a seção para
 outros perfis/portas ou use a chamada explícita mostrada pelo launcher.
-Alterar apenas o perfil no host não exige recompilar o TLPP.
+Alterar apenas o perfil no host não exige recompilar o TLPP já atualizado.
+Cada consulta/dataset escolhe um alias opaco, como `mssql/pData`, sem inferir
+tenant, empresa, filial/xFilial ou tabelas; essas regras pertencem ao Protheus.
+Um nome `oracle/alias` não habilita um conector Oracle, ainda futuro.
 INI e JSON são aceitos; para INI, recompile o produto que fornece
 `--config-info`, usado pelo launcher para validar metadados sem iniciar o host.
 
@@ -92,7 +98,7 @@ ordenação composta/descendente, lacunas, linha extra, página cheia/parcial/va
 ordinais representáveis, aliases duplicados/reservados e o mesmo resultado por
 NETIO e TCP/JSON. O contrato está em [Marco 3](../docs/milestone3-sql.pt-BR.md).
 
-Runner completo atual em 2026-10-04: **412 verificações, zero falhas, sem skips**,
+Runner completo anterior em 2026-10-04: **412 verificações, zero falhas, sem skips**,
 SQLite **3.53.4**, Harbour/Zig Windows x64. Resultado em
 `tmp/tests-236f1241c1174cf4b193c22f6eedb6e0/results.log`.
 Inclui 26 verificações INI e três rejeições adicionais de driver/direção SQL inválidos, além
@@ -102,6 +108,12 @@ O registro inicial de build TLPP interrompido é histórico: o aceite SQLite
 posterior foi informado pelo operador. A nova configuração cliente `[hbBridge]`
 também passou na rodada manual posterior descrita abaixo; o agente não executou
 esses testes no AppServer.
+
+A validação gerenciada posterior de 2026-10-04 passou em **416 verificações,
+zero falhas e nenhum skip**, com o Harbour/Zig do próprio projeto. Log:
+`tmp/tests-d1b829ff332c414f816a6e70748152d1/results.log`. Foram acrescentados
+dois checks INI e dois de seleção explícita/case-sensitive de aliases SQL.
+Esse resultado precede os ajustes PascalCase/HTTP de 2026-10-06.
 
 [hbbridgeconfigtest.tlpp](../src/tlpp/tests/protheus/hbbridgeconfigtest.tlpp)
 oferece `U_HBBridgeConfigTest()` para defaults, INI, argumentos prioritários,
@@ -123,9 +135,27 @@ A tentativa anterior do agente via `build-totvs.cmd`, interrompida antes do
 compilador ao parar os processos TOTVS, permanece como histórico em
 `tmp/ini-totvs-build.log`. O aceite manual posterior supera a pendência de
 execução dos novos testes. A [matriz](../docs/acceptance.pt-BR.md) distingue esse
-resultado dos cenários ainda não homologados.
+resultado dos cenários ainda não homologados. A versão revisada acrescenta
+`explicitProfile`, `noForcedProfile` e `invalidProfile`, totalizando 16 checks.
+Os novos nomes HBBridgeClient/HBBridgeRPCDataSet e os namespaces PascalCase
+exigem recompilar a árvore TLPP completa e executar esses testes novamente.
 
 ## Regressoes Harbour existentes
+
+A fixture de addon mantém 12 HRBs FORCELOCAL ativos atrás de uma barreira
+e verifica owner/id e counterBefore+1. Recargas sequenciais podem reciclar
+STATICs; exigir contador sempre um seria testar uma premissa incorreta.
+A contraprova deliberada com um handle e 12 threads rejeitou 11 respostas.
+Addons inicializam estado por chamada explicitamente; veja
+[semântica HRB](../docs/milestone1.pt-BR.md#estado-hrb-e-propriedade-do-addon).
+
+[Os testes HTTP](integration/harbour/hbbridgehttptest.prg) usam hbhttpd nativo,
+rotas autenticadas, separação de bearer/admin, Health/Echo/addon/SQL do
+registro comum, equivalência NETIO, corpo JSON/erros, contextos concorrentes,
+status web sem segredos e parada/reinício/rollback. As contagens históricas
+abaixo antecedem esse adaptador; seu aceite é registrado separadamente em
+[homologação](../docs/acceptance.pt-BR.md). Configuração e dependências estão
+no [guia HTTP](../docs/http.pt-BR.md).
 
 [integration/harbour/hbbridgeservertest.prg](integration/harbour/hbbridgeservertest.prg), com entrada `MTTests`, contem
 verificacoes automatizadas de concorrencia, clientes ociosos, erros, limite de
@@ -137,10 +167,11 @@ A suite tambem exercita `Health` pela ponte C/Zig e a compilacao em memoria
 do addon PRG de exemplo. Os clientes de teste usam `127.0.0.1` e as chamadas
 das fixtures apontam explicitamente para os arquivos `.hrb` preparados.
 
-Na raiz do projeto, com Zig no PATH e Harbour compilado com Zig:
+Na raiz do projeto, com PowerShell 7 e Git, resolva as dependências gerenciadas:
 
 ```powershell
-.\scripts\test-hbbridge.ps1 -HbCompileRoot F:\GitHub\hb_compile
+./scripts/bootstrap.ps1
+./scripts/test-hbbridge.ps1
 ```
 
 O [runner](../scripts/test-hbbridge.ps1) compila a biblioteca Zig, prepara as

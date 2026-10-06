@@ -14,7 +14,7 @@ typedef struct
     HB_BOOL failed;
 } HBBRIDGE_DEFLATER;
 
-static void * bridge_deflate_zalloc( void * cargo, uInt items, uInt size )
+static void * BridgeDeflateZAlloc( void * cargo, uInt items, uInt size )
 {
     HB_SYMBOL_UNUSED( cargo );
     if( items == 0 || size == 0 || ( HB_SIZE ) items > HB_SIZE_MAX / size )
@@ -22,14 +22,14 @@ static void * bridge_deflate_zalloc( void * cargo, uInt items, uInt size )
     return hb_xalloc( ( HB_SIZE ) items * size );
 }
 
-static void bridge_deflate_zfree( void * cargo, void * address )
+static void BridgeDeflateZFree( void * cargo, void * address )
 {
     HB_SYMBOL_UNUSED( cargo );
     if( address )
         hb_xfree( address );
 }
 
-static void bridge_deflate_end( HBBRIDGE_DEFLATER * state )
+static void BridgeDeflateEnd( HBBRIDGE_DEFLATER * state )
 {
     if( state->initialized )
     {
@@ -38,14 +38,14 @@ static void bridge_deflate_end( HBBRIDGE_DEFLATER * state )
     }
 }
 
-static HB_GARBAGE_FUNC( bridge_deflate_release )
+static HB_GARBAGE_FUNC( BridgeDeflateRelease )
 {
-    bridge_deflate_end( ( HBBRIDGE_DEFLATER * ) Cargo );
+    BridgeDeflateEnd( ( HBBRIDGE_DEFLATER * ) Cargo );
 }
 
 static const HB_GC_FUNCS bridge_deflate_gc =
 {
-    bridge_deflate_release,
+    BridgeDeflateRelease,
     hb_gcDummyMark
 };
 
@@ -54,8 +54,8 @@ HB_FUNC( HBBRIDGEDEFLATEOPEN )
     HBBRIDGE_DEFLATER * state = ( HBBRIDGE_DEFLATER * ) hb_gcAllocate( sizeof( *state ), &bridge_deflate_gc );
 
     memset( state, 0, sizeof( *state ) );
-    state->stream.zalloc = bridge_deflate_zalloc;
-    state->stream.zfree = bridge_deflate_zfree;
+    state->stream.zalloc = BridgeDeflateZAlloc;
+    state->stream.zfree = BridgeDeflateZFree;
     state->initialized = deflateInit2( &state->stream, Z_DEFAULT_COMPRESSION,
         Z_DEFLATED, 15 + 16, 8, Z_DEFAULT_STRATEGY ) == Z_OK;
     state->failed = ! state->initialized;
@@ -128,7 +128,7 @@ HB_FUNC( HBBRIDGEDEFLATEFEED )
         state->stream.next_out = NULL;
     }
     if( state && status != 0 )
-        bridge_deflate_end( state );
+        BridgeDeflateEnd( state );
     if( status < 0 )
     {
         if( state )
@@ -148,7 +148,7 @@ HB_FUNC( HBBRIDGEDEFLATECLOSE )
 
     if( state )
     {
-        bridge_deflate_end( state );
+        BridgeDeflateEnd( state );
         state->failed = HB_TRUE;
     }
     hb_retl( state != NULL );

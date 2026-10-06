@@ -20,6 +20,11 @@ compatibility preparer plus native make/GCC. Linux requires PowerShell 7,
 Git, make/GCC/binutils and unixODBC development headers. SQL Server ODBC
 runtime drivers and licensed TOTVS resources are installed separately.
 
+HTTP preparation is part of bootstrap: native hbhttpd/hbtcpio and the
+checksum-verified project patch are built with `prepare-http.ps1`. Direct
+HTTPS additionally needs an opted-in hbssl/OpenSSL SDK/runtime build.
+See [HTTP services](../docs/http.md); `-hblib` denotes hbmk2 library mode.
+
 `build-hbbridge.ps1` builds Zig and the product at `out/hbbridge.exe` on
 Windows or `out/hbbridge` on Linux. It does not stop active servers. Use an
 isolated output alongside a running installation:
@@ -37,8 +42,11 @@ are restored after execution.
 components as the product. It records `tmp/tests-<id>/results.log` and
 propagates the exit code. Coverage includes config/INI, registry, monotonic
 clock, native NETIO/admin/VF IO, gzip/framing, SQL pagination/SQLite and MT.
-Previous Windows run: 412 checks, zero failures, no skips. Fresh managed
-validation is recorded in [acceptance](../docs/acceptance.md).
+Previous Windows run: 412 checks, zero failures, no skips. The managed
+revision on 2026-10-04 passed **416 checks, zero failures, no skips**,
+log tmp/tests-d1b829ff332c414f816a6e70748152d1/results.log. These historical
+results predate the PascalCase/HTTP changes on 2026-10-06. See
+[acceptance](../docs/acceptance.md) for later validation.
 
 ## Commit validation
 
@@ -115,7 +123,7 @@ separately or supply explicit test arguments.
 | netioTimeout | -netiotimeout= | 0 maps to native -1 |
 | maxWorkers | -maxworkers= | 64 per listener, configurable |
 
-Technical capacities reported by `hbbridgeruntimelimits()` are validated
+Technical capacities reported by `HBBridgeRuntimeLimits()` are validated
 separately. TLPP has a positive default timeout and AppServer limits including
 MAXSTRINGSIZE; logical block transfer/negotiation remain pending.
 

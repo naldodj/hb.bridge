@@ -19,6 +19,13 @@ The client sends alias; paths/DSN/credentials stay on the server and are
 excluded from discovery/service errors. Current profile files do not implement
 encrypted credential storage; see [the portable proposal](credentials.md).
 
+Aliases are opaque, case-sensitive keys and may contain a slash, such as
+`mssql/pData`. Each call/dataset selects its own profile; the client has no
+fixed demo database. Only `sqlite` and `mssql` drivers are implemented.
+An `oracle/alias` name does not implement an Oracle connector. Protheus
+prepares tenant/company/branch/xFilial/physical tables and business predicates;
+the bridge executes explicit input. See [architecture](architecture.md).
+
 Precedence: defaults < one file < CLI. Automatic hbbridge.ini is executable-
 adjacent; an explicit file replaces that selection without merging.
 See [configuration](configuration.md).
@@ -124,14 +131,14 @@ and explicit null semantics remain contract work.
 ## Protheus dataset and test
 
 [HBBridgeRPCDataSet](../src/tlpp/hbbridgerpcdataset.tlpp) uses JSONObject:
-opensql, fieldget, skip, eof, close, rowcount, errorcode, errormessage.
-openpage(profile,sql,number,size,orderBy), nextpage, hasnextpage, pagenumber,
-pagesize implement explicit pages. skip stays in the current page;
-nextpage makes a new call.
+OpenSQL, FieldGet, Skip, Eof, Close, RowCount, ErrorCode, ErrorMessage.
+OpenPage(profile,sql,number,size,orderBy), NextPage, HasNextPage, PageNumber
+and PageSize implement explicit pages. Skip stays in the current page;
+NextPage makes a new call.
 
-new(oClient) accepts an existing HBBridgeClient; new() creates one from
+New(oClient) accepts an existing HBBridgeClient; New() creates one from
 AppServer [hbBridge], falling back to defaults when keys are absent.
-close releases the result; open failure leaves an empty dataset.
+Close releases the result; an open failure leaves an empty dataset.
 The dataset owns the complete response so nested JSON references remain valid.
 
 Stop an old host with Ctrl+Q, build the current product, then launch from root:
@@ -153,7 +160,7 @@ Compile the entire src/tlpp tree, including
 through scripts/build-totvs.cmd or the configured TOTVS tools.
 Changing only a server SQL profile does not require recompiling updated TLPP.
 
-hbbridge.client.HBBridgeConfig:read() selects GetSrvIniName and reads
+HBBridge.Client.HBBridgeConfig():Read() selects GetSrvIniName and reads
 GetPvProfString values from [hbBridge]. Merge
 [the template](../config/examples/protheus-appserver.ini) into the actual
 AppServer INI: Host/Port/TimeoutMs/MaxPayloadBytes/MaxWireBytes/ReadChunkBytes/
@@ -171,8 +178,10 @@ pwsh ./examples/sql/run.ps1 -Config config/examples/mssql.ini -Profile mssql_dem
 ~~~
 
 For MSSQL pass mssql_demo as the first test argument, or set the client section.
-The no-argument WebApp URL uses AppServer values, falling back to
-sqlite_demo / 127.0.0.1:1512. The launcher prints host settings but does not
+The no-argument WebApp URL uses AppServer values; Host/Port fall back to
+127.0.0.1:1512. SQLProfile is optional and empty by default. Supply the alias
+explicitly or configure it; otherwise the test returns PROFILE_REQUIRED
+before network I/O. sqlite_demo is only the example alias. The launcher prints host settings but does not
 modify AppServer INI. Keep U_HBBridgeConnectionTest for normal RPC.
 
 ### SERVICE_NOT_FOUND troubleshooting
@@ -201,19 +210,25 @@ pages, compound/descending order, gaps, metadata, reserved/duplicate aliases
 and numeric boundaries.
 
 Pre-refactor current baseline on 2026-10-04:
-**412 checks, zero failures, no skips**, Harbour 3.2.1dev(r2608271822),
+**412 checks, zero failures, no skips**, Harbour 3.2.1dev (r2608271822),
 Zig 0.16.0, Windows x64, linked SQLite **3.53.4** from sqlite_version().
 Log: tmp/tests-236f1241c1174cf4b193c22f6eedb6e0/results.log.
 Compared with 383 checks: 26 INI cases and 3 strict invalid driver/order-direction
 rejections. The SQL test has its own NETIO password because passing an empty
 password can inherit a previous connection's credential.
 
+The managed-toolchain/naming/profile revision on 2026-10-04 passed
+**416 checks, zero failures, no skips**, recorded in
+tmp/tests-d1b829ff332c414f816a6e70748152d1/results.log. It adds two INI
+and two SQL alias checks. This predates the PascalCase/HTTP changes of
+2026-10-06 and does not replace their validation or Protheus acceptance.
+
 The agent's TOTVS attempt stopped before compilation because process shutdown
 failed (tmp/marco3-totvs-build.log).
 The operator accepted Query at 00:40:06, thread 41228, sqlite_demo, all 29 true.
 Later they confirmed all 29 again, 13 configuration checks, Health/ADDON/two
 200,000-byte Echo results, varied gzip 152,964 bytes, Windows clock raw
-1097.692700/normalized1097.773500ms after Sleep(1000), OK.
+1097.692700/normalized 1097.773500 ms after Sleep(1000), OK.
 Time/thread/artifact hashes/call arguments/build log were not provided for that
 later report. MSSQL, nondefault no-argument destinations, forced partial sends,
 failures/timeouts and other platforms remain pending.

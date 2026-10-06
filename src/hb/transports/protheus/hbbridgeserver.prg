@@ -14,18 +14,18 @@ Released to Public Domain.
  * client socket and a fresh VM context (no inherited PUBLIC/PRIVATE vars).
  * Only lifecycle flags and counters are shared, always under the mutex.
  */
-FUNCTION hbbridgeserverstart( nPort, nMaxWorkers, cHost, hRegistry, hContext, hIOConfig )
+FUNCTION HBBridgeServerStart( nPort, nMaxWorkers, cHost, hRegistry, hContext, hIOConfig )
 
-    LOCAL hListenSocket, hServer, aAddress, hPolicy := hbbridgeprotheuspolicy( hIOConfig )
+    LOCAL hListenSocket, hServer, aAddress, hPolicy := HBBridgeProtheusPolicy( hIOConfig )
 
     hb_default( @nPort, 1512 )
     hb_default( @nMaxWorkers, 64 )
     hb_default( @cHost, "0.0.0.0" )
     IF hRegistry == NIL
-        hRegistry := hbbridgebuiltinregistry()
+        hRegistry := HBBridgeBuiltinRegistry()
     ENDIF
     IF hContext == NIL
-        hContext := hbbridgecontext( "protheus" )
+        hContext := HBBridgeContext( "protheus" )
     ENDIF
     IF ! hb_mtvm() .OR. hPolicy == NIL
         RETURN NIL
@@ -55,7 +55,7 @@ FUNCTION hbbridgeserverstart( nPort, nMaxWorkers, cHost, hRegistry, hContext, hI
         "port" => aAddress[ HB_SOCKET_ADINFO_PORT ], "maxWorkers" => nMaxWorkers, ;
         "listener" => NIL, "host" => cHost, "registry" => hRegistry, "context" => hContext, ;
         "ioPolicy" => hPolicy }
-    hServer[ "listener" ] := hb_threadStart( 0, @hbbridgeacceptloop(), hServer, hListenSocket )
+    hServer[ "listener" ] := hb_threadStart( 0, @HBBridgeAcceptLoop(), hServer, hListenSocket )
     IF Empty( hServer[ "listener" ] )
         hb_socketClose( hListenSocket )
         RETURN NIL
@@ -63,19 +63,19 @@ FUNCTION hbbridgeserverstart( nPort, nMaxWorkers, cHost, hRegistry, hContext, hI
 
 RETURN hServer
 
-FUNCTION hbbridgeserverrunning( hServer )
+FUNCTION HBBridgeServerRunning( hServer )
 RETURN hb_mutexEval( hServer[ "mutex" ], {|| ! hServer[ "stopping" ] } )
 
-FUNCTION hbbridgeserveractive( hServer )
+FUNCTION HBBridgeServerActive( hServer )
 RETURN hb_mutexEval( hServer[ "mutex" ], {|| hServer[ "active" ] } )
 
 /* Call from the owner/controller, never from a request worker: the listener
  * joins all admitted workers before Stop returns. Concurrent stops serialize.
  */
-FUNCTION hbbridgeserverstop( hServer )
-RETURN hb_mutexEval( hServer[ "stopMutex" ], {|| hbbridgestopandjoin( hServer ) } )
+FUNCTION HBBridgeServerStop( hServer )
+RETURN hb_mutexEval( hServer[ "stopMutex" ], {|| HBBridgeStopAndJoin( hServer ) } )
 
-STATIC FUNCTION hbbridgestopandjoin( hServer )
+STATIC FUNCTION HBBridgeStopAndJoin( hServer )
 
     LOCAL lStopped := .T.
 
@@ -87,12 +87,12 @@ STATIC FUNCTION hbbridgestopandjoin( hServer )
 
 RETURN lStopped
 
-STATIC PROCEDURE hbbridgeacceptloop( hServer, hListenSocket )
+STATIC PROCEDURE HBBridgeAcceptLoop( hServer, hListenSocket )
 
     LOCAL hClientSocket := NIL, hWorker, aWorkers := {}, nWorker, nError
 
     BEGIN SEQUENCE WITH {| oError | Break( oError ) }
-        DO WHILE hbbridgeserverrunning( hServer )
+        DO WHILE HBBridgeServerRunning( hServer )
             /* Reap finished threads while serving, so handles do not accumulate. */
             FOR nWorker := Len( aWorkers ) TO 1 STEP -1
                 IF hb_threadWait( aWorkers[ nWorker ], 0 ) > 0
@@ -106,21 +106,21 @@ STATIC PROCEDURE hbbridgeacceptloop( hServer, hListenSocket )
                 nError := hb_socketGetError()
                 IF nError != HB_SOCKET_ERR_TIMEOUT .AND. nError != HB_SOCKET_ERR_AGAIN .AND. ;
                     nError != HB_SOCKET_ERR_INTERRUPT
-                    hbbridgeserverlog( hServer, "Falha no accept: " + hb_ntos( nError ) )
+                    HBBridgeServerLog( hServer, "Falha no accept: " + hb_ntos( nError ) )
                     EXIT
                 ENDIF
                 LOOP
             ENDIF
 
-            IF hb_mutexEval( hServer[ "mutex" ], {|| hbbridgereserveworker( hServer ) } )
+            IF hb_mutexEval( hServer[ "mutex" ], {|| HBBridgeReserveWorker( hServer ) } )
                 /* Pass values as arguments; never capture the changing accept variable. */
-                hWorker := hb_threadStart( 0, @hbbridgeclientworker(), hServer, hClientSocket )
+                hWorker := hb_threadStart( 0, @HBBridgeClientWorker(), hServer, hClientSocket )
                 IF ! Empty( hWorker )
                     AAdd( aWorkers, hWorker )
                     hClientSocket := NIL  /* Ownership transferred to the worker. */
                 ELSE
                     hb_mutexEval( hServer[ "mutex" ], {|| hServer[ "active" ]-- } )
-                    hbbridgeserverlog( hServer, "Nao foi possivel iniciar a thread da conexao" )
+                    HBBridgeServerLog( hServer, "Nao foi possivel iniciar a thread da conexao" )
                 ENDIF
             ENDIF
             IF ! Empty( hClientSocket )
@@ -130,7 +130,7 @@ STATIC PROCEDURE hbbridgeacceptloop( hServer, hListenSocket )
             ENDIF
         ENDDO
     RECOVER
-        hbbridgeserverlog( hServer, "Falha no listener; encerrando servidor" )
+        HBBridgeServerLog( hServer, "Falha no listener; encerrando servidor" )
     ALWAYS
         hb_mutexEval( hServer[ "mutex" ], {|| hServer[ "stopping" ] := .T. } )
         hb_socketClose( hListenSocket )
@@ -145,7 +145,7 @@ STATIC PROCEDURE hbbridgeacceptloop( hServer, hListenSocket )
 RETURN
 
 /* Called only while holding the lifecycle mutex. */
-STATIC FUNCTION hbbridgereserveworker( hServer )
+STATIC FUNCTION HBBridgeReserveWorker( hServer )
 
     IF hServer[ "stopping" ] .OR. hServer[ "active" ] >= hServer[ "maxWorkers" ]
         RETURN .F.
@@ -154,27 +154,27 @@ STATIC FUNCTION hbbridgereserveworker( hServer )
 
 RETURN .T.
 
-STATIC PROCEDURE hbbridgeclientworker( hServer, hClientSocket )
+STATIC PROCEDURE HBBridgeClientWorker( hServer, hClientSocket )
 
     LOCAL cRequest, cResponse
 
     BEGIN SEQUENCE WITH {| oError | Break( oError ) }
-        IF receiverequest( hClientSocket, @cRequest, hServer[ "ioPolicy" ] )
+        IF ReceiveRequest( hClientSocket, @cRequest, hServer[ "ioPolicy" ] )
             /* An application error becomes a reply on this connection only. */
             BEGIN SEQUENCE WITH {| oError | Break( oError ) }
-                cResponse := dispatcherrequest( cRequest, hServer[ "registry" ], hServer[ "context" ] )
+                cResponse := DispatcherRequest( cRequest, hServer[ "registry" ], hServer[ "context" ] )
             RECOVER
                 cResponse := '{"success": false, "error": "Falha ao executar servico"}'
-                hbbridgeserverlog( hServer, "Erro no servico da thread " + hb_ntos( hb_threadID() ) )
+                HBBridgeServerLog( hServer, "Erro no servico da thread " + hb_ntos( hb_threadID() ) )
             END SEQUENCE
-            IF ! sendresponse( hClientSocket, cResponse, hServer[ "ioPolicy" ] )
-                hbbridgeserverlog( hServer, "Falha ao enviar resposta" )
+            IF ! SendResponse( hClientSocket, cResponse, hServer[ "ioPolicy" ] )
+                HBBridgeServerLog( hServer, "Falha ao enviar resposta" )
             ENDIF
         ELSE
-            hbbridgeserverlog( hServer, "Requisicao invalida ou incompleta" )
+            HBBridgeServerLog( hServer, "Requisicao invalida ou incompleta" )
         ENDIF
     RECOVER
-        hbbridgeserverlog( hServer, "Falha na conexao da thread " + hb_ntos( hb_threadID() ) )
+        HBBridgeServerLog( hServer, "Falha na conexao da thread " + hb_ntos( hb_threadID() ) )
     ALWAYS
         hb_socketClose( hClientSocket )
         hb_mutexEval( hServer[ "mutex" ], {|| hServer[ "active" ]-- } )
@@ -182,7 +182,7 @@ STATIC PROCEDURE hbbridgeclientworker( hServer, hClientSocket )
 
 RETURN
 
-STATIC PROCEDURE hbbridgeserverlog( hServer, cMessage )
+STATIC PROCEDURE HBBridgeServerLog( hServer, cMessage )
 
     hb_mutexEval( hServer[ "logMutex" ], {|| OutStd( "[RPC] " + cMessage + hb_eol() ) } )
 

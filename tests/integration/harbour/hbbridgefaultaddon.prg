@@ -1,5 +1,5 @@
 // Intentionally fails inside an HRB, exercising the worker's error boundary.
-FUNCTION mtaddonfault()
+FUNCTION MTAddonFault()
 
     LOCAL aEmpty := {}
 

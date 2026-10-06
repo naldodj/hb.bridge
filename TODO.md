@@ -15,6 +15,8 @@ code or specifically identified evidence, not unrestricted platform acceptance.
   native components and a build toolchain, with ownership/error contracts.
 - NETIO/native serialization serves Harbour; an interoperable contract serves
   Protheus. Services and versions are shared independently of transport/codec.
+- Use native `hbhttpd` and its dependencies for HTTP/REST and web
+  administration of hbBridge/NETIO through the same core.
 - **Generic executor:** Protheus resolves business rules, tenant ID, company,
   branch, `xFilial`, dictionary/table sharing and physical table names. hbBridge
   executes supplied queries/parameters; application addons receive explicit
@@ -28,8 +30,9 @@ code or specifically identified evidence, not unrestricted platform acceptance.
   components. Earlier proof-of-concept code is retained in Git history.
 - Prefer Harbour hashes and TLPP JSONObject/THashMap. Arrays require a concrete
   native API/contract and documented allocation/copy/search considerations.
-- Four-space own-source indentation, lowercase English files/functions/methods
-  and namespaces, PascalCase classes matching their lowercase filenames.
+- Four-space own-source indentation and English identifiers. Files are
+  lowercase; functions, procedures, methods, namespaces and classes use
+  PascalCase. A class file uses the exact class name in lowercase.
   Preserve external API/native symbols and upstream formatting/notices.
 - English documentation plus `.pt-BR` counterparts; use the three mandatory
   commit tools via the project-owned hbrun. See [standards](docs/standards.md).
@@ -39,8 +42,8 @@ code or specifically identified evidence, not unrestricted platform acceptance.
   optional budgets. Negotiate blocks respecting MAXSTRINGSIZE and memory.
 - Current Protheus contract is HBBRIDGE/1, framed JSON and gzip; future none/gzip
   negotiation is distinct from NETIO's native mechanisms.
-- One host incorporates NETIO: data0.0.0.0:2941, administration127.0.0.1:2940
-  with a separate credential, Protheus0.0.0.0:1512; all configurable.
+- One host incorporates NETIO: data 0.0.0.0:2941, administration 127.0.0.1:2940
+  with a separate credential, Protheus 0.0.0.0:1512; all configurable.
 
 ## Existing foundation
 
@@ -52,16 +55,16 @@ code or specifically identified evidence, not unrestricted platform acceptance.
   unloading and MT addon isolation/error regressions.
 - [x] Server/client partial-send code and structured errors; forced TLPP failure
   and positive partial-send acceptance remain pending.
-- [x] Protheus Health/ADDON/two200000byte Echo calls manually accepted;
-  varied request gzip152964bytes, identical complete result.
+- [x] Protheus Health/ADDON/two 200,000-byte Echo calls manually accepted;
+  varied request gzip 152,964 bytes, identical complete result.
 - [x] SQLMIX/SQLite/MSSQL-ODBC Query, keyed dataset and database-side pagination.
-  Operator accepted29SQLite checks on2026-10-04; real MSSQL remains pending.
+  Operator accepted 29 SQLite checks on 2026-10-04; real MSSQL remains pending.
 - [x] Syslog UDP module exists; integration into call lifecycle is pending.
 - [x] Shared protocol constants, rejection of other signatures/formats and
   [brainstorming transport review](docs/transports-sessions-security.md).
 
 Intermediate behavior: mandatory gzip, whole JSON materialization, one
-connection per call and no OS service. Optional payload/wire budgets default0;
+connection per call and no OS service. Optional payload/wire budgets default 0;
 buffers/timeouts/workers are settings within real runtime capacities. Pages are
 implemented; streaming/negotiation remain pending. A repeated-character Echo
 alone is not proof of fragmented/incompressible transfer; the later varied
@@ -78,16 +81,16 @@ Echo acceptance supplies that normal-flow evidence.
 6. Jobs, batches and incremental processing; optional AMQP.
 
 SQL can use today's contract while block transfer evolves. Large values depend
-on milestone2; DBF needs NETIO from milestone1. Debugging, C/Zig and service
+on milestone 2; DBF needs NETIO from milestone1. Debugging, C/Zig and service
 infrastructure can advance alongside those stages; HBDAP does not block hbdebug.
 
-## Milestone0: organization and independent tooling
+## Milestone 0: organization and independent tooling
 
 Historical [reorganization](docs/reorganization.md) preserved reference
-revisionb45595b, with normalized72checks and74after extraction; distinguish
+revision b45595b, with normalized 72 checks and 74 after extraction; distinguish
 test-fixture fixes from implementation changes.
 
-- [x] Normalize local client127.0.0.1 and fixture HRB identities; automate setup
+- [x] Normalize local client 127.0.0.1 and fixture HRB identities; automate setup
   without skips. Compare the baseline before/after and record the reference.
 - [x] Separate host/lifecycle, dispatcher, transports, handlers, addon loader,
   telemetry and clients; maintain shared hbbridge.hbm with separate entry points.
@@ -95,7 +98,7 @@ test-fixture fixes from implementation changes.
 - [x] Move Harbour integration/unit/contract tests and compile all Protheus
   tests with the `src/tlpp/` tree. Exercise Health and the PRG addon in Harbour.
 - [x] Validate product build/CLI and structural TLPP acceptance separately;
-  milestone1 AppServer behavior was accepted2026-10-03.
+  milestone 1 AppServer behavior was accepted 2026-10-03.
 - [x] Rename TLPP files/classes consistently and related Harbour/C/Zig modules;
   retain published U_ test entry names and PascalCase classes.
 - [x] Move maintenance tools to .hbcommit; preserve upstream notices and remove
@@ -151,10 +154,10 @@ or accepted in hbBridge automatically.
 Acceptance: reproducible handler/addon DAP session also through installed
 VS Code extension, with cleanup and documented capabilities/limitations.
 
-## Milestone1: common core, NETIO and network configuration
+## Milestone 1: common core, NETIO and network configuration
 
-- [x] Record reference Harbour3.2.1dev r2608271822/Zig0.16.0/Windowsx64 and
-  AppServer24.3.1.5; [acceptance](docs/acceptance.md) records exact scope.
+- [x] Record reference Harbour 3.2.1dev r2608271822/Zig 0.16.0/Windows x64 and
+  AppServer 24.3.1.5; [acceptance](docs/acceptance.md) records exact scope.
 - [x] Separate service handlers and transport representations; common registry
   includes name/version/signature/types/permissions/handler/dependencies/modes
   and exposes capability discovery.
@@ -166,18 +169,18 @@ VS Code extension, with cleanup and documented capabilities/limitations.
   Protheus adapters, sharing the core and isolating calls/resources.
 - [x] Explicit host ownership of multithread listener connections and lifecycle,
   including restart/rollback; upstream operational patterns reused selectively.
-- [x] NETIO data bind0.0.0.0:2941 and separate admin127.0.0.1:2940 with credential;
-  configurable Protheus0.0.0.0:1512, conflict/invalid-setting checks.
-- [x] Configurable TLPP/test destination IP/DNS/port/timeout; reject0.0.0.0
+- [x] NETIO data bind 0.0.0.0:2941 and separate admin 127.0.0.1:2940 with credential;
+  configurable Protheus 0.0.0.0:1512, conflict/invalid-setting checks.
+- [x] Configurable TLPP/test destination IP/DNS/port/timeout; reject 0.0.0.0
   as a destination. One strict INI/JSON schema with defaults < file < CLI,
   config-relative directories, executable-adjacent hbbridge.ini and --config-info.
 - [x] Read active AppServer INI through namespaced static HBBridgeConfig:
   settings and optional SQLProfile, explicit overrides first. No demo default.
-- [x] Earlier operator acceptance:13config checks, clock/RPC and29SQLite
-  checks in report recorded2026-10-04. Prior agent stop-process failure is
+- [x] Earlier operator acceptance: 13 configuration checks, clock/RPC and 29 SQLite
+  checks in report recorded 2026-10-04. Prior agent stop-process failure is
   historical; no later compiler log/time/thread/hash was supplied.
 - [ ] Test nondefault host/port/profile with omitted arguments and record
-  binary/configuration identity, then revised16config checks after rename.
+  binary/configuration identity, then revised 16 configuration checks after rename.
 - [x] Optional size/time budgets and configurable chunks/workers validated
   against real capacities;0disables application caps/server deadline.
 - [ ] Operational memory budgets and negotiated transfer capacities in stage2.
@@ -191,17 +194,17 @@ VS Code extension, with cleanup and documented capabilities/limitations.
 - [x] U/C/L/N/D/T/A/H types, binary/hash string keys; reject cycles, objects,
   blocks and live pointers. Test admin/filter/credentials/VF IO/shutdown.
 - [ ] Cross-codepage/runtime serialization compatibility and session resource IDs.
-- [x] Prior milestone1 TLPP compile/RPC accepted2026-10-03:3sources without
+- [x] Prior milestone 1 TLPP compile/RPC accepted 2026-10-03:3sources without
   compiler errors; new rename/profile behavior requires renewed acceptance.
 
 Acceptance: native remote/core service, continued Protheus Health/Echo/addons,
 configurable channels and separate admin, with each client's interoperable
 protocol. An arbitrary tenant/company remains explicit caller data.
 
-## Milestone2: framing, volumes and compression negotiation
+## Milestone 2: framing, volumes and compression negotiation
 
 Initial framing repair is delivered; handshake, persistence, blocks and
-negotiated compression remain pending. See [milestone2](docs/milestone2-framing.md).
+negotiated compression remain pending. See [milestone 2](docs/milestone2-framing.md).
 
 - [x] Four-space Harbour sources/.editorconfig and shared HBBRIDGE/1 constants.
 - [x] Incremental gzip send/receive on Harbour, CRC/final validation, canonical
@@ -226,8 +229,8 @@ negotiated compression remain pending. See [milestone2](docs/milestone2-framing.
 - [x] Windows operator clock acceptance:Unix=false, delta1097.692700,
   normalized1097.773500ms after Sleep(1000), OK2026-10-04.
 - [ ] Linux clock, precision, clock adjustments/wrap and future build-unit changes.
-- [x] Normal Protheus Health/ADDON/two200000byte Echo calls accepted2026-10-03
-  and reconfirmed2026-10-04; varied request gzip152964bytes.
+- [x] Normal Protheus Health/ADDON/two 200,000-byte Echo calls accepted 2026-10-03
+  and reconfirmed2026-10-04; varied request gzip 152,964 bytes.
 - [ ] Forced socket failure/timeout/positive partial Send and exact host artifact;
   blocking Send has no timeout argument, and codec/JSON work is not budget-limited.
 
@@ -302,7 +305,7 @@ Acceptance: consistent types/errors on both clients; negotiated compression
 and logical volume greater than a TLPP string, bounded measured memory and
 per-value limits; tested slow-consumer/invalid-decode/disconnect behavior.
 
-## Milestone3: SQL, DBF and Harbour VF IO
+## Milestone 3: SQL, DBF and Harbour VF IO
 
 ### First Query and acceptance
 
@@ -314,8 +317,8 @@ per-value limits; tested slow-consumer/invalid-decode/disconnect behavior.
   errors/EOF/close, common SQL/minimal launchers and alternate profile/config.
 - [x] SQL aliases are opaque/case-sensitive, including mssql/pData; multiple
   profiles coexist. Optional client default is empty; explicit call wins.
-- [x] SQLite file/concurrency/NETIO-vs-TCP regressions; operator29check dataset/
-  pagination acceptance2026-10-04 00:40:06 and later reconfirmation.
+- [x] SQLite file/concurrency/NETIO-vs-TCP regressions; operator 29-check dataset/
+  pagination acceptance 2026-10-04 00:40:06 and later reconfirmation.
 - [ ] Real MSSQL connect/query/page acceptance: driver/DSN/server/client versions.
 - [ ] Unavailable connector, broader type/null coverage and real volume in
   Protheus; unknown alias is not connector-failure proof.
@@ -326,8 +329,8 @@ per-value limits; tested slow-consumer/invalid-decode/disconnect behavior.
 - [ ] SQL bind values and size/precision/null type metadata; identifier resolution
   stays with the caller. Generic connector/dialect registry, including Oracle
   after real type/pagination acceptance; PostgreSQL sddpg/hbpgsql and MySQL sddmy.
-- [x] ROW_NUMBER/BETWEEN pages, sentinel hasNext, explicit order, openpage/
-  nextpage; gaps in business IDs do not control ordinal pagination.
+- [x] ROW_NUMBER/BETWEEN pages, sentinel hasNext, explicit order, OpenPage/
+  NextPage; gaps in business IDs do not control ordinal pagination.
 - [ ] Keyset/cursors/snapshots/deadlines/expiry/large fields and write-stability
   acceptance; measure connector materialization rather than assume pages stream.
 - [ ] Explicit transaction scope/commit/rollback/failure, isolated connections/
@@ -355,13 +358,14 @@ Acceptance: first SQL backend values/errors/close; then incremental datasets/
 large fields within negotiated budgets, DBF indexes/locking/isolation and VF
 binary integrity/errors/resource release. MSSQL/Oracle claims need evidence.
 
-## Milestone4: modules, contribs and C/Zig
+## Milestone 4: modules, contribs and C/Zig
 
 - [x] ADDON.Execute shared module/params contract for both clients.
 - [ ] Registered module name/version rather than path; native PRG/HB/HRB reuse
   and HBNETIOSRV_RPCMAIN review for upstream -rpc=file modules.
 - [ ] Module metadata/dependencies/types/permissions/errors, canonical allowed
-  directories, publication/trust, existing symbol/static isolation.
+  directories, publication/trust and isolation of symbols/statics between
+  simultaneously active HRBs. Native reload may retain STATIC values.
 - [ ] Cache/unload/update without invalidating active calls; process isolation
   only where justified. Business inputs remain explicit caller parameters.
 - [ ] Distinguish Zig toolchain from extension language; versioned C ABI
@@ -376,7 +380,33 @@ binary integrity/errors/resource release. MSSQL/Oracle claims need evidence.
 - [ ] Discovery advertises only enabled/accepted dependencies; explicit unavailable
   capability errors. Versioned contracts permit new services without transports.
 
-## Milestone5: services, security and operations
+## Milestone 5: services, security and operations
+
+### HTTP/REST and web administration
+
+- [x] Optional `hbhttpd` adapter dispatches to the same registered services as
+  NETIO and Protheus. Separate HTTP service credentials and admin permissions;
+  default disabled, configurable bind/port, no default password.
+- [x] Managed, revision-pinned `hbhttpd` patch exposes the JSON request body
+  and makes the native worker count configurable. Use `hbtcpio`; `-hblib` is
+  the library build mode, not a separate dependency.
+- [x] GET health/catalog, POST JSON service calls and authenticated read-only
+  web status for hbBridge and its embedded NETIO endpoints.
+- [ ] Verify HTTP startup/rollback, auth separation, JSON/SQL/addons, concurrent
+  calls, shutdown/restart and unchanged TCP/NETIO regressions in the full suite.
+- [ ] Direct HTTPS with `hbssl`/OpenSSL: reproducible SDK/runtime resolution,
+  certificate/hostname/chain/renewal and TLS policy acceptance on Windows/Linux.
+  HTTP behind a TLS reverse proxy is a separate deployment configuration.
+- [ ] Broader REST verb/routes, OpenAPI contract, content/compression negotiation
+  and client interoperability; retain generic services and explicit caller context.
+- [ ] Configurable HTTP admission policies for the native accepted-socket queue,
+  header/body resources and deadlines. Worker count alone does not bound the
+  queue; native parsing reads the body before adapter authentication.
+- [ ] Expand web administration beyond status: NETIO sessions/resources,
+  metrics, configuration/credential management and privileged actions with
+  authorization/audit, sharing the operational core rather than spawning hbnetio.
+
+### Services, security and deployment
 
 - [ ] Windows hbwin service install/uninstall/name/autostart and same config
   as console; noninteractive startup independent of working directory.
@@ -414,7 +444,7 @@ binary integrity/errors/resource release. MSSQL/Oracle claims need evidence.
 Acceptance: reproducible service install, remote/configurable binds, separate
 admin, tested stop/recovery/cleanup and verifiable environment/metrics/docs.
 
-## Milestone6: jobs, batches and incremental processing
+## Milestone 6: jobs, batches and incremental processing
 
 - [ ] Submit/status/progress/result/cancel contracts, explicit session/user
   owner/expiry, bounded queue/concurrency/resource pacing and stated durability.
@@ -429,9 +459,9 @@ admin, tested stop/recovery/cleanup and verifiable environment/metrics/docs.
 
 ### Optional AMQP
 
-- [ ] tAMQP ↔ RabbitMQ ↔ hbBridge consumer on AMQP0.9.1, same registry/context;
+- [ ] tAMQP ↔ RabbitMQ ↔ hbBridge consumer on AMQP 0.9.1, same registry/context;
   record TOTVS/C/C-Zig library build and TLS/vhost/confirms/requeue capabilities.
-  TOTVS vhost parameter documented from24.3.0.6.
+  TOTVS vhost parameter documented from 24.3.0.6.
 - [ ] Correlation/ReplyTo/deadlines/message limits/large-result references,
   bounded prefetch/concurrency and authorized reply destinations.
 - [ ] Durable queues/persistent messages/publisher confirms/ack after persisted
@@ -442,12 +472,12 @@ admin, tested stop/recovery/cleanup and verifiable environment/metrics/docs.
 ## Conditional investigations: gRPC and Zig transport
 
 - [ ] Obtain target smartlink.proto: tGrpc documents a predefined Smartlink
-  contract from20.3.1.0, not arbitrary gRPC. Verify actual sendMessage(s),
+  contract from 20.3.1.0, not arbitrary gRPC. Verify actual sendMessage(s),
   build/distribution constraints and supported streaming/deadline/error modes.
 - [ ] Minimal interoperable TLS/credentials/metadata/explicit-context proof;
   use existing C ABI/wrapper libraries, not new HTTP2/HPACK/Protobuf stacks.
 - [ ] Adopt/defer based on evidence/dependencies/license/cost; do not infer
-  generic HB_Grpc support. HTTP2streams still share TCP packet-loss blocking.
+  generic HB_Grpc support. HTTP/2 streams still share TCP packet-loss blocking.
 - [ ] Compare Zig transport/buffers against Harbour: p95/p99 latency,
   throughput/CPU/memory/copies/failure/load, VM ownership/free and measured
   zero-copy only where actually implemented.

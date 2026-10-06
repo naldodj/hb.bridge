@@ -11,7 +11,7 @@ Released to Public Domain.
 #include "hbhrb.ch"
 #include "fileio.ch"
 
-FUNCTION executeaddonhrb( cAddonName, oParams, cAddonRoot )
+FUNCTION ExecuteAddonHRB( cAddonName, oParams, cAddonRoot )
     LOCAL hHrb, cResult := "", cExt, cFile
 
     hb_default( @cAddonRoot, "./addons" )
@@ -28,7 +28,7 @@ FUNCTION executeaddonhrb( cAddonName, oParams, cAddonRoot )
             CASE ".hrb"
                 EXIT
             OTHERWISE
-                cExt := filesig( cFile )
+                cExt := FileSig( cFile )
             ENDSWITCH
             SWITCH cExt
             CASE ".prg"
@@ -43,8 +43,10 @@ FUNCTION executeaddonhrb( cAddonName, oParams, cAddonRoot )
                 ENDIF
                 EXIT
             OTHERWISE
-                // Each active request owns its HRB symbols and statics. Addons may
-                // call host functions, but must not export symbols to other addons.
+                // FORCELOCAL isolates symbols of simultaneously loaded HRBs.
+                // Harbour may reuse an unloaded module's initialized STATIC frame
+                // on a later load; scope isolation does not reset static values.
+                // Addons must initialize per-call state from explicit parameters.
                 hHrb := hb_hrbLoad( HB_HRB_BIND_FORCELOCAL, cFile )
                 IF ! Empty( hHrb )
                     cResult := hb_hrbDo( hHrb, hb_jsonEncode( oParams ) )
@@ -59,7 +61,7 @@ FUNCTION executeaddonhrb( cAddonName, oParams, cAddonRoot )
     ENDIF
 RETURN cResult
 
-STATIC FUNCTION filesig( cFile )
+STATIC FUNCTION FileSig( cFile )
 
     LOCAL hFile
     LOCAL cBuff, cSig, cExt

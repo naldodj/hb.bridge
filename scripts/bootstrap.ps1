@@ -9,8 +9,8 @@ param(
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 . (Join-Path $PSScriptRoot 'toolchain.ps1')
-$dependencies = get-hbbridgedependencies -ProjectRoot $projectRoot
-$platform = get-hbbridgeplatform
+$dependencies = Get-HBBridgeDependencies -ProjectRoot $projectRoot
+$platform = Get-HBBridgePlatform
 $managedRoot = Join-Path $projectRoot '.deps'
 New-Item -ItemType Directory -Force -Path $managedRoot | Out-Null
 
@@ -24,13 +24,13 @@ if ($IsWindows -and $env:ProgramFiles) {
 }
 $gitPath = if ($git -is [System.IO.FileInfo]) { $git.FullName } else { $git.Source }
 
-function invoke-dependencygit {
+function Invoke-DependencyGit {
     param([Parameter(Mandatory)][string] $Checkout, [Parameter(Mandatory)][string[]] $Arguments)
     & $gitPath -c "safe.directory=$($Checkout.Replace('\', '/'))" -C $Checkout @Arguments
     if ($LASTEXITCODE -ne 0) { throw "Git failed for managed dependency $Checkout." }
 }
 
-function initialize-dependency {
+function Initialize-Dependency {
     param([Parameter(Mandatory)][string] $Name, [Parameter(Mandatory)][hashtable] $Definition)
     $checkout = Join-Path $managedRoot $Name
     if (-not (Test-Path -LiteralPath (Join-Path $checkout '.git'))) {
@@ -38,21 +38,21 @@ function initialize-dependency {
             throw "Dependency directory already exists without Git metadata: $checkout. Move it aside before bootstrap."
         }
         New-Item -ItemType Directory -Path $checkout | Out-Null
-        invoke-dependencygit -Checkout $checkout -Arguments @('init', '--quiet')
-        invoke-dependencygit -Checkout $checkout -Arguments @('remote', 'add', 'origin', $Definition.repository)
-        invoke-dependencygit -Checkout $checkout -Arguments @('fetch', '--depth=1', 'origin', $Definition.revision)
-        invoke-dependencygit -Checkout $checkout -Arguments @('checkout', '--detach', '--quiet', 'FETCH_HEAD')
+        Invoke-DependencyGit -Checkout $checkout -Arguments @('init', '--quiet')
+        Invoke-DependencyGit -Checkout $checkout -Arguments @('remote', 'add', 'origin', $Definition.repository)
+        Invoke-DependencyGit -Checkout $checkout -Arguments @('fetch', '--depth=1', 'origin', $Definition.revision)
+        Invoke-DependencyGit -Checkout $checkout -Arguments @('checkout', '--detach', '--quiet', 'FETCH_HEAD')
     }
-    $actualRevision = ([string] (invoke-dependencygit -Checkout $checkout -Arguments @('rev-parse', 'HEAD'))).Trim()
+    $actualRevision = ([string] (Invoke-DependencyGit -Checkout $checkout -Arguments @('rev-parse', 'HEAD'))).Trim()
     if ($actualRevision -ne $Definition.revision) {
         throw "Dependency $Name is at $actualRevision; expected $($Definition.revision). Bootstrap preserves existing checkouts; move $checkout aside to resolve the new pin."
     }
-    $origin = ([string] (invoke-dependencygit -Checkout $checkout -Arguments @('remote', 'get-url', 'origin'))).Trim()
+    $origin = ([string] (Invoke-DependencyGit -Checkout $checkout -Arguments @('remote', 'get-url', 'origin'))).Trim()
     if ($origin -ne $Definition.repository) { throw "Unexpected origin for managed dependency $Name." }
     return $checkout
 }
 
-function initialize-zig {
+function Initialize-Zig {
     $version = $dependencies.zig.version
     $archive = $dependencies.zig.archives[$platform]
     if (-not $archive) { throw "No pinned Zig archive for $platform." }
@@ -87,9 +87,9 @@ function initialize-zig {
     return $zigPath
 }
 
-$hbCompileRoot = initialize-dependency -Name 'hb_compile' -Definition $dependencies.hbCompile
-$harbourRoot = initialize-dependency -Name 'harbour' -Definition $dependencies.harbour
-$zigPath = initialize-zig
+$hbCompileRoot = Initialize-Dependency -Name 'hb_compile' -Definition $dependencies.hbCompile
+$harbourRoot = Initialize-Dependency -Name 'harbour' -Definition $dependencies.harbour
+$zigPath = Initialize-Zig
 if ($SkipHarbourBuild) {
     Write-Host 'Pinned dependency sources and Zig are ready. Run bootstrap without -SkipHarbourBuild to compile Harbour.'
     return
@@ -102,7 +102,9 @@ $manifestHash = (Get-FileHash -LiteralPath (Join-Path $projectRoot 'config/depen
 if (-not $ForceBuild -and (Test-Path -LiteralPath $receiptFile)) {
     $receipt = Get-Content -LiteralPath $receiptFile -Raw | ConvertFrom-Json -AsHashtable
     if ($receipt.manifestSha256 -eq $manifestHash -and $receipt.platform -eq $platform) {
-        $null = resolve-hbbridgetoolchain -ProjectRoot $projectRoot
+        $null = Resolve-HBBridgeToolchain -ProjectRoot $projectRoot
+        & (Join-Path $PSScriptRoot 'prepare-http.ps1')
+        if (-not $?) { throw 'Managed HTTP dependency preparation failed.' }
         Write-Host "Managed Harbour is ready: $installRoot"
         return
     }
@@ -165,7 +167,9 @@ try {
         }
     }
 
-    $null = resolve-hbbridgetoolchain -ProjectRoot $projectRoot
+    $null = Resolve-HBBridgeToolchain -ProjectRoot $projectRoot
+    & (Join-Path $PSScriptRoot 'prepare-http.ps1') -ForceBuild:$ForceBuild
+    if (-not $?) { throw 'Managed HTTP dependency preparation failed.' }
     $libraryDirectory = if ($IsWindows) { 'lib/win/zig' } else { 'lib/linux/gcc' }
     foreach ($library in @('hbnetio', 'rddsql', 'sddsqlt3', 'sddodbc')) {
         $expectedLibrary = Join-Path $installRoot "$libraryDirectory/lib$library.a"

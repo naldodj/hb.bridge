@@ -37,6 +37,7 @@ hbBridge's own settings.
 | `[Protheus]` | `Host`, `Port`, `MaxPayloadBytes`, `MaxWireBytes`, `ReadChunkBytes`, `TimeoutMs`. |
 | `[NETIO]` | `Host`, `Port`, `Root`, `Password`, `TimeoutMs`. |
 | `[Admin]` | `Host`, `Port`, `Password`. |
+| `[HTTP]` | `Enabled`, `Host`, `Port`, `Password`, `TLS`, `Certificate`, `PrivateKey`. |
 | `[SQL/profile_name]` | SQLite: `Driver`/`Database`; MSSQL: `Driver`/`ConnectionString`. |
 
 ~~~ini
@@ -106,6 +107,15 @@ slash-containing paths and extensions. Launchers already use an argument array.
 INI changes no capacity rules: optional payload/wire ceilings default zero,
 buffers and deadlines follow [Milestone 2](milestone2-framing.md).
 
+## HTTP listener
+
+`[HTTP]` is optional and disabled by default, with loopback bind
+`127.0.0.1:8080`. Enable it deliberately and configure a separate service
+password; admin uses the existing adminPassword and must differ. The same
+settings have `http*` JSON keys. HTTPS needs a build with hbssl/OpenSSL,
+certificate and private key. Routes, authorization, native HTTP behavior
+and build dependencies are described in [HTTP](http.md).
+
 ## Protheus client in AppServer INI
 
 Add this section to the INI actually used by AppServer.
@@ -132,7 +142,7 @@ negotiation and blocks are pending, and no setting is automatically derived
 from MAXSTRINGSIZE.
 
 Static [HBBridgeConfig](../src/tlpp/hbbridgeconfig.tlpp), namespace
-`hbbridge.client`, uses `GetSrvIniName()` and `GetPvProfString()`.
+`HBBridge.Client`, uses `GetSrvIniName()` and `GetPvProfString()`.
 [GetSrvIniName](https://tdn.totvs.com/display/tec/GetSrvIniName) supports the
 AppServer's selected custom INI name.
 Client precedence: **defaults < INI section < explicit arguments**.
@@ -150,9 +160,9 @@ See [architecture](architecture.md) and [multiple profiles](../config/examples/d
 
 ~~~tlpp
 // Read [hbBridge] from this AppServer's actual INI.
-oClient := hbbridge.client.HBBridgeClient():new()
+oClient := HBBridge.Client.HBBridgeClient():New()
 // Override Host/Port; retain other INI settings.
-oClient := hbbridge.client.HBBridgeClient():new("bridge.example.local", 1512)
+oClient := HBBridge.Client.HBBridgeClient():New("bridge.example.local", 1512)
 ~~~
 
 Each new client snapshots values; existing clients retain their configuration.

@@ -4,6 +4,9 @@ ChangeLog.txt ident
 # Default
 *         text=auto
 
+# Reviewed patch checksums must be identical after Windows and Linux checkout.
+config/patches/*.patch text eol=lf
+
 # These files are text and should be normalized (convert CRLF => LF)
 *.1       text
 *.api     text

@@ -21,15 +21,27 @@ does not equal Protheus acceptance. Delivery criteria are in [TODO](../TODO.md).
 | AMQP | Optional jobs/events adapter. | Milestone 6 with broker/delivery semantics. |
 | Zig buffers/transport | C ABI extension with measurements. | Milestone 4/prototypes; reuse existing stacks. |
 
+## HTTP addition on 2026-10-06
+
+The project adopts **hbhttpd** for HTTP services and web administration in
+the same process. Its adapter invokes the existing registry, with data/admin
+credentials separated. The initial admin web page exposes read-only shared
+status, including NETIO. Administrative mutations and a versioned REST
+resource model remain extensions of the generic core. **hbtcpio** supplies
+native TCP VF IO; **hbssl/OpenSSL** are optional direct-HTTPS dependencies;
+`-hblib` is a build mode. See [HTTP routes and readiness](http.md) and
+[dependencies](dependencies.md). This addition is later than the original
+brainstorming review; historical validation does not certify it.
+
 ## Current behavior and persistence
 
 The current server binds 0.0.0.0, default port 1512; local client uses 127.0.0.1.
 The Protheus signature is HBBRIDGE/1. Brainstorming refers to older behavior.
 See [entry](../src/hb/host/hbbridgemain.prg) and
-[listener](../src/hb/transports/protheus/hbbridgenetio.prg).
+[listener](../src/hb/transports/protheus/hbbridgeserver.prg).
 
 [The client](../src/tlpp/hbbridgeclient.tlpp) creates/closes its socket inside
-callservice; each worker serves one request then closes.
+CallService; each worker serves one request then closes.
 A socket class does not automatically implement reuse.
 Persistence first needs stream framing, partial reads/writes and preservation
 of bytes belonging to the next message.
@@ -54,8 +66,11 @@ across streams. [RFC 9113](https://www.rfc-editor.org/rfc/rfc9113.html#section-1
 ## Context, sessions and durability
 
 Guarantee **per-call isolation**, without claiming every operation is stateless.
-Calls identify correlation, deadline and authorized context. Verify requested
-company/branch against identity; these fields alone grant no authorization.
+Calls identify correlation, deadline and explicit authorized context. Protheus
+resolves tenant, company, branch, xFilial and physical table names. Future
+generic authorization may validate supplied context against identity, without
+inferring ERP rules; these fields alone grant no authorization. See
+[application responsibilities](architecture.md).
 
 Work areas, SET options, transactions, buffers and module state need ownership/
 cleanup. Starting a thread does not prove isolation of statics, C/Zig memory or
@@ -73,7 +88,9 @@ resolved. Durable jobs require storage/recovery; storing a handle ID is insuffic
 [TSSLClient](https://tdn.totvs.com/display/tec/Classe+TSSLClient), documented
 since AppServer 19.3.1.0 with SSLConfigure, is the direct client candidate.
 Harbour [hbssl](https://github.com/harbour/core/tree/master/contrib/hbssl) provides
-OpenSSL bindings but is not integrated into this listener.
+OpenSSL bindings but is not integrated into the Protheus TCP listener.
+The separate HTTP adapter has an optional HTTPS build, with acceptance
+described in [HTTP](http.md).
 
 Prototype TLS versions, chain/hostname validation, invalid/expired certificates,
 renewal, deadlines and shutdown. mTLS depends on chosen profile/API support.

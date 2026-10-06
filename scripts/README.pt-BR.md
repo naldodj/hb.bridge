@@ -1,137 +1,150 @@
-# Scripts
+# Scripts de compilação, execução e validação
 
-[build-hbbridge.ps1](build-hbbridge.ps1) e o caminho oficial de compilacao.
-Usa Harbour/Zig em `<HbCompileRoot>/out/zig`, compila a biblioteca `hbbridge_zig`
-e o projeto `hbbridge.hbp`, que inclui os componentes de `hbbridge.hbm`.
-O parametro padrao continua `C:\GitHub\hb_compile`; informe o checkout local:
+[English](README.md)
 
-```powershell
-.\scripts\build-hbbridge.ps1 -HbCompileRoot F:\GitHub\hb_compile
-```
-
-Antes do link, esse script encerra o `out/hbbridge.exe` ativo. Sua limpeza de
-builds alternativos limita-se a `hbBridge-*.exe` e `hbBridge-*.pdb` diretamente
-em `out/`. O resultado e o executavel canonico `out/hbbridge.exe`.
-
-[test-hbbridge.ps1](test-hbbridge.ps1) compila e executa as regressoes Harbour
-contra os mesmos componentes. Seu padrao de `HbCompileRoot` e o repositorio
-irmao `hb_compile`; o parametro explicito tambem pode ser usado:
+São necessários PowerShell 7 e Git. O bootstrap gerenciado resolve cópias
+fixadas de hb_compile, Harbour e Zig; veja [dependências](../docs/dependencies.pt-BR.md).
+Não depende de um checkout pessoal nem de Zig instalado globalmente.
 
 ```powershell
-.\scripts\test-hbbridge.ps1 -HbCompileRoot F:\GitHub\hb_compile
+./scripts/bootstrap.ps1
+./scripts/build-hbbridge.ps1
+./scripts/test-hbbridge.ps1
 ```
 
-Esse runner prepara fixtures/artefatos em uma pasta exclusiva `tmp/tests-*`,
-grava `results.log` e devolve o resultado da suite, sem parar o servidor do
-produto. Os artefatos ficam disponiveis para diagnostico e sao ignorados pelo Git.
-Ambos os scripts exigem PowerShell 7+ e Zig no PATH.
+O bootstrap verifica o checksum do arquivo Zig e as revisões Git de
+[dependencies.json](../config/dependencies.json). Uma instalação completa
+registrada evita recompilações desnecessárias. `-ForceBuild` recompila o
+Harbour; `-SkipHarbourBuild` resolve somente fontes e Zig. Windows compila
+pelo hb_compile; Linux usa seu preparador de compatibilidade e make/GCC
+nativos. Linux requer PowerShell 7, Git, make/GCC/binutils e headers de
+desenvolvimento unixODBC. Drivers ODBC SQL Server e recursos licenciados
+TOTVS são instalados separadamente. A execução Linux exige homologação própria.
 
-A suite inclui os testes unitarios de configuracao, contrato de servicos e
-NETIO/admin/VF IO do [Marco 1](../docs/milestone1.pt-BR.md), alem das regressoes MT.
-Os [testes TCP do produto](../tests/integration/harbour/hbbridgeframingtest.prg)
-exercitam fragmentação gzip, comprimento canônico, CRC/truncamento, políticas
-opcionais de tamanho, prazos e JSON maior que 16 MiB. A suíte compartilha o
-compressor/decoder C e os componentes Harbour com o executável.
-Para configurar o produto, use `out/hbbridge.exe "-config=config/examples/hbbridge.ini"`
-ou o equivalente JSON; a precedência é padrões < arquivo < CLI.
-o host inicia NETIO e Protheus no mesmo processo, e admin quando ha credencial.
+O bootstrap também prepara hbhttpd/hbtcpio e o patch do projeto com checksum
+verificado através de `prepare-http.ps1`. HTTPS direto exige build opcional
+hbssl/OpenSSL e seu SDK/runtime. Veja [HTTP](../docs/http.pt-BR.md);
+`-hblib` identifica o modo de biblioteca do hbmk2.
 
-As opções do atendimento podem ser sobrepostas pela CLI:
+`build-hbbridge.ps1` gera `out/hbbridge.exe` no Windows ou `out/hbbridge`
+no Linux. Não encerra servidores ativos. Para compilar junto de uma
+instalação em execução, use uma saída isolada:
 
-| JSON | CLI | Padrão |
-| --- | --- | --- |
-| `protheusMaxPayloadBytes` | `-maxpayloadbytes=` | `0`, sem teto adicional do aplicativo. |
-| `protheusMaxWireBytes` | `-maxwirebytes=` | `0`, sem teto adicional do aplicativo. |
-| `protheusReadChunkBytes` | `-readchunkbytes=` | `65536`, buffer de leitura. |
-| `protheusTimeoutMs` | `-iotimeout=` | `30000`; `0` desativa o prazo no servidor Harbour. |
-| `netioTimeout` | `-netiotimeout=` | `0`, convertido para `-1` nativo. |
-| `maxWorkers` | `-maxworkers=` | `64`, concorrência por listener. |
+```powershell
+./scripts/build-hbbridge.ps1 -OutputDirectory tmp/candidate
+```
 
-Valores são validados contra as capacidades reais reportadas por
-`HBBridgeRuntimeLimits()`. Payload/rede positivos são políticas opcionais da
-instalação; o buffer não limita o tamanho total da mensagem. O cliente TLPP
-mantém prazo positivo padrão de 30 segundos e os limites reais do AppServer,
-incluindo `MAXSTRINGSIZE`. Corpo JSON em memória, blocos lógicos e negociação
-devem ser distinguidos; a transferência em blocos continua pendente.
+`-HbCompileRoot` e `-ZigPath` são substituições explícitas para casos
+avançados. O padrão usa dependências do projeto. `toolchain.ps1` resolve
+hbrun/hbmk2/Zig/compilador e verifica a versão Zig; mudanças temporárias
+de ambiente são restauradas após a execução.
 
-[build-totvs.cmd](build-totvs.cmd) compila a arvore `src/tlpp/`, incluindo
-`tests/protheus/`, no ambiente `PROTHEUS`. Usa AppServer/includes em `C:\totvs`
-e os scripts locais `stop-totvs.bat`/`start-totvs.bat`; execute com elevacao
-quando os processos TOTVS estiverem elevados. Um erro na parada interrompe a
-compilacao. O resultado do compilador e preservado durante o reinicio; o log
-fica em `tmp/totvs-compile.log`.
+`test-hbbridge.ps1` prepara fixtures e o alvo MT isolados, compartilhando os
+componentes do produto. Registra `tmp/tests-<id>/results.log` e propaga o
+código de saída. A cobertura inclui configuração/INI, registro, relógio
+monotônico, NETIO/admin/VF IO, gzip/enquadramento, SQLite/paginação e MT.
+A rodada anterior Windows teve 412 verificações, zero falhas e nenhum skip.
+A validação gerenciada posterior de 2026-10-04 teve **416 verificações,
+zero falhas e nenhum skip**; o log é
+`tmp/tests-d1b829ff332c414f816a6e70748152d1/results.log`.
+Esses resultados históricos não homologam alterações posteriores.
+Veja [homologação](../docs/acceptance.pt-BR.md).
 
-Depois, acesse [U_HBBridgeConnectionTest no WebApp](https://localhost:4321/webapp/?p=U_HBBridgeConnectionTest&e=PROTHEUS).
-Compilacao e teste reais confirmados em [homologacao](../docs/acceptance.pt-BR.md).
+## Validação de commits
 
-Para SQL, compile o produto atualizado e inicie-o com
-`.\examples\sql\run.ps1`. Compile `src/tlpp/` quando houver fontes novos e
-acesse [U_HBBridgeQueryTest](https://localhost:4321/webapp/?p=U_HBBridgeQueryTest&e=PROTHEUS).
-O perfil `sqlite_demo` usa `:memory:` para consultas de constantes. Para dados
-persistentes, indique um arquivo existente; para MSSQL, configure o DSN ODBC
-do [perfil de exemplo](../config/examples/mssql.json). Detalhes de páginas,
-dependências e homologação em [Marco 3](../docs/milestone3-sql.pt-BR.md).
-O runner inclui SQLite real em arquivo, SQL paginado, concorrência e comparação
-NETIO/TCP; não depende do MSSQL ou do DBAccess para essa regressão.
-SQLite e paginação no AppServer foram homologados pelo operador em 04/10/2026,
-às 00:40:06: 29 verificações verdadeiras. A nova leitura de `[hbBridge]` no
-AppServer foi aceita em relato manual posterior, registrado na sessão de
-2026-10-04: 13 checks do teste de configuração, incluindo `activeAppServerIni`,
-relógio Windows, Health, ADDON, dois Echo de 200.000 bytes e novamente os 29
-checks de Query `sqlite_demo` passaram. A execução foi feita pelo operador;
-o bloqueio anterior de parada TOTVS pelo agente permanece histórico, sem
-log posterior de compilação informado. Timeout/falhas/envios parciais forçados,
-destinos não padrão, MSSQL real e outras plataformas permanecem pendentes.
-O runner Harbour atual passou em **412 verificações, zero
-falhas, sem skips**, incluindo INI e validação estrita dos parâmetros SQL.
+Antes de cada commit:
+
+```powershell
+./scripts/commit-check.ps1
+```
+
+O `hbrun` gerenciado executa `.hbcommit/check.hb`, `.hbcommit/commit.hb` e
+`.hbcommit/3rdpatch.hb` em validação somente de leitura. Não há outro
+runtime Harbour distribuído em `bin/harbour`. Preserve os avisos originais
+e corrija falhas antes do commit; a validação não prepara o índice.
+`-InstallHook` instala o hook após os checks passarem, preservando um hook
+diferente já existente. `-Staged` verifica o conteúdo do índice em cópia
+isolada. Os [padrões](../docs/standards.pt-BR.md) definem arquivos em
+minúsculas, identificadores em inglês e funções, procedures, métodos,
+namespaces e classes em PascalCase, além dos pares de documentação.
+
+## Compilação TOTVS
+
+O SDK proprietário é externo. Configure explicitamente seus diretórios:
+
+```powershell
+$env:HBBRIDGE_TOTVS_APPSERVER_DIR = '<your-appserver-directory>'
+$env:HBBRIDGE_TOTVS_INCLUDES = '<your-totvs-includes>'
+$env:HBBRIDGE_TOTVS_ENV = 'PROTHEUS'
+./scripts/build-totvs.cmd
+```
+
+Os argumentos são diretório AppServer, diretórios de include separados por
+ponto e vírgula e ambiente, cujo padrão é PROTHEUS. Includes do projeto são
+acrescentados automaticamente. `HBBRIDGE_TOTVS_STOP_SCRIPT` e
+`HBBRIDGE_TOTVS_START_SCRIPT` opcionais indicam scripts do operador; não
+se presume instalação fixa nem parada de processos elevados. Falha de
+parada configurada interrompe a compilação. O reinício é tentado após o
+compilador, preservando seu resultado. O log fica em `tmp/totvs-compile.log`.
+Compile toda a árvore `src/tlpp/`, incluindo testes. Classes renomeadas
+exigem nova compilação; o aceite anterior não cobre os novos nomes.
 
 ## Iniciar o produto e os exemplos
 
-[run-hbbridge.ps1](run-hbbridge.ps1) é o launcher compartilhado do executável
-canônico. Resolve `-Config` em relação à raiz do projeto, prepara o diretório
-de trabalho para o loader localizar `addons/` e preserva as opções do INI/JSON.
-`-Port` e `-MaxWorkers` só sobrepõem a configuração quando informados:
+[run-hbbridge.ps1](run-hbbridge.ps1) resolve `-Config` a partir da raiz e
+define o diretório de trabalho dos addons. Somente argumentos `-Port` e
+`-MaxWorkers` explícitos sobrepõem valores INI/JSON:
 
 ```powershell
-.\scripts\run-hbbridge.ps1 -Config config/examples/hbbridge.ini
+./scripts/run-hbbridge.ps1 -Config config/examples/hbbridge.ini
+./examples/mvp/run.ps1
+./examples/sql/run.ps1 -Config config/examples/sqlite.ini
+./examples/sql/run.ps1 -Config config/examples/mssql.ini -Profile mssql_demo
+./examples/sql/run.ps1 -Config config/examples/databases.ini -Profile mssql/pData
 ```
 
-Encerre a instância anterior com Ctrl+Q antes de iniciar outro exemplo nas
-mesmas portas. O launcher não compila fontes nem encerra o AppServer.
+Encerre a instância anterior com Ctrl+Q antes de reutilizar suas portas.
+Sem `-Config`, o executável procura `hbbridge.ini` ao seu lado e usa os
+padrões quando ausente. Configuração inválida existente impede o início.
+Query não é registrado com perfis SQL vazios. O launcher SQL valida o
+perfil e mostra a chamada Protheus; os testes são executados separadamente
+no AppServer. O launcher não altera a configuração cliente.
 
-O [exemplo mínimo](../examples/mvp/README.pt-BR.md) só encaminha argumentos explícitos.
-Porta `1512` e `64` workers são padrões do runtime; o arquivo pode substituí-los.
-Sem `-Config`, o executável procura `hbbridge.ini` junto ao próprio binário,
-em `out/` na instalação canônica. Sem arquivo/perfis SQL, `RPCRDD.Query` não é
-registrado. Um arquivo inválido encontrado impede o início.
-
-O [exemplo SQL](../examples/sql/README.pt-BR.md) usa
-`config/examples/sqlite.json`, valida o perfil selecionado e mostra a chamada
-de `U_HBBridgeQueryTest` para o host/porta configurados:
+`--config-info` retorna somente metadados de host/porta/workers/perfis,
+sem segredos, caminhos, listeners ou acesso ao banco:
 
 ```powershell
-.\examples\sql\run.ps1
-.\examples\sql\run.ps1 -Config config/examples/sqlite.ini
-.\examples\sql\run.ps1 -Config config/examples/mssql.ini -Profile mssql_demo
+./out/hbbridge.exe --config-info "-config=config/examples/sqlite.ini"
 ```
 
-Configure o DSN ODBC antes do exemplo MSSQL. A execução do teste é manual no
-AppServer. Na nova revisão cliente, o link WebApp sem argumentos lê `[hbBridge]`
-do INI usado pelo AppServer; o fallback de `SQLProfile` é `sqlite_demo`.
-Alinhe o [template cliente](../config/examples/protheus-appserver.ini) ao destino
-do servidor ou use a chamada explícita mostrada pelo script. O launcher não
-altera o INI do AppServer e sua configuração pode ser diferente.
-Alterar somente o perfil do host não exige recompilar o TLPP já atualizado.
+Coloque argumentos nativos PowerShell `-config=...ini` entre aspas como no
+exemplo. Veja [configuração](../docs/configuration.pt-BR.md) para precedência
+e caminhos. Alinhe separadamente o
+[template AppServer](../config/examples/protheus-appserver.ini), ou informe
+argumentos explícitos. **SQLProfile é opcional e vazio por padrão**.
+`sqlite_demo` é exclusivo do exemplo; cada consulta/dataset escolhe seu
+alias, como `mssql/pData`. Sem alias, o teste informa PROFILE_REQUIRED.
 
-Para INI, o launcher SQL usa `--config-info` do executável atualizado, sem
-duplicar o parser em PowerShell. O comando valida e retorna metadados de
-host/porta, workers e nomes/drivers dos perfis, sem senhas, strings de conexão
-ou caminhos de dados; não inicia o host. Recompile o produto antes de usar
-essa opção. Para verificar um arquivo manualmente:
+| Configuração | CLI | Padrão / significado |
+| --- | --- | --- |
+| protheusMaxPayloadBytes | -maxpayloadbytes= | 0, sem teto adicional de aplicação |
+| protheusMaxWireBytes | -maxwirebytes= | 0, sem teto adicional de aplicação |
+| protheusReadChunkBytes | -readchunkbytes= | 65536, buffer, não teto de mensagem |
+| protheusTimeoutMs | -iotimeout= | 30000 ms; 0 desativa prazo no servidor |
+| netioTimeout | -netiotimeout= | 0 corresponde ao -1 nativo |
+| maxWorkers | -maxworkers= | 64 por listener, configurável |
 
-```powershell
-.\out\hbbridge.exe --config-info "-config=config/examples/sqlite.ini"
-```
+As capacidades técnicas de `HBBridgeRuntimeLimits()` são validadas
+separadamente. TLPP mantém timeout positivo padrão e limites AppServer,
+incluindo MAXSTRINGSIZE; blocos lógicos e negociação permanecem pendentes.
+O Protheus resolve tenant/empresa/filial/xFilial/tabelas e envia parâmetros
+explícitos; o hbBridge permanece executor genérico.
 
-As regras de seções, caminhos e precedência estão em
-[configuração](../docs/configuration.pt-BR.md). JSON continua aceito pelos launchers.
+O operador aceitou os 13 checks INI, relógio Windows, RPC normal e os 29
+checks SQLite no relato registrado em 2026-10-04. Tentativas anteriores de
+parada TOTVS permanecem históricas; não houve log posterior de compilação
+informado. Novos nomes e os 16 checks revisados precisam de novo aceite.
+Falhas/envios parciais forçados, destinos não padrão, MSSQL e Linux continuam
+pendentes. A [proposta de credenciais](../docs/credentials.pt-BR.md) descreve
+armazenamento portátil; gerenciamento de credenciais cifradas ainda não foi
+implementado.

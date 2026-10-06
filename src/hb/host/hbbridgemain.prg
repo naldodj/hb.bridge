@@ -12,31 +12,31 @@ Released to Public Domain.
 #include "inkey.ch"
 #include "hbinkey.ch"
 
-PROCEDURE main( ... )
+PROCEDURE Main( ... )
 
     LOCAL aArgs := hb_AParams(), hConfig, hHost, cError, nKey, hStatus, cChannel
 
     IF AScan( aArgs, {| cArg | cArg == "--help" .OR. cArg == "-h" } ) > 0
-        OutStd( hbbridgeconfighelp() )
+        OutStd( HBBridgeConfigHelp() )
         RETURN
     ENDIF
-    hConfig := hbbridgeconfig( aArgs, @cError )
+    hConfig := HBBridgeConfig( aArgs, @cError )
     IF hConfig == NIL
         OutErr( cError + hb_eol() )
         ErrorLevel( 1 )
         RETURN
     ENDIF
     IF AScan( aArgs, {| cArg | cArg == "--config-info" } ) > 0
-        OutStd( hb_jsonEncode( hbbridgeconfiginfo( hConfig ) ) + hb_eol() )
+        OutStd( hb_jsonEncode( HBBridgeConfigInfo( hConfig ) ) + hb_eol() )
         RETURN
     ENDIF
-    hHost := hbbridgehoststart( hConfig, @cError )
+    hHost := HBBridgeHostStart( hConfig, @cError )
     IF hHost == NIL
         OutErr( cError + hb_eol() )
         ErrorLevel( 1 )
         RETURN
     ENDIF
-    hStatus := hbbridgehoststatus( hHost )
+    hStatus := HBBridgeHostStatus( hHost )
     FOR EACH cChannel IN hb_HKeys( hStatus[ "endpoints" ] )
         OutStd( "hbBridge " + cChannel + " " + hStatus[ "endpoints" ][ cChannel ][ "host" ] + ;
             ":" + hb_ntos( hStatus[ "endpoints" ][ cChannel ][ "port" ] ) + hb_eol() )
@@ -49,18 +49,18 @@ PROCEDURE main( ... )
     ENDIF
     OutStd( "CTRL+Q para encerrar" + hb_eol() )
     BEGIN SEQUENCE WITH {| oError | Break( oError ) }
-        DO WHILE hbbridgehostrunning( hHost )
+        DO WHILE HBBridgeHostRunning( hHost )
             nKey := Inkey( 0.1, hb_bitOr( INKEY_ALL, HB_INKEY_GTEVENT ) )
             IF nKey == HB_K_CTRL_Q
                 EXIT
             ENDIF
         ENDDO
-        IF ! hbbridgehostrunning( hHost )
+        IF ! HBBridgeHostRunning( hHost )
             ErrorLevel( 1 )
         ENDIF
     RECOVER
         ErrorLevel( 1 )
     ALWAYS
-        hbbridgehoststop( hHost )
+        HBBridgeHostStop( hHost )
     END SEQUENCE
 RETURN

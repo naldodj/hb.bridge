@@ -2,20 +2,20 @@
 #include "tlpp-core.th"
 #include "hbbridge.h"
 
-namespace hbbridge.client
+namespace HBBridge.Client
 
 class HBBridgeConfig
 
-    static method read(jOverrides as JSON, cIniFile as character) as JSON
-    static method resolve(jValues as JSON, jOverrides as JSON) as JSON
+    static method Read(jOverrides as JSON, cIniFile as character) as JSON
+    static method Resolve(jValues as JSON, jOverrides as JSON) as JSON
 
 endclass
 
 // Read the INI selected by this AppServer, including custom INI filenames.
 // Each client takes a snapshot; existing clients keep their original settings.
-static method read(jOverrides, cIniFile) class HBBridgeConfig
+static method Read(jOverrides, cIniFile) class HBBridgeConfig
 
-    local jValues := JSONObject():new() as JSON
+    local jValues := JSONObject():New() as JSON
     local jResult as JSON
 
     if ValType(cIniFile) == "U"
@@ -33,41 +33,41 @@ static method read(jOverrides, cIniFile) class HBBridgeConfig
     // Optional installation default; demonstrations never define library policy.
     jValues["sqlProfile"] := GetPvProfString("hbBridge", "SQLProfile", "", cIniFile)
 
-    jResult := hbbridge.client.HBBridgeConfig():resolve(jValues, jOverrides)
+    jResult := HBBridge.Client.HBBridgeConfig():Resolve(jValues, jOverrides)
     FreeObj(@jValues)
 
 return(jResult)
 
 // Resolve before validating so an explicit value can replace an invalid INI value.
 // Only integers exactly representable by the JSON/numeric contract are accepted.
-static method resolve(jValues, jOverrides) class HBBridgeConfig
+static method Resolve(jValues, jOverrides) class HBBridgeConfig
 
-    local jResult := JSONObject():new() as JSON
+    local jResult := JSONObject():New() as JSON
 
     jResult["success"] := .T.
     jResult["code"] := ""
     jResult["error"] := ""
-    jResult["host"] := configtext(configvalue(jValues, jOverrides, "host", "127.0.0.1"), "Host", jResult)
+    jResult["host"] := ConfigText(ConfigValue(jValues, jOverrides, "host", "127.0.0.1"), "Host", jResult)
     if jResult["host"] == "0.0.0.0"
-        configerror("Host", jResult)
+        ConfigError("Host", jResult)
     endif
-    jResult["port"] := configinteger(configvalue(jValues, jOverrides, "port", 1512), ;
+    jResult["port"] := ConfigInteger(ConfigValue(jValues, jOverrides, "port", 1512), ;
         "Port", 1, 65535, jResult)
-    jResult["timeoutMs"] := configinteger(configvalue(jValues, jOverrides, "timeoutMs", ;
+    jResult["timeoutMs"] := ConfigInteger(ConfigValue(jValues, jOverrides, "timeoutMs", ;
         HBBRIDGE_IO_TIMEOUT_DEFAULT_MS), "TimeoutMs", 1, 9007199254740991, jResult)
-    jResult["maxPayloadBytes"] := configinteger(configvalue(jValues, jOverrides, "maxPayloadBytes", 0), ;
+    jResult["maxPayloadBytes"] := ConfigInteger(ConfigValue(jValues, jOverrides, "maxPayloadBytes", 0), ;
         "MaxPayloadBytes", 0, 9007199254740991, jResult)
-    jResult["maxWireBytes"] := configinteger(configvalue(jValues, jOverrides, "maxWireBytes", 0), ;
+    jResult["maxWireBytes"] := ConfigInteger(ConfigValue(jValues, jOverrides, "maxWireBytes", 0), ;
         "MaxWireBytes", 0, 9007199254740991, jResult)
     // One socket call accepts a signed 32-bit length; this is not a message limit.
-    jResult["readChunkBytes"] := configinteger(configvalue(jValues, jOverrides, "readChunkBytes", ;
+    jResult["readChunkBytes"] := ConfigInteger(ConfigValue(jValues, jOverrides, "readChunkBytes", ;
         HBBRIDGE_IO_CHUNK_DEFAULT_BYTES), "ReadChunkBytes", 1, 2147483647, jResult)
-    jResult["sqlProfile"] := configtext(configvalue(jValues, jOverrides, "sqlProfile", ""), ;
+    jResult["sqlProfile"] := ConfigText(ConfigValue(jValues, jOverrides, "sqlProfile", ""), ;
         "SQLProfile", jResult, .T.)
 
 return(jResult)
 
-static function configvalue(jValues as JSON, jOverrides as JSON, cKey as character, xDefault as variant) as variant
+static function ConfigValue(jValues as JSON, jOverrides as JSON, cKey as character, xDefault as variant) as variant
 
     if ValType(jOverrides) != "U"
         if jOverrides:HasProperty(cKey)
@@ -82,7 +82,7 @@ static function configvalue(jValues as JSON, jOverrides as JSON, cKey as charact
 
 return(xDefault)
 
-static function configtext(xValue as variant, cKey as character, jResult as JSON, ;
+static function ConfigText(xValue as variant, cKey as character, jResult as JSON, ;
     lAllowEmpty as logical) as character
 
     if ValType(lAllowEmpty) != "L"
@@ -96,11 +96,11 @@ static function configtext(xValue as variant, cKey as character, jResult as JSON
             return xValue
         endif
     endif
-    configerror(cKey, jResult)
+    ConfigError(cKey, jResult)
 
 return("")
 
-static function configinteger(xValue as variant, cKey as character, nMinimum as numeric, ;
+static function ConfigInteger(xValue as variant, cKey as character, nMinimum as numeric, ;
     nMaximum as numeric, jResult as JSON) as numeric
 
     local cValue := "" as character
@@ -109,18 +109,18 @@ static function configinteger(xValue as variant, cKey as character, nMinimum as 
     if ValType(xValue) == "C"
         cValue := AllTrim(xValue)
         if Empty(cValue)
-            configerror(cKey, jResult)
+            ConfigError(cKey, jResult)
             return 0
         endif
         // Val() accepts numeric prefixes; reject suffixes and fractions explicitly.
         for nIndex := 1 to Len(cValue)
             nDigit := Asc(SubStr(cValue, nIndex, 1)) - Asc("0")
             if nDigit < 0 .or. nDigit > 9
-                configerror(cKey, jResult)
+                ConfigError(cKey, jResult)
                 return 0
             endif
             if nValue > Int((nMaximum - nDigit) / 10)
-                configerror(cKey, jResult)
+                ConfigError(cKey, jResult)
                 return 0
             endif
             nValue := nValue * 10 + nDigit
@@ -128,18 +128,18 @@ static function configinteger(xValue as variant, cKey as character, nMinimum as 
     elseif ValType(xValue) == "N"
         nValue := xValue
     else
-        configerror(cKey, jResult)
+        ConfigError(cKey, jResult)
         return 0
     endif
 
     if nValue < nMinimum .or. nValue > nMaximum .or. nValue != Int(nValue)
-        configerror(cKey, jResult)
+        ConfigError(cKey, jResult)
         return 0
     endif
 
 return(nValue)
 
-static function configerror(cKey as character, jResult as JSON)
+static function ConfigError(cKey as character, jResult as JSON)
 
     if jResult["success"]
         jResult["success"] := .F.

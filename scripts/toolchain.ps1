@@ -1,6 +1,6 @@
 #Requires -Version 7.0
 
-function get-hbbridgeplatform {
+function Get-HBBridgePlatform {
     $operatingSystem = if ($IsWindows) { 'windows' } elseif ($IsLinux) { 'linux' } else {
         throw 'The managed toolchain currently supports Windows and Linux.'
     }
@@ -12,20 +12,20 @@ function get-hbbridgeplatform {
     return "$architecture-$operatingSystem"
 }
 
-function get-hbbridgedependencies {
+function Get-HBBridgeDependencies {
     param([Parameter(Mandatory)][string] $ProjectRoot)
     return Get-Content -LiteralPath (Join-Path $ProjectRoot 'config/dependencies.json') -Raw |
         ConvertFrom-Json -AsHashtable
 }
 
-function resolve-hbbridgetoolchain {
+function Resolve-HBBridgeToolchain {
     param(
         [Parameter(Mandatory)][string] $ProjectRoot,
         [string] $HbCompileRoot,
         [string] $ZigPath
     )
 
-    $dependencies = get-hbbridgedependencies -ProjectRoot $ProjectRoot
+    $dependencies = Get-HBBridgeDependencies -ProjectRoot $ProjectRoot
     $managedRoot = Join-Path $ProjectRoot '.deps'
     if ([string]::IsNullOrWhiteSpace($HbCompileRoot)) {
         $HbCompileRoot = Join-Path $managedRoot 'hb_compile'
@@ -43,7 +43,7 @@ function resolve-hbbridgetoolchain {
     }
 
     if ([string]::IsNullOrWhiteSpace($ZigPath)) {
-        $platform = get-hbbridgeplatform
+        $platform = Get-HBBridgePlatform
         $zigRoot = Join-Path $managedRoot "tools/zig/$($dependencies.zig.version)"
         $ZigPath = Join-Path $zigRoot "zig-$platform-$($dependencies.zig.version)/zig$extension"
     }
@@ -67,7 +67,7 @@ function resolve-hbbridgetoolchain {
     }
 }
 
-function enter-hbbridgetoolchain {
+function Enter-HBBridgeToolchain {
     param([Parameter(Mandatory)][hashtable] $Toolchain)
     $installRoot = Split-Path -Parent $Toolchain.HarbourBin
     $platform = if ($IsWindows) { 'win' } else { 'linux' }
@@ -96,7 +96,7 @@ function enter-hbbridgetoolchain {
     return $previousEnvironment
 }
 
-function exit-hbbridgetoolchain {
+function Exit-HBBridgeToolchain {
     param([Parameter(Mandatory)][hashtable] $PreviousEnvironment)
     foreach ($key in $PreviousEnvironment.Keys) {
         [Environment]::SetEnvironmentVariable($key, $PreviousEnvironment[$key], 'Process')

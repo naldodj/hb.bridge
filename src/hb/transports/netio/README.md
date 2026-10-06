@@ -21,7 +21,7 @@ not a fixed NETIO protocol capacity.
 | Credential | 64 bytes (NETIO_PASSWD_MAX); longer values are rejected to avoid truncation. |
 | Open files | 8192 per connection (NETIO_FILES_MAX). |
 | Certain RPC/stream units | uint32 lengths, depending on operation. |
-| Timeout | Native int; hbbridgeruntimelimits()["netioTimeoutMsMax"] reports the compiled capacity. |
+| Timeout | Native int; HBBridgeRuntimeLimits()["netioTimeoutMsMax"] reports the compiled capacity. |
 
 These lengths differ from Protheus HBBRIDGE/1 decimal fields and total file
 volume. Serialization/buffers/architecture/memory also matter. There is no

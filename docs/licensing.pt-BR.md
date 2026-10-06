@@ -27,6 +27,8 @@ não cria um texto jurídico híbrido chamado "Harbour + Zig".
 | Compilador Harbour e utilitários | Em geral GPL v2 ou posterior; a exceção das bibliotecas não se estende automaticamente a esses fontes. |
 | Zig | O projeto publica MIT; componentes de terceiros do toolchain mantêm seus próprios avisos. |
 | Cabeçalhos zlib incluídos | Licença zlib e copyright já preservados nos arquivos. |
+| Ferramentas check/commit/3rdpatch em `.hbcommit` | Avisos GPL upstream preservados; procedência e termos separados. |
+| hbhttpd/hbtcpio gerenciados e hbssl/OpenSSL opcional | Preserve avisos originais e registre versões vinculadas; patches do projeto não relicenciam fontes upstream. |
 
 A exceção Harbour permite que a vinculação com suas bibliotecas, por si só,
 não imponha GPL ao executável. Não autoriza relicenciar trechos copiados de
@@ -76,6 +78,8 @@ autorizados, preservando avisos de terceiros e as permissões anteriormente
 concedidas. O pacote binário também precisa considerar runtime Harbour,
 contribs SQL/NETIO, SQLite, zlib e os componentes efetivamente incorporados
 pelo toolchain; a análise dos fontes não certifica esse pacote completo.
+O inventário também precisa identificar as bibliotecas HTTP modificadas e
+o pacote OpenSSL efetivamente vinculado, quando habilitado.
 
 O [TODO](../TODO.pt-BR.md) mantém a decisão e os pontos de procedência pendentes.
 Nenhum fonte ou comportamento de execução foi alterado por esta análise.

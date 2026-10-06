@@ -14,7 +14,7 @@ Released to Public Domain.
 /* Own the thread handles around native NETIO APIs so Stop can join them.
  * netio_MTServer() detaches threads and does not offer this lifecycle contract.
  */
-FUNCTION hbbridgenetiostart( hConfig, hRegistry, hState, lAdmin )
+FUNCTION HBBridgeNetioStart( hConfig, hRegistry, hState, lAdmin )
 
     LOCAL cPrefix, cRoot, pListen, hServer, hContext, hFilter
 
@@ -28,11 +28,11 @@ FUNCTION hbbridgenetiostart( hConfig, hRegistry, hState, lAdmin )
     IF Empty( pListen )
         RETURN NIL
     ENDIF
-    hContext := hbbridgecontext( cPrefix, hConfig[ "addonRoot" ], hState, lAdmin )
+    hContext := HBBridgeContext( cPrefix, hConfig[ "addonRoot" ], hState, lAdmin )
     hFilter := { "HBBridge.Call" => {| cService, xParams, nVersion | ;
-        hbbridgedispatch( hRegistry, cService, xParams, hContext, nVersion ) } }
+        HBBridgeDispatch( hRegistry, cService, xParams, hContext, nVersion ) } }
     IF lAdmin
-        hFilter[ "HBBridge.Admin.Status" ] := {|| hbbridgehoststatus( hState ) }
+        hFilter[ "HBBridge.Admin.Status" ] := {|| HBBridgeHostStatus( hState ) }
     ENDIF
     hServer := {;
         "mutex" => hb_mutexCreate();
@@ -48,7 +48,7 @@ FUNCTION hbbridgenetiostart( hConfig, hRegistry, hState, lAdmin )
     }
     hServer[ "listener" ] := hb_threadStart(;
         0;
-        ,@netioacceptloop();
+        ,@NetioAcceptLoop();
         ,hServer;
         ,pListen;
         ,hFilter;
@@ -63,12 +63,12 @@ FUNCTION hbbridgenetiostart( hConfig, hRegistry, hState, lAdmin )
 
 RETURN hServer
 
-FUNCTION hbbridgenetiostop( hServer )
-RETURN hb_mutexEval( hServer[ "stopMutex" ], {|| netiostopandjoin( hServer ) } )
+FUNCTION HBBridgeNetioStop( hServer )
+RETURN hb_mutexEval( hServer[ "stopMutex" ], {|| NetioStopAndJoin( hServer ) } )
 
-STATIC FUNCTION netiostopandjoin( hServer )
+STATIC FUNCTION NetioStopAndJoin( hServer )
     LOCAL lStopped := .T.
-    hb_mutexEval( hServer[ "mutex" ], {|| netiosignalstop( hServer ) } )
+    hb_mutexEval( hServer[ "mutex" ], {|| NetioSignalStop( hServer ) } )
     IF ! Empty( hServer[ "listener" ] )
         lStopped := hb_threadJoin( hServer[ "listener" ] )
         hServer[ "listener" ] := NIL
@@ -77,7 +77,7 @@ STATIC FUNCTION netiostopandjoin( hServer )
     hb_gcAll( .T. )
 RETURN lStopped
 
-STATIC PROCEDURE netiosignalstop( hServer )
+STATIC PROCEDURE NetioSignalStop( hServer )
     LOCAL pConnection
     hServer[ "stopping" ] := .T.
     FOR EACH pConnection IN hServer[ "connections" ]
@@ -85,12 +85,12 @@ STATIC PROCEDURE netiosignalstop( hServer )
     NEXT
 RETURN
 
-STATIC PROCEDURE netioacceptloop( hServer, pListen, hFilter, cPassword )
+STATIC PROCEDURE NetioAcceptLoop( hServer, pListen, hFilter, cPassword )
 
     LOCAL pConnection := NIL, hWorker, aWorkers := {}, nWorker, nError
 
     BEGIN SEQUENCE WITH {| oError | Break( oError ) }
-        DO WHILE hbbridgeserverrunning( hServer )
+        DO WHILE HBBridgeServerRunning( hServer )
             FOR nWorker := Len( aWorkers ) TO 1 STEP -1
                 IF hb_threadWait( aWorkers[ nWorker ], 0 ) > 0
                     hb_threadJoin( aWorkers[ nWorker ] )
@@ -108,13 +108,13 @@ STATIC PROCEDURE netioacceptloop( hServer, pListen, hFilter, cPassword )
             ENDIF
             netio_RPCFilter( pConnection, hFilter )
             netio_ServerTimeOut( pConnection, iif( hServer[ "timeout" ] == 0, -1, hServer[ "timeout" ] ) )
-            IF hb_mutexEval( hServer[ "mutex" ], {|| netioreserve( hServer, pConnection ) } )
-                hWorker := hb_threadStart( 0, @netioworker(), hServer, pConnection )
+            IF hb_mutexEval( hServer[ "mutex" ], {|| NetioReserve( hServer, pConnection ) } )
+                hWorker := hb_threadStart( 0, @NetioWorker(), hServer, pConnection )
                 IF ! Empty( hWorker )
                     AAdd( aWorkers, hWorker )
                     pConnection := NIL
                 ELSE
-                    hb_mutexEval( hServer[ "mutex" ], {|| netiorelease( hServer, pConnection ) } )
+                    hb_mutexEval( hServer[ "mutex" ], {|| NetioRelease( hServer, pConnection ) } )
                 ENDIF
             ENDIF
             IF ! Empty( pConnection )
@@ -126,7 +126,7 @@ STATIC PROCEDURE netioacceptloop( hServer, pListen, hFilter, cPassword )
     RECOVER
         OutErr( "[NETIO] Falha no listener" + hb_eol() )
     ALWAYS
-        hb_mutexEval( hServer[ "mutex" ], {|| netiosignalstop( hServer ) } )
+        hb_mutexEval( hServer[ "mutex" ], {|| NetioSignalStop( hServer ) } )
         netio_ServerStop( pListen )
         pListen := NIL
         IF ! Empty( pConnection )
@@ -139,7 +139,7 @@ STATIC PROCEDURE netioacceptloop( hServer, pListen, hFilter, cPassword )
     END SEQUENCE
 RETURN
 
-STATIC FUNCTION netioreserve( hServer, pConnection )
+STATIC FUNCTION NetioReserve( hServer, pConnection )
     IF hServer[ "stopping" ] .OR. hServer[ "active" ] >= hServer[ "maxWorkers" ]
         RETURN .F.
     ENDIF
@@ -147,7 +147,7 @@ STATIC FUNCTION netioreserve( hServer, pConnection )
     AAdd( hServer[ "connections" ], pConnection )
 RETURN .T.
 
-STATIC PROCEDURE netiorelease( hServer, pConnection )
+STATIC PROCEDURE NetioRelease( hServer, pConnection )
     LOCAL nIndex := AScan( hServer[ "connections" ], {| p | p == pConnection } )
     IF nIndex > 0
         hb_ADel( hServer[ "connections" ], nIndex, .T. )
@@ -155,13 +155,13 @@ STATIC PROCEDURE netiorelease( hServer, pConnection )
     ENDIF
 RETURN
 
-STATIC PROCEDURE netioworker( hServer, pConnection )
+STATIC PROCEDURE NetioWorker( hServer, pConnection )
     BEGIN SEQUENCE WITH {| oError | Break( oError ) }
         netio_Server( pConnection )
     RECOVER
         OutErr( "[NETIO] Falha na conexao" + hb_eol() )
     ALWAYS
         netio_ServerStop( pConnection )
-        hb_mutexEval( hServer[ "mutex" ], {|| netiorelease( hServer, pConnection ) } )
+        hb_mutexEval( hServer[ "mutex" ], {|| NetioRelease( hServer, pConnection ) } )
     END SEQUENCE
 RETURN

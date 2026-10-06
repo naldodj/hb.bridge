@@ -4,8 +4,8 @@
 
 Use four spaces in project-owned source. Imported Harbour maintenance tools
 and zlib headers keep their upstream formatting and notices. Use English
-identifiers. Files, namespaces, functions and methods are lowercase; classes
-use PascalCase, following the owner's explicit clarification. Conventional
+identifiers. Files are lowercase; functions, procedures, methods, namespaces
+and classes use PascalCase, following the owner's explicit clarification. Conventional
 Git filenames and the `.pt-BR` locale suffix are exceptions to lowercase.
 
 | Responsibility | TLPP class / file | Harbour module |
@@ -20,8 +20,8 @@ different client/server roles. Harbour procedural modules do not need empty
 classes simply to imitate TLPP. Future Harbour classes must also live in a
 file whose basename is their class name in lowercase.
 
-Examples: `hbbridge.client.HBBridgeClient():new()` and
-`hbbridge.rdd.HBBridgeRPCDataSet():opensql(...)`. Existing `U_` test entry
+Examples: `HBBridge.Client.HBBridgeClient():New()` and
+`HBBridge.RDD.HBBridgeRPCDataSet():OpenSQL(...)`. Existing `U_` test entry
 points retain their published spelling. Public Protheus utilities belong to
 namespaced classes, with static methods when they have no state. Local static
 helpers are allowed. External APIs (`JSONObject`, `TimeCounter`, `hb_Serialize`),

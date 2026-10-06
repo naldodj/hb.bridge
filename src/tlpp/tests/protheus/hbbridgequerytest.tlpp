@@ -6,8 +6,8 @@ procedure U_HBBridgeQueryTest(cAliasProfile, cHost, nPort, nTimeout)
 
     local oClient as object
     local oDataSet as object
-    local jChecks := JSONObject():new() as json
-    local jOverrides := JSONObject():new() as json
+    local jChecks := JSONObject():New() as json
+    local jOverrides := JSONObject():New() as json
     local jConfig as json
     local cSql := "SELECT 1 AS ID, 'Harbour' AS NAME, 12.5 AS AMOUNT " + ;
         "UNION ALL SELECT 2, 'hbBridge', 0.0 ORDER BY ID" as character
@@ -27,7 +27,7 @@ procedure U_HBBridgeQueryTest(cAliasProfile, cHost, nPort, nTimeout)
     if ValType(nTimeout) != "U"
         jOverrides["timeoutMs"] := nTimeout
     endif
-    jConfig := hbbridge.client.HBBridgeConfig():read(jOverrides)
+    jConfig := HBBridge.Client.HBBridgeConfig():Read(jOverrides)
     FreeObj(@jOverrides)
     if !jConfig["success"]
         ConOut("hbBridge RPCRDD.Query FAILED: " + jConfig["code"] + "; " + jConfig["error"])
@@ -48,64 +48,64 @@ procedure U_HBBridgeQueryTest(cAliasProfile, cHost, nPort, nTimeout)
         return
     endif
 
-    oClient := hbbridge.client.HBBridgeClient():new(cHost, nPort, nTimeout)
-    oDataSet := hbbridge.rdd.HBBridgeRPCDataSet():new(oClient)
-    if !oDataSet:opensql(cAliasProfile, cSql)
-        ConOut("hbBridge RPCRDD.Query FAILED: " + oDataSet:errorcode() + "; " + oDataSet:errormessage())
-        if oDataSet:errorcode() == "SERVICE_NOT_FOUND"
+    oClient := HBBridge.Client.HBBridgeClient():New(cHost, nPort, nTimeout)
+    oDataSet := HBBridge.RDD.HBBridgeRPCDataSet():New(oClient)
+    if !oDataSet:OpenSQL(cAliasProfile, cSql)
+        ConOut("hbBridge RPCRDD.Query FAILED: " + oDataSet:ErrorCode() + "; " + oDataSet:ErrorMessage())
+        if oDataSet:ErrorCode() == "SERVICE_NOT_FOUND"
             ConOut("hbBridge SQL service is unavailable at " + cHost + ":" + tlpp.ToStr(nPort) + ;
                 ". Start the updated server with SQL profiles in its INI/JSON configuration.")
             if cAliasProfile == "sqlite_demo"
                 ConOut('hbBridge SQLite example: .\out\hbbridge.exe "-config=config/examples/sqlite.ini"')
             endif
-        elseif oDataSet:errorcode() == "PROFILE_NOT_FOUND"
+        elseif oDataSet:ErrorCode() == "PROFILE_NOT_FOUND"
             ConOut("hbBridge SQL profile is not configured on the server: " + cAliasProfile)
         endif
-        oDataSet:close()
+        oDataSet:Close()
         FreeObj(@oDataSet)
         FreeObj(@oClient)
         FreeObj(@jChecks)
         return
     endif
 
-    jChecks["rowCount"] := oDataSet:rowcount() == 2
-    jChecks["firstId"] := oDataSet:fieldget("id") == 1
-    jChecks["firstName"] := AllTrim(oDataSet:fieldget("NAME")) == "Harbour"
-    jChecks["decimal"] := Abs(oDataSet:fieldget("amount") - 12.5) < 0.000001
-    jChecks["missingField"] := ValType(oDataSet:fieldget("missing")) == "U"
-    oDataSet:skip()
-    jChecks["secondId"] := oDataSet:fieldget("ID") == 2
-    jChecks["secondName"] := AllTrim(oDataSet:fieldget("name")) == "hbBridge"
-    oDataSet:skip()
-    jChecks["eof"] := oDataSet:eof() .and. ValType(oDataSet:fieldget("ID")) == "U"
-    oDataSet:close()
-    jChecks["close"] := oDataSet:eof() .and. oDataSet:rowcount() == 0
-    jChecks["empty"] := oDataSet:opensql(cAliasProfile, cEmptySql)
-    jChecks["emptyState"] := oDataSet:eof() .and. oDataSet:rowcount() == 0
-    jChecks["invalidSql"] := !oDataSet:opensql(cAliasProfile, "SELECT * FROM __HBBridgeMissingTable__")
-    jChecks["invalidSqlCode"] := oDataSet:errorcode() == "QUERY_FAILED"
-    jChecks["unknownProfile"] := !oDataSet:opensql("__HBBridgeMissingProfile__", "SELECT 1 AS ID")
-    jChecks["unknownProfileCode"] := oDataSet:errorcode() == "PROFILE_NOT_FOUND"
-    jChecks["afterFailure"] := oDataSet:opensql(cAliasProfile, "SELECT 7 AS ID")
-    jChecks["afterFailureValue"] := oDataSet:fieldget("ID") == 7
-    jChecks["firstPage"] := oDataSet:openpage(cAliasProfile, cPageSql, 1, 1, "ID ASC")
-    jChecks["firstPageState"] := oDataSet:rowcount() == 1 .and. oDataSet:fieldget("ID") == 10 .and. ;
-        oDataSet:pagenumber() == 1 .and. oDataSet:pagesize() == 1 .and. oDataSet:hasnextpage()
-    jChecks["hiddenOrdinal"] := ValType(oDataSet:fieldget("__HBBRIDGE_ROWNO")) == "U"
-    oDataSet:skip()
-    jChecks["pageEof"] := oDataSet:eof() .and. oDataSet:hasnextpage()
-    jChecks["nextPage"] := oDataSet:nextpage()
-    jChecks["lastPageState"] := oDataSet:fieldget("ID") == 50 .and. ;
-        oDataSet:pagenumber() == 2 .and. !oDataSet:hasnextpage()
-    jChecks["noNextPage"] := !oDataSet:nextpage() .and. oDataSet:fieldget("ID") == 50
-    jChecks["emptyPage"] := oDataSet:openpage(cAliasProfile, cPageSql, 3, 1, "ID") .and. ;
-        oDataSet:eof() .and. !oDataSet:hasnextpage()
-    jChecks["invalidPage"] := !oDataSet:openpage(cAliasProfile, cPageSql, 0, 1, "ID")
-    jChecks["invalidPageCode"] := oDataSet:errorcode() == "INVALID_PAGE"
-    jChecks["invalidOrder"] := !oDataSet:openpage(cAliasProfile, cPageSql, 1, 1, "ID; SELECT 1") .and. ;
-        oDataSet:errorcode() == "INVALID_PAGE"
-    oDataSet:close()
-    jChecks["pageClose"] := oDataSet:pagenumber() == 0 .and. oDataSet:pagesize() == 0 .and. !oDataSet:hasnextpage()
+    jChecks["rowCount"] := oDataSet:RowCount() == 2
+    jChecks["firstId"] := oDataSet:FieldGet("id") == 1
+    jChecks["firstName"] := AllTrim(oDataSet:FieldGet("NAME")) == "Harbour"
+    jChecks["decimal"] := Abs(oDataSet:FieldGet("amount") - 12.5) < 0.000001
+    jChecks["missingField"] := ValType(oDataSet:FieldGet("missing")) == "U"
+    oDataSet:Skip()
+    jChecks["secondId"] := oDataSet:FieldGet("ID") == 2
+    jChecks["secondName"] := AllTrim(oDataSet:FieldGet("name")) == "hbBridge"
+    oDataSet:Skip()
+    jChecks["eof"] := oDataSet:Eof() .and. ValType(oDataSet:FieldGet("ID")) == "U"
+    oDataSet:Close()
+    jChecks["close"] := oDataSet:Eof() .and. oDataSet:RowCount() == 0
+    jChecks["empty"] := oDataSet:OpenSQL(cAliasProfile, cEmptySql)
+    jChecks["emptyState"] := oDataSet:Eof() .and. oDataSet:RowCount() == 0
+    jChecks["invalidSql"] := !oDataSet:OpenSQL(cAliasProfile, "SELECT * FROM __HBBridgeMissingTable__")
+    jChecks["invalidSqlCode"] := oDataSet:ErrorCode() == "QUERY_FAILED"
+    jChecks["unknownProfile"] := !oDataSet:OpenSQL("__HBBridgeMissingProfile__", "SELECT 1 AS ID")
+    jChecks["unknownProfileCode"] := oDataSet:ErrorCode() == "PROFILE_NOT_FOUND"
+    jChecks["afterFailure"] := oDataSet:OpenSQL(cAliasProfile, "SELECT 7 AS ID")
+    jChecks["afterFailureValue"] := oDataSet:FieldGet("ID") == 7
+    jChecks["firstPage"] := oDataSet:OpenPage(cAliasProfile, cPageSql, 1, 1, "ID ASC")
+    jChecks["firstPageState"] := oDataSet:RowCount() == 1 .and. oDataSet:FieldGet("ID") == 10 .and. ;
+        oDataSet:PageNumber() == 1 .and. oDataSet:PageSize() == 1 .and. oDataSet:HasNextPage()
+    jChecks["hiddenOrdinal"] := ValType(oDataSet:FieldGet("__HBBRIDGE_ROWNO")) == "U"
+    oDataSet:Skip()
+    jChecks["pageEof"] := oDataSet:Eof() .and. oDataSet:HasNextPage()
+    jChecks["nextPage"] := oDataSet:NextPage()
+    jChecks["lastPageState"] := oDataSet:FieldGet("ID") == 50 .and. ;
+        oDataSet:PageNumber() == 2 .and. !oDataSet:HasNextPage()
+    jChecks["noNextPage"] := !oDataSet:NextPage() .and. oDataSet:FieldGet("ID") == 50
+    jChecks["emptyPage"] := oDataSet:OpenPage(cAliasProfile, cPageSql, 3, 1, "ID") .and. ;
+        oDataSet:Eof() .and. !oDataSet:HasNextPage()
+    jChecks["invalidPage"] := !oDataSet:OpenPage(cAliasProfile, cPageSql, 0, 1, "ID")
+    jChecks["invalidPageCode"] := oDataSet:ErrorCode() == "INVALID_PAGE"
+    jChecks["invalidOrder"] := !oDataSet:OpenPage(cAliasProfile, cPageSql, 1, 1, "ID; SELECT 1") .and. ;
+        oDataSet:ErrorCode() == "INVALID_PAGE"
+    oDataSet:Close()
+    jChecks["pageClose"] := oDataSet:PageNumber() == 0 .and. oDataSet:PageSize() == 0 .and. !oDataSet:HasNextPage()
 
     lOk := jChecks["rowCount"] .and. jChecks["firstId"] .and. jChecks["firstName"] .and. ;
         jChecks["decimal"] .and. jChecks["missingField"] .and. jChecks["secondId"] .and. ;
@@ -120,7 +120,7 @@ procedure U_HBBridgeQueryTest(cAliasProfile, cHost, nPort, nTimeout)
     ConOut("hbBridge RPCRDD.Query checks: " + jChecks:ToJSON())
     ConOut("hbBridge RPCRDD.Query Protheus " + IIf(lOk, "OK", "FAILED") + "; profile=" + cAliasProfile)
 
-    oDataSet:close()
+    oDataSet:Close()
     FreeObj(@oDataSet)
     FreeObj(@oClient)
     FreeObj(@jChecks)

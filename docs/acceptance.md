@@ -40,12 +40,12 @@ that commit; the runtime's available identifier is the revision above.
 Distribution builds must record exact commits/options/contribs/dependencies.
 The managed bootstrap is documented in [dependencies](dependencies.md).
 
-Original Milestone 1 calls used loopback1512/5000ms and Health/Echo/ADDON.
+Original Milestone 1 calls used loopback, port 1512, timeout 5000 ms and Health/Echo/ADDON.
 For current acceptance compile the whole src/tlpp tree and run
 U_HBBridgeConnectionTest(cHost,nPort,nTimeout,nLargePayloadBytes).
 Without arguments it reads active [hbBridge], falling back to
-127.0.0.1/1512/30000ms and zero optional extra Echo.
-Constructor budgets default0/0, chunk65536, positive TLPP timeout.
+127.0.0.1/1512/30000 ms and zero optional extra Echo.
+Constructor budgets default 0/0, chunk 65536, positive TLPP timeout.
 Historical tests do not certify renamed/new sources.
 
 ## AppServer acceptance on 2026-10-03
@@ -53,9 +53,9 @@ Historical tests do not certify renamed/new sources.
 Local logs corroborated manual compilation and WebApp execution:
 
 - **07:45:37 São Paulo:** 3 sources, 3 successes, 0 errors:
-  hbbridgeconnectiontest.tlpp and the then-named hbbridgeclient.tlpp/
-  hbbridgerpcdataset.tlpp. Evidence: tmp/console.log.
-- **08:00:30, thread32748:** Health/ADDON/Echo success:true in
+  hbbridgeconnectiontest.tlpp and the then-named thbbridgeclient.tlpp/
+  trpcdataset.tlpp. Evidence: tmp/console.log.
+- **08:00:30, thread 32748:** Health/ADDON/Echo success:true in
   C:\totvs\protheus1212410\protheusdata\logs\console.log.
 - Full JSON comparison preserved message and **200,000 X characters**.
 
@@ -79,7 +79,7 @@ alternative-format rejection and old addon-alias removal.
 That count predates ceiling removal/incremental compression.
 
 The product now requires HBBRIDGE/1 and ADDON.Execute.
-Payload/wire default0, read buffer65536, Harbour budget30000ms, zero disables
+Payload/wire default 0, read buffer 65536, Harbour budget 30000 ms, zero disables
 its deadline; NETIO zero maps to -1.
 C gzip is incremental but JSON remains materialized.
 Runtime metadata exposes string/socket long/zlib uInt/NETIO int capacities.
@@ -87,9 +87,9 @@ Protheus drains admitted workers; zero deadlines can prolong shutdown.
 NETIO signals/closes its connections.
 
 The later pre-SQL run passed **305 checks, zero failures/no skips**:
-exact24,000,000-byte Echo, JSON/gzip over16MiB both ways, incremental compressor,
+exact 24,000,000-byte Echo, JSON/gzip over 16 MiB both ways, incremental compressor,
 zero/positive policies, positive/no Harbour deadline and nine-digit declared
-length without allocating100MB.
+length without allocating 100 MB.
 Log: tmp/tests-1156a4ae33964edc925ff65e09748ddb/results.log.
 Compressed-output/zlib guards and isolated build/help/invalid config passed.
 29 clock checks covered repeated reads/waits/eight threads.
@@ -110,7 +110,7 @@ hbBridge RPC Protheus OK: todos os testes solicitados passaram.
 
 These are verbatim operator logs; Portuguese output is intentionally preserved.
 They confirm complete payload comparison and normal completion, with varied
-request gzip152,964 >default65536 buffer.
+request gzip 152,964 > default 65536-byte buffer.
 The agent did not execute that round; execution time/arguments/binary hash
 were not supplied.
 
@@ -140,7 +140,7 @@ TOTVS shutdown: tmp/marco3-totvs-build.log. No compilation/new AppServer executi
 occurred in that attempt. Missing-DSN testing proved only sanitized ODBC errors,
 not real MSSQL or DBAccess use.
 
-An isolated JSON product smoke returned ID10, rowCount1, hasNexttrue.
+An isolated JSON product smoke returned ID=10, rowCount=1, hasNext=true.
 Historical binary path: tmp/marco3-product/hbbridge.exe.
 Log: tmp/marco3-product-smoke.log.
 SHA256: 8C90995602F336B1B5B395AD6AE36A4F2608079451E68A9BC142DE8EC9F6C17C.
@@ -148,10 +148,10 @@ The active canonical installation was not replaced.
 
 ### Failed SQL attempt at 00:27:04
 
-Operator U_HBBridgeQueryTest, thread30460, returned
+Operator U_HBBridgeQueryTest, thread 30460, returned
 SERVICE_NOT_FOUND; Servico nao suportado.
 This proves test entry/dispatcher response, not SQL execution.
-A subsequent Service.List probe at127.0.0.1:1512 found six basic services, no
+A subsequent Service.List probe at 127.0.0.1:1512 found six basic services, no
 RPCRDD.Query: tmp/sql-service-discovery.json.
 The canonical executable's help already supported SQL; active process CLI was
 not accessible to the agent.
@@ -161,7 +161,7 @@ Guidance was to restart the current product with the SQLite configuration and
 repeat the existing TLPP entry. Startup/test diagnostics were added.
 
 The new diagnostic candidate printed RPCRDD.Query enabled; SQL profiles=1 and
-returned ID10/one row/hasNexttrue on isolated ports.
+returned ID=10/one row/hasNext=true on isolated ports.
 Log: tmp/sql-registration-smoke.log.
 SHA256: F2177CFA4AB76363EC2E773A39717057D0CA7CDA8F10B0FD03A13CB3DAC74490.
 The canonical launcher also passed SQLite on isolated ports, with Port overriding
@@ -170,7 +170,7 @@ acceptance.
 
 ### SQLite acceptance at 00:40:06
 
-Operator U_HBBridgeQueryTest, AppServer thread41228, PROTHEUS/sqlite_demo:
+Operator U_HBBridgeQueryTest, AppServer thread 41228, PROTHEUS/sqlite_demo:
 **29 checks true**. Accepted named/decimal values, navigation/EOF, close,
 empty, SQL/profile errors/recovery, first/next/last pages, gaps, localEOF,
 hidden ordinal and invalid page/order rejection.
@@ -182,7 +182,7 @@ codepages or later client changes.
 
 ### INI configuration and Harbour baseline
 
-Server INI/JSON now share validation, precedence defaults<onefile<CLI,
+Server INI/JSON now share validation, precedence defaults < one file < CLI,
 automatic adjacent hbbridge.ini and explicit replacement.
 --config-info is sanitized and opens no listener/database.
 Launchers forward Port/MaxWorkers only when explicit; the SQL INI launcher
@@ -190,18 +190,18 @@ uses the product parser.
 
 **412 Harbour checks, zero failures/no skips**:
 tmp/tests-236f1241c1174cf4b193c22f6eedb6e0/results.log.
-Added to383:26INI cases and3 strict invalid driver/order-direction rejections.
+Added to 383: 26 INI cases and 3 strict invalid driver/order-direction rejections.
 Coverage: equivalent INI/JSON, precedence, relative paths, BOM/CRLF,
 password/ODBC punctuation, automatic loading and malformed-file rejection.
 
-AppServer [hbBridge] reading followed the00:40:06 test and received its own later
+AppServer [hbBridge] reading followed the 00:40:06 test and received its own later
 operator acceptance below. HBBridgeConfig selects GetSrvIniName/GetPvProfString.
 No-argument clients/tests now read the seven template keys.
 Client and Harbour config files must be aligned separately; a WebApp URL without
 arguments may select values different from launcher output.
 
 An updated INI candidate passed all three INI metadata examples, CLI precedence
-and a first-page launcher smoke (ID10/one row/hasNexttrue) using an isolated
+and a first-page launcher smoke (ID=10/one row/hasNext=true) using an isolated
 copy/canonical layout.
 Log: tmp/ini-launcher-smoke.log.
 SHA256: F51BE0E77B64CAA94B0C12016E24BB49153035A1B2EE680A24FCE26ADBE9CF5B.
@@ -219,10 +219,10 @@ This round was manual; the agent did not compile/execute those AppServer tests.
 
 | Entry | Report |
 | --- | --- |
-| U_HBBridgeConfigTest | All13true: defaults/INI/precedence/invalid override, zero-negative-fraction budgets, port/timeout, native chunk and activeINI. |
-| Connection-test clock | Unix=false, raw1097.692700, normalized1097.773500ms after Sleep1000, OK. |
-| Health/ADDON/Echo | All passed; two identical200,000-byte results, varied requestgzip152,964. |
-| U_HBBridgeQueryTest | sqlite_demo, all29true: fields/decimal/errors/recovery/empty/pages/EOF/close. |
+| U_HBBridgeConfigTest | All 13 true: defaults/INI/precedence/invalid override, zero-negative-fraction budgets, port/timeout, native chunk and activeINI. |
+| Connection-test clock | Unix=false, raw 1097.692700, normalized 1097.773500 ms after Sleep(1000), OK. |
+| Health/ADDON/Echo | All passed; two identical 200,000-byte results, varied request gzip 152,964 bytes. |
+| U_HBBridgeQueryTest | sqlite_demo, all 29 true: fields/decimal/errors/recovery/empty/pages/EOF/close. |
 
 Exact configuration and SQL reports:
 
@@ -243,6 +243,83 @@ changes remain open.
 
 Remaining: real MSSQL, nondefault no-argument destinations/profiles, socket
 timeouts/failures, forced positive partial sends and expanded types/volume/
-codepages. The412Harbour checks are separate evidence.
+codepages. The 412 Harbour checks are separate evidence.
 Naming/dependency refactoring requires its own later validation; retain historical
 artifact paths/hashes literally rather than implying new binaries share them.
+
+## Managed dependency and profile revision on 2026-10-04
+
+The project's own bootstrap compiled the pinned Harbour source and hbrun
+through its managed hb_compile/Zig environment. Git pins were hb_compile
+`2cb6f3ef59c297025a2c49c4cfa8c7639f3a1455` and Harbour
+`6deac9cf3ad977ae829e5bca543d553b92dd4b6d`; Zig was 0.16.0.
+
+The isolated Windows Harbour suite passed **416 checks, zero failures,
+no skips**, log `tmp/tests-d1b829ff332c414f816a6e70748152d1/results.log`.
+Compared with 412, two INI and two SQL cases verify multiple profiles,
+slash/case preservation and explicit case-sensitive selection.
+
+The candidate product build passed at `tmp/managed-product/hbbridge.exe`,
+SHA256 `5443466A05A5206D7E6E1BC53F86DB604059EEF8F687A0C1B22973CFB7A76B18`,
+build log `tmp/managed-product-build.log`. Sanitized profile metadata checks
+did not query MSSQL. The active canonical installation was not replaced.
+
+This validation predates the PascalCase and HTTP changes requested on
+2026-10-06. Renamed TLPP classes/namespaces and the revised 16-check config
+test were not compiled or accepted in Protheus. HTTP, direct HTTPS, real
+MSSQL, Linux and later changes need separately recorded validation.
+
+## PascalCase and native HTTP validation on 2026-10-06
+
+The final targeted Windows Harbour/Zig HTTP run passed **65 checks, zero
+failures, no skips**. The agent executed it using the managed
+toolchain. Log: `tmp/http-tests-f3476462dfbb4fe6b64d63b0de1c1149/results.log`;
+wrapper log: `tmp/http-target-test.log`; dependency preparation log:
+`tmp/http-prepare.log`. These logs contain the final run, replacing the
+earlier 45- and 57-check targeted iterations.
+
+The run exercised native hbhttpd alongside NETIO/TCP: authenticated Zig
+Health, a 220 KB Echo, equivalent native NETIO results, SQLite alias
+`memory/HTTP`, ADDON.Execute, service discovery, bearer/admin separation,
+structured JSON service errors, Transfer-Encoding and duplicate/nondecimal
+Content-Length rejection, eight concurrent contexts, shutdown during a
+continuously incomplete header, same-port restart and startup rollback.
+Administration is a read-only shared status panel; missing admin credentials
+disable it. Caller ERP fields remain uninterpreted parameters.
+
+UTF8EX-worker tests also passed byte-exact Content-Length, raw accents/CJK/
+supplementary characters, BMP escapes, mixed-case surrogate pairs and object
+keys, escaped backslash/quote preservation, invalid UTF-8/trailing-content
+rejection, SQLite Unicode and native Unicode service execution. Orphan or
+reversed surrogates returned `INVALID_JSON`/400 before dispatch. Surrogate
+normalization is scoped to the HTTP adapter, without changing global hbjson
+or the other transports.
+
+Plain HTTP linked managed hbhttpd/hbtcpio, using the project patch SHA256
+`ab6de8a46ec4aa3b01493db5ad5c90dd005f1b76ed61f8d38c6356602a3f3d1c`.
+The targeted test executable's SHA256 was
+`65661E1F56C02217D58E7C1F40FB6EF48E71D4BD144A43A9B8C379702E877EF5`.
+Direct hbssl/OpenSSL TLS was not linked or exercised. HTTP request parsing/
+timeouts remain native and do not inherit Protheus TCP budgets. See
+[HTTP behavior and dependencies](http.md).
+
+The full suite/product result will be recorded separately after completion.
+This HTTP run does not compile or accept the renamed TLPP sources in the
+AppServer, prove real MSSQL/ODBC Unicode/HTTPS/Linux or implement administrative
+mutations.
+
+### Native HRB state semantics and counterprobe
+
+The isolated native ownership test passed with **12 simultaneously loaded
+FORCELOCAL HRBs**, a synchronization barrier, matching `owner=id` and
+`counter=counterBefore+1`. Log: `tmp/addon-native-semantics.log`. Sequential
+reload reused an initialized STATIC frame: the recorded counters continued
+from 2 through 5 rather than resetting to one. The loader/runtime was not
+changed to force resets.
+
+A deliberately shared HRB handle across 12 threads was rejected in **11 of
+12 responses**, log `tmp/addon-native-counterprobe.log`. This confirms that
+the assertions detect shared state, while respecting Harbour's native frame
+recycling. The fixture adds six checks to the full suite; the complete result
+is recorded separately. Addons must initialize per-execution business state
+from explicit parameters/locals; FORCELOCAL alone does not provide a reset.

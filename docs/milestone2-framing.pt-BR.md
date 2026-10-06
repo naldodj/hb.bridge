@@ -113,7 +113,7 @@ gzip TLPP pressupõe um servidor confiável. Blocos independentes e modo
 O timeout TLPP cobre conexão, leituras e verificações entre envios. `Send`
 não oferece timeout como argumento, portanto uma chamada bloqueante pode
 exceder esse prazo. O cliente passou a usar `TimeCounter()` por meio da classe
-`hbbridge.client.HBBridgeTime`, com métodos estáticos em
+`HBBridge.Client.HBBridgeTime`, com métodos estáticos em
 [hbbridgetime.tlpp](../src/tlpp/hbbridgetime.tlpp), adaptados de
 `dna.tech.StopWatch.__GetCurrentTimeStamp()`. Uma leitura por amostra substitui
 `Date()`/`Seconds()`, e as diferenças usam milissegundos, sem um teto de um dia.

@@ -9,12 +9,12 @@ Released to Public Domain.
 --------------------------------------------------------------------------------------
 */
 
-FUNCTION hbbridgehoststart( hConfig, cError )
+FUNCTION HBBridgeHostStart( hConfig, cError )
 
     LOCAL hRegistry, hHost, hListener
 
     cError := ""
-    IF ! hb_mtvm() .OR. ! hbbridgeconfigvalid( hConfig, @cError )
+    IF ! hb_mtvm() .OR. ! HBBridgeConfigValid( hConfig, @cError )
         IF Empty( cError )
             cError := "hbBridge requer Harbour multithread (-mt)"
         ENDIF
@@ -24,51 +24,59 @@ FUNCTION hbbridgehoststart( hConfig, cError )
         cError := "Nao foi possivel preparar netioRoot"
         RETURN NIL
     ENDIF
-    hRegistry := hbbridgebuiltinregistry( hConfig[ "sqlProfiles" ] )
+    hRegistry := HBBridgeBuiltinRegistry( hConfig[ "sqlProfiles" ] )
     hHost := { "mutex" => hb_mutexCreate(), "stopMutex" => hb_mutexCreate(), ;
-        "stopping" => .F., "started" => hbbridgemonotonicms(), "listeners" => {=>} }
-    hListener := hbbridgenetiostart( hConfig, hRegistry, hHost )
+        "stopping" => .F., "started" => HBBridgeMonotonicMs(), "listeners" => {=>} }
+    hListener := HBBridgeNetioStart( hConfig, hRegistry, hHost )
     IF Empty( hListener )
         cError := "Falha ao iniciar endpoint NETIO"
         RETURN NIL
     ENDIF
     hb_mutexEval( hHost[ "mutex" ], {|| hHost[ "listeners" ][ "netio" ] := hListener } )
     IF ! Empty( hConfig[ "adminPassword" ] )
-        hListener := hbbridgenetiostart( hConfig, hRegistry, hHost, .T. )
+        hListener := HBBridgeNetioStart( hConfig, hRegistry, hHost, .T. )
         IF Empty( hListener )
             cError := "Falha ao iniciar endpoint de administracao"
-            hbbridgehoststop( hHost )
+            HBBridgeHostStop( hHost )
             RETURN NIL
         ENDIF
         hb_mutexEval( hHost[ "mutex" ], {|| hHost[ "listeners" ][ "admin" ] := hListener } )
     ENDIF
-    hListener := hbbridgeserverstart( hConfig[ "protheusPort" ], hConfig[ "maxWorkers" ], ;
-        hConfig[ "protheusHost" ], hRegistry, hbbridgecontext( "protheus", hConfig[ "addonRoot" ], hHost ), hConfig )
+    hListener := HBBridgeServerStart( hConfig[ "protheusPort" ], hConfig[ "maxWorkers" ], ;
+        hConfig[ "protheusHost" ], hRegistry, HBBridgeContext( "protheus", hConfig[ "addonRoot" ], hHost ), hConfig )
     IF Empty( hListener )
         cError := "Falha ao iniciar endpoint Protheus"
-        hbbridgehoststop( hHost )
+        HBBridgeHostStop( hHost )
         RETURN NIL
     ENDIF
     hb_mutexEval( hHost[ "mutex" ], {|| hHost[ "listeners" ][ "protheus" ] := hListener } )
+    IF hConfig[ "httpEnabled" ]
+        hListener := HBBridgeHTTPStart( hConfig, hRegistry, hHost, @cError )
+        IF Empty( hListener )
+            HBBridgeHostStop( hHost )
+            RETURN NIL
+        ENDIF
+        hb_mutexEval( hHost[ "mutex" ], {|| hHost[ "listeners" ][ "http" ] := hListener } )
+    ENDIF
 
 RETURN hHost
 
-FUNCTION hbbridgehostrunning( hHost )
+FUNCTION HBBridgeHostRunning( hHost )
     LOCAL hListener
     IF hb_mutexEval( hHost[ "mutex" ], {|| hHost[ "stopping" ] } )
         RETURN .F.
     ENDIF
     FOR EACH hListener IN hHost[ "listeners" ]
-        IF ! hbbridgeserverrunning( hListener )
+        IF ! HBBridgeServerRunning( hListener )
             RETURN .F.
         ENDIF
     NEXT
 RETURN .T.
 
-FUNCTION hbbridgehoststop( hHost )
-RETURN hb_mutexEval( hHost[ "stopMutex" ], {|| hoststopandjoin( hHost ) } )
+FUNCTION HBBridgeHostStop( hHost )
+RETURN hb_mutexEval( hHost[ "stopMutex" ], {|| HostStopAndJoin( hHost ) } )
 
-STATIC FUNCTION hoststopandjoin( hHost )
+STATIC FUNCTION HostStopAndJoin( hHost )
     LOCAL cChannel, lOK := .T.
     hb_mutexEval( hHost[ "mutex" ], {|| hHost[ "stopping" ] := .T. } )
     FOR EACH cChannel IN hb_HKeys( hHost[ "listeners" ] )
@@ -77,25 +85,27 @@ STATIC FUNCTION hoststopandjoin( hHost )
     NEXT
     FOR EACH cChannel IN hb_HKeys( hHost[ "listeners" ] )
         IF cChannel == "protheus"
-            lOK := hbbridgeserverstop( hHost[ "listeners" ][ cChannel ] ) .AND. lOK
+            lOK := HBBridgeServerStop( hHost[ "listeners" ][ cChannel ] ) .AND. lOK
+        ELSEIF cChannel == "http"
+            lOK := HBBridgeHTTPStop( hHost[ "listeners" ][ cChannel ] ) .AND. lOK
         ELSE
-            lOK := hbbridgenetiostop( hHost[ "listeners" ][ cChannel ] ) .AND. lOK
+            lOK := HBBridgeNetioStop( hHost[ "listeners" ][ cChannel ] ) .AND. lOK
         ENDIF
     NEXT
 RETURN lOK
 
-FUNCTION hbbridgehoststatus( hHost )
+FUNCTION HBBridgeHostStatus( hHost )
     IF ! HB_ISHASH( hHost )
-        RETURN hbbridgeerror( "HOST_UNAVAILABLE", "Estado do host indisponivel" )
+        RETURN HBBridgeError( "HOST_UNAVAILABLE", "Estado do host indisponivel" )
     ENDIF
-RETURN hb_mutexEval( hHost[ "mutex" ], {|| hoststatuslocked( hHost ) } )
+RETURN hb_mutexEval( hHost[ "mutex" ], {|| HostStatusLocked( hHost ) } )
 
-STATIC FUNCTION hoststatuslocked( hHost )
+STATIC FUNCTION HostStatusLocked( hHost )
     LOCAL hResult, cChannel, hListener
     hResult := {;
         "success" => .T.;
         ,"stopping" => hHost[ "stopping" ];
-        ,"uptimeMs" => hbbridgemonotonicms() - hHost[ "started" ];
+        ,"uptimeMs" => HBBridgeMonotonicMs() - hHost[ "started" ];
         ,"endpoints" => {=>};
         }
     FOR EACH cChannel IN hb_HKeys( hHost[ "listeners" ] )
@@ -103,8 +113,14 @@ STATIC FUNCTION hoststatuslocked( hHost )
         hResult[ "endpoints" ][ cChannel ] := {;
                 "host" => hListener[ "host" ];
                 ,"port" => hListener[ "port" ];
-                ,"active" => hbbridgeserveractive( hListener );
-                ,"running" => hbbridgeserverrunning( hListener );
+                ,"active" => HBBridgeServerActive( hListener );
+                ,"running" => HBBridgeServerRunning( hListener );
             }
+        IF cChannel == "http"
+            hResult[ "endpoints" ][ cChannel ][ "requests" ] := ;
+                hb_mutexEval( hListener[ "mutex" ], {|| hListener[ "requests" ] } )
+            hResult[ "endpoints" ][ cChannel ][ "rejected" ] := ;
+                hb_mutexEval( hListener[ "mutex" ], {|| hListener[ "rejected" ] } )
+        ENDIF
     NEXT
 RETURN hResult

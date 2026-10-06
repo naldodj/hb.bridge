@@ -57,7 +57,7 @@ C/Harbour gzip is incremental, but JSON and TLPP strings are materialized.
 
 ## Services and internal contract
 
-`hbbridgedispatch(hRegistry, cService, xParams, hContext, nVersion)` takes/
+`HBBridgeDispatch(hRegistry, cService, xParams, hContext, nVersion)` takes/
 returns Harbour values. Default version: 1. Unknown service/version, wrong
 signature and handler failure return a hash with `success:false`,
 `error` and `code`. Protheus converts it to JSON.
@@ -90,6 +90,18 @@ Remote cursor/stream IDs are later work.
 The server creates context containing transport, addon root, host state and
 channel permissions. User/company fields in parameters confer no permission.
 Data/admin separation is implemented; user/tenant authorization is pending.
+
+### HRB state and addon ownership
+
+ADDON.Execute loads each HRB with `HB_HRB_BIND_FORCELOCAL`, executes it and
+unloads its handle. This separates symbols and STATIC frames of HRBs that
+are simultaneously loaded. **It does not guarantee fresh STATIC values on
+each later call:** Harbour can recycle an initialized STATIC frame after
+`hb_hrbUnload` when reloading the same module. Addons must initialize their
+per-execution state explicitly from parameters or locals; business context
+never comes from a presumed reset. Do not share one HRB handle between
+independent concurrent calls. Native ownership evidence and the deliberately
+shared-handle counterprobe are in [acceptance](acceptance.md).
 
 ## Harbour client
 
@@ -130,7 +142,7 @@ Admin uses invalid root `*?:*?:` to prevent file operations, following upstream.
 It provides status; remote stop, user management and system-service install
 are later work. Addons run in the host process with its OS account permissions.
 
-`hbbridgehoststop()` signals listeners and joins threads.
+`HBBridgeHostStop()` signals listeners and joins threads.
 Protheus drains admitted workers; NETIO signals idle/active connections,
 whose handles use Harbour GC. With protheusTimeoutMs zero, a client that
 never completes/disconnects can prolong shutdown. No forced cancellation

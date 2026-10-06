@@ -1,5 +1,5 @@
 // addons/examples/hbbridgesampleaddon.prg
-FUNCTION main( cJsonParams )
+FUNCTION Main( cJsonParams )
     LOCAL oParams, oResp := {=>}
     hb_jsonDecode( cJsonParams, @oParams )
     oResp["success"] := .T.

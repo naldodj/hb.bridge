@@ -4,8 +4,8 @@
 
 Use quatro espaços nos fontes próprios. Os utilitários Harbour importados e
 os cabeçalhos zlib preservam sua formatação e seus avisos. Identificadores são
-em inglês. Arquivos, namespaces, funções e métodos ficam em minúsculas;
-classes usam PascalCase, conforme esclarecimento explícito do responsável.
+em inglês. Arquivos ficam em minúsculas; funções, procedures, métodos,
+namespaces e classes usam PascalCase, conforme esclarecimento explícito do responsável.
 Nomes convencionais Git e o sufixo `.pt-BR` são exceções às minúsculas.
 
 | Responsabilidade | Classe / arquivo TLPP | Módulo Harbour |
@@ -20,8 +20,8 @@ preservados. Módulos procedurais Harbour não precisam de classes vazias para
 imitar TLPP. Futuras classes Harbour também devem estar em arquivo cujo nome
 de base seja o nome da classe em minúsculas.
 
-Exemplos: `hbbridge.client.HBBridgeClient():new()` e
-`hbbridge.rdd.HBBridgeRPCDataSet():opensql(...)`. Entradas `U_` mantêm os nomes
+Exemplos: `HBBridge.Client.HBBridgeClient():New()` e
+`HBBridge.RDD.HBBridgeRPCDataSet():OpenSQL(...)`. Entradas `U_` mantêm os nomes
 publicados. Utilitários públicos Protheus ficam em classes com namespace e
 métodos estáticos quando não há estado. Helpers estáticos locais são
 permitidos. APIs externas (`JSONObject`, `TimeCounter`, `hb_Serialize`), campos

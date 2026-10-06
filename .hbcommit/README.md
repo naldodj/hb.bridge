@@ -38,8 +38,8 @@ the index or the checkout.
 Own file names are lowercase English. Standard names such as `README`,
 `AGENTS`, `TODO`, `LICENSE` and `ChangeLog` and the locale suffix `.pt-BR`
 are retained. TLPP class file basenames match their PascalCase class names
-converted to lowercase. Own Harbour and TLPP function, procedure, method
-and namespace names are lowercase; existing `U_` test entry points remain
+converted to lowercase. Own functions, procedures, methods, namespaces and
+classes use PascalCase and English identifiers; existing `U_` test entry points remain
 compatible. Own source indentation uses four spaces. Native APIs and
 third-party source conventions retain their required spelling and format.
 

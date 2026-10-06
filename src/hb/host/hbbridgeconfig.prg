@@ -11,7 +11,7 @@ Released to Public Domain.
 
 /* Precedence: defaults < INI/JSON file < CLI. No listeners/directory creation. */
 #include "hbbridge.h"
-FUNCTION hbbridgeconfig( aArgs, cError )
+FUNCTION HBBridgeConfig( aArgs, cError )
 
     LOCAL hConfig := {;
             "protheusHost" => "0.0.0.0";
@@ -27,6 +27,13 @@ FUNCTION hbbridgeconfig( aArgs, cError )
             ,"adminHost" => "127.0.0.1";
             ,"adminPort" => 2940;
             ,"adminPassword" => "";
+            ,"httpEnabled" => .F.;
+            ,"httpHost" => "127.0.0.1";
+            ,"httpPort" => 8080;
+            ,"httpPassword" => "";
+            ,"httpTLS" => .F.;
+            ,"httpCertificate" => "";
+            ,"httpPrivateKey" => "";
             ,"addonRoot" => "addons";
             ,"maxWorkers" => 64;
             ,"netioTimeout" => 0;
@@ -44,6 +51,8 @@ FUNCTION hbbridgeconfig( aArgs, cError )
             ,"netioroot" => "netioRoot";
             ,"adminhost" => "adminHost";
             ,"adminport" => "adminPort";
+            ,"httphost" => "httpHost";
+            ,"httpport" => "httpPort";
             ,"addonroot" => "addonRoot";
             ,"maxworkers" => "maxWorkers";
             ,"netiotimeout" => "netioTimeout";
@@ -60,7 +69,7 @@ FUNCTION hbbridgeconfig( aArgs, cError )
         RETURN NIL
     ENDIF
     FOR EACH cKey IN { "netioRoot", "addonRoot" }
-        hConfig[ cKey ] := hbbridgeabsolutepath( hConfig[ cKey ], hb_cwd() )
+        hConfig[ cKey ] := HBBridgeAbsolutePath( hConfig[ cKey ], hb_cwd() )
     NEXT
     FOR EACH cArg IN aArgs
         IF ! HB_ISSTRING( cArg )
@@ -77,7 +86,7 @@ FUNCTION hbbridgeconfig( aArgs, cError )
                 RETURN NIL
             ENDIF
             lExplicitConfig := .T.
-            cFile := hbbridgeabsolutepath( SubStr( cArg, 9 ), hb_cwd() )
+            cFile := HBBridgeAbsolutePath( SubStr( cArg, 9 ), hb_cwd() )
             IF Empty( cFile )
                 cError := "Caminho de configuracao invalido"
                 RETURN NIL
@@ -87,7 +96,7 @@ FUNCTION hbbridgeconfig( aArgs, cError )
     IF ! lExplicitConfig
         cAutoFile := hb_FNameDir( hb_ProgName() ) + "hbbridge.ini"
         IF hb_FileExists( cAutoFile )
-            cFile := hbbridgeabsolutepath( cAutoFile, hb_cwd() )
+            cFile := HBBridgeAbsolutePath( cAutoFile, hb_cwd() )
         ENDIF
     ENDIF
     IF ! Empty( cFile )
@@ -100,7 +109,7 @@ FUNCTION hbbridgeconfig( aArgs, cError )
             cContents := hb_BSubStr( cContents, 4 )
         ENDIF
         IF Lower( hb_FNameExt( cFile ) ) == ".ini"
-            hFile := hbbridgeconfigini( cContents, hConfig, @cError )
+            hFile := HBBridgeConfigINI( cContents, hConfig, @cError )
         ELSE
             nRead := hb_jsonDecode( cContents, @hFile )
             IF nRead == 0 .OR. ! HB_ISHASH( hFile ) .OR. ;
@@ -123,16 +132,20 @@ FUNCTION hbbridgeconfig( aArgs, cError )
                 RETURN NIL
             ENDIF
             hConfig[ cKey ] := xValue
-            IF cKey == "netioRoot" .OR. cKey == "addonRoot"
+            IF cKey == "httpCertificate" .OR. cKey == "httpPrivateKey"
+                IF ! Empty( hConfig[ cKey ] )
+                    hConfig[ cKey ] := HBBridgeAbsolutePath( hConfig[ cKey ], hb_FNameDir( cFile ) )
+                ENDIF
+            ELSEIF cKey == "netioRoot" .OR. cKey == "addonRoot"
                 IF Empty( hConfig[ cKey ] ) .OR. Chr( 0 ) $ hConfig[ cKey ]
                     cError := "Diretorio vazio ou com NUL: " + cKey
                     RETURN NIL
                 ENDIF
-                hConfig[ cKey ] := hbbridgeabsolutepath( hConfig[ cKey ], hb_FNameDir( cFile ) )
+                hConfig[ cKey ] := HBBridgeAbsolutePath( hConfig[ cKey ], hb_FNameDir( cFile ) )
             ENDIF
         NEXT
     ENDIF
-    hConfig[ "sqlProfiles" ] := hbbridgesqlprofiles( hConfig[ "sqlProfiles" ], ;
+    hConfig[ "sqlProfiles" ] := HBBridgeSQLProfiles( hConfig[ "sqlProfiles" ], ;
         iif( Empty( cFile ), hb_cwd(), hb_FNameDir( cFile ) ), @cError )
     IF hConfig[ "sqlProfiles" ] == NIL
         RETURN NIL
@@ -160,28 +173,30 @@ FUNCTION hbbridgeconfig( aArgs, cError )
             ENDIF
             hConfig[ cKey ] := Val( cValue )
         ELSEIF cKey == "netioRoot" .OR. cKey == "addonRoot"
-            hConfig[ cKey ] := hbbridgeabsolutepath( cValue, hb_cwd() )
+            hConfig[ cKey ] := HBBridgeAbsolutePath( cValue, hb_cwd() )
         ELSE
             hConfig[ cKey ] := cValue
         ENDIF
     NEXT
-    IF ! hbbridgeconfigvalid( hConfig, @cError )
+    IF ! HBBridgeConfigValid( hConfig, @cError )
         RETURN NIL
     ENDIF
 
 RETURN hConfig
 
 /* Machine-readable launcher metadata, without credentials or storage paths. */
-FUNCTION hbbridgeconfiginfo( hConfig )
+FUNCTION HBBridgeConfigInfo( hConfig )
     LOCAL hProfiles := {=>}, hProfile
     FOR EACH hProfile IN hConfig[ "sqlProfiles" ]
         hProfiles[ hProfile:__enumKey() ] := { "driver" => hProfile[ "driver" ] }
     NEXT
 RETURN { "configVersion" => 1, "protheusHost" => hConfig[ "protheusHost" ], ;
     "protheusPort" => hConfig[ "protheusPort" ], "maxWorkers" => hConfig[ "maxWorkers" ], ;
+    "httpEnabled" => hConfig[ "httpEnabled" ], "httpHost" => hConfig[ "httpHost" ], ;
+    "httpPort" => hConfig[ "httpPort" ], "httpTLS" => hConfig[ "httpTLS" ], ;
     "sqlProfiles" => hProfiles }
 
-FUNCTION hbbridgeconfigvalid( hConfig, cError )
+FUNCTION HBBridgeConfigValid( hConfig, cError )
 
     LOCAL cKey, nValue, aChannels := { "protheus", "netio" }, nLeft, nRight, cLeft, cRight
     LOCAL hRuntimeLimits
@@ -205,6 +220,13 @@ FUNCTION hbbridgeconfigvalid( hConfig, cError )
         ,"adminHost";
         ,"adminPort";
         ,"adminPassword";
+        ,"httpEnabled";
+        ,"httpHost";
+        ,"httpPort";
+        ,"httpPassword";
+        ,"httpTLS";
+        ,"httpCertificate";
+        ,"httpPrivateKey";
         ,"addonRoot";
         ,"maxWorkers";
         ,"netioTimeout";
@@ -214,10 +236,10 @@ FUNCTION hbbridgeconfigvalid( hConfig, cError )
             RETURN .F.
         ENDIF
     NEXT
-    IF hbbridgesqlprofiles( hConfig[ "sqlProfiles" ], hb_cwd(), @cError ) == NIL
+    IF HBBridgeSQLProfiles( hConfig[ "sqlProfiles" ], hb_cwd(), @cError ) == NIL
         RETURN .F.
     ENDIF
-    hRuntimeLimits := hbbridgeruntimelimits()
+    hRuntimeLimits := HBBridgeRuntimeLimits()
     FOR EACH cKey IN { "protheusMaxPayloadBytes", "protheusMaxWireBytes", "protheusTimeoutMs" }
         nValue := hConfig[ cKey ]
         IF ! HB_ISNUMERIC( nValue )
@@ -243,6 +265,7 @@ FUNCTION hbbridgeconfigvalid( hConfig, cError )
         "protheusPort";
         ,"netioPort";
         ,"adminPort";
+        ,"httpPort";
         ,"maxWorkers";
         ,"netioTimeout" }
         nValue := hConfig[ cKey ]
@@ -257,8 +280,8 @@ FUNCTION hbbridgeconfigvalid( hConfig, cError )
             RETURN .F.
         ENDIF
     NEXT
-    FOR EACH cKey IN { "protheusHost", "netioHost", "adminHost" }
-        IF ! validipv4( hConfig[ cKey ] )
+    FOR EACH cKey IN { "protheusHost", "netioHost", "adminHost", "httpHost" }
+        IF ! ValidIPv4( hConfig[ cKey ] )
             cError := "Endereco IPv4 invalido: " + cKey
             RETURN .F.
         ENDIF
@@ -280,6 +303,39 @@ FUNCTION hbbridgeconfigvalid( hConfig, cError )
             RETURN .F.
         ENDIF
     NEXT
+    IF ! HB_ISLOGICAL( hConfig[ "httpEnabled" ] ) .OR. ! HB_ISLOGICAL( hConfig[ "httpTLS" ] )
+        cError := "HTTP Enabled and TLS must be logical values"
+        RETURN .F.
+    ENDIF
+    FOR EACH cKey IN { "httpPassword", "httpCertificate", "httpPrivateKey" }
+        IF ! HB_ISSTRING( hConfig[ cKey ] ) .OR. Chr( 0 ) $ hConfig[ cKey ] .OR. ;
+            Chr( 10 ) $ hConfig[ cKey ] .OR. Chr( 13 ) $ hConfig[ cKey ]
+            cError := "Invalid HTTP configuration: " + cKey
+            RETURN .F.
+        ENDIF
+    NEXT
+    IF hConfig[ "httpEnabled" ]
+        IF Empty( hConfig[ "httpPassword" ] )
+            cError := "HTTP requires its own service password"
+            RETURN .F.
+        ENDIF
+        IF ! Empty( hConfig[ "adminPassword" ] ) .AND. ;
+            hConfig[ "httpPassword" ] == hConfig[ "adminPassword" ]
+            cError := "HTTP service and administration passwords must differ"
+            RETURN .F.
+        ENDIF
+        IF hConfig[ "httpTLS" ]
+            IF ! hb_IsFunction( "__HBEXTERN__HBSSL__" )
+                cError := "TLS requires a build with hbssl and OpenSSL"
+                RETURN .F.
+            ENDIF
+            IF Empty( hConfig[ "httpCertificate" ] ) .OR. Empty( hConfig[ "httpPrivateKey" ] )
+                cError := "TLS requires a certificate and private key"
+                RETURN .F.
+            ENDIF
+        ENDIF
+        AAdd( aChannels, "http" )
+    ENDIF
     IF ! Empty( hConfig[ "adminPassword" ] )
         AAdd( aChannels, "admin" )
     ENDIF
@@ -298,7 +354,7 @@ FUNCTION hbbridgeconfigvalid( hConfig, cError )
 
 RETURN .T.
 
-STATIC FUNCTION validipv4( cAddress )
+STATIC FUNCTION ValidIPv4( cAddress )
     LOCAL aParts, cPart
     IF ! HB_ISSTRING( cAddress )
         RETURN .F.
@@ -314,7 +370,7 @@ STATIC FUNCTION validipv4( cAddress )
     NEXT
 RETURN .T.
 
-FUNCTION hbbridgeabsolutepath( cPath, cBase )
+FUNCTION HBBridgeAbsolutePath( cPath, cBase )
     LOCAL nDriveEnd, cBaseDrive
     IF ! HB_ISSTRING( cPath ) .OR. Chr( 0 ) $ cPath
         RETURN ""
@@ -336,12 +392,13 @@ FUNCTION hbbridgeabsolutepath( cPath, cBase )
     ENDIF
 RETURN hb_PathNormalize( hb_PathJoin( hb_DirSepAdd( cBase ), cPath ) )
 
-FUNCTION hbbridgeconfighelp()
+FUNCTION HBBridgeConfigHelp()
     local cConfigHelp
     #pragma __cstream | cConfigHelp:=%s
 hbBridge [-config=arquivo.ini|arquivo.json] [-host=0.0.0.0] [-port=1512]
 [-netiohost=0.0.0.0] [-netioport=2941] [-netioroot=data]
 [-adminhost=127.0.0.1] [-adminport=2940] [-addonroot=addons]
+[-httphost=127.0.0.1] [-httpport=8080]
 [-maxworkers=64] [-netiotimeout=0]
 [-maxpayloadbytes=0] [-maxwirebytes=0] [-readchunkbytes=65536] [-iotimeout=30000]
 Payload/wire: 0 sem teto de aplicacao; valores positivos limitam bytes por mensagem.
@@ -349,6 +406,8 @@ Readchunkbytes dimensiona o buffer de leitura, sem limitar o tamanho da mensagem
 Iotimeout em ms por transferencia; 0 sem prazo total. Faixas respeitam o runtime.
 Netiotimeout: 0 usa espera nativa sem prazo; valores positivos em ms.
 Senhas NETIO/admin somente no arquivo; admin desativada sem senha.
+HTTP optional: [HTTP] Enabled=true, Password=<service secret>; disabled by default.
+Admin web uses the separate [Admin] Password; user name is admin.
 Perfis SQL no INI/JSON habilitam RPCRDD.Query com SQLite ou MSSQL via ODBC.
 Sem -config, procura hbbridge.ini ao lado do executavel.
 --config-info valida e mostra metadados JSON sem credenciais, sem iniciar listeners.

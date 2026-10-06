@@ -4,7 +4,7 @@
  * and permissive malformed/duplicate handling. Preserve complete ODBC values
  * and reject mistakes before converting to the shared configuration schema.
  */
-FUNCTION hbbridgeconfigini( cContents, hDefaults, cError )
+FUNCTION HBBridgeConfigINI( cContents, hDefaults, cError )
 
     LOCAL hSections := { ;
         "GENERAL" => { "MAXWORKERS" => "maxWorkers", "ADDONROOT" => "addonRoot" }, ;
@@ -13,7 +13,10 @@ FUNCTION hbbridgeconfigini( cContents, hDefaults, cError )
             "READCHUNKBYTES" => "protheusReadChunkBytes", "TIMEOUTMS" => "protheusTimeoutMs" }, ;
         "NETIO" => { "HOST" => "netioHost", "PORT" => "netioPort", "ROOT" => "netioRoot", ;
             "PASSWORD" => "netioPassword", "TIMEOUTMS" => "netioTimeout" }, ;
-        "ADMIN" => { "HOST" => "adminHost", "PORT" => "adminPort", "PASSWORD" => "adminPassword" } }
+        "ADMIN" => { "HOST" => "adminHost", "PORT" => "adminPort", "PASSWORD" => "adminPassword" }, ;
+        "HTTP" => { "ENABLED" => "httpEnabled", "HOST" => "httpHost", "PORT" => "httpPort", ;
+            "PASSWORD" => "httpPassword", "TLS" => "httpTLS", "CERTIFICATE" => "httpCertificate", ;
+            "PRIVATEKEY" => "httpPrivateKey" } }
     LOCAL hProfileKeys := { "DRIVER" => "driver", "DATABASE" => "database", ;
         "CONNECTIONSTRING" => "connectionString" }
     LOCAL hFile := {=>}, hSeenSections := {=>}, hSeenKeys := {=>}
@@ -32,7 +35,7 @@ FUNCTION hbbridgeconfigini( cContents, hDefaults, cError )
         IF Right( cLine, 1 ) == Chr( 13 )
             cLine := Left( cLine, Len( cLine ) - 1 )
         ENDIF
-        cLine := initrim( cLine )
+        cLine := INITrim( cLine )
         IF Empty( cLine ) .OR. Left( cLine, 1 ) $ ";#"
             LOOP
         ENDIF
@@ -44,7 +47,7 @@ FUNCTION hbbridgeconfigini( cContents, hDefaults, cError )
             IF Right( cLine, 1 ) != "]"
                 RETURN NIL
             ENDIF
-            cSection := initrim( SubStr( cLine, 2, Len( cLine ) - 2 ) )
+            cSection := INITrim( SubStr( cLine, 2, Len( cLine ) - 2 ) )
             IF Empty( cSection ) .OR. "[" $ cSection .OR. "]" $ cSection
                 RETURN NIL
             ENDIF
@@ -82,8 +85,8 @@ FUNCTION hbbridgeconfigini( cContents, hDefaults, cError )
         IF ! lHasSection .OR. nEqual < 2
             RETURN NIL
         ENDIF
-        cKey := Upper( initrim( Left( cLine, nEqual - 1 ) ) )
-        cValue := initrim( SubStr( cLine, nEqual + 1 ) )
+        cKey := Upper( INITrim( Left( cLine, nEqual - 1 ) ) )
+        cValue := INITrim( SubStr( cLine, nEqual + 1 ) )
         IF hb_HHasKey( hSeenKeys, cKey )
             cError := "Chave INI repetida na linha " + hb_ntos( nLine ) + "."
             RETURN NIL
@@ -102,7 +105,13 @@ FUNCTION hbbridgeconfigini( cContents, hDefaults, cError )
                 RETURN NIL
             ENDIF
             cTarget := hSections[ cSection ][ cKey ]
-            IF HB_ISNUMERIC( hDefaults[ cTarget ] )
+            IF HB_ISLOGICAL( hDefaults[ cTarget ] )
+                IF ! ( Lower( cValue ) == "true" .OR. Lower( cValue ) == "false" )
+                    cError := "INI logical values must be true or false at line " + hb_ntos( nLine ) + "."
+                    RETURN NIL
+                ENDIF
+                hFile[ cTarget ] := Lower( cValue ) == "true"
+            ELSEIF HB_ISNUMERIC( hDefaults[ cTarget ] )
                 IF Empty( cValue ) .OR. ! ( cValue == hb_ntos( Val( cValue ) ) )
                     cError := "Numero INI invalido na linha " + hb_ntos( nLine ) + "."
                     RETURN NIL
@@ -121,7 +130,7 @@ FUNCTION hbbridgeconfigini( cContents, hDefaults, cError )
 
 RETURN hFile
 
-STATIC FUNCTION initrim( cText )
+STATIC FUNCTION INITrim( cText )
     LOCAL nStart := 1, nEnd := hb_BLen( cText )
     DO WHILE nStart <= nEnd .AND. hb_BSubStr( cText, nStart, 1 ) $ " " + Chr( 9 )
         nStart++

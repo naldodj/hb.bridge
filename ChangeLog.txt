@@ -5,6 +5,58 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Add native service registry and host runtime)"
  */
 
+2026-10-06 10:27 UTC naldodj (Standardize PascalCase and embed HTTP services)
+  * AGENTS.md and AGENTS.pt-BR.md
+  * README.md and README.pt-BR.md
+  * TODO.md and TODO.pt-BR.md
+  * docs/standards.md and standards.pt-BR.md
+  * src/ and tests/
+  * scripts/commit-check.ps1
+    ! Correct the naming convention: English identifiers; lowercase files;
+      PascalCase functions, procedures, methods, namespaces and classes.
+      Keep class basenames lowercase, published U_ entries and native APIs.
+    * Apply the convention to Harbour/TLPP/C/Zig and PowerShell helpers,
+      including HBBridge.Client/HBBridge.RDD and matching C/Zig exports.
+    + Validate declarations across languages, class/file names and four-space
+      indentation; preserve compiler-required/upstream symbols and formatting.
+  + src/hb/transports/http/hbbridgehttp.prg
+  + scripts/prepare-http.ps1
+  + config/patches/hbhttpd.patch
+  * config/dependencies.json
+  * config/examples/hbbridge.ini and hbbridge.json
+  * hbbridge.hbm
+  * src/hb/host/hbbridgeconfig.prg
+  * src/hb/host/hbbridgeini.prg
+  * src/hb/host/hbbridgelifecycle.prg
+    + Embed native hbhttpd with JSON REST/RPC and authenticated web status,
+      sharing the existing Health/Echo/addon/SQL registry and executor.
+      Protheus continues resolving ERP business/context/table rules.
+    + Optional disabled HTTP listener, configurable bind/port, explicit service
+      bearer and separate admin Basic credentials; no default secrets.
+      The web panel reports hbBridge and embedded NETIO status, read-only.
+    + Resolve pinned hbhttpd/hbtcpio; -hblib is a library build mode, not a
+      contrib. Optional hbssl/OpenSSL direct TLS path requires separate acceptance.
+    ! Apply the checksum-verified upstream patch to an isolated managed copy:
+      preserve JSON request/error bodies, configure native workers, reject
+      unsupported Transfer-Encoding and ambiguous Content-Length, and observe
+      startup/stop under continuous traffic. Keep native firewall semantics;
+      configure the adapter explicitly, following the upstream application.
+    ! Count HTTP framing in bytes and scope UTF8EX to each request, restoring
+      the worker codepage. Use explicit UTF-8 JSON codecs and Harbour's native
+      validator through src/c/hbbridgeutf8.c; compare credential bytes directly.
+  + tests/integration/harbour/hbbridgehttptest.prg and hbbridgehttptest.hbp
+  + docs/http.md and http.pt-BR.md
+    + Cover real HTTP auth separation, shared services/SQL/addons, malformed
+      bodies, native equivalence, concurrency, lifecycle and startup rollback.
+    * Align bilingual setup, profiles, generic execution and current source
+      names; preserve historical acceptance counts and original source paths.
+  * tests/integration/harbour/hbbridgeisolationaddon.prg
+  * tests/integration/harbour/hbbridgeservertest.prg
+  * src/hb/addons/hbbridgeaddon.prg
+    ! Verify isolated statics with all 12 HRBs simultaneously loaded, using a
+      barrier and per-call ownership rather than assuming reload resets them.
+      Document native STATIC reuse; retain FORCELOCAL and the native loader.
+
 2026-10-04 22:12 UTC naldodj (Make execution generic and own the build toolchain)
   * src/tlpp/hbbridgeclient.tlpp
   * src/tlpp/hbbridgerpcdataset.tlpp

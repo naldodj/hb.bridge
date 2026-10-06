@@ -1,10 +1,11 @@
--main=mttests
+-Main=MTTests
 -gtstd
 -ohbbridgeservertest
 hbbridgeservertest.prg
 hbbridgenetiotest.prg
 hbbridgeframingtest.prg
 hbbridgequerytest.prg
+hbbridgehttptest.prg
 ../../unit/hbbridgeconfigtest.prg
 ../../unit/hbbridgeconfiginitest.prg
 ../../unit/hbbridgetimetest.prg

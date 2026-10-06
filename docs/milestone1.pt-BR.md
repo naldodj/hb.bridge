@@ -11,7 +11,8 @@ O catálogo não contém parâmetros ou resultados mutáveis de uma chamada.
 Compile o produto e execute a partir da raiz:
 
 ```powershell
-.\scripts\build-hbbridge.ps1 -HbCompileRoot F:\GitHub\hb_compile
+./scripts/bootstrap.ps1
+./scripts/build-hbbridge.ps1
 .\out\hbbridge.exe "-config=config/examples/hbbridge.ini"
 ```
 
@@ -110,6 +111,19 @@ O contexto é criado pelo servidor com transporte, diretório de addons,
 estado do host e permissões do canal. Campos de usuário/empresa recebidos nos
 parâmetros não concedem permissões. A separação dados/admin é implementada;
 autenticação e autorização por usuário/tenant continuam no roadmap.
+
+### Estado HRB e propriedade do addon
+
+ADDON.Execute carrega cada HRB com `HB_HRB_BIND_FORCELOCAL`, executa-o e
+descarrega seu handle. Isso separa símbolos e frames STATIC de HRBs
+carregados simultaneamente. **Não garante STATIC novo em cada chamada
+posterior:** o Harbour pode reciclar um frame STATIC inicializado após
+`hb_hrbUnload` ao carregar novamente o mesmo módulo. Addons precisam
+inicializar estado por execução explicitamente, usando parâmetros ou
+variáveis locais; o contexto de negócio não depende de supor um reset.
+Um handle HRB não deve ser compartilhado por chamadas concorrentes
+independentes. Evidência de propriedade nativa e a contraprova com handle
+compartilhado estão em [homologação](acceptance.pt-BR.md).
 
 ## Cliente Harbour
 

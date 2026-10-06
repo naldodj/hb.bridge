@@ -1,0 +1,5 @@
+-main=HTTPTestMain
+-gtstd
+-ohbbridgehttptest
+hbbridgehttptest.prg
+../../../hbbridge.hbm

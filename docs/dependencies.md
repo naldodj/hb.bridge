@@ -30,6 +30,7 @@ local edits are preserved. Existing developer checkouts are untouched.
 | `.deps/tools/zig/` | Pinned Zig archive/executable, SHA256 verified. |
 | `.deps/hb_compile/out/zig/` | Windows Harbour tools, includes and libraries. |
 | `.deps/hb_compile/out/linux/` | Linux native Harbour installation. |
+| `.deps/http/` | Isolated hbhttpd/hbtcpio preparation and checked patch/build receipt. |
 | `.hbcommit/` | Maintenance sources; uses the same compiled `hbrun`. |
 | `out/` | Product executable; `tmp/` holds isolated builds and logs. |
 
@@ -49,6 +50,27 @@ runner with project-owned source/install paths and a contrib whitelist:
 NETIO, ZIP, SQLite, SQLRDD/SQLMIX and ODBC. Zig is obtained from the official
 distribution using the manifest checksum. Unrelated GUI libraries and private
 HBDAP repositories are not implicit build requirements.
+
+HTTP adds native **hbhttpd** and **hbtcpio**. The bootstrap invokes
+[prepare-http.ps1](../scripts/prepare-http.ps1) to build those contribs from
+an isolated source copy. The manifest pins the checksum of
+[hbhttpd.patch](../config/patches/hbhttpd.patch): raw request-body exposure,
+configurable workers, listener readiness/coordinated stop and rejection
+of unsupported Transfer-Encoding and duplicate/nondecimal Content-Length,
+plus preservation of structured handler error bodies and byte-oriented
+HTTP framing/Content-Length. The
+pinned Harbour checkout remains intact. `-hblib` is hbmk2's library build
+mode, rather than a separate contrib dependency.
+[Git attributes](../.gitattributes) force LF for `config/patches/*.patch`,
+keeping manifest checksums stable across Windows/Linux clones.
+
+Plain HTTP requires no OpenSSL SDK. Direct HTTPS is an optional build with
+`HB_HTTP_TLS=1`, **hbssl**, the target OpenSSL SDK/runtime and
+`HB_WITH_OPENSSL` selecting its include directory. A TLS-enabled configuration
+requires the linked library, certificate and private key; availability of the
+Harbour source alone is insufficient. HTTPS and Linux acceptance remain
+separate. See [HTTP configuration/routes](http.md).
+Leave HB_HTTP_TLS unset for the default HTTP build; other nonempty values fail.
 
 The pinned native PowerShell hb_compile runner targets Windows. On Linux,
 hbBridge invokes its Harbour compatibility preparer and builds the same pinned

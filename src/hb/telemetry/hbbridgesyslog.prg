@@ -15,7 +15,7 @@ thread STATIC s_cSyslogHost := "127.0.0.1"
 thread STATIC s_nSyslogPort := 514
 thread STATIC s_hSyslogMutex := hb_mutexCreate()
 
-FUNCTION syslogopen( cHost, nPort , nHBBridgePort )
+FUNCTION SyslogOpen( cHost, nPort , nHBBridgePort )
     LOCAL hSocket, lResult := .F.
 
     IF hb_mutexLock( s_hSyslogMutex )
@@ -28,7 +28,7 @@ FUNCTION syslogopen( cHost, nPort , nHBBridgePort )
                 s_cSyslogHost := iif( Empty( cHost ), s_cSyslogHost, cHost )
                 s_nSyslogPort := iif( Empty( nPort ), s_nSyslogPort, nPort )
                 s_hSyslogSocket := hSocket
-                syslogsendlocked( "hbBridge iniciado na porta "+hb_NTOS(nHBBridgePort), 6 )
+                SyslogSendLocked( "hbBridge iniciado na porta "+hb_NTOS(nHBBridgePort), 6 )
                 lResult := .T.
             ENDIF
         ALWAYS
@@ -37,12 +37,12 @@ FUNCTION syslogopen( cHost, nPort , nHBBridgePort )
     ENDIF
 RETURN lResult
 
-FUNCTION syslogwrite( cMessage, nSeverity )
+FUNCTION SyslogWrite( cMessage, nSeverity )
     LOCAL lResult := .F.
 
     IF hb_mutexLock( s_hSyslogMutex )
         BEGIN SEQUENCE
-            lResult := syslogsendlocked( cMessage, nSeverity )
+            lResult := SyslogSendLocked( cMessage, nSeverity )
         ALWAYS
             hb_mutexUnlock( s_hSyslogMutex )
         END SEQUENCE
@@ -50,7 +50,7 @@ FUNCTION syslogwrite( cMessage, nSeverity )
 RETURN lResult
 
 // Called only while holding s_hSyslogMutex, including the opening message.
-STATIC FUNCTION syslogsendlocked( cMessage, nSeverity )
+STATIC FUNCTION SyslogSendLocked( cMessage, nSeverity )
     LOCAL cPacket, aAddress
 
     IF Empty( s_hSyslogSocket )
@@ -62,7 +62,7 @@ STATIC FUNCTION syslogsendlocked( cMessage, nSeverity )
     aAddress := { HB_SOCKET_AF_INET, s_cSyslogHost, s_nSyslogPort }
     RETURN hb_socketSendTo( s_hSyslogSocket, cPacket, NIL, NIL, aAddress ) >= 0
 
-FUNCTION syslogclose()
+FUNCTION SyslogClose()
     LOCAL lResult := .T.
 
     IF hb_mutexLock( s_hSyslogMutex )

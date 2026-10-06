@@ -10,35 +10,35 @@ Released to Public Domain.
 */
 
 /* JSON representation of the shared service contract for Protheus. */
-FUNCTION dispatcherrequest( cJsonStr, hRegistry, hContext )
+FUNCTION DispatcherRequest( cJsonStr, hRegistry, hContext )
 
     LOCAL hRequest, cService, xParams := NIL, nVersion := 1, nConsumed
 
     nConsumed := hb_jsonDecode( cJsonStr, @hRequest )
-    IF nConsumed == 0 .OR. ! Empty( AllTrim( SubStr( cJsonStr, nConsumed + 1 ) ) ) .OR. ;
+    IF nConsumed == 0 .OR. ! Empty( AllTrim( hb_BSubStr( cJsonStr, nConsumed + 1 ) ) ) .OR. ;
         ! HB_ISHASH( hRequest )
-        RETURN hb_jsonEncode( hbbridgeerror( "INVALID_JSON", "Payload JSON invalido" ) )
+        RETURN hb_jsonEncode( HBBridgeError( "INVALID_JSON", "Payload JSON invalido" ) )
     ENDIF
     IF ! hb_HHasKey( hRequest, "service" )
-        RETURN hb_jsonEncode( hbbridgeerror( "INVALID_JSON", "Payload JSON invalido" ) )
+        RETURN hb_jsonEncode( HBBridgeError( "INVALID_JSON", "Payload JSON invalido" ) )
     ENDIF
     cService := hRequest[ "service" ]
     IF ! HB_ISSTRING( cService )
-        RETURN hb_jsonEncode( hbbridgeerror( "INVALID_SERVICE", "Servico invalido" ) )
+        RETURN hb_jsonEncode( HBBridgeError( "INVALID_SERVICE", "Servico invalido" ) )
     ENDIF
     IF hb_HHasKey( hRequest, "params" )
         xParams := hRequest[ "params" ]
     ELSEIF cService == "Echo" .OR. cService == "ADDON.Execute"
-        RETURN hb_jsonEncode( hbbridgeerror( "INVALID_PARAMS", "Parametros ausentes" ) )
+        RETURN hb_jsonEncode( HBBridgeError( "INVALID_PARAMS", "Parametros ausentes" ) )
     ENDIF
     IF hb_HHasKey( hRequest, "version" )
         nVersion := hRequest[ "version" ]
     ENDIF
     IF hRegistry == NIL
-        hRegistry := hbbridgebuiltinregistry()
+        hRegistry := HBBridgeBuiltinRegistry()
     ENDIF
     IF hContext == NIL
-        hContext := hbbridgecontext( "protheus" )
+        hContext := HBBridgeContext( "protheus" )
     ENDIF
 
-RETURN hb_jsonEncode( hbbridgedispatch( hRegistry, cService, xParams, hContext, nVersion ) )
+RETURN hb_jsonEncode( HBBridgeDispatch( hRegistry, cService, xParams, hContext, nVersion ) )

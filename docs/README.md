@@ -13,11 +13,12 @@ the intended architecture; [TODO](../TODO.md) tracks delivery and acceptance.
 | [Milestone 2](milestone2-framing.md) | HBBRIDGE/1, incremental server gzip, complete TLPP reads and runtime capacities. |
 | [Milestone 3](milestone3-sql.md) | SQLMIX, SQLite/MSSQL profiles, named dataset and database-side pages. |
 | [Configuration](configuration.md) | Server INI/JSON/CLI, AppServer client section and sanitized metadata. |
+| [HTTP and web administration](http.md) | Native hbhttpd, shared HTTP/JSON services, authenticated status panel and optional TLS. |
 | [Acceptance](acceptance.md) | Operator/environment evidence, historical builds and pending scenarios. |
 | [VF IO/TRPC](harbour-vfio-trpc.md) | Native file API and selective upstream design reuse. |
 | [Transports/sessions/security](transports-sessions-security.md) | Persistence/context, TLS/JWT, gRPC restrictions and optional AMQP. |
 | [Reorganization](reorganization.md) | Source responsibility map and before/after evidence. |
-| [Standards](standards.md) | Four spaces, lowercase filenames/methods, PascalCase classes, maps and commit gates. |
+| [Standards](standards.md) | Four spaces, lowercase filenames, PascalCase functions/methods/namespaces/classes, maps and commit gates. |
 | [Dependencies](dependencies.md) | Managed hb_compile/Harbour/toolchain bootstrap. |
 | [Credentials](credentials.md) | Portable Windows/Linux credential architecture; implementation pending. |
 | [Licensing](licensing.md) | Proposed original-code license and unresolved provenance. |
@@ -53,8 +54,8 @@ Payload/wire defaults zero; read buffer 65,536; server phase budget 30 seconds,
 zero disables its deadline. Runtime socket/zlib/string capacities remain.
 The read buffer is not the total message limit.
 
-Server deadlines/uptime use `hbbridgemonotonicms()`; TLPP uses static
-`hbbridge.client.HBBridgeTime` and normalized `TimeCounter()`.
+Server deadlines/uptime use `HBBridgeMonotonicMs()`; TLPP uses static
+`HBBridge.Client.HBBridgeTime` and normalized `TimeCounter()`.
 [Issue #12](https://github.com/naldodj/totvs-protheus-open-issues/issues/12)
 reproduces Unix seconds versus Windows milliseconds.
 The operator confirmed Windows raw 1097.692700 / normalized 1097.773500 ms

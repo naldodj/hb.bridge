@@ -11,7 +11,7 @@ parâmetros. Autorização genérica pode validar contexto explícito, sem infer
 regras ERP. Veja [arquitetura](docs/architecture.pt-BR.md).
 
 SQLProfile é opcional e agora tem padrão vazio na biblioteca e no template.
-sqlite_demo pertence apenas ao exemplo SQLite. Cada opensql/openpage escolhe
+sqlite_demo pertence apenas ao exemplo SQLite. Cada `OpenSQL`/`OpenPage` escolhe
 um alias, como mssql/pData; barra e maiúsculas são preservadas sem dedução de
 driver, empresa ou filial. O teste sem alias/SQLProfile retorna PROFILE_REQUIRED
 antes da rede. Drivers atuais: sqlite e mssql; Oracle exige conector e aceite
@@ -42,6 +42,11 @@ registra os fundamentos, o estado do produto e o desenho pretendido.
   contrato interoperável adaptado às capacidades do Protheus.
 - **Extensibilidade:** serviços versionados e descobertos em um registro comum,
   independentes de transporte, codec e linguagem de implementação.
+- **HTTP e web:** usar `hbhttpd` e suas dependências para HTTP/REST e
+  administração web de hbBridge/NETIO, compartilhando o mesmo núcleo.
+- **Nomes e fontes:** identificadores em inglês, arquivos em minúsculas;
+  funções, procedures, métodos, namespaces e classes em PascalCase. O arquivo
+  usa o nome da classe em minúsculas; fontes próprios usam quatro espaços.
 - **Arquivos:** Harbour VF IO API (`hb_vf*`) como base comum para provedores
   locais/remotos; clientes TLPP usam uma fachada de serviços com recursos por sessão.
 - **Implementação única:** componentes reutilizáveis em `src/`, launcher de
@@ -351,7 +356,7 @@ continuam pendentes.
 - [x] Usar relógio monotônico nos prazos e no uptime Harbour, substituindo
   `hb_MilliSeconds()`, que depende de hora civil UTC.
 - [x] Adaptar `dna.tech.StopWatch.__GetCurrentTimeStamp()` nos métodos estáticos
-  de `hbbridge.client.HBBridgeTime`, em `src/tlpp/hbbridgetime.tlpp`, e preparar teste
+  de `HBBridge.Client.HBBridgeTime`, em `src/tlpp/hbbridgetime.tlpp`, e preparar teste
   de escala/espera e aritmética do prazo no AppServer.
 - [x] Organizar utilitários TLPP compartilhados em classes com namespace,
   usando métodos estáticos; preservar a entrada `U_HBBridgeConnectionTest`
@@ -409,7 +414,8 @@ continuam pendentes.
 - [ ] Reconectar com backoff e jitter; separar reconexão de reenvio, tratando
   resultado desconhecido, idempotência e prazo total da chamada.
 - [ ] Definir contexto imutável por chamada: correlação, identidade verificada,
-  empresa/filial autorizadas e prazo. Metadados do cliente não concedem acesso.
+  contexto opaco explícito autorizado e prazo. Protheus resolve empresa/filial
+  e regras ERP; metadados do cliente não concedem acesso.
 - [ ] Garantir limpeza em sucesso/erro/cancelamento: áreas de trabalho, opções
   SET, transações e buffers; testar STATIC/PUBLIC/PRIVATE e drivers sob concorrência.
 - [ ] Manter registro de recursos por sessão/usuário/tenant com TTL, proprietário,
@@ -585,7 +591,8 @@ novas extensões entram conforme a necessidade e os resultados medidos.
 - [ ] Definir metadados de módulos, dependências, tipos, permissões e erros;
   permitir consumo pelos dois perfis de cliente.
 - [ ] Configurar diretórios permitidos e canonicalização, publicação e política
-  de confiança; preservar isolamento de símbolos e estáticos já implementado.
+  de confiança; preservar isolamento de símbolos/estáticos entre HRBs ativos
+  simultaneamente. Recarga nativa pode conservar valores STATIC.
 - [ ] Definir cache, descarregamento e atualização sem invalidar chamadas ativas;
   avaliar isolamento por processo quando exigido pelo módulo.
 - [ ] Documentar separadamente Zig como toolchain e como linguagem das extensões.
@@ -612,6 +619,32 @@ por Protheus e Harbour, com contrato versionado, buffers/erros testados e
 disponibilidade consultável, sem alterar os transportes para cada extensão.
 
 ## Marco 5 — serviço, administração e operação
+
+### HTTP/REST e administração web
+
+- [x] Adaptador opcional `hbhttpd` chama os mesmos serviços registrados que
+  NETIO e Protheus. Credenciais HTTP e permissões administrativas separadas;
+  desativado por padrão, bind/porta configuráveis, sem senha padrão.
+- [x] Patch gerenciado sobre revisão fixada do `hbhttpd` expõe o corpo JSON
+  e torna configurável a quantidade de workers nativos. Usar `hbtcpio`;
+  `-hblib` é o modo de gerar biblioteca, não uma dependência separada.
+- [x] GET de saúde/catálogo, POST JSON de serviços e status web autenticado,
+  somente leitura, para hbBridge e seus endpoints NETIO incorporados.
+- [ ] Validar inicialização/rollback HTTP, separação de autenticação, JSON/SQL/
+  addons, chamadas concorrentes, parada/reinício e regressões TCP/NETIO.
+- [ ] HTTPS direto com `hbssl`/OpenSSL: resolução reproduzível de SDK/runtime,
+  certificados/nome/cadeia/renovação e política TLS em Windows/Linux.
+  HTTP atrás de proxy TLS é configuração de implantação distinta.
+- [ ] Ampliar verbos/rotas REST, contrato OpenAPI, negociação de conteúdo/
+  compressão e interoperabilidade; serviços genéricos recebem contexto explícito.
+- [ ] Políticas HTTP configuráveis de admissão para fila de sockets aceitos,
+  recursos de cabeçalho/corpo e prazos. Workers não limitam a fila; o parser
+  nativo lê o corpo antes da autenticação do adaptador.
+- [ ] Ampliar a administração web além do status: sessões/recursos NETIO,
+  métricas, gestão de configuração/credenciais e ações privilegiadas com
+  autorização/auditoria, reutilizando o núcleo operacional no mesmo processo.
+
+### Serviço, segurança e implantação
 
 Configuração e acesso orientam os marcos anteriores. Esta etapa reúne a
 homologação operacional do conjunto.

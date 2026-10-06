@@ -1,12 +1,12 @@
 /* Released to Public Domain. */
 #include "tlpp-core.th"
 
-namespace hbbridge.client
+namespace HBBridge.Client
 
 class HBBridgeTime
 
-    static method hbbridgetimems() as numeric
-    static method hbbridgeremainingms(nStarted as numeric, nTimeout as numeric, ;
+    static method HBBridgeTimeMs() as numeric
+    static method HBBridgeRemainingMs(nStarted as numeric, nTimeout as numeric, ;
         nCurrent as numeric, nPrevious as numeric) as numeric
 
 endclass
@@ -15,7 +15,7 @@ endclass
 // Reported units: Windows milliseconds; Linux fractional seconds.
 // https://github.com/naldodj/totvs-protheus-open-issues/issues/12
 // ClockWorks checks whether the target build still requires this normalization.
-static method hbbridgetimems() class HBBridgeTime
+static method HBBridgeTimeMs() class HBBridgeTime
 
     local nCounter := TimeCounter() as numeric
 
@@ -25,7 +25,7 @@ static method hbbridgetimems() class HBBridgeTime
 
 return(nCounter)
 
-static method hbbridgeremainingms(nStarted, nTimeout, nCurrent, nPrevious) class HBBridgeTime
+static method HBBridgeRemainingMs(nStarted, nTimeout, nCurrent, nPrevious) class HBBridgeTime
 
     local nElapsed := nCurrent - nStarted as numeric
 

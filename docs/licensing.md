@@ -27,6 +27,7 @@ a hybrid "Harbour + Zig" legal text.
 | Zig | MIT; bundled third-party toolchain components retain their own notices. |
 | Vendored zlib headers | Existing zlib license/copyright preserved. |
 | `.hbcommit` check/commit/third-party patch tools | Upstream GPL notices preserved; maintain separate provenance and terms. |
+| Managed hbhttpd/hbtcpio and optional hbssl/OpenSSL | Preserve original notices and record exact linked versions; project patches do not relicense upstream source. |
 
 The Harbour exception means linking its libraries alone does not impose GPL
 on the application. It does not permit relicensing copied GPL utility code or
@@ -76,5 +77,6 @@ and previously granted permissions.
 
 The binary package must also account for Harbour runtime, SQL/NETIO contribs,
 SQLite, zlib and actual toolchain-incorporated components. Source review alone
-does not certify the complete binary package.
+must also identify the patched HTTP libraries and optional OpenSSL package.
+It does not certify the complete binary package.
 [TODO](../TODO.md) tracks licensing and provenance as pending.

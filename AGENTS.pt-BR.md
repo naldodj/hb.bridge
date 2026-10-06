@@ -4,8 +4,8 @@
 
 - Use quatro espaços por nível de indentação nos fontes próprios. Preserve a
   formatação, os avisos de copyright e as licenças dos arquivos de terceiros.
-- Use identificadores em inglês e arquivos, funções, procedures, métodos e
-  namespaces em minúsculas. Classes usam PascalCase, conforme esclarecimento
+- Use identificadores em inglês. Arquivos em minúsculas. Funções, procedures,
+  métodos, namespaces e classes usam PascalCase, conforme esclarecimento
   explícito do responsável. O arquivo usa o nome da classe em minúsculas:
   `HBBridgeClient` fica em `hbbridgeclient.tlpp`.
 - Use a mesma convenção de módulos em Harbour, TLPP, C e Zig; a extensão
@@ -27,6 +27,9 @@
   `xFilial` e nomes físicos; serviços/addons recebem entradas explícitas.
   Aliases SQL são chaves opacas, sem dedução de contexto ERP. A biblioteca TLPP
   não pode impor perfil de banco demonstrativo.
+- Reutilize o `hbhttpd` nativo para HTTP/REST e administração web pelo núcleo
+  comum de serviços. Explicite dependências e capacidades habilitadas;
+  `-hblib` é modo de compilação, não uma contrib Harbour separada.
 - O pré-processador transforma `User Function Name` em `U_Name`. Não é
   necessário converter declarações existentes `procedure U_Name`.
 - Resolva dependências por `scripts/bootstrap.ps1` e `config/dependencies.json`.

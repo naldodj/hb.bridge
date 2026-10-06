@@ -1,5 +1,5 @@
 /* Released to Public Domain. */
-PROCEDURE m1iniconfigtests( nFailures, nChecks )
+PROCEDURE M1INIConfigTests( nFailures, nChecks )
 
     LOCAL cError, hINI, hJSON, hInfo, cIni, cBad, cCase
     LOCAL cAutoFile := hb_FNameDir( hb_ProgName() ) + "hbbridge.ini"
@@ -20,32 +20,32 @@ PROCEDURE m1iniconfigtests( nFailures, nChecks )
         '"protheusReadChunkBytes":8192,"protheusTimeoutMs":0,"netioRoot":"files",' + ;
         '"netioPassword":"test;#=secret","netioTimeout":0,"adminPassword":"",' + ;
         '"sqlProfiles":{"SqliteDemo":{"driver":"sqlite","database":"sample.sqlite3"}}}' )
-    hINI := hbbridgeconfig( { "-config=config-test/host.ini" }, @cError )
-    hJSON := hbbridgeconfig( { "-config=config-test/equivalent.json" } )
-    m1assert( hINI != NIL .AND. hJSON != NIL .AND. ;
+    hINI := HBBridgeConfig( { "-config=config-test/host.ini" }, @cError )
+    hJSON := HBBridgeConfig( { "-config=config-test/equivalent.json" } )
+    M1Assert( hINI != NIL .AND. hJSON != NIL .AND. ;
         hb_jsonEncode( hINI ) == hb_jsonEncode( hJSON ), ;
         "INI and JSON normalize to the same typed configuration: " + cError, @nFailures, @nChecks )
-    m1assert( hINI[ "netioPassword" ] == "test;#=secret" .AND. Empty( hINI[ "adminPassword" ] ) .AND. ;
+    M1Assert( hINI[ "netioPassword" ] == "test;#=secret" .AND. Empty( hINI[ "adminPassword" ] ) .AND. ;
         hINI[ "sqlProfiles" ][ "SqliteDemo" ][ "database" ] == ;
-        hbbridgeabsolutepath( "config-test/sample.sqlite3", hb_cwd() ), ;
+        HBBridgeAbsolutePath( "config-test/sample.sqlite3", hb_cwd() ), ;
         "INI preserves password punctuation, empty admin and relative SQLite paths", @nFailures, @nChecks )
-    hINI := hbbridgeconfig( { "-port=1701", "-maxworkers=4", "-config=config-test/host.ini" }, @cError )
-    m1assert( hINI != NIL .AND. hINI[ "protheusPort" ] == 1701 .AND. hINI[ "maxWorkers" ] == 4, ;
+    hINI := HBBridgeConfig( { "-port=1701", "-maxworkers=4", "-config=config-test/host.ini" }, @cError )
+    M1Assert( hINI != NIL .AND. hINI[ "protheusPort" ] == 1701 .AND. hINI[ "maxWorkers" ] == 4, ;
         "CLI overrides INI regardless of argument order", @nFailures, @nChecks )
-    hINI := hbbridgeconfig( { "--config-info", "-config=config-test/host.ini", "-netioroot=cli-ini" } )
-    m1assert( hINI != NIL .AND. hINI[ "netioRoot" ] == hbbridgeabsolutepath( "cli-ini", hb_cwd() ), ;
+    hINI := HBBridgeConfig( { "--config-info", "-config=config-test/host.ini", "-netioroot=cli-ini" } )
+    M1Assert( hINI != NIL .AND. hINI[ "netioRoot" ] == HBBridgeAbsolutePath( "cli-ini", hb_cwd() ), ;
         "INI CLI paths remain relative to working directory", @nFailures, @nChecks )
     hb_MemoWrit( "config-test/mssql.INI", Chr( 239 ) + Chr( 187 ) + Chr( 191 ) + ;
         "; comment" + Chr( 13 ) + Chr( 10 ) + "# comment" + Chr( 13 ) + Chr( 10 ) + ;
         "[sql/MssqlDemo]" + Chr( 13 ) + Chr( 10 ) + Chr( 9 ) + "driver = MSSQL" + Chr( 9 ) + ;
         Chr( 13 ) + Chr( 10 ) + "ConnectionString = DSN=fixture;UID=include user;PWD=a#b;c=d;" )
-    hINI := hbbridgeconfig( { "-config=config-test/mssql.INI" }, @cError )
-    m1assert( hINI != NIL .AND. hINI[ "sqlProfiles" ][ "MssqlDemo" ][ "driver" ] == "mssql" .AND. ;
+    hINI := HBBridgeConfig( { "-config=config-test/mssql.INI" }, @cError )
+    M1Assert( hINI != NIL .AND. hINI[ "sqlProfiles" ][ "MssqlDemo" ][ "driver" ] == "mssql" .AND. ;
         hINI[ "sqlProfiles" ][ "MssqlDemo" ][ "connectionString" ] == ;
         "DSN=fixture;UID=include user;PWD=a#b;c=d;", ;
         "INI handles BOM/CRLF/tabs/case while preserving complete ODBC values", @nFailures, @nChecks )
-    hInfo := hbbridgeconfiginfo( hINI )
-    m1assert( hInfo[ "configVersion" ] == 1 .AND. hInfo[ "sqlProfiles" ][ "MssqlDemo" ][ "driver" ] == "mssql" .AND. ;
+    hInfo := HBBridgeConfigInfo( hINI )
+    M1Assert( hInfo[ "configVersion" ] == 1 .AND. hInfo[ "sqlProfiles" ][ "MssqlDemo" ][ "driver" ] == "mssql" .AND. ;
         ! ( "DSN=" $ hb_jsonEncode( hInfo ) ) .AND. ! ( "PWD=" $ hb_jsonEncode( hInfo ) ) .AND. ;
         Len( hInfo[ "sqlProfiles" ][ "MssqlDemo" ] ) == 1, ;
         "config-info metadata omits passwords, DSN and storage paths", @nFailures, @nChecks )
@@ -54,13 +54,13 @@ PROCEDURE m1iniconfigtests( nFailures, nChecks )
         "[SQL/sqlite_demo]" + hb_eol() + "Driver=sqlite" + hb_eol() + "Database=:memory:" + hb_eol() + ;
         "[SQL/mssql/pData]" + hb_eol() + "Driver=mssql" + hb_eol() + ;
         "ConnectionString=DSN=pData;Trusted_Connection=Yes;" + hb_eol() )
-    hINI := hbbridgeconfig( { "-config=config-test/multiple.ini" }, @cError )
-    m1assert( hINI != NIL .AND. Len( hINI[ "sqlProfiles" ] ) == 2 .AND. ;
+    hINI := HBBridgeConfig( { "-config=config-test/multiple.ini" }, @cError )
+    M1Assert( hINI != NIL .AND. Len( hINI[ "sqlProfiles" ] ) == 2 .AND. ;
         hb_HHasKey( hINI[ "sqlProfiles" ], "mssql/pData" ) .AND. ;
         ! hb_HHasKey( hINI[ "sqlProfiles" ], "mssql/pdata" ), ;
         "multiple INI profiles preserve slash and case in opaque aliases", @nFailures, @nChecks )
-    hInfo := hbbridgeconfiginfo( hINI )
-    m1assert( Len( hInfo[ "sqlProfiles" ] ) == 2 .AND. ;
+    hInfo := HBBridgeConfigInfo( hINI )
+    M1Assert( Len( hInfo[ "sqlProfiles" ] ) == 2 .AND. ;
         hInfo[ "sqlProfiles" ][ "mssql/pData" ][ "driver" ] == "mssql" .AND. ;
         ! ( "DSN=" $ hb_jsonEncode( hInfo ) ), ;
         "multiple profile metadata remains sanitized", @nFailures, @nChecks )
@@ -80,10 +80,10 @@ PROCEDURE m1iniconfigtests( nFailures, nChecks )
         "inlineComment" => "[Protheus]" + hb_eol() + "Port=1512 # comment" }
         cCase := cBad:__enumKey()
         hb_MemoWrit( "config-test/bad.ini", cBad )
-        hINI := hbbridgeconfig( { "-config=config-test/bad.ini" }, @cError )
-        m1assert( hINI == NIL .AND. ! Empty( cError ), "INI rejects " + cCase, @nFailures, @nChecks )
+        hINI := HBBridgeConfig( { "-config=config-test/bad.ini" }, @cError )
+        M1Assert( hINI == NIL .AND. ! Empty( cError ), "INI rejects " + cCase, @nFailures, @nChecks )
     NEXT
-    m1assert( hbbridgeconfig( { "-config=F:relative.ini" }, @cError ) == NIL .AND. ! Empty( cError ), ;
+    M1Assert( HBBridgeConfig( { "-config=F:relative.ini" }, @cError ) == NIL .AND. ! Empty( cError ), ;
         "invalid explicit config path cannot fall back to automatic INI", @nFailures, @nChecks )
 
     /* The runner's executable directory is isolated. Restore any prior file. */
@@ -92,11 +92,11 @@ PROCEDURE m1iniconfigtests( nFailures, nChecks )
     ENDIF
     BEGIN SEQUENCE WITH {| oError | Break( oError ) }
         hb_MemoWrit( cAutoFile, "[General]" + hb_eol() + "MaxWorkers=7" )
-        hINI := hbbridgeconfig( {} )
-        m1assert( hINI != NIL .AND. hINI[ "maxWorkers" ] == 7, ;
+        hINI := HBBridgeConfig( {} )
+        M1Assert( hINI != NIL .AND. hINI[ "maxWorkers" ] == 7, ;
             "default hbbridge.ini is loaded from the executable directory", @nFailures, @nChecks )
-        hINI := hbbridgeconfig( { "-config=config-test/equivalent.json" } )
-        m1assert( hINI != NIL .AND. hINI[ "maxWorkers" ] == 3, ;
+        hINI := HBBridgeConfig( { "-config=config-test/equivalent.json" } )
+        M1Assert( hINI != NIL .AND. hINI[ "maxWorkers" ] == 3, ;
             "explicit JSON replaces automatic INI instead of merging two files", @nFailures, @nChecks )
     ALWAYS
         IF cPrevious == NIL

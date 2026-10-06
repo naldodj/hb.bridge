@@ -30,6 +30,7 @@ existentes do desenvolvedor permanecem intactos.
 | `.deps/tools/zig/` | Zig fixado, arquivo e executável, com SHA256 verificado. |
 | `.deps/hb_compile/out/zig/` | Ferramentas, includes e bibliotecas Harbour Windows. |
 | `.deps/hb_compile/out/linux/` | Instalação Harbour nativa Linux. |
+| `.deps/http/` | Preparo isolado hbhttpd/hbtcpio e registro de patch/build verificados. |
 | `.hbcommit/` | Fontes de manutenção; usam o mesmo `hbrun` compilado. |
 | `out/` | Executável do produto; `tmp/` guarda builds isolados e logs. |
 
@@ -49,6 +50,27 @@ com caminhos próprios de fonte/instalação e seleção de contribs: NETIO, ZIP
 SQLite, SQLRDD/SQLMIX e ODBC. Zig vem da distribuição oficial com checksum.
 Bibliotecas GUI não relacionadas e repositórios privados HBDAP não são
 dependências implícitas.
+
+HTTP acrescenta **hbhttpd** e **hbtcpio** nativos. O bootstrap chama
+[prepare-http.ps1](../scripts/prepare-http.ps1) para compilar essas contribs
+de uma cópia isolada. O manifesto fixa o checksum de
+[hbhttpd.patch](../config/patches/hbhttpd.patch): acesso ao corpo bruto,
+workers configuráveis, prontidão/parada coordenada do listener e rejeição
+de Transfer-Encoding não suportado e Content-Length duplicado/não decimal,
+além da preservação dos corpos de erro estruturados dos handlers e
+enquadramento/Content-Length HTTP por bytes. O
+checkout Harbour fixado permanece íntegro. `-hblib` é o modo de compilação
+de biblioteca do hbmk2, não uma dependência contrib separada.
+Os [atributos Git](../.gitattributes) impõem LF em `config/patches/*.patch`,
+mantendo checksums do manifesto iguais em clones Windows/Linux.
+
+HTTP aberto não exige SDK OpenSSL. HTTPS direto é um build opcional com
+`HB_HTTP_TLS=1`, **hbssl**, SDK/runtime OpenSSL da arquitetura e
+`HB_WITH_OPENSSL` indicando seu diretório de include. A configuração TLS
+exige a biblioteca vinculada, certificado e chave privada; somente dispor
+dos fontes Harbour não basta. HTTPS e Linux precisam de aceite próprio.
+Veja [configuração/rotas HTTP](http.pt-BR.md).
+Deixe HB_HTTP_TLS ausente no build HTTP padrão; outros valores não vazios falham.
 
 O runner PowerShell nativo do hb_compile fixado atende Windows. No Linux,
 hbBridge chama sua preparação de compatibilidade e compila os mesmos fontes

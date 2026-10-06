@@ -6,8 +6,8 @@
 
 procedure U_HBBridgeConnectionTest(cHost, nPort, nTimeout, nLargePayloadBytes)
 
-    local jParams := JSONObject():new() as json
-    local jProbe := JSONObject():new() as json
+    local jParams := JSONObject():New() as json
+    local jProbe := JSONObject():New() as json
 
     local jAddonParams as json
     local jResponse as json
@@ -31,7 +31,7 @@ procedure U_HBBridgeConnectionTest(cHost, nPort, nTimeout, nLargePayloadBytes)
         return
     endif
 
-    if !clockworks()
+    if !ClockWorks()
         ConOut("hbBridge clock FAILED: validate TimeCounter units on this AppServer before testing RPC.")
         FreeObj(@jProbe)
         FreeObj(@jParams)
@@ -44,10 +44,10 @@ procedure U_HBBridgeConnectionTest(cHost, nPort, nTimeout, nLargePayloadBytes)
     jParams["message"] := "Primeira integracao RPC"
     jParams["largePayload"] := Replicate("X", 200000)
 
-    oClient := hbbridge.client.HBBridgeClient():new(cHost, nPort, nTimeout)
-    jResponse := oClient:callservice("Health", jParams)
+    oClient := HBBridge.Client.HBBridgeClient():New(cHost, nPort, nTimeout)
+    jResponse := oClient:CallService("Health", jParams)
 
-    if !responsesucceeded(jResponse)
+    if !ResponseSucceeded(jResponse)
         ConOut("hbBridge Health falhou: " + Left(jResponse:ToJSON(), 1024))
         lOk := .F.
     else
@@ -56,12 +56,12 @@ procedure U_HBBridgeConnectionTest(cHost, nPort, nTimeout, nLargePayloadBytes)
     FreeObj(@jResponse)
 
     if (__IS_THE_ADDONS_EXECUTION_ENABLED__)
-        jAddonParams := JSONObject():new()
+        jAddonParams := JSONObject():New()
         jAddonParams["module"] := "examples\hbbridgesampleaddon.prg"
         jAddonParams["params"] := jParams
-        jResponse := oClient:callservice("ADDON.Execute", jAddonParams)
+        jResponse := oClient:CallService("ADDON.Execute", jAddonParams)
         FreeObj(@jAddonParams)
-        if !responsesucceeded(jResponse)
+        if !ResponseSucceeded(jResponse)
             ConOut("hbBridge ADDON.Execute falhou: " + Left(jResponse:ToJSON(), 1024))
             lOk := .F.
         else
@@ -70,8 +70,8 @@ procedure U_HBBridgeConnectionTest(cHost, nPort, nTimeout, nLargePayloadBytes)
         FreeObj(@jResponse)
     endif
 
-    jResponse := oClient:callservice("Echo", jParams)
-    if !echomatches(jResponse, jParams)
+    jResponse := oClient:CallService("Echo", jParams)
+    if !EchoMatches(jResponse, jParams)
         ConOut("hbBridge Echo falhou na comparacao exata: " + Left(jResponse:ToJSON(), 1024))
         lOk := .F.
     else
@@ -81,7 +81,7 @@ procedure U_HBBridgeConnectionTest(cHost, nPort, nTimeout, nLargePayloadBytes)
 
     // Repeated X compresses very well and does not exercise a split gzip.
     jParams["message"] := "Echo with multiple TCP receives"
-    jParams["largePayload"] := randomascii(200000)
+    jParams["largePayload"] := RandomASCII(200000)
     jProbe["service"] := "Echo"
     jProbe["params"] := jParams
     cProbe := jProbe:ToJSON()
@@ -95,8 +95,8 @@ procedure U_HBBridgeConnectionTest(cHost, nPort, nTimeout, nLargePayloadBytes)
         ConOut("hbBridge Echo fragmented fixture falhou: gzip deve ultrapassar o buffer de recepcao.")
         lOk := .F.
     else
-        jResponse := oClient:callservice("Echo", jParams)
-        if !echomatches(jResponse, jParams)
+        jResponse := oClient:CallService("Echo", jParams)
+        if !EchoMatches(jResponse, jParams)
             ConOut("hbBridge Echo fragmented falhou: " + Left(jResponse:ToJSON(), 1024))
             lOk := .F.
         else
@@ -109,8 +109,8 @@ procedure U_HBBridgeConnectionTest(cHost, nPort, nTimeout, nLargePayloadBytes)
     if nLargePayloadBytes > 0
         jParams["message"] := "Echo with configured payload size"
         jParams["largePayload"] := Replicate("X", nLargePayloadBytes)
-        jResponse := oClient:callservice("Echo", jParams)
-        if !echomatches(jResponse, jParams)
+        jResponse := oClient:CallService("Echo", jParams)
+        if !EchoMatches(jResponse, jParams)
             ConOut("hbBridge Echo configured size falhou: " + Left(jResponse:ToJSON(), 1024))
             lOk := .F.
         else
@@ -130,9 +130,9 @@ procedure U_HBBridgeConnectionTest(cHost, nPort, nTimeout, nLargePayloadBytes)
 
 return
 
-static function clockworks() as logical
+static function ClockWorks() as logical
 
-    local nStarted := hbbridge.client.HBBridgeTime():hbbridgetimems() as numeric
+    local nStarted := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs() as numeric
     local nCurrent := nStarted, nElapsed := 0, nRawElapsed := 0 as numeric
     local nRawStarted := TimeCounter() as numeric
     local nIndex := 0 as numeric
@@ -141,26 +141,26 @@ static function clockworks() as logical
     // Compare the normalized elapsed value with a known wait duration.
     Sleep(1000)
     nRawElapsed := TimeCounter() - nRawStarted
-    nCurrent := hbbridge.client.HBBridgeTime():hbbridgetimems()
+    nCurrent := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs()
     nElapsed := nCurrent - nStarted
     lOk := nElapsed >= 750 .and. nElapsed < 10000
 
     for nIndex := 1 to 1000
         nStarted := nCurrent
-        nCurrent := hbbridge.client.HBBridgeTime():hbbridgetimems()
+        nCurrent := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs()
         if nCurrent < nStarted
             lOk := .F.
         endif
     next
 
     // Boundaries also cover >24h budgets, fractions, and a counter reset.
-    lOk := lOk .and. hbbridge.client.HBBridgeTime():hbbridgeremainingms(1000, 100, 1050, 1000) == 50
-    lOk := lOk .and. hbbridge.client.HBBridgeTime():hbbridgeremainingms(1000, 100, 1100, 1050) == 0
-    lOk := lOk .and. hbbridge.client.HBBridgeTime():hbbridgeremainingms(1000, 100, 1101, 1050) == 0
-    lOk := lOk .and. hbbridge.client.HBBridgeTime():hbbridgeremainingms(1000, 100, 999, 1000) == 0
-    lOk := lOk .and. hbbridge.client.HBBridgeTime():hbbridgeremainingms(1000, 100, 1050, 1060) == 0
-    lOk := lOk .and. hbbridge.client.HBBridgeTime():hbbridgeremainingms(1000, 100, 1000.25, 1000) == 99
-    lOk := lOk .and. hbbridge.client.HBBridgeTime():hbbridgeremainingms(1000, 90000000, 86401000, 86400000) == 3600000
+    lOk := lOk .and. HBBridge.Client.HBBridgeTime():HBBridgeRemainingMs(1000, 100, 1050, 1000) == 50
+    lOk := lOk .and. HBBridge.Client.HBBridgeTime():HBBridgeRemainingMs(1000, 100, 1100, 1050) == 0
+    lOk := lOk .and. HBBridge.Client.HBBridgeTime():HBBridgeRemainingMs(1000, 100, 1101, 1050) == 0
+    lOk := lOk .and. HBBridge.Client.HBBridgeTime():HBBridgeRemainingMs(1000, 100, 999, 1000) == 0
+    lOk := lOk .and. HBBridge.Client.HBBridgeTime():HBBridgeRemainingMs(1000, 100, 1050, 1060) == 0
+    lOk := lOk .and. HBBridge.Client.HBBridgeTime():HBBridgeRemainingMs(1000, 100, 1000.25, 1000) == 99
+    lOk := lOk .and. HBBridge.Client.HBBridgeTime():HBBridgeRemainingMs(1000, 90000000, 86401000, 86400000) == 3600000
 
     ConOut("hbBridge clock: Unix=" + IIf(IsSrvUnix(), "true", "false") + ;
         "; TimeCounter delta=" + tlpp.ToStr(nRawElapsed) + "; normalized=" + tlpp.ToStr(nElapsed) + ;
@@ -168,7 +168,7 @@ static function clockworks() as logical
 
 return(lOk)
 
-static function responsesucceeded(jResponse as json) as logical
+static function ResponseSucceeded(jResponse as json) as logical
 
     if !jResponse:HasProperty("success")
         return .F.
@@ -179,9 +179,9 @@ static function responsesucceeded(jResponse as json) as logical
 
 return(jResponse["success"])
 
-static function echomatches(jResponse as json, jParams as json) as logical
+static function EchoMatches(jResponse as json, jParams as json) as logical
 
-    if !responsesucceeded(jResponse)
+    if !ResponseSucceeded(jResponse)
         return .F.
     endif
     if !jResponse:HasProperty("params")
@@ -200,7 +200,7 @@ static function echomatches(jResponse as json, jParams as json) as logical
 return(jResponse["params"]["message"] == jParams["message"] .and. ;
     jResponse["params"]["largePayload"] == jParams["largePayload"])
 
-static function randomascii(nSize as numeric) as character
+static function RandomASCII(nSize as numeric) as character
 
     local cAlphabet := "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.:" as character
     local cPayload := "", cBlock := "" as character

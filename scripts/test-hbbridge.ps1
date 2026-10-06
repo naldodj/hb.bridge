@@ -8,7 +8,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 . (Join-Path $PSScriptRoot 'toolchain.ps1')
-$toolchain = resolve-hbbridgetoolchain -ProjectRoot $projectRoot -HbCompileRoot $HbCompileRoot -ZigPath $ZigPath
+$toolchain = Resolve-HBBridgeToolchain -ProjectRoot $projectRoot -HbCompileRoot $HbCompileRoot -ZigPath $ZigPath
 $runRoot = Join-Path $projectRoot ('tmp/tests-' + [Guid]::NewGuid().ToString('N'))
 $addonRoot = Join-Path $runRoot 'addons'
 $buildRoot = Join-Path $runRoot 'build'
@@ -17,7 +17,7 @@ New-Item -ItemType Directory -Path (Join-Path $addonRoot 'examples') | Out-Null
 Copy-Item -LiteralPath (Join-Path $projectRoot 'addons/examples/hbbridgesampleaddon.prg') `
     -Destination (Join-Path $addonRoot 'examples/hbbridgesampleaddon.prg')
 
-$previousEnvironment = enter-hbbridgetoolchain -Toolchain $toolchain
+$previousEnvironment = Enter-HBBridgeToolchain -Toolchain $toolchain
 Push-Location -LiteralPath $projectRoot
 try {
     & $toolchain.Zig build
@@ -48,6 +48,6 @@ try {
 }
 finally {
     Pop-Location
-    exit-hbbridgetoolchain -PreviousEnvironment $previousEnvironment
+    Exit-HBBridgeToolchain -PreviousEnvironment $previousEnvironment
 }
 exit $testExit

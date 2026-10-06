@@ -171,7 +171,7 @@ Quando houver fontes novos, compile toda a árvore `src/tlpp/`, incluindo o novo
 [hbbridgequerytest.tlpp](../src/tlpp/tests/protheus/hbbridgequerytest.tlpp).
 O utilitário do projeto é `.\scripts\build-totvs.cmd`. Alterar somente o
 perfil SQL do host não exige recompilar o TLPP já atualizado.
-Na nova revisão, `hbbridge.client.HBBridgeConfig():Read()` lê o INI selecionado
+Na nova revisão, `HBBridge.Client.HBBridgeConfig():Read()` lê o INI selecionado
 por `GetSrvIniName()`, usando `GetPvProfString` para `[hbBridge]`. O
 [template AppServer](../config/examples/protheus-appserver.ini) contém `Host`,
 `Port`, `TimeoutMs`, `MaxPayloadBytes`, `MaxWireBytes`, `ReadChunkBytes` e
@@ -192,10 +192,20 @@ Para MSSQL, configure o DSN/perfil e inicie com:
 
 Informe `mssql_demo` no primeiro argumento de `U_HBBridgeQueryTest`.
 O link WebApp sem argumentos lê o perfil/destino de `[hbBridge]` no AppServer,
-com fallback `sqlite_demo`, `127.0.0.1:1512`. O launcher informa os valores do
+com destino padrão `127.0.0.1:1512`. `SQLProfile` é opcional e vazio por
+padrão; configure-o ou informe o alias explicitamente. Sem alias, o teste
+retorna `PROFILE_REQUIRED` antes do acesso à rede. `sqlite_demo` pertence
+apenas ao exemplo SQLite. O launcher informa os valores do
 servidor, sem alterar o INI do AppServer. Para MSSQL ou outra porta, alinhe a
 seção cliente ou use a chamada explícita mostrada pelo launcher.
 O teste de conexão já homologado permanece em `U_HBBridgeConnectionTest`.
+
+Cada consulta/dataset pode escolher seu alias, como `mssql/pData`, no mesmo
+cliente. Os aliases são opacos e distinguem maiúsculas/minúsculas; um nome
+`oracle/alias` não implementa um driver Oracle. A validação atual admite
+somente `sqlite` e `mssql`. O Protheus resolve tenant, empresa, filial/xFilial
+e tabelas físicas e envia SQL e parâmetros explícitos. Veja
+[arquitetura](architecture.pt-BR.md).
 
 ### SERVICE_NOT_FOUND ao executar o teste
 
@@ -229,7 +239,7 @@ concorrência, resultados vazios, nulos em expressão, perfis e erros. Inclui
 paginação cheia/parcial/vazia, ordenação composta/descendente, lacunas,
 metadados, coluna reservada, aliases duplicados e limites numéricos.
 
-Validação atual em 2026-10-04: **412 verificações, zero falhas, sem skips** no runner
+Validação anterior em 2026-10-04: **412 verificações, zero falhas, sem skips** no runner
 completo, Harbour `3.2.1dev (r2608271822)`, Zig `0.16.0`, Windows x64 e
 SQLite **3.53.4**, obtido por `sqlite_version()` no runtime vinculado.
 Log: `tmp/tests-236f1241c1174cf4b193c22f6eedb6e0/results.log`.
@@ -237,6 +247,13 @@ As 29 verificações adicionais sobre a suíte de 383 cobrem 26 casos INI e
 três rejeições adicionais de driver/direção de ordenação inválidos.
 O teste SQL tem credencial NETIO própria: a API nativa pode herdar a senha
 da conexão anterior quando recebe uma string vazia.
+
+A revisão gerenciada de dependências/nomes/perfis passou em **416 checks,
+zero falhas e nenhum skip** em 2026-10-04, log
+`tmp/tests-d1b829ff332c414f816a6e70748152d1/results.log`. Foram dois casos
+INI e dois SQL adicionais sobre aliases. Esse resultado precede os ajustes
+PascalCase/HTTP de 2026-10-06 e não substitui seu aceite nem a homologação
+Protheus dos novos nomes e dos 16 checks de configuração revisados.
 
 A tentativa inicial de `scripts/build-totvs.cmd` não chegou à compilação:
 a parada dos processos TOTVS falhou. Log: `tmp/marco3-totvs-build.log`.

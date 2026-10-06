@@ -1,7 +1,7 @@
 /* Released to Public Domain. */
 #include "tlpp-core.th"
 
-namespace hbbridge.rdd
+namespace HBBridge.RDD
 
 class HBBridgeRPCDataSet
 
@@ -15,28 +15,28 @@ class HBBridgeRPCDataSet
     private data cSql as character
     private data cOrderBy as character
 
-    public method new(oClient as object) as object
-    public method opensql(cAliasProfile as character, cSql as character, jPage as json) as logical
-    public method openpage(cAliasProfile as character, cSql as character, nPage as numeric, nSize as numeric, cOrderBy as character) as logical
-    public method nextpage() as logical
-    public method hasnextpage() as logical
-    public method pagenumber() as numeric
-    public method pagesize() as numeric
-    public method fieldget(cFieldName as character) as variant
-    public method skip()
-    public method eof() as logical
-    public method close()
-    public method rowcount() as numeric
-    public method errorcode() as character
-    public method errormessage() as character
+    public method New(oClient as object) as object
+    public method OpenSQL(cAliasProfile as character, cSql as character, jPage as json) as logical
+    public method OpenPage(cAliasProfile as character, cSql as character, nPage as numeric, nSize as numeric, cOrderBy as character) as logical
+    public method NextPage() as logical
+    public method HasNextPage() as logical
+    public method PageNumber() as numeric
+    public method PageSize() as numeric
+    public method FieldGet(cFieldName as character) as variant
+    public method Skip()
+    public method Eof() as logical
+    public method Close()
+    public method RowCount() as numeric
+    public method ErrorCode() as character
+    public method ErrorMessage() as character
 
 endclass
 
-method new(oClient) class HBBridgeRPCDataSet
+method New(oClient) class HBBridgeRPCDataSet
 
     self:oClient := oClient
     if ValType(self:oClient) == "U"
-        self:oClient := hbbridge.client.HBBridgeClient():new()
+        self:oClient := HBBridge.Client.HBBridgeClient():New()
     endif
     self:jResult := Nil
     self:nRowIndex := 0
@@ -49,15 +49,15 @@ method new(oClient) class HBBridgeRPCDataSet
 
 return(self)
 
-method opensql(cAliasProfile, cSql, jPage) class HBBridgeRPCDataSet
+method OpenSQL(cAliasProfile, cSql, jPage) class HBBridgeRPCDataSet
 
-    local jParams := JSONObject():new() as json
+    local jParams := JSONObject():New() as json
     local jResponse as json
     local cRowKey := "" as character
     local nRow := 0 as numeric
     local lValid := .F. as logical
 
-    self:close()
+    self:Close()
     self:cErrorCode := ""
     self:cErrorMessage := ""
     jParams["alias"] := cAliasProfile
@@ -65,7 +65,7 @@ method opensql(cAliasProfile, cSql, jPage) class HBBridgeRPCDataSet
     if ValType(jPage) $ "JO"
         jParams["page"] := jPage
     endif
-    jResponse := self:oClient:callservice("RPCRDD.Query", jParams)
+    jResponse := self:oClient:CallService("RPCRDD.Query", jParams)
     FreeObj(@jParams)
 
     if jResponse:HasProperty("success")
@@ -173,34 +173,34 @@ method opensql(cAliasProfile, cSql, jPage) class HBBridgeRPCDataSet
 
 return(.T.)
 
-method openpage(cAliasProfile, cSql, nPage, nSize, cOrderBy) class HBBridgeRPCDataSet
+method OpenPage(cAliasProfile, cSql, nPage, nSize, cOrderBy) class HBBridgeRPCDataSet
 
-    local jPage := JSONObject():new() as json
+    local jPage := JSONObject():New() as json
     local lOpened := .F. as logical
 
     jPage["number"] := nPage
     jPage["size"] := nSize
     jPage["orderBy"] := cOrderBy
-    lOpened := self:opensql(cAliasProfile, cSql, jPage)
+    lOpened := self:OpenSQL(cAliasProfile, cSql, jPage)
     FreeObj(@jPage)
 
 return(lOpened)
 
-method nextpage() class HBBridgeRPCDataSet
+method NextPage() class HBBridgeRPCDataSet
 
     local cAliasProfile := self:cAliasProfile as character
     local cSql := self:cSql as character
     local cOrderBy := self:cOrderBy as character
-    local nPage := self:pagenumber() + 1 as numeric
-    local nSize := self:pagesize() as numeric
+    local nPage := self:PageNumber() + 1 as numeric
+    local nSize := self:PageSize() as numeric
 
-    if !self:hasnextpage()
+    if !self:HasNextPage()
         return(.F.)
     endif
 
-return(self:openpage(cAliasProfile, cSql, nPage, nSize, cOrderBy))
+return(self:OpenPage(cAliasProfile, cSql, nPage, nSize, cOrderBy))
 
-method hasnextpage() class HBBridgeRPCDataSet
+method HasNextPage() class HBBridgeRPCDataSet
 
     if ValType(self:jResult) $ "JO"
         if self:jResult:HasProperty("page")
@@ -210,7 +210,7 @@ method hasnextpage() class HBBridgeRPCDataSet
 
 return(.F.)
 
-method pagenumber() class HBBridgeRPCDataSet
+method PageNumber() class HBBridgeRPCDataSet
 
     if ValType(self:jResult) $ "JO"
         if self:jResult:HasProperty("page")
@@ -220,7 +220,7 @@ method pagenumber() class HBBridgeRPCDataSet
 
 return(0)
 
-method pagesize() class HBBridgeRPCDataSet
+method PageSize() class HBBridgeRPCDataSet
 
     if ValType(self:jResult) $ "JO"
         if self:jResult:HasProperty("page")
@@ -230,12 +230,12 @@ method pagesize() class HBBridgeRPCDataSet
 
 return(0)
 
-method fieldget(cFieldName) class HBBridgeRPCDataSet
+method FieldGet(cFieldName) class HBBridgeRPCDataSet
 
     local cKey := Upper(AllTrim(cFieldName)) as character
     local cRowKey := tlpp.ToStr(self:nRowIndex) as character
 
-    if self:eof()
+    if self:Eof()
         return Nil
     endif
     if self:jResult["header"]:HasProperty(cKey)
@@ -246,18 +246,18 @@ method fieldget(cFieldName) class HBBridgeRPCDataSet
 
 return Nil
 
-method skip() class HBBridgeRPCDataSet
+method Skip() class HBBridgeRPCDataSet
 
-    if !self:eof()
+    if !self:Eof()
         self:nRowIndex++
     endif
 
 return
 
-method eof() as logical class HBBridgeRPCDataSet
+method Eof() as logical class HBBridgeRPCDataSet
 return(self:nRowIndex == 0 .or. self:nRowIndex > self:nTotalRows)
 
-method close() class HBBridgeRPCDataSet
+method Close() class HBBridgeRPCDataSet
 
     local jResponse := self:jResult as json
 
@@ -273,11 +273,11 @@ method close() class HBBridgeRPCDataSet
 
 return
 
-method rowcount() class HBBridgeRPCDataSet
+method RowCount() class HBBridgeRPCDataSet
 return(self:nTotalRows)
 
-method errorcode() class HBBridgeRPCDataSet
+method ErrorCode() class HBBridgeRPCDataSet
 return(self:cErrorCode)
 
-method errormessage() class HBBridgeRPCDataSet
+method ErrorMessage() class HBBridgeRPCDataSet
 return(self:cErrorMessage)

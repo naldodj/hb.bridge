@@ -21,6 +21,13 @@ As decisões ainda dependem de implementação e homologação, conforme o TODO.
 O [registro da reorganização](reorganization.pt-BR.md) descreve a estrutura aplicada,
 o mapa de fontes e as verificações antes/depois da extração dos componentes.
 
+[HTTP e administração web](http.pt-BR.md) descreve hbhttpd incorporado,
+rotas HTTP/JSON para o registro comum, painel de status autenticado,
+dependências e HTTPS opcional. Os [padrões](standards.pt-BR.md) usam arquivos
+em minúsculas e funções, procedures, métodos, namespaces e classes em
+PascalCase. [Dependências](dependencies.pt-BR.md) explica o bootstrap do
+Harbour/hb_compile/Zig do próprio projeto, sem caminhos pessoais fixos.
+
 O [Marco 1](milestone1.pt-BR.md) documenta a implementação do registro nativo,
 NETIO incorporado, configuração e administração. A [matriz de homologação](acceptance.pt-BR.md)
 identifica o ambiente Protheus informado e o toolchain do servidor.
@@ -98,7 +105,7 @@ de strings, chunks de socket/zlib e timeout NETIO do build. O buffer cabe no
 menor limite entre socket e codec; não limita o total da mensagem.
 Os prazos e o uptime do servidor usam `HBBridgeMonotonicMs()`, sem relógio civil.
 O TLPP passou a usar `TimeCounter()` pelos métodos estáticos da classe
-`hbbridge.client.HBBridgeTime`, em [hbbridgetime.tlpp](../src/tlpp/hbbridgetime.tlpp),
+`HBBridge.Client.HBBridgeTime`, em [hbbridgetime.tlpp](../src/tlpp/hbbridgetime.tlpp),
 com regressão expirando o orçamento e teste de escala/espera no AppServer.
 A normalização Unix × 1000 corrige a diferença de unidades reproduzida na
 [issue #12](https://github.com/naldodj/totvs-protheus-open-issues/issues/12).

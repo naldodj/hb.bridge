@@ -26,6 +26,11 @@ the runner prepares both. See [dependencies](../docs/dependencies.md).
 - [NETIO](integration/harbour/hbbridgenetiotest.prg): native arguments,
   core/discovery/addons, binary VF IO, separate admin, filters/credentials and
   stop/restart/rollback. Listeners choose free ports rather than installed ports.
+- [HTTP](integration/harbour/hbbridgehttptest.prg): native hbhttpd routes,
+  bearer/admin separation, shared Health/Echo/addon/SQL, NETIO equivalence,
+  raw JSON body/errors, concurrent contexts, sanitized web status and
+  shutdown/restart/startup rollback. HTTP acceptance is recorded separately;
+  historical counts below predate this adapter.
 - [Framing](integration/harbour/hbbridgeframingtest.prg): fragmented gzip,
   canonical lengths, CRC/truncation, optional budgets, deadlines, incremental
   codecs, exact 24-million-byte Echo and JSON/gzip beyond 16 MiB.
@@ -36,6 +41,12 @@ the runner prepares both. See [dependencies](../docs/dependencies.md).
   results and explicit case-sensitive slash profile selection.
 - [MT](integration/harbour/hbbridgeservertest.prg): parallel/idle clients,
   invalid requests, worker settings, graceful shutdown, addon failure/isolation.
+  The addon fixture holds 12 FORCELOCAL HRBs active behind a barrier and
+  verifies owner/id plus counterBefore+1. Sequential reload may recycle
+  STATIC values; a reset-to-one assertion would test an invalid assumption.
+  A deliberate single-handle/12-thread counterprobe rejected 11 responses.
+  Addons initialize per-call state explicitly; see
+  [HRB semantics](../docs/milestone1.md#hrb-state-and-addon-ownership).
 
 Prior Windows x64 run on 2026-10-04: **412 checks, zero failures, no skips**,
 SQLite 3.53.4, log tmp/tests-236f1241c1174cf4b193c22f6eedb6e0/results.log.
@@ -44,6 +55,11 @@ rejections. New managed/renamed validation is recorded separately in
 [acceptance](../docs/acceptance.md). The older 2026-10-01 MT baseline was
 74 checks; the previous normalized 72-check baseline and fixture corrections
 are in [reorganization](../docs/reorganization.md).
+
+Managed-toolchain validation on 2026-10-04 passed **416 checks, zero failures,
+no skips**, log tmp/tests-d1b829ff332c414f816a6e70748152d1/results.log.
+It added two INI and two explicit SQL alias checks. This predates the
+PascalCase/HTTP changes of 2026-10-06 and requires their separate validation.
 
 ## Protheus compilation and calls
 

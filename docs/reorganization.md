@@ -11,10 +11,10 @@ milestones and the current naming/build reorganization.
 
 | Historical source | Current component | Responsibility |
 | --- | --- | --- |
-| `src/hb/server/hbbridgenetio.prg` — Main | [host/hbbridgemain.prg](../src/hb/host/hbbridgemain.prg) | Entry, options, console lifecycle. |
+| `src/hb/server/server.prg` — Main | [host/hbbridgemain.prg](../src/hb/host/hbbridgemain.prg) | Entry, options, console lifecycle. |
 | Same file — receive/send | [Protheus framing](../src/hb/transports/protheus/hbbridgeframing.prg) | Framing/compression. |
-| `src/hb/server/mt_hbbridgenetio.prg` | [Protheus server](../src/hb/transports/protheus/hbbridgenetio.prg) | Listener, workers, shutdown. |
-| `src/hb/dispatcher/hbbridgedispatcher.prg` | [core dispatcher](../src/hb/core/hbbridgedispatcher.prg) | Registry/dispatch/validation; native values since Milestone 1. |
+| `src/hb/server/mt_server.prg` | [Protheus server](../src/hb/transports/protheus/hbbridgeserver.prg) | Listener, workers, shutdown. |
+| `src/hb/dispatcher/dispatcher.prg` | [core dispatcher](../src/hb/core/hbbridgedispatcher.prg) | Registry/dispatch/validation; native values since Milestone 1. |
 | Service responses inside dispatcher | [builtin services](../src/hb/services/hbbridgeservices.prg) | Health/Echo/ADDON and discovery. |
 | C block inside addon loader | [C/Zig bridge](../src/c/hbbridgezig.c) | Harbour API and Zig ABI. |
 | `tests/harbour/` | [integration suite](../tests/integration/harbour/hbbridgeservertest.prg) | MT suite and fixtures. |
@@ -41,7 +41,10 @@ in a temporary directory.
 | Reorganized executable | Build passed; help exited 0, invalid option exited 1. | Validated entry/composition. |
 
 Coverage included both historical signatures, concurrency, malformed requests,
-failed HRB, per-load static isolation, worker capacity and controlled stop.
+failed HRB, concurrent HRB isolation, worker capacity and controlled stop.
+The current ownership test distinguishes simultaneous FORCELOCAL isolation
+from native STATIC-frame reuse on sequential reload; see
+[addon semantics](milestone1.md#hrb-state-and-addon-ownership).
 The runner creates isolated fixtures and `tmp/tests-*/results.log` without
 replacing the canonical product. TLPP was only moved in that structural run;
 later AppServer acceptance is recorded in [acceptance](acceptance.md).
@@ -55,8 +58,9 @@ they identify a product component. TLPP class/file pairs are:
 `HBBridgeConfig`/`hbbridgeconfig.tlpp`,
 `HBBridgeTime`/`hbbridgetime.tlpp`,
 `HBBridgeRPCDataSet`/`hbbridgerpcdataset.tlpp`.
-Classes retain PascalCase by the owner's explicit decision; methods/functions
-use lowercase, with native/public API exceptions documented in [standards](standards.md).
+Functions, procedures, methods, namespaces and classes use PascalCase by the
+owner's explicit decision. Preserve required native/public API spellings; see
+[standards](standards.md).
 
 Harbour counterparts follow the same basename convention; extensions identify
 the source language. Commit tools move from `bin/` to `.hbcommit/`.

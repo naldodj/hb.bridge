@@ -10,11 +10,16 @@
 -Iincludes
 sddsqlt3.hbc
 sddodbc.hbc
+hbhttpd.hbc
+hbtcpio.hbc
+{HB_HTTP_TLS='1'}hbssl.hbc
+{HB_HTTP_TLS='1'}-prgflag=-DHBBRIDGE_HTTP_TLS
 
 src/hb/transports/protheus/hbbridgeframing.prg
 src/hb/transports/protheus/hbbridgeadapter.prg
 src/hb/transports/protheus/hbbridgeserver.prg
 src/hb/transports/netio/hbbridgenetio.prg
+src/hb/transports/http/hbbridgehttp.prg
 src/hb/host/hbbridgeconfig.prg
 src/hb/host/hbbridgeini.prg
 src/hb/host/hbbridgelifecycle.prg
@@ -25,5 +30,6 @@ src/hb/addons/hbbridgeaddon.prg
 src/hb/telemetry/hbbridgesyslog.prg
 src/c/hbbridgezig.c
 src/c/hbbridgetime.c
+src/c/hbbridgeutf8.c
 src/c/hbbridgedecoder.c
 src/c/hbbridgecompressor.c

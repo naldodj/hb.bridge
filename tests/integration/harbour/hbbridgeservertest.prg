@@ -2,73 +2,76 @@
 
 #define MT_TIMEOUT_MS 3000
 
+STATIC s_hAddonGate
+
 // Build hbbridgeservertest.hbp or run scripts/test-hbbridge.ps1 from the project root.
-PROCEDURE mttests()
+PROCEDURE MTTests()
 
     LOCAL hServer, nFailures := 0, nChecks := 0
 
-    mtassert( hb_mtvm(), "Harbour MT VM enabled", @nFailures, @nChecks )
+    MTAssert( hb_mtvm(), "Harbour MT VM enabled", @nFailures, @nChecks )
     IF ! hb_mtvm()
         ErrorLevel( 1 )
         RETURN
     ENDIF
 
-    hServer := hbbridgeserverstart( 0, 32 )
-    mtassert( HB_ISHASH( hServer ), "server starts on an ephemeral port", @nFailures, @nChecks )
+    hServer := HBBridgeServerStart( 0, 32 )
+    MTAssert( HB_ISHASH( hServer ), "server starts on an ephemeral port", @nFailures, @nChecks )
     IF HB_ISHASH( hServer )
-        mtprotocolsignatures( hServer, @nFailures, @nChecks )
-        mtbuiltinservices( hServer, @nFailures, @nChecks )
-        mtidleclient( hServer, @nFailures, @nChecks )
-        mtparallelecho( hServer, @nFailures, @nChecks )
-        mtbadrequests( hServer, @nFailures, @nChecks )
-        mtaddons( hServer, @nFailures, @nChecks )
-        mtassert( hbbridgeserverstop( hServer ), "normal server shutdown", @nFailures, @nChecks )
+        MTProtocolSignatures( hServer, @nFailures, @nChecks )
+        MTBuiltinServices( hServer, @nFailures, @nChecks )
+        MTIdleClient( hServer, @nFailures, @nChecks )
+        MTParallelEcho( hServer, @nFailures, @nChecks )
+        MTBadRequests( hServer, @nFailures, @nChecks )
+        MTAddons( hServer, @nFailures, @nChecks )
+        MTAssert( HBBridgeServerStop( hServer ), "normal server shutdown", @nFailures, @nChecks )
     ENDIF
 
-    mtworkerlimit( @nFailures, @nChecks )
-    mtgracefulstop( @nFailures, @nChecks )
+    MTWorkerLimit( @nFailures, @nChecks )
+    MTGracefulStop( @nFailures, @nChecks )
 
-    m1configtests( @nFailures, @nChecks )
-    m1iniconfigtests( @nFailures, @nChecks )
-    m1servicetests( @nFailures, @nChecks )
-    m1nativetests( @nFailures, @nChecks )
-    m2framingtests( @nFailures, @nChecks )
-    m2clocktests( @nFailures, @nChecks )
-    m3sqltests( @nFailures, @nChecks )
+    M1ConfigTests( @nFailures, @nChecks )
+    M1INIConfigTests( @nFailures, @nChecks )
+    M1ServiceTests( @nFailures, @nChecks )
+    M1NativeTests( @nFailures, @nChecks )
+    M2FramingTests( @nFailures, @nChecks )
+    M2ClockTests( @nFailures, @nChecks )
+    M3SQLTests( @nFailures, @nChecks )
+    HTTPTests( @nFailures, @nChecks )
 
     ? "MT checks:", nChecks, "failures:", nFailures
     ErrorLevel( iif( nFailures == 0, 0, 1 ) )
 
 RETURN
 
-STATIC PROCEDURE mtprotocolsignatures( hServer, nFailures, nChecks )
+STATIC PROCEDURE MTProtocolSignatures( hServer, nFailures, nChecks )
 
     LOCAL cSignature, hResponse
 
     FOR EACH cSignature IN { "HBBRIDGE/1" }
-        hResponse := mtrequest( hServer[ "port" ], mtechojson( 42 ), cSignature )
-        mtassert( mtechomatches( hResponse, 42 ), ;
+        hResponse := MTRequest( hServer[ "port" ], MTEchoJson( 42 ), cSignature )
+        MTAssert( MTEchoMatches( hResponse, 42 ), ;
             "Echo response preserves protocol signature " + cSignature, @nFailures, @nChecks )
-        hResponse := mtrequest( hServer[ "port" ], '{"service":"Unknown","params":{}}', cSignature )
-        mtassert( mtiserror( hResponse ), ;
+        hResponse := MTRequest( hServer[ "port" ], '{"service":"Unknown","params":{}}', cSignature )
+        MTAssert( MTIsError( hResponse ), ;
             "error response preserves protocol signature " + cSignature, @nFailures, @nChecks )
     NEXT
 
 RETURN
 
-STATIC PROCEDURE mtbuiltinservices( hServer, nFailures, nChecks )
+STATIC PROCEDURE MTBuiltinServices( hServer, nFailures, nChecks )
 
     LOCAL hResponse
 
-    hResponse := mtrequest( hServer[ "port" ], '{"service":"Health","params":{}}' )
-    mtassert( mtissuccess( hResponse ), "Health reaches Zig through the extracted C bridge", @nFailures, @nChecks )
+    hResponse := MTRequest( hServer[ "port" ], '{"service":"Health","params":{}}' )
+    MTAssert( MTIsSuccess( hResponse ), "Health reaches Zig through the extracted C bridge", @nFailures, @nChecks )
 
-    hResponse := mtrequest( hServer[ "port" ], '{"service":"ADDON.Execute","params":{"module":"examples/hbbridgesampleaddon.prg","params":{}}}' )
-    mtassert( mtissuccess( hResponse ), "sample PRG addon compiles and executes", @nFailures, @nChecks )
+    hResponse := MTRequest( hServer[ "port" ], '{"service":"ADDON.Execute","params":{"module":"examples/hbbridgesampleaddon.prg","params":{}}}' )
+    MTAssert( MTIsSuccess( hResponse ), "sample PRG addon compiles and executes", @nFailures, @nChecks )
 
 RETURN
 
-STATIC FUNCTION mtissuccess( hResponse )
+STATIC FUNCTION MTIsSuccess( hResponse )
 
     IF ! HB_ISHASH( hResponse )
         RETURN .F.
@@ -79,182 +82,214 @@ STATIC FUNCTION mtissuccess( hResponse )
 
 RETURN hResponse[ "success" ] == .T.
 
-STATIC PROCEDURE mtidleclient( hServer, nFailures, nChecks )
+STATIC PROCEDURE MTIdleClient( hServer, nFailures, nChecks )
 
-    LOCAL hIdle := mtconnect( hServer[ "port" ] )
+    LOCAL hIdle := MTConnect( hServer[ "port" ] )
     LOCAL nStart, hResponse
 
-    mtassert( ! Empty( hIdle ), "idle client connects", @nFailures, @nChecks )
+    MTAssert( ! Empty( hIdle ), "idle client connects", @nFailures, @nChecks )
     IF Empty( hIdle )
         RETURN
     ENDIF
-    mtassert( mtwait( {|| hbbridgeserveractive( hServer ) == 1 }, 1000 ), ;
+    MTAssert( MTWait( {|| HBBridgeServerActive( hServer ) == 1 }, 1000 ), ;
         "idle client occupies one worker", @nFailures, @nChecks )
 
-    nStart := hbbridgemonotonicms()
-    hResponse := mtechorequest( hServer[ "port" ], 1 )
-    mtassert( mtechomatches( hResponse, 1 ), "Echo completes while another client sends nothing", @nFailures, @nChecks )
-    mtassert( hbbridgemonotonicms() - nStart < 2000, ;
+    nStart := HBBridgeMonotonicMs()
+    hResponse := MTEchoRequest( hServer[ "port" ], 1 )
+    MTAssert( MTEchoMatches( hResponse, 1 ), "Echo completes while another client sends nothing", @nFailures, @nChecks )
+    MTAssert( HBBridgeMonotonicMs() - nStart < 2000, ;
         "Echo does not wait for the idle client's 5s receive timeout", @nFailures, @nChecks )
 
     hb_socketClose( hIdle )
-    mtassert( mtwait( {|| hbbridgeserveractive( hServer ) == 0 }, 1000 ), ;
+    MTAssert( MTWait( {|| HBBridgeServerActive( hServer ) == 0 }, 1000 ), ;
         "idle client disconnect releases its worker", @nFailures, @nChecks )
 
 RETURN
 
-STATIC PROCEDURE mtparallelecho( hServer, nFailures, nChecks )
+STATIC PROCEDURE MTParallelEcho( hServer, nFailures, nChecks )
 
     LOCAL aThreads := {}, nIndex, hResponse, hThread
 
     FOR nIndex := 1 TO 16
         // Arguments are copied into each new thread; do not capture the loop local.
-        AAdd( aThreads, hb_threadStart( @mtechorequest(), hServer[ "port" ], nIndex ) )
+        AAdd( aThreads, hb_threadStart( @MTEchoRequest(), hServer[ "port" ], nIndex ) )
     NEXT
 
     FOR nIndex := 1 TO Len( aThreads )
         hThread := aThreads[ nIndex ]
         hResponse := NIL
-        IF mtjoin( hThread, @hResponse )
-            mtassert( mtechomatches( hResponse, nIndex ), ;
+        IF MTJoin( hThread, @hResponse )
+            MTAssert( MTEchoMatches( hResponse, nIndex ), ;
                 "parallel Echo preserves payload " + hb_ntos( nIndex ), @nFailures, @nChecks )
         ELSE
-            mtassert( .F., "parallel Echo thread completes " + hb_ntos( nIndex ), @nFailures, @nChecks )
+            MTAssert( .F., "parallel Echo thread completes " + hb_ntos( nIndex ), @nFailures, @nChecks )
         ENDIF
     NEXT
 
-    mtassert( mtwait( {|| hbbridgeserveractive( hServer ) == 0 }, 1000 ), ;
+    MTAssert( MTWait( {|| HBBridgeServerActive( hServer ) == 0 }, 1000 ), ;
         "parallel clients release every worker", @nFailures, @nChecks )
 
 RETURN
 
-STATIC PROCEDURE mtbadrequests( hServer, nFailures, nChecks )
+STATIC PROCEDURE MTBadRequests( hServer, nFailures, nChecks )
 
     LOCAL aRequests := { "{", "[]", '{"service":17,"params":{}}', ;
         '{"service":"Echo"}', '{"service":"Unknown","params":{}}' }
     LOCAL cRequest, hResponse
 
     FOR EACH cRequest IN aRequests
-        hResponse := mtrequest( hServer[ "port" ], cRequest )
-        mtassert( mtiserror( hResponse ), "invalid request returns an error: " + cRequest, @nFailures, @nChecks )
-        mtassert( mtechomatches( mtechorequest( hServer[ "port" ], 77 ), 77 ), ;
+        hResponse := MTRequest( hServer[ "port" ], cRequest )
+        MTAssert( MTIsError( hResponse ), "invalid request returns an error: " + cRequest, @nFailures, @nChecks )
+        MTAssert( MTEchoMatches( MTEchoRequest( hServer[ "port" ], 77 ), 77 ), ;
             "server remains healthy after invalid request", @nFailures, @nChecks )
     NEXT
 
 RETURN
 
-STATIC PROCEDURE mtaddons( hServer, nFailures, nChecks )
+STATIC PROCEDURE MTAddons( hServer, nFailures, nChecks )
 
-    LOCAL aThreads := {}, hThread, hResponse, nIndex, nStart
+    LOCAL aThreads := {}, hThread, hResponse, nIndex, nStart, nPrevious
 
     IF File( "addons/hbbridge_mt_fault.hrb" )
-        hResponse := mtrequest( hServer[ "port" ], '{"service":"ADDON.Execute","params":{"module":"hbbridge_mt_fault.hrb","params":{}}}' )
-        mtassert( mtiserror( hResponse ), "addon runtime error is contained by its worker", @nFailures, @nChecks )
-        mtassert( mtechomatches( mtechorequest( hServer[ "port" ], 88 ), 88 ), ;
+        hResponse := MTRequest( hServer[ "port" ], '{"service":"ADDON.Execute","params":{"module":"hbbridge_mt_fault.hrb","params":{}}}' )
+        MTAssert( MTIsError( hResponse ), "addon runtime error is contained by its worker", @nFailures, @nChecks )
+        MTAssert( MTEchoMatches( MTEchoRequest( hServer[ "port" ], 88 ), 88 ), ;
             "Echo succeeds after addon runtime error", @nFailures, @nChecks )
     ELSE
         ? "SKIP: compile tests/integration/harbour/hbbridgefaultaddon.prg to addons/hbbridge_mt_fault.hrb"
     ENDIF
 
     IF File( "addons/hbbridge_mt_isolation.hrb" )
-        nStart := hbbridgemonotonicms()
+        s_hAddonGate := { "mutex" => hb_mutexCreate(), "release" => hb_mutexCreate(), ;
+            "participants" => {=>}, "expected" => 12 }
+        nStart := HBBridgeMonotonicMs()
         FOR nIndex := 1 TO 12
-            AAdd( aThreads, hb_threadStart( @mtaddonrequest(), hServer[ "port" ], nIndex ) )
+            AAdd( aThreads, hb_threadStart( @MTAddonRequest(), hServer[ "port" ], nIndex ) )
         NEXT
         FOR nIndex := 1 TO Len( aThreads )
             hThread := aThreads[ nIndex ]
             hResponse := NIL
-            IF mtjoin( hThread, @hResponse )
-                mtassert( mtaddonmatches( hResponse, nIndex ), ;
-                    "concurrent addon has private static state " + hb_ntos( nIndex ), @nFailures, @nChecks )
+            IF MTJoin( hThread, @hResponse )
+                IF ! MTAddonMatches( hResponse, nIndex )
+                    ? "Addon isolation response:", hb_jsonEncode( { "expectedId" => nIndex, "response" => hResponse } )
+                ENDIF
+                MTAssert( MTAddonMatches( hResponse, nIndex ), ;
+                    "simultaneously active addon owns its static state " + hb_ntos( nIndex ), @nFailures, @nChecks )
             ELSE
-                mtassert( .F., "addon thread completes " + hb_ntos( nIndex ), @nFailures, @nChecks )
+                MTAssert( .F., "addon thread completes " + hb_ntos( nIndex ), @nFailures, @nChecks )
             ENDIF
         NEXT
-        mtassert( hbbridgemonotonicms() - nStart < 1500, ;
+        MTAssert( HBBridgeMonotonicMs() - nStart < 1500, ;
             "12 addon calls overlap their 200ms waits", @nFailures, @nChecks )
+        MTAssert( hb_mutexEval( s_hAddonGate[ "mutex" ], ;
+            {|| Len( s_hAddonGate[ "participants" ] ) == s_hAddonGate[ "expected" ] } ), ;
+            "all 12 independently loaded HRBs reached the barrier before release", @nFailures, @nChecks )
+        s_hAddonGate := NIL
+
+        // Native reload keeps the inactive module's initialized STATIC frame.
+        // Per-call state must be initialized by the addon, not assumed reset.
+        nPrevious := NIL
+        FOR nIndex := 1 TO 3
+            hResponse := MTRequest( hServer[ "port" ], hb_jsonEncode( { "service" => "ADDON.Execute", ;
+                "params" => { "module" => "hbbridge_mt_isolation.hrb", "params" => { "id" => nIndex } } } ) )
+            IF ! MTAddonMatches( hResponse, nIndex )
+                ? "Addon sequential response:", hb_jsonEncode( { "expectedId" => nIndex, "response" => hResponse } )
+            ENDIF
+            MTAssert( MTAddonMatches( hResponse, nIndex ), ;
+                "sequential addon initializes its own call state " + hb_ntos( nIndex ), @nFailures, @nChecks )
+            IF nPrevious != NIL
+                MTAssert( HB_ISHASH( hResponse ) .AND. ;
+                    hb_HGetDef( hResponse, "counterBefore", NIL ) == nPrevious, ;
+                    "native HRB reload preserves the previous STATIC counter " + hb_ntos( nIndex ), @nFailures, @nChecks )
+            ENDIF
+            IF HB_ISHASH( hResponse )
+                nPrevious := hb_HGetDef( hResponse, "counter", NIL )
+            ELSE
+                nPrevious := NIL
+            ENDIF
+        NEXT
     ELSE
         ? "SKIP: compile tests/integration/harbour/hbbridgeisolationaddon.prg to addons/hbbridge_mt_isolation.hrb"
     ENDIF
 
 RETURN
 
-STATIC PROCEDURE mtworkerlimit( nFailures, nChecks )
+STATIC PROCEDURE MTWorkerLimit( nFailures, nChecks )
 
-    LOCAL hServer := hbbridgeserverstart( 0, 1 )
+    LOCAL hServer := HBBridgeServerStart( 0, 1 )
     LOCAL hIdle, hExcess, cByte := Space( 1 ), nReceived, nError
 
-    mtassert( HB_ISHASH( hServer ), "single-worker server starts", @nFailures, @nChecks )
+    MTAssert( HB_ISHASH( hServer ), "single-worker server starts", @nFailures, @nChecks )
     IF ! HB_ISHASH( hServer )
         RETURN
     ENDIF
 
-    hIdle := mtconnect( hServer[ "port" ] )
-    mtassert( mtwait( {|| hbbridgeserveractive( hServer ) == 1 }, 1000 ), ;
+    hIdle := MTConnect( hServer[ "port" ] )
+    MTAssert( MTWait( {|| HBBridgeServerActive( hServer ) == 1 }, 1000 ), ;
         "configured worker slot is occupied", @nFailures, @nChecks )
 
-    hExcess := mtconnect( hServer[ "port" ] )
+    hExcess := MTConnect( hServer[ "port" ] )
     IF ! Empty( hExcess )
         nReceived := hb_socketRecv( hExcess, @cByte, 1, 0, 1000 )
         nError := hb_socketGetError()
-        mtassert( nReceived == 0 .OR. ( nReceived < 0 .AND. nError != HB_SOCKET_ERR_TIMEOUT ), ;
+        MTAssert( nReceived == 0 .OR. ( nReceived < 0 .AND. nError != HB_SOCKET_ERR_TIMEOUT ), ;
             "excess client is promptly closed at the worker limit", @nFailures, @nChecks )
         hb_socketClose( hExcess )
     ELSE
-        mtassert( .T., "excess client cannot connect at the worker limit", @nFailures, @nChecks )
+        MTAssert( .T., "excess client cannot connect at the worker limit", @nFailures, @nChecks )
     ENDIF
-    mtassert( hbbridgeserveractive( hServer ) == 1, "worker count stays within the configured limit", @nFailures, @nChecks )
+    MTAssert( HBBridgeServerActive( hServer ) == 1, "worker count stays within the configured limit", @nFailures, @nChecks )
 
     IF ! Empty( hIdle )
         hb_socketClose( hIdle )
     ENDIF
-    mtassert( mtwait( {|| hbbridgeserveractive( hServer ) == 0 }, 1000 ), ;
+    MTAssert( MTWait( {|| HBBridgeServerActive( hServer ) == 0 }, 1000 ), ;
         "worker slot becomes available after disconnect", @nFailures, @nChecks )
-    mtassert( mtechomatches( mtechorequest( hServer[ "port" ], 99 ), 99 ), ;
+    MTAssert( MTEchoMatches( MTEchoRequest( hServer[ "port" ], 99 ), 99 ), ;
         "server accepts work after capacity becomes available", @nFailures, @nChecks )
-    mtassert( hbbridgeserverstop( hServer ), "single-worker server stops", @nFailures, @nChecks )
+    MTAssert( HBBridgeServerStop( hServer ), "single-worker server stops", @nFailures, @nChecks )
 
 RETURN
 
-STATIC PROCEDURE mtgracefulstop( nFailures, nChecks )
+STATIC PROCEDURE MTGracefulStop( nFailures, nChecks )
 
-    LOCAL hServer := hbbridgeserverstart( 0, 2 )
+    LOCAL hServer := HBBridgeServerStart( 0, 2 )
     LOCAL hIdle, hStop, hResponse, lStopped := .F.
 
-    mtassert( HB_ISHASH( hServer ), "shutdown test server starts", @nFailures, @nChecks )
+    MTAssert( HB_ISHASH( hServer ), "shutdown test server starts", @nFailures, @nChecks )
     IF ! HB_ISHASH( hServer )
         RETURN
     ENDIF
 
-    hIdle := mtconnect( hServer[ "port" ] )
-    mtassert( ! Empty( hIdle ), "in-flight shutdown client connects", @nFailures, @nChecks )
+    hIdle := MTConnect( hServer[ "port" ] )
+    MTAssert( ! Empty( hIdle ), "in-flight shutdown client connects", @nFailures, @nChecks )
     IF Empty( hIdle )
-        hbbridgeserverstop( hServer )
+        HBBridgeServerStop( hServer )
         RETURN
     ENDIF
-    mtassert( mtwait( {|| hbbridgeserveractive( hServer ) == 1 }, 1000 ), ;
+    MTAssert( MTWait( {|| HBBridgeServerActive( hServer ) == 1 }, 1000 ), ;
         "shutdown starts with an admitted worker", @nFailures, @nChecks )
 
-    hStop := hb_threadStart( @hbbridgeserverstop(), hServer )
-    mtassert( mtwait( {|| ! hbbridgeserverrunning( hServer ) }, 1000 ), ;
+    hStop := hb_threadStart( @HBBridgeServerStop(), hServer )
+    MTAssert( MTWait( {|| ! HBBridgeServerRunning( hServer ) }, 1000 ), ;
         "shutdown marks listener as stopped", @nFailures, @nChecks )
-    mtassert( mtwait( {|| mtconnectionrefused( hServer[ "port" ] ) }, 1000 ), ;
+    MTAssert( MTWait( {|| MTConnectionRefused( hServer[ "port" ] ) }, 1000 ), ;
         "shutdown refuses new connections before draining finishes", @nFailures, @nChecks )
-    mtassert( hb_threadWait( hStop, 0 ) == 0, ;
+    MTAssert( hb_threadWait( hStop, 0 ) == 0, ;
         "shutdown waits for its in-flight worker", @nFailures, @nChecks )
 
-    hResponse := mtexchange( hIdle, mtechojson( 123 ) )
+    hResponse := MTExchange( hIdle, MTEchoJson( 123 ) )
     hb_socketClose( hIdle )
-    mtassert( mtechomatches( hResponse, 123 ), ;
+    MTAssert( MTEchoMatches( hResponse, 123 ), ;
         "admitted request completes during graceful shutdown", @nFailures, @nChecks )
-    mtassert( mtjoin( hStop, @lStopped ), "shutdown thread finishes after worker drains", @nFailures, @nChecks )
-    mtassert( lStopped == .T., "graceful shutdown reports success", @nFailures, @nChecks )
-    mtassert( hbbridgeserveractive( hServer ) == 0, "shutdown leaves no active workers", @nFailures, @nChecks )
-    mtassert( mtconnectionrefused( hServer[ "port" ] ), "stopped port refuses new clients", @nFailures, @nChecks )
+    MTAssert( MTJoin( hStop, @lStopped ), "shutdown thread finishes after worker drains", @nFailures, @nChecks )
+    MTAssert( lStopped == .T., "graceful shutdown reports success", @nFailures, @nChecks )
+    MTAssert( HBBridgeServerActive( hServer ) == 0, "shutdown leaves no active workers", @nFailures, @nChecks )
+    MTAssert( MTConnectionRefused( hServer[ "port" ] ), "stopped port refuses new clients", @nFailures, @nChecks )
 
 RETURN
 
-STATIC FUNCTION mtconnect( nPort )
+STATIC FUNCTION MTConnect( nPort )
 
     LOCAL hSocket := hb_socketOpen( HB_SOCKET_AF_INET, HB_SOCKET_PT_STREAM, HB_SOCKET_IPPROTO_IP )
 
@@ -267,9 +302,9 @@ STATIC FUNCTION mtconnect( nPort )
 
 RETURN hSocket
 
-STATIC FUNCTION mtconnectionrefused( nPort )
+STATIC FUNCTION MTConnectionRefused( nPort )
 
-    LOCAL hSocket := mtconnect( nPort )
+    LOCAL hSocket := MTConnect( nPort )
 
     IF ! Empty( hSocket )
         hb_socketClose( hSocket )
@@ -278,34 +313,52 @@ STATIC FUNCTION mtconnectionrefused( nPort )
 
 RETURN .T.
 
-STATIC FUNCTION mtechojson( nIndex )
+STATIC FUNCTION MTEchoJson( nIndex )
 
     LOCAL hParams := { "id" => nIndex, "payload" => Replicate( hb_ntos( nIndex ) + "-", 30 ) }
 
 RETURN hb_jsonEncode( { "service" => "Echo", "params" => hParams } )
 
-STATIC FUNCTION mtechorequest( nPort, nIndex )
-RETURN mtrequest( nPort, mtechojson( nIndex ) )
+STATIC FUNCTION MTEchoRequest( nPort, nIndex )
+RETURN MTRequest( nPort, MTEchoJson( nIndex ) )
 
-STATIC FUNCTION mtaddonrequest( nPort, nIndex )
-RETURN mtrequest( nPort, hb_jsonEncode( { "service" => "ADDON.Execute", ;
-    "params" => { "module" => "hbbridge_mt_isolation.hrb", "params" => { "id" => nIndex } } } ) )
+STATIC FUNCTION MTAddonRequest( nPort, nIndex )
+RETURN MTRequest( nPort, hb_jsonEncode( { "service" => "ADDON.Execute", ;
+    "params" => { "module" => "hbbridge_mt_isolation.hrb", ;
+        "params" => { "id" => nIndex, "synchronize" => .T. } } } ) )
 
-FUNCTION mtrequest( nPort, cJson, cSignature )
+FUNCTION MTAddonBarrier( nIndex )
 
-    LOCAL hSocket := mtconnect( nPort ), hResponse := NIL
+    LOCAL nArrived, nRelease, lReady := .F.
+
+    nArrived := hb_mutexEval( s_hAddonGate[ "mutex" ], {|| MTAddonArrive( nIndex ) } )
+    IF nArrived == s_hAddonGate[ "expected" ]
+        FOR nRelease := 1 TO s_hAddonGate[ "expected" ]
+            hb_mutexNotify( s_hAddonGate[ "release" ], .T. )
+        NEXT
+    ENDIF
+
+RETURN hb_mutexSubscribe( s_hAddonGate[ "release" ], 2, @lReady ) .AND. lReady
+
+STATIC FUNCTION MTAddonArrive( nIndex )
+    s_hAddonGate[ "participants" ][ hb_ntos( nIndex ) ] := .T.
+RETURN Len( s_hAddonGate[ "participants" ] )
+
+FUNCTION MTRequest( nPort, cJson, cSignature )
+
+    LOCAL hSocket := MTConnect( nPort ), hResponse := NIL
 
     IF ! Empty( hSocket )
-        hResponse := mtexchange( hSocket, cJson, cSignature )
+        hResponse := MTExchange( hSocket, cJson, cSignature )
         hb_socketClose( hSocket )
     ENDIF
 
 RETURN hResponse
 
-STATIC FUNCTION mtexchange( hSocket, cJson, cSignature )
+STATIC FUNCTION MTExchange( hSocket, cJson, cSignature )
 
     LOCAL cFrame, nZipError, cCompressed
-    LOCAL cResponse := "", cChunk, nReceived, nDeadline := hbbridgemonotonicms() + MT_TIMEOUT_MS
+    LOCAL cResponse := "", cChunk, nReceived, nDeadline := HBBridgeMonotonicMs() + MT_TIMEOUT_MS
     LOCAL nHeaderEnd, aHeader, cBody, hResponse
 
     hb_default( @cSignature, "HBBRIDGE/1" )
@@ -319,10 +372,10 @@ STATIC FUNCTION mtexchange( hSocket, cJson, cSignature )
     IF hb_socketSend( hSocket, cCompressed, hb_BLen( cCompressed ), 0, MT_TIMEOUT_MS ) != hb_BLen( cCompressed )
         RETURN NIL
     ENDIF
-    DO WHILE hbbridgemonotonicms() < nDeadline
+    DO WHILE HBBridgeMonotonicMs() < nDeadline
         cChunk := Space( 4096 )
         nReceived := hb_socketRecv( hSocket, @cChunk, hb_BLen( cChunk ), 0, ;
-            Max( 1, nDeadline - hbbridgemonotonicms() ) )
+            Max( 1, nDeadline - HBBridgeMonotonicMs() ) )
         IF nReceived == 0
             EXIT
         ELSEIF nReceived < 0
@@ -356,7 +409,7 @@ STATIC FUNCTION mtexchange( hSocket, cJson, cSignature )
 
 RETURN hResponse
 
-STATIC FUNCTION mtechomatches( hResponse, nIndex )
+STATIC FUNCTION MTEchoMatches( hResponse, nIndex )
 
     LOCAL hParams
 
@@ -377,18 +430,23 @@ STATIC FUNCTION mtechomatches( hResponse, nIndex )
 RETURN hResponse[ "success" ] == .T. .AND. hParams[ "id" ] == nIndex .AND. ;
     hParams[ "payload" ] == Replicate( hb_ntos( nIndex ) + "-", 30 )
 
-STATIC FUNCTION mtaddonmatches( hResponse, nIndex )
+STATIC FUNCTION MTAddonMatches( hResponse, nIndex )
 
     IF ! HB_ISHASH( hResponse )
         RETURN .F.
     ENDIF
-    IF ! hb_HHasKey( hResponse, "id" ) .OR. ! hb_HHasKey( hResponse, "counter" )
+    IF ! hb_HHasKey( hResponse, "id" ) .OR. ! hb_HHasKey( hResponse, "counter" ) .OR. ;
+        ! hb_HHasKey( hResponse, "counterBefore" ) .OR. ! hb_HHasKey( hResponse, "owner" ) .OR. ;
+        ! hb_HHasKey( hResponse, "allActive" )
         RETURN .F.
     ENDIF
 
-RETURN hResponse[ "id" ] == nIndex .AND. hResponse[ "counter" ] == 1
+RETURN hb_HGetDef( hResponse, "success", .F. ) == .T. .AND. ;
+    hResponse[ "id" ] == nIndex .AND. hResponse[ "owner" ] == nIndex .AND. ;
+    hResponse[ "allActive" ] == .T. .AND. HB_ISNUMERIC( hResponse[ "counterBefore" ] ) .AND. ;
+    hResponse[ "counter" ] == hResponse[ "counterBefore" ] + 1
 
-STATIC FUNCTION mtiserror( hResponse )
+STATIC FUNCTION MTIsError( hResponse )
 
     IF ! HB_ISHASH( hResponse )
         RETURN .F.
@@ -399,7 +457,7 @@ STATIC FUNCTION mtiserror( hResponse )
 
 RETURN hResponse[ "success" ] == .F.
 
-STATIC FUNCTION mtjoin( hThread, xResult )
+STATIC FUNCTION MTJoin( hThread, xResult )
 
     IF Empty( hThread )
         RETURN .F.
@@ -412,11 +470,11 @@ STATIC FUNCTION mtjoin( hThread, xResult )
 
 RETURN hb_threadJoin( hThread, @xResult )
 
-STATIC FUNCTION mtwait( bCondition, nTimeout )
+STATIC FUNCTION MTWait( bCondition, nTimeout )
 
-    LOCAL nDeadline := hbbridgemonotonicms() + nTimeout
+    LOCAL nDeadline := HBBridgeMonotonicMs() + nTimeout
 
-    DO WHILE hbbridgemonotonicms() < nDeadline
+    DO WHILE HBBridgeMonotonicMs() < nDeadline
         IF Eval( bCondition )
             RETURN .T.
         ENDIF
@@ -425,7 +483,7 @@ STATIC FUNCTION mtwait( bCondition, nTimeout )
 
 RETURN Eval( bCondition )
 
-STATIC PROCEDURE mtassert( lCondition, cMessage, nFailures, nChecks )
+STATIC PROCEDURE MTAssert( lCondition, cMessage, nFailures, nChecks )
 
     nChecks++
     IF lCondition

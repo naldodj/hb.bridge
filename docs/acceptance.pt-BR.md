@@ -60,8 +60,8 @@ A recompilação e a execução manual pelo WebApp estão OK. Os logs
 locais corroboram ambas as etapas:
 
 - Compilação às **07:45:37**, horário de São Paulo: **3 fontes, 3 sucessos,
-  0 erros**, incluindo `hbbridgeconnectiontest.tlpp`, `hbbridgeclient.tlpp`
-  e `hbbridgerpcdataset.tlpp`; resultado em `tmp/console.log`.
+  0 erros**, incluindo `hbbridgeconnectiontest.tlpp` e os nomes então usados
+  `thbbridgeclient.tlpp` e `trpcdataset.tlpp`; resultado em `tmp/console.log`.
 - Execução às **08:00:30**, thread AppServer `32748`: **Health, ADDON e Echo
   com `success: true`**, no console configurado em
   `C:\totvs\protheus1212410\protheusdata\logs\console.log`.
@@ -146,7 +146,7 @@ gzip de requisição de 152.964 bytes, acima do buffer padrão de 65.536 bytes.
 A evidência foi fornecida pelo operador; esta rodada não foi executada pelo agente.
 O horário de execução, os argumentos e o hash do binário não foram informados.
 
-O novo `hbbridgetime.tlpp`, com a classe `hbbridge.client.HBBridgeTime` e seus métodos
+O novo `hbbridgetime.tlpp`, com a classe `HBBridge.Client.HBBridgeTime` e seus métodos
 estáticos, usa `TimeCounter()`; o teste atual verifica escala/avanço após
 `Sleep(1000)` antes do RPC. A linha de relógio não constava no trecho
 recebido nessa rodada anterior; os valores foram informados na confirmação
@@ -263,7 +263,7 @@ A nova leitura de `[hbBridge]` no AppServer é uma alteração posterior ao
 teste das 00:40:06. O operador confirmou seus testes em nova rodada manual,
 registrada abaixo. MSSQL real permanece pendente. As 412 verificações são
 da suíte Harbour, separadas do aceite dessa configuração no AppServer.
-`hbbridge.client.HBBridgeConfig():Read()` seleciona o INI por `GetSrvIniName()`
+`HBBridge.Client.HBBridgeConfig():Read()` seleciona o INI por `GetSrvIniName()`
 e lê `Host`, `Port`, `TimeoutMs`, `MaxPayloadBytes`, `MaxWireBytes`,
 `ReadChunkBytes` e `SQLProfile` por `GetPvProfString`. O cliente e os testes
 sem argumentos passam a usar essa seção; argumentos explícitos têm prioridade.
@@ -323,3 +323,85 @@ Permanecem MSSQL real, destinos/perfis diferentes dos padrões com argumentos
 omitidos, timeout/falhas de socket, envio parcial positivo forçado e ampliação
 de tipos/volume/codepages. A suíte Harbour de 412 checks é uma verificação
 independente. Nenhum fonte ou arquivo de configuração mudou ao registrar esse aceite.
+
+## Dependências gerenciadas e revisão de perfis em 2026-10-04
+
+O bootstrap do próprio projeto compilou o Harbour fixado e o hbrun usando
+hb_compile/Zig gerenciados. As revisões Git foram hb_compile
+`2cb6f3ef59c297025a2c49c4cfa8c7639f3a1455` e Harbour
+`6deac9cf3ad977ae829e5bca543d553b92dd4b6d`; Zig 0.16.0.
+
+A suíte Harbour isolada no Windows passou em **416 verificações, zero
+falhas e nenhum skip**, log
+`tmp/tests-d1b829ff332c414f816a6e70748152d1/results.log`. Sobre as 412
+anteriores, dois casos INI e dois SQL verificam perfis múltiplos, preservação
+de barra/caixa e seleção explícita que distingue maiúsculas/minúsculas.
+
+O produto candidato foi compilado em `tmp/managed-product/hbbridge.exe`,
+SHA256 `5443466A05A5206D7E6E1BC53F86DB604059EEF8F687A0C1B22973CFB7A76B18`,
+log `tmp/managed-product-build.log`. Checks de metadados sanitizados de perfis
+não consultaram MSSQL. A instalação canônica ativa não foi substituída.
+
+Esse resultado precede os ajustes PascalCase e HTTP solicitados em
+2026-10-06. Classes/namespaces TLPP renomeados e o teste revisado de
+configuração com 16 checks não foram compilados nem homologados no Protheus.
+HTTP, HTTPS direto, MSSQL real, Linux e mudanças posteriores exigem
+validação registrada separadamente.
+
+## PascalCase e HTTP nativo em 2026-10-06
+
+A rodada HTTP específica final no Windows Harbour/Zig passou em **65
+verificações, zero falhas e nenhum skip**. O agente
+executou os testes com o toolchain gerenciado. Log:
+`tmp/http-tests-f3476462dfbb4fe6b64d63b0de1c1149/results.log`; log do script:
+`tmp/http-target-test.log`; preparação das dependências:
+`tmp/http-prepare.log`. Esses logs contêm a rodada final, substituindo as
+iterações específicas anteriores de 45 e 57 checks.
+
+A rodada exercitou hbhttpd junto de NETIO/TCP: Health autenticado via Zig,
+Echo de 220 KB, resultados equivalentes pelo NETIO nativo, SQLite com alias
+`memory/HTTP`, ADDON.Execute, descoberta, separação bearer/admin, erros de
+serviço JSON estruturados, rejeição de Transfer-Encoding e Content-Length
+duplicado/não decimal, oito contextos concorrentes, parada durante um
+cabeçalho continuamente incompleto, reinício na mesma porta e rollback de
+início. O painel administrativo apresenta somente status compartilhado e
+fica desativado sem credencial admin. Campos ERP recebidos continuam como
+parâmetros sem interpretação.
+
+Os testes com workers UTF8EX também passaram em Content-Length por bytes,
+acentos/CJK/caracteres suplementares brutos, escapes BMP, pares surrogate
+com caixa mista e chaves de objetos, preservação de backslash/aspas escapados,
+rejeição de UTF-8 inválido/conteúdo excedente, Unicode SQLite e execução
+Unicode de serviço nativo. Surrogates órfãos/invertidos retornaram
+`INVALID_JSON`/400 antes da execução. A normalização de surrogate fica no
+adaptador HTTP, sem alterar hbjson global nem os outros transportes.
+
+HTTP aberto vinculou hbhttpd/hbtcpio gerenciados, usando o patch do projeto
+SHA256 `ab6de8a46ec4aa3b01493db5ad5c90dd005f1b76ed61f8d38c6356602a3f3d1c`.
+O SHA256 do executável específico de teste foi
+`65661E1F56C02217D58E7C1F40FB6EF48E71D4BD144A43A9B8C379702E877EF5`.
+TLS direto hbssl/OpenSSL não foi vinculado nem exercitado. Parsing/prazos
+HTTP continuam nativos e não herdam budgets TCP Protheus. Veja
+[HTTP e dependências](http.pt-BR.md).
+
+A suíte completa e o produto terão resultado registrado após conclusão.
+Essa rodada HTTP não compila/homologa os fontes TLPP renomeados no AppServer,
+não comprova MSSQL real/Unicode ODBC/HTTPS/Linux nem implementa ações
+administrativas.
+
+### Semântica nativa de estado HRB e contraprova
+
+O teste nativo isolado de propriedade passou com **12 HRBs FORCELOCAL
+carregados simultaneamente**, barreira de sincronização, `owner=id` e
+`counter=counterBefore+1`. Log: `tmp/addon-native-semantics.log`. A recarga
+sequencial reutilizou frame STATIC inicializado: os contadores registrados
+seguiram de 2 até 5, em vez de reiniciar em um. Loader/runtime não foram
+alterados para forçar resets.
+
+A contraprova deliberada com um único handle HRB compartilhado entre 12
+threads rejeitou **11 de 12 respostas**, log
+`tmp/addon-native-counterprobe.log`. Isso comprova que as verificações
+detectam estado compartilhado e respeitam a reciclagem nativa do Harbour.
+A fixture acrescenta seis checks à suíte completa, cujo resultado é
+registrado separadamente. Addons devem inicializar seu estado de negócio
+por execução com parâmetros/variáveis locais; FORCELOCAL não assegura reset.

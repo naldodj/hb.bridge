@@ -12,9 +12,9 @@ $projectRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $toolchainArguments = @{ ProjectRoot = $projectRoot }
 if ($HbCompileRoot) { $toolchainArguments.HbCompileRoot = $HbCompileRoot }
 if ($ZigPath) { $toolchainArguments.ZigPath = $ZigPath }
-$toolchain = resolve-hbbridgetoolchain @toolchainArguments
+$toolchain = Resolve-HBBridgeToolchain @toolchainArguments
 
-function invoke-validationgit {
+function Invoke-ValidationGit {
     param([string[]] $Arguments)
 
     $result = & git -c "safe.directory=$projectRoot" -C $projectRoot @Arguments
@@ -22,14 +22,14 @@ function invoke-validationgit {
     return $result
 }
 
-function invoke-validationtool {
+function Invoke-ValidationTool {
     param([string] $Script, [string[]] $Arguments)
 
     & $toolchain.Hbrun (Join-Path $projectRoot ".hbcommit/$Script") @Arguments
     if ($LASTEXITCODE -ne 0) { throw "$Script rejected the files (exit $LASTEXITCODE)." }
 }
 
-function test-projectconventions {
+function Test-ProjectConventions {
     param([string] $ValidationRoot, [string[]] $Files)
 
     $failures = [Collections.Generic.List[string]]::new()
@@ -48,20 +48,41 @@ function test-projectconventions {
             }
         }
 
-        if ($relativePath -notmatch '\.(prg|tlpp)$') { continue }
+        if ($relativePath.StartsWith('.hbcommit/') -or $relativePath.Contains('/third_party/')) { continue }
+        if ($relativePath -notmatch '\.(prg|tlpp|c|zig|ps1)$') { continue }
         $content = [IO.File]::ReadAllText($filePath)
-        if ($relativePath.EndsWith('.tlpp')) {
-            $classDeclaration = [regex]::Match($content, '(?im)^\s*class\s+([a-z_][a-z0-9_]*)')
-            if ($classDeclaration.Success -and
-                [IO.Path]::GetFileNameWithoutExtension($relativePath) -cne $classDeclaration.Groups[1].Value.ToLowerInvariant()) {
-                $failures.Add("${relativePath}: filename must match its class name in lowercase")
+        # Read only declarations; ignore examples in comments and native ABI macros.
+        $declarationSource = [regex]::Replace($content, '/\*[\s\S]*?\*/', '')
+        $declarationSource = [regex]::Replace($declarationSource, '(?m)^\s*(?://|\*|#(?!if|else|endif|define|include)).*$', '')
+        if ($relativePath -match '\.(prg|tlpp)$') {
+            $classDeclarations = [regex]::Matches($declarationSource, '(?im)^\s*(?:(?:create|define)\s+)?class\s+([a-z_][a-z0-9_]*)')
+            foreach ($classDeclaration in $classDeclarations) {
+                if ([IO.Path]::GetFileNameWithoutExtension($relativePath) -cne $classDeclaration.Groups[1].Value.ToLowerInvariant()) {
+                    $failures.Add("${relativePath}: filename must match its class name in lowercase")
+                }
             }
         }
-        foreach ($declaration in [regex]::Matches($content,
-            '(?im)^\s*(?:(?:static|public|private|protected|init|exit)\s+)?(?:function|procedure|method|namespace)\s+([a-z_][a-z0-9_.]*)')) {
+        $declarationPattern = switch -Regex ($relativePath) {
+            '\.(prg|tlpp)$' {
+                '(?im)^\s*(?:(?:static|public|private|protected|init|exit|user|create|define)\s+)*(?:function|procedure|method|namespace|class)\s+([a-z_][a-z0-9_.]*)'
+            }
+            '\.ps1$' { '(?im)^\s*function\s+([a-z_][a-z0-9_-]*)' }
+            '\.zig$' { '(?m)^\s*(?:(?:pub|export|extern)\s+)*fn\s+([A-Za-z_][A-Za-z0-9_]*)' }
+            '\.c$' {
+                '(?m)^\s*(?:(?:static|extern)\s+)?(?:const\s+)?(?:void|char|int|double|float|HB_SIZE|HB_BOOL|PHB_ITEM)\s*\**\s+([A-Za-z_][A-Za-z0-9_]*)\s*\([^;{}]*\)\s*(?=\{)|^\s*static\s+HB_GARBAGE_FUNC\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*\)'
+            }
+        }
+        foreach ($declaration in [regex]::Matches($declarationSource, $declarationPattern)) {
             $name = $declaration.Groups[1].Value
-            if ($name -cne $name.ToLowerInvariant() -and -not $name.StartsWith('U_', [StringComparison]::Ordinal)) {
-                $failures.Add("${relativePath}: own function, procedure, method and namespace names must be lowercase ($name)")
+            if (-not $name) { $name = $declaration.Groups[2].Value }
+            # Zig requires this exact build entry point; U_ is the Protheus test prefix.
+            if ($relativePath -ceq 'build.zig' -and $name -ceq 'build') { continue }
+            if ($name.StartsWith('U_', [StringComparison]::Ordinal)) { $name = $name.Substring(2) }
+            foreach ($segment in ($name -split '[.-]')) {
+                if ($segment -cnotmatch '^[A-Z][A-Za-z0-9]*$') {
+                    $failures.Add("${relativePath}: own function, procedure, method, namespace and class names must use PascalCase ($name)")
+                    break
+                }
             }
         }
         $lineNumber = 0
@@ -97,10 +118,10 @@ if ($Staged) {
     $validationRoot = Join-Path $temporaryRoot 'snapshot'
     New-Item -ItemType Directory -Path $validationRoot -Force | Out-Null
     $snapshotPrefix = $validationRoot.Replace('\', '/') + '/'
-    invoke-validationgit -Arguments @('checkout-index', '--all', "--prefix=$snapshotPrefix") | Out-Null
-    $fileOutput = invoke-validationgit -Arguments @('ls-files', '-z', '--cached')
+    Invoke-ValidationGit -Arguments @('checkout-index', '--all', "--prefix=$snapshotPrefix") | Out-Null
+    $fileOutput = Invoke-ValidationGit -Arguments @('ls-files', '-z', '--cached')
 } else {
-    $fileOutput = invoke-validationgit -Arguments @('ls-files', '-z', '--cached', '--others', '--exclude-standard')
+    $fileOutput = Invoke-ValidationGit -Arguments @('ls-files', '-z', '--cached', '--others', '--exclude-standard')
 }
 $files = @(($fileOutput -join "`n") -split "`0" | Where-Object {
     $_ -and (Test-Path -LiteralPath (Join-Path $validationRoot $_) -PathType Leaf)
@@ -108,26 +129,26 @@ $files = @(($fileOutput -join "`n") -split "`0" | Where-Object {
 $fileList = Join-Path $temporaryRoot 'files.txt'
 [IO.File]::WriteAllText($fileList, ($files -join "`n") + "`n", [Text.UTF8Encoding]::new($false))
 
-$previousEnvironment = enter-hbbridgetoolchain -Toolchain $toolchain
+$previousEnvironment = Enter-HBBridgeToolchain -Toolchain $toolchain
 Push-Location $validationRoot
 try {
-    invoke-validationtool -Script 'check.hb' -Arguments @('--list', $fileList)
-    invoke-validationtool -Script 'commit.hb' -Arguments @('-c', '--list', $fileList)
-    test-projectconventions -ValidationRoot $validationRoot -Files $files
+    Invoke-ValidationTool -Script 'check.hb' -Arguments @('--list', $fileList)
+    Invoke-ValidationTool -Script 'commit.hb' -Arguments @('-c', '--list', $fileList)
+    Test-ProjectConventions -ValidationRoot $validationRoot -Files $files
     $vendorMetadata = @(Get-ChildItem -LiteralPath (Join-Path $validationRoot 'src/c/third_party') -Filter '*.hbp' -File -Recurse)
     if ($vendorMetadata.Count -eq 0) { throw 'No third-party validation metadata was found.' }
     foreach ($metadata in $vendorMetadata) {
         Push-Location $metadata.DirectoryName
-        try { invoke-validationtool -Script '3rdpatch.hb' -Arguments @('-validate') }
+        try { Invoke-ValidationTool -Script '3rdpatch.hb' -Arguments @('-validate') }
         finally { Pop-Location }
     }
 } finally {
     Pop-Location
-    exit-hbbridgetoolchain -PreviousEnvironment $previousEnvironment
+    Exit-HBBridgeToolchain -PreviousEnvironment $previousEnvironment
 }
 
 if ($InstallHook) {
-    $hookRelative = invoke-validationgit -Arguments @('rev-parse', '--git-path', 'hooks/pre-commit')
+    $hookRelative = Invoke-ValidationGit -Arguments @('rev-parse', '--git-path', 'hooks/pre-commit')
     $hookPath = [IO.Path]::GetFullPath((Join-Path $projectRoot $hookRelative))
     $hookContent = "#!/bin/sh`n# hbBridge mandatory staged checks`nexec pwsh -NoProfile -File `"`$(git rev-parse --show-toplevel)/scripts/commit-check.ps1`" -Staged`n"
     if ((Test-Path -LiteralPath $hookPath) -and [IO.File]::ReadAllText($hookPath) -cne $hookContent) {

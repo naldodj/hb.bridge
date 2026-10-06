@@ -3,7 +3,7 @@
 [Português (Brasil)](milestone2-framing.pt-BR.md)
 
 This delivery repairs the existing transfer and retains HBBridgeClient
-new/callservice semantics. The first three constructor arguments remain,
+New/CallService semantics. The first three constructor arguments remain,
 with optional size/buffer policies added. Services use the shared registry,
 including ADDON.Execute with module/params for both clients.
 Historical Milestone 1 acceptance stays in [acceptance](acceptance.md).
@@ -81,7 +81,7 @@ clients can postpone shutdown indefinitely; forced cancellation is absent.
 NETIO signals/closes its connections.
 
 TLPP constructor:
-`new(cHost, nPort, nTimeout, nMaxPayloadBytes, nMaxWireBytes, nReadChunkBytes)`.
+`New(cHost, nPort, nTimeout, nMaxPayloadBytes, nMaxWireBytes, nReadChunkBytes)`.
 Extra defaults: 0/0/65536. Timeout defaults 30000 and must be positive;
 zero TOTVS timeout semantics remain unaccepted.
 
@@ -97,7 +97,7 @@ TLPP covers connection, reads and checks between sends. Send has no timeout
 argument, so a blocking call can exceed budget; gzip/JSON computation is not
 interrupted by it.
 
-Static `hbbridge.client.HBBridgeTime` uses TimeCounter, adapted from
+Static `HBBridge.Client.HBBridgeTime` uses TimeCounter, adapted from
 dna.tech.StopWatch.__GetCurrentTimeStamp. Single samples/differences replace
 Date/Seconds, without a one-day ceiling.
 [Issue #12](https://github.com/naldodj/totvs-protheus-open-issues/issues/12)

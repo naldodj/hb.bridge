@@ -14,10 +14,10 @@ Released to Public Domain.
 REQUEST __HB_EXTERN__
 #endif
 
-FUNCTION hbbridgeregistry()
+FUNCTION HBBridgeRegistry()
 RETURN { "services" => {=>}, "sealed" => .F. }
 
-FUNCTION hbbridgeregister( hRegistry, hSpec, bHandler )
+FUNCTION HBBridgeRegister( hRegistry, hSpec, bHandler )
 
     LOCAL cKey, cField, hEntry
 
@@ -48,11 +48,11 @@ FUNCTION hbbridgeregister( hRegistry, hSpec, bHandler )
 
 RETURN .T.
 
-FUNCTION hbbridgeregistryseal( hRegistry )
+FUNCTION HBBridgeRegistrySeal( hRegistry )
     hRegistry[ "sealed" ] := .T.
 RETURN hRegistry
 
-FUNCTION hbbridgecontext( cTransport, cAddonRoot, hState, lAdmin )
+FUNCTION HBBridgeContext( cTransport, cAddonRoot, hState, lAdmin )
 
     hb_default( @cTransport, "local" )
     hb_default( @cAddonRoot, hb_cwd() + "addons" )
@@ -62,7 +62,7 @@ RETURN { "transport" => cTransport, "addonRoot" => cAddonRoot, "state" => hState
     "permissions" => iif( lAdmin, { "admin.read", "capabilities.read" }, ;
         { "service.call", "addon.execute", "core.call", "capabilities.read" } ) }
 
-FUNCTION hbbridgedispatch( hRegistry, cService, xParams, hContext, nVersion )
+FUNCTION HBBridgeDispatch( hRegistry, cService, xParams, hContext, nVersion )
 
     LOCAL cKey, hEntry, hCall, xResult, cType
 
@@ -70,26 +70,26 @@ FUNCTION hbbridgedispatch( hRegistry, cService, xParams, hContext, nVersion )
         nVersion := 1
     ENDIF
     IF ! HB_ISSTRING( cService ) .OR. Empty( cService )
-        RETURN hbbridgeerror( "INVALID_SERVICE", "Servico invalido" )
+        RETURN HBBridgeError( "INVALID_SERVICE", "Servico invalido" )
     ENDIF
     IF ! HB_ISNUMERIC( nVersion )
-        RETURN hbbridgeerror( "INVALID_VERSION", "Versao invalida" )
+        RETURN HBBridgeError( "INVALID_VERSION", "Versao invalida" )
     ENDIF
     IF nVersion < 1 .OR. nVersion != Int( nVersion )
-        RETURN hbbridgeerror( "INVALID_VERSION", "Versao invalida" )
+        RETURN HBBridgeError( "INVALID_VERSION", "Versao invalida" )
     ENDIF
     cKey := cService + "/" + hb_ntos( nVersion )
     IF ! hb_HHasKey( hRegistry[ "services" ], cKey )
-        RETURN hbbridgeerror( "SERVICE_NOT_FOUND", "Servico nao suportado" )
+        RETURN HBBridgeError( "SERVICE_NOT_FOUND", "Servico nao suportado" )
     ENDIF
     hEntry := hRegistry[ "services" ][ cKey ]
-    IF ! hbbridgepermitted( hEntry[ "spec" ], hContext )
-        RETURN hbbridgeerror( "FORBIDDEN", "Servico nao autorizado neste canal" )
+    IF ! HBBridgePermitted( hEntry[ "spec" ], hContext )
+        RETURN HBBridgeError( "FORBIDDEN", "Servico nao autorizado neste canal" )
     ENDIF
     cType := hEntry[ "spec" ][ "params" ]
-    IF ! hbbridgevalueallowed( xParams ) .OR. ;
+    IF ! HBBridgeValueAllowed( xParams ) .OR. ;
         ( cType != "any" .AND. cType != ValType( xParams ) )
-        RETURN hbbridgeerror( "INVALID_PARAMS", "Tipo de parametro nao suportado" )
+        RETURN HBBridgeError( "INVALID_PARAMS", "Tipo de parametro nao suportado" )
     ENDIF
     /* Arguments and context belong to this call; no shared mutable executor. */
     hCall := { "transport" => hContext[ "transport" ], "addonRoot" => hContext[ "addonRoot" ], ;
@@ -98,38 +98,38 @@ FUNCTION hbbridgedispatch( hRegistry, cService, xParams, hContext, nVersion )
     BEGIN SEQUENCE WITH {| oError | Break( oError ) }
         xResult := Eval( hEntry[ "handler" ], xParams, hCall )
         cType := hEntry[ "spec" ][ "result" ]
-        IF ! hbbridgevalueallowed( xResult ) .OR. ;
+        IF ! HBBridgeValueAllowed( xResult ) .OR. ;
             ( cType != "any" .AND. cType != ValType( xResult ) )
-            xResult := hbbridgeerror( "INVALID_RESULT", "Tipo de resultado nao suportado" )
+            xResult := HBBridgeError( "INVALID_RESULT", "Tipo de resultado nao suportado" )
         ENDIF
     RECOVER
-        xResult := hbbridgeerror( "SERVICE_ERROR", "Falha ao executar servico" )
+        xResult := HBBridgeError( "SERVICE_ERROR", "Falha ao executar servico" )
     END SEQUENCE
 
 RETURN xResult
 
-FUNCTION hbbridgeerror( cCode, cMessage )
+FUNCTION HBBridgeError( cCode, cMessage )
 RETURN { "success" => .F., "error" => cMessage, "code" => cCode }
 
-FUNCTION hbbridgecatalog( hRegistry, hContext )
+FUNCTION HBBridgeCatalog( hRegistry, hContext )
 
     LOCAL aServices := {}, hEntry
 
     FOR EACH hEntry IN hRegistry[ "services" ]
-        IF hbbridgepermitted( hEntry[ "spec" ], hContext )
+        IF HBBridgePermitted( hEntry[ "spec" ], hContext )
             AAdd( aServices, hb_HClone( hEntry[ "spec" ] ) )
         ENDIF
     NEXT
 
 RETURN aServices
 
-STATIC FUNCTION hbbridgepermitted( hSpec, hContext )
+STATIC FUNCTION HBBridgePermitted( hSpec, hContext )
 RETURN AScan( hContext[ "permissions" ], {| cPermission | cPermission == hSpec[ "permission" ] } ) > 0
 
 /* Portable native values, with string hash keys. Reject live resources and
  * cyclic containers. Native strings are bytes; dates/timestamps stay native.
  */
-FUNCTION hbbridgevalueallowed( xValue, aParents )
+FUNCTION HBBridgeValueAllowed( xValue, aParents )
 
     LOCAL cType := ValType( xValue ), xChild, cKey
 
@@ -152,7 +152,7 @@ FUNCTION hbbridgevalueallowed( xValue, aParents )
         NEXT
     ENDIF
     FOR EACH xChild IN xValue
-        IF ! hbbridgevalueallowed( xChild, aParents )
+        IF ! HBBridgeValueAllowed( xChild, aParents )
             RETURN .F.
         ENDIF
     NEXT
