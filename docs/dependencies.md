@@ -44,6 +44,14 @@ requires rebuilding, running regressions and updating provenance/license notes.
 
 ## hb_compile integration
 
+The next dependency integration delegates selective external SDK resolution
+to hb_compile, including its generated environment, target/runtime artifacts
+and capability-aware cache receipts. The pinned Windows resolver already
+supports OpenSSL; native Linux resolution needs an upstream capability or
+an explicitly supported WSL/Docker route. This is pending implementation;
+the current TLS SDK workflow below remains applicable. See
+[the dependency review](evolution.md#one-dependency-resolver).
+
 [hb_compile](https://github.com/DNATechByNaldoDJ/hb_compile) orchestrates Harbour
 compilation and compatibility preparation. Windows uses its native Zig build
 runner with project-owned source/install paths and a contrib whitelist:

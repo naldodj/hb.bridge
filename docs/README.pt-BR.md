@@ -28,6 +28,14 @@ em minúsculas e funções, procedures, métodos, namespaces e classes em
 PascalCase. [Dependências](dependencies.pt-BR.md) explica o bootstrap do
 Harbour/hb_compile/Zig do próprio projeto, sem caminhos pessoais fixos.
 
+O [exemplo HTTP TLPP](../examples/http/README.pt-BR.md) apresenta cliente
+FWRest, configuração AppServer, bearer, RPC genérico e dataset SQL paginado,
+com 13 checks homologados pelo operador em 2026-10-07.
+
+A [análise de evolução](evolution.pt-BR.md) trata `THREAD STATIC`, HTTP Zig
+opcional, resolução externa pelo hb_compile e tabelas para apresentação
+Protheus, separando comportamento verificado de implementações futuras.
+
 O [Marco 1](milestone1.pt-BR.md) documenta a implementação do registro nativo,
 NETIO incorporado, configuração e administração. A [matriz de homologação](acceptance.pt-BR.md)
 identifica o ambiente Protheus informado e o toolchain do servidor.

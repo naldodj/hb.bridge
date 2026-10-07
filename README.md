@@ -91,6 +91,7 @@ programming.
 | Addons | In-memory `.prg`/`.hb` compilation and `.hrb` execution through `ADDON.Execute`, receiving `module`/`params`. |
 | NETIO | Embedded native listener `0.0.0.0:2941`, filtered RPC and Harbour serialization. `HB_EXTERN` enabled; registered services only. |
 | HTTP/REST | Embedded `hbhttpd`, optional and disabled by default. JSON service calls and authenticated web status share the core; service/admin credentials are separate. Direct HTTPS requires an OpenSSL-enabled build and its own acceptance. |
+| Protheus HTTP client | `HBBridgeHTTPClient` uses native FWRest, bearer authentication and the shared JSON contract. Operator accepted 13 checks on 2026-10-07, including SQL pagination. |
 | SQL | SQLMIX with SQLite/MSSQL-ODBC, named results and database-side pages. SQLite Protheus: 29 accepted checks on 2026-10-04. Real MSSQL acceptance pending. |
 | DBF | Native RDD access over NETIO planned; not integrated yet. |
 | VF IO | Harbour `hb_vf*` with NETIO has binary read/write tests; TLPP facade pending. |
@@ -100,9 +101,17 @@ programming.
 | Syslog | UDP module exists but is not called in the active request lifecycle. |
 | Debugging | Native hbdebug exists; product/addon debug profile and HBDAP integration pending. |
 
-The Harbour baseline passed **412 checks, zero failures, no skips**, including
+The latest complete Harbour run on 2026-10-06 passed **487 checks, zero failures,
+no skips**, including HTTP, addon concurrency,
 INI/JSON, real SQLite, pages, equivalent NETIO/TCP results, an exact
 **24,000,000-byte Echo**, and JSON/gzip over 16 MiB in both directions.
+
+The [evolution review](docs/evolution.md) records the 2026-10-07 proposals:
+`THREAD STATIC` for worker-local state with explicit per-request initialization,
+Zig as an optional HTTP adapter, external dependency resolution owned by
+hb_compile and generic SQL result tables for native Protheus presentation.
+The native thread-static probe passed 31 separate assertions. Zig HTTP,
+automatic OpenSSL resolution and SQL materialization are still pending.
 
 [Acceptance](docs/acceptance.md) records AppServer `24.3.1.5`, LIB `20260706`,
 RPO/dictionary `12.1.2510`, and the Harbour/Zig reference build. The latest
@@ -226,6 +235,13 @@ The managed build resolves `hbhttpd` and `hbtcpio`. `-hblib` is the `hbmk2`
 library mode. `hbssl`/OpenSSL supports the optional direct TLS build path;
 certificate/TLS/platform acceptance remains pending. A TLS reverse proxy is
 another deployment option. See [HTTP setup and contracts](docs/http.md).
+
+The [TLPP HTTP example](examples/http/README.md) uses
+`HBBridge.Client.HBBridgeHTTPClient`, configured by `HTTPURL`, `HTTPToken`
+and `HTTPTimeoutSeconds` in the active AppServer `[hbBridge]` section.
+`U_HBBridgeHTTPTest()` covers GET Health/discovery, POST Health/Echo/addon,
+401/403/404 errors, recovery and optional SQL pages through the existing
+dataset. The operator reported all 13 checks passed on 2026-10-07.
 
 ### Extensible capabilities
 
@@ -559,6 +575,7 @@ hb.bridge/
 |-- src/c/                            # Harbour API/gzip/C ABI
 |-- src/zig/runtime/hbbridgeruntime.zig
 |-- src/tlpp/hbbridgeclient.tlpp        # HBBridgeClient
+|-- src/tlpp/hbbridgehttpclient.tlpp    # HBBridgeHTTPClient
 |-- src/tlpp/hbbridgeconfig.tlpp        # HBBridgeConfig
 |-- src/tlpp/hbbridgetime.tlpp          # HBBridgeTime
 |-- src/tlpp/hbbridgerpcdataset.tlpp    # HBBridgeRPCDataSet

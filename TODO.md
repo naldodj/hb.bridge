@@ -107,6 +107,11 @@ test-fixture fixes from implementation changes.
   compile the required runtime/tools/contribs rather than depend on local SDKs.
 - [x] Parameterize proprietary TOTVS SDK directories/environment and optional
   operator stop/start scripts. Pair English/Portuguese docs and document setup.
+- [ ] Delegate selected external contrib dependencies, including OpenSSL, to
+  hb_compile; consume generated environment, deploy runtime artifacts and
+  validate cache receipts by capabilities/triplet/versions. No duplicate resolver.
+- [ ] Resolve the pinned hb_compile native-Linux gap upstream or declare a
+  supported WSL/Docker route; pin external package baselines/checksums as well.
 - [ ] Recompile/run renamed TLPP classes and revised optional-profile checks
   on the AppServer. Earlier accepted binaries do not cover these new names.
 - [ ] Execute Linux bootstrap/build/runtime acceptance and other architectures;
@@ -360,6 +365,22 @@ binary integrity/errors/resource release. MSSQL/Oracle claims need evidence.
 
 ## Milestone 4: modules, contribs and C/Zig
 
+### Native presentation and shared query results
+
+- [ ] TLPP adapter from an explicit schema/paginated dataset to client-owned
+  FWTemporaryTable and native browse, preserving types/nulls and cleanup.
+- [ ] Separate RPCRDD.Materialize/Release contract for committed MSSQL staging
+  results: explicit profiles/schema, opaque handle/ownership/lease, metadata,
+  atomic publication, expiry/crash cleanup and real connector cancellation.
+  Do not assume local SQL temp tables or SQLite :memory: cross connections.
+  See [the result-table design](docs/evolution.md#tables-for-native-protheus-presentation).
+
+### Module execution and native extensions
+
+- [x] Verify THREAD STATIC isolates per-thread state, including a shared HRB,
+  while retained workers preserve values across calls/reloads. Keep request
+  state explicit and intentionally shared mutexes synchronized.
+
 - [x] ADDON.Execute shared module/params contract for both clients.
 - [ ] Registered module name/version rather than path; native PRG/HB/HRB reuse
   and HBNETIOSRV_RPCMAIN review for upstream -rpc=file modules.
@@ -384,6 +405,12 @@ binary integrity/errors/resource release. MSSQL/Oracle claims need evidence.
 
 ### HTTP/REST and web administration
 
+- [x] TLPP HTTP client/example with active AppServer INI settings, native
+  FWRest, GET/POST/bearer, JSON service errors and the existing SQL dataset.
+  Operator accepted all 13 checks on 2026-10-07; see [the example](examples/http/README.md).
+- [ ] Extend TLPP HTTP acceptance to alternate configuration, transport failures,
+  larger/mixed Unicode values, other LIBs, HTTPS and identified SQL backends.
+
 - [x] Optional `hbhttpd` adapter dispatches to the same registered services as
   NETIO and Protheus. Separate HTTP service credentials and admin permissions;
   default disabled, configurable bind/port, no default password.
@@ -392,13 +419,16 @@ binary integrity/errors/resource release. MSSQL/Oracle claims need evidence.
   the library build mode, not a separate dependency.
 - [x] GET health/catalog, POST JSON service calls and authenticated read-only
   web status for hbBridge and its embedded NETIO endpoints.
-- [ ] Verify HTTP startup/rollback, auth separation, JSON/SQL/addons, concurrent
+- [x] Verify HTTP startup/rollback, auth separation, JSON/SQL/addons, concurrent
   calls, shutdown/restart and unchanged TCP/NETIO regressions in the full suite.
 - [ ] Direct HTTPS with `hbssl`/OpenSSL: reproducible SDK/runtime resolution,
   certificate/hostname/chain/renewal and TLS policy acceptance on Windows/Linux.
   HTTP behind a TLS reverse proxy is a separate deployment configuration.
 - [ ] Broader REST verb/routes, OpenAPI contract, content/compression negotiation
   and client interoperability; retain generic services and explicit caller context.
+- [ ] Evaluate a Zig 0.16-compatible HTTP adapter against measured hbhttpd gaps;
+  preserve shared contracts/core and define C ABI/VM thread ownership. Compare
+  conformance, resource use, lifecycle and Windows/Linux acceptance first.
 - [ ] Configurable HTTP admission policies for the native accepted-socket queue,
   header/body resources and deadlines. Worker count alone does not bound the
   queue; native parsing reads the body before adapter authentication.

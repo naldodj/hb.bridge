@@ -11,6 +11,7 @@ Nomes convencionais Git e o sufixo `.pt-BR` são exceções às minúsculas.
 | Responsabilidade | Classe / arquivo TLPP | Módulo Harbour |
 | --- | --- | --- |
 | Cliente | `HBBridgeClient` / `hbbridgeclient.tlpp` | Clientes nativos usam NETIO; não se introduz classe redundante. |
+| Cliente HTTP | `HBBridgeHTTPClient` / `hbbridgehttpclient.tlpp` | `transports/http/hbbridgehttp.prg` adapta HTTP ao registro comum. |
 | Configuração | `HBBridgeConfig` / `hbbridgeconfig.tlpp` | `host/hbbridgeconfig.prg` e `host/hbbridgeini.prg` configuram o servidor. |
 | Tempo | `HBBridgeTime` / `hbbridgetime.tlpp` | `src/c/hbbridgetime.c` implementa o relógio monotônico do servidor. |
 | Dataset SQL | `HBBridgeRPCDataSet` / `hbbridgerpcdataset.tlpp` | `services/hbbridgequery.prg` atende consultas SQL. |
@@ -34,6 +35,12 @@ codec. Explique a justificativa junto ao código.
 O produto tem uma implementação em `src/`. Exemplos iniciam esse produto;
 testes exercitam os mesmos componentes. `examples/mvp` registra a origem do
 exemplo, sem representar outro produto ou contrato.
+
+Use `THREAD STATIC` para estado Harbour mutável pertencente à thread worker;
+estado da requisição usa locais/parâmetros ou inicialização explícita. A thread
+reutilizada pode conservar valores entre requisições e recargas HRB. Mutexes
+do processo e recursos compartilhados continuam em estáticos sincronizados.
+Veja a [análise do runtime](evolution.pt-BR.md#estado-da-thread-e-estado-da-requisição).
 
 A documentação inglesa usa o nome de base; a portuguesa acrescenta `.pt-BR`
 antes da extensão. Atualize ambas e preserve aceites, limitações e pendências.

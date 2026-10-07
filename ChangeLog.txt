@@ -5,6 +5,48 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Add native service registry and host runtime)"
  */
 
+2026-10-07 18:21 UTC naldodj (Add TLPP HTTP client and Protheus example)
+  + src/tlpp/hbbridgehttpclient.tlpp
+    + Namespaced HBBridgeHTTPClient with native FWRest GET/POST, bearer,
+      active INI/explicit settings, HTTP status and shared service results.
+    ! Preserve the operator's Unauthorized compatibility fallback; initialize
+      the reason and provide UNAUTHORIZED when a native 401 has no reason.
+  + src/tlpp/tests/protheus/hbbridgehttptest.tlpp
+    + Health, discovery, 200000-byte/accent Echo, addon, 401/403/404 errors,
+      recovery and the existing dataset's optional SQL pages.
+    ! Preserve operator DecodeUTF8 field comparison and test output changes.
+  + examples/http/README.md and README.pt-BR.md
+  * config/examples/protheus-appserver.ini and paired product/test/docs guides
+    + HTTPURL, HTTPToken and HTTPTimeoutSeconds; SQLProfile remains optional.
+  ; Operator acceptance: 2026-10-07 15:16 Sao Paulo, thread 25672, 13 checks
+    passed. No SQL backend supplied; no MSSQL/HTTPS/full-Unicode claim.
+  ; All three commit validators/conventions passed for 139 files; local links
+    and working-tree/index whitespace passed. User-staged snapshot preserved.
+
+2026-10-07 13:02 UTC naldodj (Review thread state and integration evolution)
+  * AGENTS.md and AGENTS.pt-BR.md
+  * README.md and README.pt-BR.md
+  * TODO.md and TODO.pt-BR.md
+  * docs/standards.md and standards.pt-BR.md
+  * docs/dependencies.md and dependencies.pt-BR.md
+  + docs/evolution.md and evolution.pt-BR.md
+    + Distinguish THREAD STATIC worker state from per-request locals/reset and
+      intentionally shared resources. Record 31 native probe assertions;
+      native hbhttpd already uses thread statics and resets request state.
+    + Review optional Zig HTTP against the pinned 0.16 API, retaining the
+      shared executor and requiring measured adapter/VM/ABI acceptance.
+    + Plan selective external SDK resolution in hb_compile rather than a
+      duplicate resolver; record generated-env/runtime/cache and Linux gaps.
+    + Design Protheus-owned temporary presentation and separate committed SQL
+      staging results, with explicit profiles/schema/ownership/lifecycle.
+      These new dependency/HTTP/materialization paths are not implemented yet.
+  * src/hb/services/hbbridgequery.prg
+    ; Correct scope documentation: global connection table, thread-local
+      active connection; keep the shared lifecycle mutex.
+  ; Complete prior full-suite evidence: 487 checks, zero failures/no skips.
+  ; Isolated product build/configuration passed. All three commit validators
+    and project conventions passed for 135 files; staged hook installed.
+
 2026-10-06 10:27 UTC naldodj (Standardize PascalCase and embed HTTP services)
   * AGENTS.md and AGENTS.pt-BR.md
   * README.md and README.pt-BR.md

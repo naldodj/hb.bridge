@@ -12,8 +12,9 @@ RETURN
 
 /* Generic executor: callers resolve ERP table/branch/company/tenant rules.
  * Profile aliases are opaque keys, including names such as mssql/pData.
- * RDDSQL's connection table/default connection are process-global. Keep the
- * complete connect/open/fetch/close/disconnect lifecycle under one mutex.
+ * RDDSQL's connection table is process-global; the active connection is
+ * thread-local. Keep shared table access and the complete
+ * connect/open/fetch/close/disconnect lifecycle under one mutex.
  */
 FUNCTION HBBridgeSQLQuery( hParams, hProfiles )
 

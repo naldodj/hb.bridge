@@ -73,6 +73,12 @@ Recursos disponíveis no Harbour só serão considerados integrados após os ace
 
 ## Base existente — preservar e ampliar
 
+- [ ] Delegar dependências externas selecionadas, incluindo OpenSSL, ao
+  hb_compile; consumir ambiente gerado, distribuir runtime e validar cache
+  por capacidades/triplet/versões, sem duplicar resolvedor.
+- [ ] Resolver upstream a lacuna Linux nativo do hb_compile ou declarar rota
+  WSL/Docker suportada; fixar também baselines/checksums dos pacotes externos.
+
 - [x] Servidor TCP multithread, bind `0.0.0.0` e porta padrão `1512`; destino local `127.0.0.1`.
 - [x] Registro/dispatcher com `Health`, `Echo` e `ADDON.Execute`.
 - [x] `Health` exercitando Harbour → C → Zig no build atual.
@@ -82,7 +88,7 @@ Recursos disponíveis no Harbour só serão considerados integrados após os ace
 - [x] Teste Protheus de `Health`, `Echo` e `ADDON.Execute` com o módulo de exemplo,
   incluindo retorno de 200.000 caracteres repetidos no `Echo`.
 - [x] Compilação em memória de `.prg`/`.hb` e carregamento de `.hrb`, com
-  símbolos locais à chamada e descarregamento do módulo.
+  símbolos locais ao HRB ativo e descarregamento do módulo.
 - [x] Testes Harbour no repositório para concorrência, isolamento e falhas de addons.
 - [x] Envio parcial tratado no servidor e no código TLPP; homologação TLPP do ajuste pendente.
 - [x] Build Harbour/C com Zig e biblioteca `hbbridge_zig` vinculada.
@@ -579,6 +585,22 @@ locais/remotos em blocos, com integridade binária, erros e liberação verifica
 
 ## Marco 4 — módulos, contribs e extensões C/Zig
 
+### Apresentação nativa e resultados compartilhados
+
+- [ ] Adaptador TLPP de schema explícito/dataset paginado para FWTemporaryTable
+  do cliente e browse nativo, preservando tipos/nulos e liberando recursos.
+- [ ] Contrato separado RPCRDD.Materialize/Release para staging MSSQL confirmado:
+  perfis/schema explícitos, handle opaco/posse/lease, metadados, publicação
+  atômica, expiração/limpeza após crash e cancelamento real no conector.
+  Tabela temporária SQL local e SQLite :memory: não atravessam conexões por si.
+  Veja o [desenho de resultados](docs/evolution.pt-BR.md#tabelas-para-apresentação-nativa-no-protheus).
+
+### Execução de módulos e extensões nativas
+
+- [x] Verificar isolamento THREAD STATIC por thread, inclusive com HRB
+  compartilhado, e conservação de valores em chamadas/recargas no mesmo
+  worker. Estado de requisição explícito; mutexes globais compartilhados.
+
 Esta frente evolui com os serviços. A integração C/Zig existente é preservada;
 novas extensões entram conforme a necessidade e os resultados medidos.
 
@@ -622,6 +644,12 @@ disponibilidade consultável, sem alterar os transportes para cada extensão.
 
 ### HTTP/REST e administração web
 
+- [x] Cliente/exemplo HTTP TLPP com INI ativo do AppServer, FWRest nativo,
+  GET/POST/bearer, erros JSON e dataset SQL existente. Operador homologou os
+  13 checks em 2026-10-07; veja o [exemplo](examples/http/README.pt-BR.md).
+- [ ] Ampliar aceite HTTP TLPP para configuração alternativa, falhas de transporte,
+  Unicode variado/maior, outras LIBs, HTTPS e backends SQL identificados.
+
 - [x] Adaptador opcional `hbhttpd` chama os mesmos serviços registrados que
   NETIO e Protheus. Credenciais HTTP e permissões administrativas separadas;
   desativado por padrão, bind/porta configuráveis, sem senha padrão.
@@ -630,13 +658,16 @@ disponibilidade consultável, sem alterar os transportes para cada extensão.
   `-hblib` é o modo de gerar biblioteca, não uma dependência separada.
 - [x] GET de saúde/catálogo, POST JSON de serviços e status web autenticado,
   somente leitura, para hbBridge e seus endpoints NETIO incorporados.
-- [ ] Validar inicialização/rollback HTTP, separação de autenticação, JSON/SQL/
+- [x] Validar inicialização/rollback HTTP, separação de autenticação, JSON/SQL/
   addons, chamadas concorrentes, parada/reinício e regressões TCP/NETIO.
 - [ ] HTTPS direto com `hbssl`/OpenSSL: resolução reproduzível de SDK/runtime,
   certificados/nome/cadeia/renovação e política TLS em Windows/Linux.
   HTTP atrás de proxy TLS é configuração de implantação distinta.
 - [ ] Ampliar verbos/rotas REST, contrato OpenAPI, negociação de conteúdo/
   compressão e interoperabilidade; serviços genéricos recebem contexto explícito.
+- [ ] Avaliar adaptador HTTP compatível com Zig 0.16 contra lacunas medidas do
+  hbhttpd; preservar núcleo/contratos e definir ABI C/posse de threads VM.
+  Comparar conformidade, recursos, ciclo de vida e homologação Windows/Linux.
 - [ ] Políticas HTTP configuráveis de admissão para fila de sockets aceitos,
   recursos de cabeçalho/corpo e prazos. Workers não limitam a fila; o parser
   nativo lê o corpo antes da autenticação do adaptador.

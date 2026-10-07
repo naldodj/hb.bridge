@@ -23,6 +23,10 @@
   static methods for utilities without state; local helpers may be static
   functions. Existing test procedures with the `U_` prefix keep their
   published names, such as `U_HBBridgeConnectionTest`.
+- Use Harbour `THREAD STATIC` for mutable state owned by a worker thread.
+  Initialize per-request state explicitly or keep it in locals/parameters;
+  worker reuse and HRB reload do not imply a reset. Shared process resources,
+  such as the SQL mutex, retain synchronized ordinary `STATIC` storage.
 - Keep hbBridge generic. Protheus resolves its business rules, tenant, company,
   branch, `xFilial` and physical table names; services/addons receive explicit
   inputs. SQL aliases are opaque keys, never automatic ERP context resolvers.

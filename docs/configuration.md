@@ -131,6 +131,9 @@ MaxWireBytes=0
 ReadChunkBytes=65536
 ; Optional installation default. A query may explicitly choose another alias.
 SQLProfile=
+HTTPURL=http://127.0.0.1:8080
+HTTPToken=
+HTTPTimeoutSeconds=30
 ~~~
 
 Host/Port select the Protheus endpoint, using a real IP/DNS; `0.0.0.0` is a
@@ -140,6 +143,13 @@ ceiling; positive values enforce local policies. ReadChunkBytes fits the native
 signed 32-bit socket argument. Actual AppServer MAXSTRINGSIZE/memory still apply;
 negotiation and blocks are pending, and no setting is automatically derived
 from MAXSTRINGSIZE.
+
+`HBBridgeHTTPClient` independently reads `HTTPURL`, the required `HTTPToken`
+and `HTTPTimeoutSeconds` (positive integer, default 30 seconds). The token
+matches the server's `[HTTP] Password`; it is not a database/admin credential.
+Omitted constructor arguments read the active INI; explicit arguments win.
+Native HTTP timeout semantics differ from TCP `TimeoutMs`; no TCP framing,
+gzip or socket budgets are applied. See [the TLPP example](../examples/http/README.md).
 
 Static [HBBridgeConfig](../src/tlpp/hbbridgeconfig.tlpp), namespace
 `HBBridge.Client`, uses `GetSrvIniName()` and `GetPvProfString()`.

@@ -23,6 +23,10 @@
   estáticos para utilitários sem estado; helpers locais podem ser funções
   estáticas. Testes `U_` mantêm os nomes publicados, como
   `U_HBBridgeConnectionTest`.
+- Use `THREAD STATIC` Harbour para estado mutável pertencente à thread worker.
+  Inicialize estado de requisição explicitamente ou use locais/parâmetros;
+  reuso do worker e recarga HRB não garantem reset. Recursos do processo,
+  como o mutex SQL, continuam em `STATIC` comum com sincronização.
 - Mantenha hbBridge genérico. Protheus resolve regras, tenant, empresa, filial,
   `xFilial` e nomes físicos; serviços/addons recebem entradas explícitas.
   Aliases SQL são chaves opacas, sem dedução de contexto ERP. A biblioteca TLPP

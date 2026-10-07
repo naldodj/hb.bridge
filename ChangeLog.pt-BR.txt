@@ -5,6 +5,36 @@
    Caminhos antigos descrevem os arquivos existentes na época.
  */
 
+2026-10-07 18:21 UTC naldodj (Adicionar cliente HTTP TLPP e exemplo Protheus)
+  + HBBridgeHTTPClient com FWRest nativo, GET/POST/bearer, INI ativo e argumentos
+    explícitos, status HTTP e contrato comum de serviços.
+  + U_HBBridgeHTTPTest: Health, descoberta, Echo 200000 bytes/acentos, addon,
+    erros 401/403/404, recuperação e páginas SQL com o dataset existente.
+  ! Preservados ajustes do operador: comparação DecodeUTF8 no campo acentuado,
+    fallback Unauthorized e saída do teste. Motivo interno inicializado e
+    código UNAUTHORIZED garantido para 401 sem mensagem interna.
+  + Exemplos HTTP EN/PT e chaves HTTPURL/HTTPToken/HTTPTimeoutSeconds no template
+    AppServer; SQLProfile continua opcional. README/TODO/guias atualizados.
+  ; Operador homologou 13 checks em 2026-10-07 15:16 São Paulo, thread 25672.
+    Backend SQL não informado; não comprova MSSQL/HTTPS/Unicode completo.
+  ; Três validadores/convenções passaram para 139 arquivos, além de links e
+    whitespace da árvore/índice. Índice preparado pelo usuário preservado.
+
+2026-10-07 13:02 UTC naldodj (Analisar estado da thread e evolução da integração)
+  * Convenções, README/TODO e guias bilíngues alinham THREAD STATIC do worker,
+    locais/reset da requisição e recursos intencionalmente compartilhados.
+    Prova nativa com 31 asserções; hbhttpd já usa thread statics/reset interno.
+  + docs/evolution.md e evolution.pt-BR.md: HTTP Zig opcional compatível com
+    0.16 preservando executor/VM/ABI; dependências externas delegadas ao
+    hb_compile com ambiente/runtime/cache e lacunas Linux explícitos;
+    temporária Protheus para apresentação e staging SQL confirmado separado.
+    Esses caminhos novos permanecem propostas, sem implementação entregue.
+  ; Comentário SQL corrigido: tabela de conexões global, conexão ativa por
+    thread; mutex de ciclo de vida compartilhado mantido.
+  ; Evidência completa anterior: 487 verificações, zero falhas/sem skips.
+  ; Build/configuração isolados passaram. Os três validadores de commit e
+    convenções passaram para 135 arquivos; hook do índice instalado.
+
 2026-10-06 10:27 UTC naldodj (Padronizar PascalCase e incorporar HTTP)
   ! Convenções corrigidas: identificadores em inglês, arquivos em minúsculas;
     funções, procedures, métodos, namespaces e classes em PascalCase. Nomes de

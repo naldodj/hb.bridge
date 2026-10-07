@@ -1,0 +1,274 @@
+/* Released to Public Domain. */
+#include "tlpp-core.th"
+
+namespace HBBridge.Client
+
+class HBBridgeHTTPClient
+
+    private data cURL as character
+    private data cToken as character
+    private data nTimeoutSeconds as numeric
+    private data nHTTPStatus as numeric
+    private data cConfigurationError as character
+
+    public method New(cURL as character, cToken as character, nTimeoutSeconds as numeric) as object
+    public method Health() as JSON
+    public method Services() as JSON
+    public method CallService(cService as character, jParams as JSON) as JSON
+    public method StatusCode() as numeric
+    private method Request(cMethod as character, cPath as character, cBody as character) as JSON
+
+endclass
+
+method New(cURL, cToken, nTimeoutSeconds) class HBBridgeHTTPClient
+
+    local cIniFile := GetSrvIniName() as character
+    local cTimeout := "" as character
+
+    self:cURL := ""
+    self:cToken := ""
+    self:nTimeoutSeconds := 0
+    self:nHTTPStatus := 0
+    self:cConfigurationError := ""
+
+    // Only omitted arguments read installation values; explicit values win.
+    if ValType(cURL) == "U"
+        cURL := GetPvProfString("hbBridge", "HTTPURL", "http://127.0.0.1:8080", cIniFile)
+    endif
+    if ValType(cToken) == "U"
+        cToken := GetPvProfString("hbBridge", "HTTPToken", "", cIniFile)
+    endif
+    if ValType(nTimeoutSeconds) == "U"
+        cTimeout := GetPvProfString("hbBridge", "HTTPTimeoutSeconds", "30", cIniFile)
+        nTimeoutSeconds := HTTPTimeout(cTimeout)
+    endif
+
+    if !HTTPURLValid(cURL)
+        self:cConfigurationError := "Invalid HTTPURL: supply an HTTP(S) destination without credentials, query or fragment."
+    elseif !HTTPTokenValid(cToken)
+        self:cConfigurationError := "HTTPToken is required and must not contain NUL, CR or LF."
+    elseif ValType(nTimeoutSeconds) != "N"
+        self:cConfigurationError := "HTTPTimeoutSeconds must be a positive integer."
+    elseif nTimeoutSeconds < 1 .or. nTimeoutSeconds > 2147483647 .or. nTimeoutSeconds != Int(nTimeoutSeconds)
+        self:cConfigurationError := "HTTPTimeoutSeconds must fit a positive signed 32-bit integer."
+    else
+        self:cURL := AllTrim(cURL)
+        do while Right(self:cURL, 1) == "/"
+            self:cURL := Left(self:cURL, Len(self:cURL) - 1)
+        enddo
+        // Credentials are opaque: preserve their bytes and never log them.
+        self:cToken := cToken
+        self:nTimeoutSeconds := nTimeoutSeconds
+    endif
+
+return(self)
+
+method Health() class HBBridgeHTTPClient
+
+return(self:Request("GET", "/api/v1/health", ""))
+
+method Services() class HBBridgeHTTPClient
+
+return(self:Request("GET", "/api/v1/services", ""))
+
+method CallService(cService, jParams) class HBBridgeHTTPClient
+
+    local jRequest := JSONObject():New() as JSON
+    local cBody := "" as character
+
+    self:nHTTPStatus := 0
+    if !Empty(self:cConfigurationError)
+        FreeObj(@jRequest)
+        return HTTPFailure("INVALID_CONFIGURATION", self:cConfigurationError)
+    endif
+    if ValType(cService) != "C"
+        FreeObj(@jRequest)
+        return HTTPFailure("INVALID_SERVICE", "Supply a nonempty service name.")
+    endif
+    if Empty(cService) .or. !(ValType(jParams) $ "JO")
+        FreeObj(@jRequest)
+        return HTTPFailure("INVALID_REQUEST", "Supply a service name and a JSONObject of parameters.")
+    endif
+
+    jRequest["version"] := 1
+    jRequest["service"] := cService
+    jRequest["params"] := jParams
+    // Inputs use the AppServer text encoding. Do not pre-encode JSON strings.
+    cBody := EncodeUTF8(jRequest:ToJSON())
+    FreeObj(@jRequest)
+
+return(self:Request("POST", "/api/v1/rpc", cBody))
+
+method StatusCode() class HBBridgeHTTPClient
+
+return(self:nHTTPStatus)
+
+method Request(cMethod, cPath, cBody) class HBBridgeHTTPClient
+
+    local oREST as object
+    local jResponse := JSONObject():New() as JSON
+    local cResponse := "" as character
+    local cInternalError := "" as character
+    local lConnected := .F. as logical
+    local xJSONError as variant
+    // FWRest's native API requires an array of header strings.
+    local aHeaders := { ;
+        "Accept: application/json", ;
+        "Content-Type: application/json; charset=utf-8", ;
+        "Accept-Encoding: identity", ;
+        "Authorization: Bearer " + self:cToken ;
+    } as array
+
+    self:nHTTPStatus := 0
+    if !Empty(self:cConfigurationError)
+        FreeObj(@jResponse)
+        return HTTPFailure("INVALID_CONFIGURATION", self:cConfigurationError)
+    endif
+
+    // A fresh native client prevents a failed call from reusing an old body.
+    oREST := FWRest():New(self:cURL)
+    oREST:SetPath(cPath)
+    oREST:SetTimeOut(self:nTimeoutSeconds)
+    oREST:SetChkStatus(.F.)
+    if cMethod == "GET"
+        lConnected := oREST:Get(aHeaders)
+    else
+        // Native HTTP computes Content-Length; HTTP carries plain UTF-8 JSON.
+        oREST:SetPostParams(cBody)
+        lConnected := oREST:Post(aHeaders)
+    endif
+    self:nHTTPStatus := Val(oREST:GetHTTPCode())
+    cResponse := oREST:GetResult()
+    // This LIB exposes an unauthorized response through cInternalError with
+    // a zero HTTP code. Keep this compatibility fallback local to the client.
+    if !Empty(oREST:cInternalError)
+        cInternalError:=Upper(AllTrim(StrTran(StrTran(oREST:cInternalError,chr(10),""),Chr(13),"")))
+        if (self:nHTTPStatus == 0).and.("UNAUTHORIZED"==cInternalError)
+            self:nHTTPStatus:=401
+        endif
+    endif
+    if self:nHTTPStatus == 401 .and. Empty(cInternalError)
+        cInternalError := "UNAUTHORIZED"
+    endif
+    FreeObj(@oREST)
+
+    if !lConnected .or. self:nHTTPStatus==0 .or. self:nHTTPStatus==401
+        FreeObj(@jResponse)
+        if (self:nHTTPStatus == 401)
+            return HTTPFailure(cInternalError, "Internal Error.")
+        else
+            if (!Empty(cInternalError))
+                return HTTPFailure(cInternalError, "Internal Error.")
+            else
+                return HTTPFailure("HTTP_TRANSPORT_FAILED", "No HTTP response received; check the destination and native timeout.")
+            endif
+        endif
+    endif
+    if ValType(cResponse) != "C"
+        FreeObj(@jResponse)
+        return HTTPFailure("INVALID_HTTP_RESPONSE", "The HTTP response has no JSON body.")
+    endif
+
+    // Decode through the native JSON parser; do not recode the whole response.
+    // HTML/proxy errors fail here without logging raw headers or body contents.
+    xJSONError := jResponse:FromJSON(cResponse)
+    if ValType(xJSONError) != "U"
+        FreeObj(@jResponse)
+        if (!Empty(cInternalError))
+            return HTTPFailure(cInternalError, "Internal Error.")
+        else
+            return HTTPFailure("INVALID_HTTP_RESPONSE", "The HTTP response is not a valid hbBridge JSON object.")
+        endif
+    endif
+    if !jResponse:HasProperty("success")
+        FreeObj(@jResponse)
+        return HTTPFailure("INVALID_HTTP_RESPONSE", "The JSON response has no success property.")
+    endif
+    if ValType(jResponse["success"]) != "L"
+        FreeObj(@jResponse)
+        return HTTPFailure("INVALID_HTTP_RESPONSE", "The JSON success property is not logical.")
+    endif
+    if self:nHTTPStatus < 200 .or. self:nHTTPStatus >= 300
+        if jResponse["success"]
+            FreeObj(@jResponse)
+            return HTTPFailure("HTTP_STATUS_FAILED", "HTTP returned a failure status with a successful JSON body.")
+        endif
+    endif
+
+    // Preserve native service codes and error bodies, including non-2xx JSON.
+return(jResponse)
+
+static function HTTPTimeout(cValue as character) as numeric
+
+    local nIndex := 0, nDigit := 0, nValue := 0 as numeric
+
+    cValue := AllTrim(cValue)
+    if Empty(cValue)
+        return 0
+    endif
+    for nIndex := 1 to Len(cValue)
+        nDigit := Asc(SubStr(cValue, nIndex, 1)) - Asc("0")
+        if nDigit < 0 .or. nDigit > 9
+            return 0
+        endif
+        if nValue > Int((2147483647 - nDigit) / 10)
+            return 0
+        endif
+        nValue := nValue * 10 + nDigit
+    next
+
+return(nValue)
+
+static function HTTPURLValid(xURL as variant) as logical
+
+    local cURL := "", cAuthority := "" as character
+    local nStart := 0, nSlash := 0 as numeric
+
+    if ValType(xURL) != "C"
+        return .F.
+    endif
+    cURL := AllTrim(xURL)
+    if Lower(Left(cURL, 7)) == "http://"
+        nStart := 8
+    elseif Lower(Left(cURL, 8)) == "https://"
+        nStart := 9
+    else
+        return .F.
+    endif
+    if At(Chr(0), cURL) > 0 .or. At(Chr(9), cURL) > 0 .or. ;
+        At(Chr(10), cURL) > 0 .or. At(Chr(13), cURL) > 0 .or. ;
+        At(" ", cURL) > 0 .or. At("@", cURL) > 0 .or. ;
+        At("?", cURL) > 0 .or. At("#", cURL) > 0
+        return .F.
+    endif
+    cAuthority := SubStr(cURL, nStart)
+    nSlash := At("/", cAuthority)
+    if nSlash > 0
+        cAuthority := Left(cAuthority, nSlash - 1)
+    endif
+    if Empty(cAuthority) .or. cAuthority == "0.0.0.0" .or. ;
+        Left(cAuthority, 8) == "0.0.0.0:" .or. ;
+        cAuthority == "[::]" .or. Left(cAuthority, 5) == "[::]:"
+        return .F.
+    endif
+
+return(.T.)
+
+static function HTTPTokenValid(xToken as variant) as logical
+
+    if ValType(xToken) != "C"
+        return .F.
+    endif
+
+return(!Empty(xToken) .and. At(Chr(0), xToken) == 0 .and. ;
+    At(Chr(10), xToken) == 0 .and. At(Chr(13), xToken) == 0)
+
+static function HTTPFailure(cCode as character, cError as character) as JSON
+
+    local jResult := JSONObject():New() as JSON
+
+    jResult["success"] := .F.
+    jResult["code"] := cCode
+    jResult["error"] := cError
+
+return(jResult)

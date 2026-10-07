@@ -384,7 +384,10 @@ TLS direto hbssl/OpenSSL não foi vinculado nem exercitado. Parsing/prazos
 HTTP continuam nativos e não herdam budgets TCP Protheus. Veja
 [HTTP e dependências](http.pt-BR.md).
 
-A suíte completa e o produto terão resultado registrado após conclusão.
+A rodada Windows completa de 2026-10-06 passou em **487 verificações, zero
+falhas e nenhum skip**, incluindo esses casos HTTP e regressões TCP/NETIO/
+SQL/addons. Log: `tmp/tests-f15616d6765e4c9c8103ca2992797c2d/results.log`;
+wrapper: `tmp/full-tests-http-final.log`.
 Essa rodada HTTP não compila/homologa os fontes TLPP renomeados no AppServer,
 não comprova MSSQL real/Unicode ODBC/HTTPS/Linux nem implementa ações
 administrativas.
@@ -405,3 +408,78 @@ detectam estado compartilhado e respeitam a reciclagem nativa do Harbour.
 A fixture acrescenta seis checks à suíte completa, cujo resultado é
 registrado separadamente. Addons devem inicializar seu estado de negócio
 por execução com parâmetros/variáveis locais; FORCELOCAL não assegura reset.
+
+## Estado da thread e candidato em 2026-10-07
+
+A prova nativa THREAD STATIC passou em **31 asserções**, exit 0:
+`tmp/thread-static-probe.log`. Doze threads compartilharam um HRB mantendo
+proprietários/contadores privados; chamadas e quatro recargas na mesma thread
+persistente conservaram valores. Essa prova é distinta da suíte com 487 checks.
+hbhttpd já usa thread statics/reset por requisição; a auditoria manteve os
+mutexes SQL/teste intencionalmente compartilhados. Veja a [análise](evolution.pt-BR.md).
+
+A preparação HTTP atual passou com patch SHA256
+`52F937F65EDD03110C6DBC19A86C2D6E4A8031D04A6D686DE0B5AFC3D304CC1B`,
+log `tmp/http-prepare-20261007.log`. O `core.prg` resultante é idêntico ao
+fonte da suíte anterior; hash histórico e logs acima permanecem literais.
+
+O build isolado passou em `tmp/http-product-20261007/hbbridge.exe`, SHA256
+`D9E891155C7F36723F7E480E543F2FE0502D83DA9BFC22CC347CDC0C18C090EF`.
+Log de build: `tmp/http-product-build-20261007.log`; configuração:
+`tmp/http-product-config-20261007.log`. O executável preservou HTTP desativado/
+perfis vazios por padrão, overrides de bind wildcard/porta, aliases
+`sqlite_demo`/`mssql/pData` e saída sem segredos/strings de conexão.
+A inspeção de metadados não iniciou listeners nem consultou os bancos.
+
+O crivo final passou para **135 arquivos**, incluindo `check.hb`, `commit.hb`,
+`3rdpatch.hb`, nomes/indentação e pares de documentação. Log:
+`tmp/commit-gate-20261007.log`. O hook pre-commit para conferir o índice foi
+instalado localmente; não houve commit nem publicação. Links locais da
+documentação e `git diff --check` também passaram.
+
+Resolução automática OpenSSL externo, HTTP Zig e materialização SQL continuam
+desenhos. Esse candidato não acrescenta aceite HTTPS/Linux/MSSQL/AppServer
+aos registros anteriores.
+
+## Homologação HTTP TLPP pelo operador em 2026-10-07
+
+O operador ajustou a comparação de acentos e o tratamento Unauthorized do
+FWRest e informou `U_HBBridgeHTTPTest` executado em **PROTHEUS**, thread
+**25672**. Programa iniciado às **15:16:12 São Paulo**; teste às
+**15:16:14–15:16:15**, duração **00:00:01**. A pilha RPO informada contém
+`tttm120.rpo`, `tlpp.rpo` e `custom.rpo`. Health retornou a mensagem Zig
+com HTTP **200**. Transcrição recebida: `tmp/protheus-http-operator-20261007.log`.
+
+Os **13 checks** passaram: `healthGet`, `healthPost`, `servicesGet`, `echo`,
+`addon`, `unknownService`, `adminForbidden`, `unauthorized`, `afterFailure`,
+`queryFirstPage`, `queryFirstValue`, `queryNextPage`, `queryLastValue`.
+Echo compara 200000 bytes X e um campo acentuado, aplicando DecodeUTF8
+somente nesse campo. A consulta usa o dataset existente e SQL constante
+com dois IDs, exercitando páginas HTTP sem inferir tabelas ERP.
+
+Nesse comportamento do FWRest, `cInternalError` contém Unauthorized enquanto
+o código HTTP pode vir zerado. O cliente normaliza HTTP 401 e código local
+UNAUTHORIZED. Erros JSON de serviço 403/404 foram preservados; o fallback 401
+não é o corpo JSON original do servidor. Essa propriedade é dependência de
+compatibilidade do framework; outra LIB precisa de homologação própria.
+Uma inicialização defensiva posterior também trata 401 nativo sem motivo
+interno, preservando o caminho homologado. O ramo alternativo não foi
+exercitado em outra LIB.
+
+Esse é aceite de execução pelo operador, sem teste executado pelo agente
+nem log de sucesso do compilador fornecido. A tentativa anterior do agente
+retornou -1073740791, e o log interpretou um diretório de includes como
+ambiente; não comprova compilação bem-sucedida. A execução do operador
+supera essa lacuna nos fontes HTTP exercitados. Logs históricos:
+`tmp/totvs-http-build-run.log` e `tmp/totvs-compile.log`.
+
+O relato não identifica alias/backend SQL, URL/token/configuração cliente ou
+hash do executável servidor. Portanto não acrescenta MSSQL real, HTTPS,
+Linux, Unicode completo, configuração alternativa nem teste de configuração
+cliente com 16 checks. Veja o [exemplo](../examples/http/README.pt-BR.md).
+
+O crivo final da árvore de trabalho passou para **139 arquivos** com `check.hb`,
+`commit.hb`, `3rdpatch.hb` e convenções; log:
+`tmp/commit-gate-tlpp-http-20261007.log`. Whitespace da árvore/índice e links
+locais em 59 documentos passaram. O índice preparado pelo usuário foi
+preservado; essas validações não criaram commit nem publicação.

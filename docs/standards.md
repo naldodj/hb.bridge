@@ -11,6 +11,7 @@ Git filenames and the `.pt-BR` locale suffix are exceptions to lowercase.
 | Responsibility | TLPP class / file | Harbour module |
 | --- | --- | --- |
 | Client | `HBBridgeClient` / `hbbridgeclient.tlpp` | Native clients use NETIO APIs; no redundant client class is introduced. |
+| HTTP client | `HBBridgeHTTPClient` / `hbbridgehttpclient.tlpp` | `transports/http/hbbridgehttp.prg` adapts HTTP to the shared registry. |
 | Configuration | `HBBridgeConfig` / `hbbridgeconfig.tlpp` | `host/hbbridgeconfig.prg` and `host/hbbridgeini.prg` configure the server. |
 | Time | `HBBridgeTime` / `hbbridgetime.tlpp` | `src/c/hbbridgetime.c` implements the monotonic server clock. |
 | SQL dataset | `HBBridgeRPCDataSet` / `hbbridgerpcdataset.tlpp` | `services/hbbridgequery.prg` implements SQL requests. |
@@ -34,6 +35,12 @@ codec chunks. Explain the justification beside the code.
 The product has one implementation under `src/`. Examples launch that product;
 tests exercise those same components. `examples/mvp` is a historical example
 directory, not a second implementation or an independent product contract.
+
+Use `THREAD STATIC` for mutable Harbour state owned by a worker thread;
+per-request state uses locals/parameters or explicit initialization. A reused
+thread can retain values across requests and HRB reloads. Process-wide mutexes
+and coordinated shared resources remain ordinary synchronized statics. See
+[the runtime review](evolution.md#thread-state-and-request-state).
 
 English documentation uses the base filename; Portuguese adds `.pt-BR` before
 the extension. Update both together and preserve acceptance records,

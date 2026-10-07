@@ -123,6 +123,14 @@ the service exists but the requested alias does not.
 
 ## Manual acceptance and remaining scenarios
 
+[U_HBBridgeHTTPTest](../src/tlpp/tests/protheus/hbbridgehttptest.tlpp) exercises
+`HBBridgeHTTPClient` with GET Health/discovery, POST Health/Echo/addon,
+unknown/forbidden services, invalid bearer and recovery. It reuses the existing
+dataset for optional first/next/last SQL pages. See [HTTP setup and calls](../examples/http/README.md).
+The operator reported **13 checks passed** on 2026-10-07, thread 25672;
+this is AppServer evidence separate from the Harbour runner. The report
+does not name its SQL profile/backend or establish HTTPS/broader Unicode.
+
 Operator report 2026-10-03: normal Health/ADDON/two Echo calls passed with
 200000 identical bytes; varied request gzip 152964 bytes. Earlier milestone1
 logs recorded three compiled sources without errors and successful RPC.

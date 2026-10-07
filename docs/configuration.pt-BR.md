@@ -139,6 +139,9 @@ MaxWireBytes=0
 ReadChunkBytes=65536
 ; Padrão opcional da instalação; cada consulta pode escolher outro alias.
 SQLProfile=
+HTTPURL=http://127.0.0.1:8080
+HTTPToken=
+HTTPTimeoutSeconds=30
 ```
 
 `Host`/`Port` indicam o endpoint Protheus do servidor hbBridge. Use seu IP
@@ -159,6 +162,13 @@ nativa de inteiro assinado de 32 bits. `MAXSTRINGSIZE` e a memória do AppServer
 continuam condicionando a transferência; descoberta/negociação e blocos
 ainda serão implementados. Nenhum valor é derivado automaticamente de
 `MAXSTRINGSIZE` nesta entrega.
+
+`HBBridgeHTTPClient` lê separadamente `HTTPURL`, o `HTTPToken` obrigatório e
+`HTTPTimeoutSeconds` (inteiro positivo, padrão 30 segundos). O token coincide
+com `[HTTP] Password` no servidor; não é credencial de banco/administração.
+Argumentos omitidos leem o INI ativo; argumentos explícitos prevalecem.
+O timeout HTTP nativo difere de `TimeoutMs` TCP; não aplica frame TCP, gzip
+nem budgets do socket. Veja o [exemplo TLPP](../examples/http/README.pt-BR.md).
 
 A classe estática [HBBridgeConfig](../src/tlpp/hbbridgeconfig.tlpp), no namespace
 `HBBridge.Client`, usa `GetSrvIniName()` para selecionar inclusive um nome

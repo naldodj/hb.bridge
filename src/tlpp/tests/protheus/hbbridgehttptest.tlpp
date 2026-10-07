@@ -1,0 +1,199 @@
+/* Released to Public Domain. */
+#include "protheus.ch"
+#include "tlpp-core.th"
+
+procedure U_HBBridgeHTTPTest(cURL, cToken, nTimeoutSeconds, cSQLProfile, cAddonModule)
+    local cTimeStart,cTimeEnd as character
+    ConOut("hbBridge U_HBBridgeHTTPTest Start: "+DTos(Date())+"/"+(cTimeStart:=Time()))
+    HBBridgeHTTPTest(cURL, cToken, nTimeoutSeconds, cSQLProfile, cAddonModule)
+    ConOut("hbBridge U_HBBridgeHTTPTest End: "+DTos(Date())+"/"+(cTimeEnd:=Time()))
+    ConOut("hbBridge U_HBBridgeHTTPTest ElapTime: "+ElapTime(cTimeStart,cTimeEnd))
+return
+
+static procedure HBBridgeHTTPTest(cURL, cToken, nTimeoutSeconds, cSQLProfile, cAddonModule)
+
+    local oClient as object
+    local oRejectedClient as object
+    local oDataSet as object
+    local jChecks := JSONObject():New() as JSON
+    local jParams := JSONObject():New() as JSON
+    local jAddon := JSONObject():New() as JSON
+    local jResponse as JSON
+    local cIniFile := GetSrvIniName() as character
+    local cBadToken := "" as character
+    local cSQL := "SELECT 10 AS ID, 'Harbour' AS NAME UNION ALL SELECT 50, 'hbBridge'" as character
+    local lOk := .T., lOpened := .F. as logical
+
+    // The AppServer performs all HTTP calls; localhost means the AppServer host.
+    if ValType(cToken) == "U"
+        cToken := GetPvProfString("hbBridge", "HTTPToken", "", cIniFile)
+    endif
+    if ValType(cSQLProfile) == "U"
+        cSQLProfile := GetPvProfString("hbBridge", "SQLProfile", "", cIniFile)
+    endif
+
+    DEFAULT cSQLProfile:=character
+    DEFAULT cAddonModule:="examples/hbbridgesampleaddon.prg"
+
+    oClient := HBBridge.Client.HBBridgeHTTPClient():New(cURL, cToken, nTimeoutSeconds)
+    jResponse := oClient:Health()
+    lOk := HTTPCheck(jChecks, "healthGet", ;
+        HTTPResponseSucceeded(jResponse) .and. oClient:StatusCode() == 200)
+    if !lOk
+        ConOut("hbBridge HTTP Health FAILED: " + HTTPResponseCode(jResponse) + ;
+            "; HTTP=" + tlpp.ToStr(oClient:StatusCode()))
+        ConOut("Enable [HTTP] on hbBridge and configure [hbBridge] HTTPURL/HTTPToken in the active AppServer INI.")
+        FreeObj(@jResponse)
+        FreeObj(@jAddon)
+        FreeObj(@jParams)
+        FreeObj(@jChecks)
+        FreeObj(@oClient)
+        return
+    else
+        ConOut("hbBridge HTTP Health OK: " + if(jResponse:HasProperty("message"),jResponse["message"],"") + ;
+            "; HTTP=" + tlpp.ToStr(oClient:StatusCode()))
+    endif
+    FreeObj(@jResponse)
+
+    // One API contract works for GET Health and the versioned POST envelope.
+    jResponse := oClient:CallService("Health", jParams)
+    lOk := HTTPCheck(jChecks, "healthPost", ;
+        HTTPResponseSucceeded(jResponse) .and. oClient:StatusCode() == 200) .and. lOk
+    FreeObj(@jResponse)
+    jResponse := oClient:Services()
+    lOk := HTTPCheck(jChecks, "servicesGet", ;
+        HTTPResponseSucceeded(jResponse) .and. oClient:StatusCode() == 200) .and. lOk
+    FreeObj(@jResponse)
+
+    // JSON escapes avoid source-file codepage assumptions for the accent probe.
+    jParams:FromJSON('{"message":"Protheus HTTP echo","accent":"a\u00e7\u00e3o"}')
+    jParams["source"] := "protheus"
+    jParams["largePayload"] := Replicate("X", 200000)
+    jResponse := oClient:CallService("Echo", jParams)
+    lOk := HTTPCheck(jChecks, "echo", HTTPEchoMatches(jResponse, jParams)) .and. lOk
+    FreeObj(@jResponse)
+
+    if !Empty(cAddonModule)
+        jAddon["module"] := cAddonModule
+        jAddon["params"] := jParams
+        jResponse := oClient:CallService("ADDON.Execute", jAddon)
+        lOk := HTTPCheck(jChecks, "addon", ;
+            HTTPResponseSucceeded(jResponse) .and. oClient:StatusCode() == 200) .and. lOk
+        FreeObj(@jResponse)
+    else
+        ConOut("hbBridge HTTP ADDON.Execute SKIP: empty module argument.")
+    endif
+
+    // Non-2xx responses must retain the service's JSON error code.
+    jResponse := oClient:CallService("__HBBridgeMissingService__", jParams)
+    lOk := HTTPCheck(jChecks, "unknownService", ;
+        !HTTPResponseSucceeded(jResponse) .and. oClient:StatusCode() == 404 .and. ;
+        HTTPResponseCode(jResponse) == "SERVICE_NOT_FOUND") .and. lOk
+    FreeObj(@jResponse)
+    jResponse := oClient:CallService("Admin.Status", jParams)
+    lOk := HTTPCheck(jChecks, "adminForbidden", ;
+        !HTTPResponseSucceeded(jResponse) .and. oClient:StatusCode() == 403 .and. ;
+        HTTPResponseCode(jResponse) == "FORBIDDEN") .and. lOk
+    FreeObj(@jResponse)
+
+    // Derive a distinct credential without printing either token.
+    cBadToken := cToken + ".invalid"
+    oRejectedClient := HBBridge.Client.HBBridgeHTTPClient():New(cURL, cBadToken, nTimeoutSeconds)
+    jResponse := oRejectedClient:Health()
+    lOk := HTTPCheck(jChecks, "unauthorized", ;
+        !HTTPResponseSucceeded(jResponse) .and. oRejectedClient:StatusCode() == 401 .and. ;
+        HTTPResponseCode(jResponse) == "UNAUTHORIZED") .and. lOk
+    FreeObj(@jResponse)
+    FreeObj(@oRejectedClient)
+
+    jResponse := oClient:Health()
+    lOk := HTTPCheck(jChecks, "afterFailure", ;
+        HTTPResponseSucceeded(jResponse) .and. oClient:StatusCode() == 200) .and. lOk
+    FreeObj(@jResponse)
+
+    if !Empty(cSQLProfile)
+        // Reuse the real dataset/pagination implementation through CallService.
+        // The alias is opaque; this demonstration references no ERP tables.
+        oDataSet := HBBridge.RDD.HBBridgeRPCDataSet():New(oClient)
+        lOpened := oDataSet:OpenPage(cSQLProfile, cSQL, 1, 1, "ID")
+        lOk := HTTPCheck(jChecks, "queryFirstPage", lOpened) .and. lOk
+        if lOpened
+            lOk := HTTPCheck(jChecks, "queryFirstValue", ;
+                oDataSet:RowCount() == 1 .and. oDataSet:FieldGet("ID") == 10 .and. ;
+                oDataSet:HasNextPage()) .and. lOk
+            lOpened := oDataSet:NextPage()
+            lOk := HTTPCheck(jChecks, "queryNextPage", lOpened) .and. lOk
+            if lOpened
+                lOk := HTTPCheck(jChecks, "queryLastValue", ;
+                    oDataSet:RowCount() == 1 .and. oDataSet:FieldGet("ID") == 50 .and. ;
+                    !oDataSet:HasNextPage()) .and. lOk
+            endif
+        else
+            ConOut("hbBridge HTTP RPCRDD.Query FAILED: " + oDataSet:ErrorCode())
+        endif
+        oDataSet:Close()
+        FreeObj(@oDataSet)
+    else
+        ConOut("hbBridge HTTP RPCRDD.Query SKIP: supply an alias or configure SQLProfile.")
+    endif
+
+    ConOut("hbBridge HTTP Protheus checks: " + jChecks:ToJSON())
+    aEval(jChecks:GetNames(),{|cName| ConOut("hbBridge HTTP Protheus Check "+cName+" "+IIf(jChecks[cName], "PASS", "FAILED")) })
+
+    FreeObj(@jAddon)
+    FreeObj(@jParams)
+    FreeObj(@jChecks)
+    FreeObj(@oClient)
+
+return
+
+static function HTTPCheck(jChecks as JSON, cName as character, lPassed as logical) as logical
+
+    jChecks[cName] := lPassed
+    if !lPassed
+        ConOut("hbBridge HTTP check FAILED: " + cName)
+    endif
+
+return(lPassed)
+
+static function HTTPResponseSucceeded(jResponse as JSON) as logical
+
+    if !jResponse:HasProperty("success")
+        return .F.
+    endif
+    if ValType(jResponse["success"]) != "L"
+        return .F.
+    endif
+
+return(jResponse["success"])
+
+static function HTTPResponseCode(jResponse as JSON) as character
+
+    if jResponse:HasProperty("code")
+        if ValType(jResponse["code"]) == "C"
+            return jResponse["code"]
+        endif
+    endif
+
+return("INVALID_RESPONSE")
+
+static function HTTPEchoMatches(jResponse as JSON, jParams as JSON) as logical
+
+    if !HTTPResponseSucceeded(jResponse)
+        return .F.
+    endif
+    if !jResponse:HasProperty("params")
+        return .F.
+    endif
+    if !(ValType(jResponse["params"]) $ "JO")
+        return .F.
+    endif
+    if !jResponse["params"]:HasProperty("message") .or. ;
+        !jResponse["params"]:HasProperty("accent") .or. ;
+        !jResponse["params"]:HasProperty("largePayload")
+        return .F.
+    endif
+
+return(jResponse["params"]["message"] == jParams["message"] .and. ;
+    DecodeUTF8(jResponse["params"]["accent"]) == jParams["accent"] .and. ;
+    jResponse["params"]["largePayload"] == jParams["largePayload"])

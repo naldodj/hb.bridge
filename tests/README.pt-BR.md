@@ -53,6 +53,15 @@ execução não integra o runner Harbour.
 
 ## SQL e páginas
 
+O [teste HTTP TLPP](../src/tlpp/tests/protheus/hbbridgehttptest.tlpp),
+`U_HBBridgeHTTPTest`, usa `HBBridgeHTTPClient` para GET Health/descoberta,
+POST Health/Echo/addon, serviços inexistentes/proibidos, bearer inválido e
+recuperação. Reaproveita o dataset para páginas SQL opcionais.
+Veja [configuração e chamadas](../examples/http/README.pt-BR.md).
+O operador homologou **13 checks** em 2026-10-07, thread 25672; essa prova
+AppServer é separada do runner Harbour. O relato não identifica perfil/backend
+SQL nem comprova HTTPS/Unicode mais amplo.
+
 [hbbridgequerytest.tlpp](../src/tlpp/tests/protheus/hbbridgequerytest.tlpp)
 acrescenta `U_HBBridgeQueryTest`: campos por nome, decimal, EOF, fechamento,
 consulta vazia/inválida e recuperação, além de primeira/próxima/última página,

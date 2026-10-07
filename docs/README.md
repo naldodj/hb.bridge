@@ -14,12 +14,14 @@ the intended architecture; [TODO](../TODO.md) tracks delivery and acceptance.
 | [Milestone 3](milestone3-sql.md) | SQLMIX, SQLite/MSSQL profiles, named dataset and database-side pages. |
 | [Configuration](configuration.md) | Server INI/JSON/CLI, AppServer client section and sanitized metadata. |
 | [HTTP and web administration](http.md) | Native hbhttpd, shared HTTP/JSON services, authenticated status panel and optional TLS. |
+| [TLPP HTTP example](../examples/http/README.md) | FWRest client, AppServer settings, bearer, generic RPC and paginated SQL dataset. |
 | [Acceptance](acceptance.md) | Operator/environment evidence, historical builds and pending scenarios. |
 | [VF IO/TRPC](harbour-vfio-trpc.md) | Native file API and selective upstream design reuse. |
 | [Transports/sessions/security](transports-sessions-security.md) | Persistence/context, TLS/JWT, gRPC restrictions and optional AMQP. |
 | [Reorganization](reorganization.md) | Source responsibility map and before/after evidence. |
 | [Standards](standards.md) | Four spaces, lowercase filenames, PascalCase functions/methods/namespaces/classes, maps and commit gates. |
 | [Dependencies](dependencies.md) | Managed hb_compile/Harbour/toolchain bootstrap. |
+| [Evolution review](evolution.md) | THREAD STATIC, optional Zig HTTP, upstream dependency resolution and tables for Protheus presentation. |
 | [Credentials](credentials.md) | Portable Windows/Linux credential architecture; implementation pending. |
 | [Licensing](licensing.md) | Proposed original-code license and unresolved provenance. |
 

@@ -44,6 +44,13 @@ e atualização dos registros de procedência/licença.
 
 ## Integração hb_compile
 
+A próxima integração delega resolução seletiva de SDKs externos ao hb_compile,
+consumindo ambiente gerado, artefatos de destino/runtime e cache por capacidade.
+O resolvedor Windows fixado já suporta OpenSSL; Linux nativo depende de recurso
+upstream ou rota WSL/Docker suportada e explícita. Isso permanece pendente;
+o fluxo TLS com SDK informado abaixo continua aplicável. Veja a
+[análise de dependências](evolution.pt-BR.md#um-único-resolvedor-de-dependências).
+
 [hb_compile](https://github.com/DNATechByNaldoDJ/hb_compile) orquestra compilação
 Harbour e preparação de compatibilidade. Windows usa seu runner Zig nativo,
 com caminhos próprios de fonte/instalação e seleção de contribs: NETIO, ZIP,

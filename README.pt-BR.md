@@ -128,6 +128,7 @@ Harbour, preservando a programação xBase na camada de serviços.
 | Módulos Harbour | Compilação em memória de `.prg`/`.hb` e carregamento de `.hrb` pelo serviço `ADDON.Execute`, com `module` e `params`. |
 | hbnetio | Listener nativo incorporado em `0.0.0.0:2941`, RPC filtrado e serialização Harbour. `HB_EXTERN` habilitado; gateway usa somente serviços registrados. |
 | HTTP/REST | `hbhttpd` incorporado, opcional e desativado por padrão. Chamadas JSON e status web autenticado usam o núcleo comum; credenciais de serviço/administração separadas. HTTPS direto exige build com OpenSSL e homologação própria. |
+| Cliente HTTP Protheus | `HBBridgeHTTPClient` usa FWRest nativo, bearer e contrato JSON compartilhado. Operador homologou 13 checks em 2026-10-07, incluindo paginação SQL. |
 | Dados SQL | `RPCRDD.Query` usa SQLMIX com SQLite e MSSQL/ODBC; suporta páginas no SGBD e resultados por chave. Teste SQLite Protheus homologado em 2026-10-04 com 29 checks; MSSQL real pendente. |
 | Dados DBF | Acesso por RDDs nativos via NETIO previsto; ainda não integrado ao hbBridge. |
 | VF IO | Cliente Harbour usa `hb_vf*` com provedor NETIO; leitura/escrita binária testadas. Fachada de arquivos para TLPP permanece pendente. |
@@ -158,9 +159,17 @@ os dois Echo com conteúdo integral idêntico. O gzip da requisição de dados
 ASCII variados teve **152.964 bytes**, acima do buffer padrão de 65.536 bytes.
 Handshake, blocos e compressão negociada continuam no TODO.
 O produto não mantém os tetos arbitrários de tamanho das provas de conceito.
-A suíte Harbour passou em **412 verificações, zero falhas, sem skips**, incluindo
+A suíte Harbour completa de 2026-10-06 passou em **487 verificações, zero falhas,
+sem skips**, incluindo HTTP, concorrência de addons,
 INI/JSON, SQLite real, consultas paginadas e resultados iguais por NETIO/TCP, além de Echo
 de **24.000.000 bytes exatos** e JSON/gzip acima de 16 MiB nos dois sentidos.
+
+A [análise de evolução](docs/evolution.pt-BR.md) registra as propostas de
+2026-10-07: `THREAD STATIC` para estado do worker com inicialização explícita
+por requisição, Zig como adaptador HTTP opcional, dependências externas sob
+responsabilidade do hb_compile e tabelas SQL genéricas para apresentação
+Protheus. A prova thread-static passou em 31 asserções separadas. HTTP Zig,
+resolução automática OpenSSL e materialização SQL continuam pendentes.
 
 ## Arquitetura pretendida
 
@@ -307,6 +316,13 @@ bibliotecas do `hbmk2`. `hbssl`/OpenSSL permite o caminho opcional de build TLS
 direto; homologação de certificados/TLS/plataformas continua pendente.
 Um proxy TLS é outra opção de implantação. Veja
 [configuração e contratos HTTP](docs/http.pt-BR.md).
+
+O [exemplo HTTP em TLPP](examples/http/README.pt-BR.md) usa
+`HBBridge.Client.HBBridgeHTTPClient`, configurado por `HTTPURL`, `HTTPToken`
+e `HTTPTimeoutSeconds` na seção `[hbBridge]` do AppServer ativo.
+`U_HBBridgeHTTPTest()` cobre Health/descoberta por GET, Health/Echo/addon por
+POST, erros 401/403/404, recuperação e páginas SQL opcionais com o dataset
+existente. O operador confirmou os 13 checks em 2026-10-07.
 
 ### Extensibilidade e capacidades para as aplicações
 
@@ -797,10 +813,11 @@ hb.bridge/
 |   |   `-- telemetry/hbbridgesyslog.prg         # Modulo Syslog existente
 |   |-- c/                              # API Harbour, gzip incremental e ABI C para Zig
 |   |-- zig/runtime/hbbridgeruntime.zig          # Biblioteca Zig demonstrativa
-|   `-- tlpp/                           # Cliente Protheus, HBBridgeRPCDataSet e tests/protheus
+|   `-- tlpp/                           # Clientes TCP/HTTP, HBBridgeRPCDataSet e tests/protheus
 |-- addons/examples/                    # Addon compartilhado
 |-- examples/
 |   |-- mvp/                            # Launcher mínimo do mesmo produto
+|   |-- http/                           # Consumo HTTP em TLPP e instruções de homologação
 |   `-- sql/                            # Perfil e instruções de teste SQL
 |-- includes/hbbridge.h                 # Constantes compartilhadas do contrato
 |-- config/dependencies.json            # Dependencias e revisoes fixadas

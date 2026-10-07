@@ -105,6 +105,20 @@ Ainda não administra usuários, credenciais, arquivos, perfis SQL, conexões
 ou encerramento remoto. Essas ações exigem contratos autorizados e testes
 próprios.
 
+## Cliente HTTP Protheus
+
+O [exemplo TLPP](../examples/http/README.pt-BR.md) usa
+`HBBridge.Client.HBBridgeHTTPClient` e `U_HBBridgeHTTPTest`, compilados com
+a mesma árvore `src/tlpp/`. FWRest faz GET/POST com bearer do serviço, e
+`HBBridgeRPCDataSet` reaproveita seu contrato de páginas SQL pelo HTTP.
+O operador homologou 13 checks em 2026-10-07; veja [homologação](acceptance.pt-BR.md).
+
+O texto da requisição segue a codificação AppServer e passa por EncodeUTF8.
+As strings da resposta parseada mantêm UTF-8; a comparação de acento usa
+DecodeUTF8 naquele campo. O comportamento 401 observado do FWRest recebe
+fallback de compatibilidade, sem preservar o JSON do servidor nesse caso.
+Unicode mais amplo/outras LIBs e HTTPS exigem homologação própria.
+
 ## Dependências e TLS
 
 O bootstrap gerenciado compila **hbhttpd** e **hbtcpio** a partir do Harbour

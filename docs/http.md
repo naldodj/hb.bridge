@@ -103,6 +103,20 @@ request/rejection counters, including the embedded NETIO endpoints. It
 does not yet manage users, credentials, files, SQL profiles, connections or
 remote shutdown. Those actions need separate authorized contracts and tests.
 
+## Protheus HTTP client
+
+The [TLPP example](../examples/http/README.md) uses
+`HBBridge.Client.HBBridgeHTTPClient` and `U_HBBridgeHTTPTest`, built with the
+same `src/tlpp/` tree. FWRest issues GET/POST with the service bearer, while
+`HBBridgeRPCDataSet` reuses its existing SQL page contract over HTTP.
+The operator accepted 13 checks on 2026-10-07; see [acceptance](acceptance.md).
+
+Request text follows the AppServer encoding and is converted with EncodeUTF8.
+Parsed response strings retain UTF-8; the accent comparison converts that
+specific field with DecodeUTF8. FWRest's observed unauthorized behavior uses
+a compatibility fallback; it does not preserve the server's JSON body in
+that case. Broader Unicode/other LIBs and HTTPS need their own acceptance.
+
 ## Dependencies and TLS
 
 The managed bootstrap builds **hbhttpd** and **hbtcpio** from the pinned
