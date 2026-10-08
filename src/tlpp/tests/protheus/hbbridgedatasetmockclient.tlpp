@@ -1,0 +1,85 @@
+/* Released to Public Domain. */
+#include "tlpp-core.th"
+
+namespace HBBridge.Tests
+
+class HBBridgeDataSetMockClient
+
+    private data jResponses as json
+    private data jRequests as json
+    private data nResponses as numeric
+    private data nCalls as numeric
+
+    public method New() as object
+    public method Queue(jResponse as json)
+    public method CallService(cService as character, jParams as json) as json
+    public method CallCount() as numeric
+    public method Request(nCall as numeric) as json
+    public method Close()
+
+endclass
+
+method New() class HBBridgeDataSetMockClient
+
+    self:jResponses := JSONObject():New()
+    self:jRequests := JSONObject():New()
+    self:nResponses := 0
+    self:nCalls := 0
+
+return(self)
+
+method Queue(jResponse) class HBBridgeDataSetMockClient
+
+    self:nResponses++
+    // Store serialized fixtures so each call transfers a fresh owned result.
+    self:jResponses[tlpp.ToStr(self:nResponses)] := jResponse:ToJSON()
+
+return
+
+method CallService(cService, jParams) class HBBridgeDataSetMockClient
+
+    local jResponse := JSONObject():New() as json
+    local cKey := "" as character
+
+    self:nCalls++
+    cKey := tlpp.ToStr(self:nCalls)
+    self:jRequests[cKey] := jParams:ToJSON()
+    if cService == "RPCRDD.Query" .and. self:jResponses:HasProperty(cKey)
+        jResponse:FromJSON(self:jResponses[cKey])
+    else
+        jResponse["success"] := .F.
+        jResponse["code"] := "MOCK_RESPONSE_MISSING"
+        jResponse["error"] := "No SQL result was queued for this call."
+    endif
+
+return(jResponse)
+
+method CallCount() class HBBridgeDataSetMockClient
+return(self:nCalls)
+
+method Request(nCall) class HBBridgeDataSetMockClient
+
+    local jRequest := JSONObject():New() as json
+    local cKey := tlpp.ToStr(nCall) as character
+
+    if self:jRequests:HasProperty(cKey)
+        jRequest:FromJSON(self:jRequests[cKey])
+    endif
+
+return(jRequest)
+
+method Close() class HBBridgeDataSetMockClient
+
+    local jResponses := self:jResponses as json
+    local jRequests := self:jRequests as json
+
+    self:jResponses := Nil
+    self:jRequests := Nil
+    if ValType(jResponses) $ "JO"
+        FreeObj(@jResponses)
+    endif
+    if ValType(jRequests) $ "JO"
+        FreeObj(@jRequests)
+    endif
+
+return

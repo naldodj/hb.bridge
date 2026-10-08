@@ -64,7 +64,8 @@ commits/publication preserve its progress. Package 001 is real MSSQL acceptance.
   varied request gzip 152,964 bytes, identical complete result.
 - [x] SQLMIX/SQLite/MSSQL-ODBC Query, keyed dataset and database-side pagination.
   Operator accepted 29 SQLite checks on 2026-10-04, reconfirmed on 2026-10-07
-  at 16:13:33, thread 27136, `profile=sqlite_demo`; real MSSQL remains pending.
+  at 16:13:33, thread 27136, `profile=sqlite_demo`. On 2026-10-08, native MSSQL
+  passed 92 checks; Protheus TCP passed 29 and HTTP 13 each for MSSQL/SQLite.
 - [x] Syslog UDP module exists; integration into call lifecycle is pending.
 - [x] Shared protocol constants, rejection of other signatures/formats and
   [brainstorming transport review](docs/transports-sessions-security.md).
@@ -337,6 +338,12 @@ per-value limits; tested slow-consumer/invalid-decode/disconnect behavior.
   keyed alias/sql/header/rows/count/version through shared registry.
 - [x] Server-owned plaintext configuration profiles in INI/JSON; never imply
   implemented encryption. [Credential proposal](docs/credentials.md) is portable.
+- [x] Structured MSSQL keys for explicit SQL/integrated authentication,
+  DSN or DSN-less destinations and optional TLS policy; safely build the ODBC
+  string on the server while retaining the complete-string alternative.
+- [x] Dedicated opt-in [MSSQL core test](scripts/test-hbbridge-mssql.ps1) with
+  an explicit private config/profile and non-successful prerequisite failures.
+  Compiling this route does not certify a database connection.
 - [x] HBBridgeRPCDataSet with JSONObject, U_HBBridgeQueryTest, explicit pages,
   errors/EOF/close, common SQL/minimal launchers and alternate profile/config.
 - [x] SQL aliases are opaque/case-sensitive, including mssql/pData; multiple
@@ -344,7 +351,15 @@ per-value limits; tested slow-consumer/invalid-decode/disconnect behavior.
 - [x] SQLite file/concurrency/NETIO-vs-TCP regressions; operator 29-check dataset/
   pagination acceptance 2026-10-04 00:40:06 and later reconfirmations,
   latest 2026-10-07 16:13:33, thread 27136, profile=sqlite_demo.
-- [ ] Real MSSQL connect/query/page acceptance: driver/DSN/server/client versions.
+- [x] Native MSSQL connect/query/page acceptance: 92 checks on 2026-10-08,
+  SQL Server 16.0.1200.5, database/DSN pData, ODBC Driver 18.6.2.1 x64,
+  SQL authentication; long text/binary, null/empty, Unicode and cleanup.
+- [x] Operator Protheus TCP MSSQL and SQLite acceptance: all 29 checks each,
+  2026-10-08, profiles `mssql/pData` and `sqlite_demo`.
+- [x] Operator explicit MSSQL/SQLite Protheus HTTP acceptance: 13 checks each,
+  2026-10-08, wrappers select `mssql/pData`/`sqlite_demo`, threads 25976/9916.
+- [ ] Remaining package 001 failure/timeout, isolation and transport/memory
+  baseline cases in [WIP](WIP.md).
 - [ ] Unavailable connector, broader type/null coverage and real volume in
   Protheus; unknown alias is not connector-failure proof.
 - [ ] hbodbc/hbsqlit3 direct API where operations require it.
@@ -354,6 +369,12 @@ per-value limits; tested slow-consumer/invalid-decode/disconnect behavior.
 - [ ] SQL bind values and size/precision/null type metadata; identifier resolution
   stays with the caller. Generic connector/dialect registry, including Oracle
   after real type/pagination acceptance; PostgreSQL sddpg/hbpgsql and MySQL sddmy.
+- [ ] Acceptance-driven UTF-8/FLOAT correction: current TCP can use Harbour
+  CP437, and the 2026-10-08 constant probe lost a FLOAT fraction in JSON.
+  Separate native SQL metadata, caller logical definitions and wire values;
+  SX3/TOP_FIELD stay caller-resolved. [Analysis](docs/dataset.md).
+- [ ] AppServer acceptance of dataset Header/DSStruct, FieldInfo/FieldCount/
+  FieldName/GetRow and MoreToRead auto-page traversal, including fetch failures.
 - [x] ROW_NUMBER/BETWEEN pages, sentinel hasNext, explicit order, OpenPage/
   NextPage; gaps in business IDs do not control ordinal pagination.
 - [ ] Keyset/cursors/snapshots/deadlines/expiry/large fields and write-stability
@@ -381,7 +402,8 @@ per-value limits; tested slow-consumer/invalid-decode/disconnect behavior.
 
 Acceptance: first SQL backend values/errors/close; then incremental datasets/
 large fields within negotiated budgets, DBF indexes/locking/isolation and VF
-binary integrity/errors/resource release. MSSQL/Oracle claims need evidence.
+binary integrity/errors/resource release. Additional MSSQL platforms/types
+and Oracle require their own evidence.
 
 ## Milestone 4: modules, contribs and C/Zig
 
@@ -429,10 +451,12 @@ binary integrity/errors/resource release. MSSQL/Oracle claims need evidence.
   FWRest, GET/POST/bearer, JSON service errors and the existing SQL dataset.
   Operator accepted all 13 checks on 2026-10-07, initially thread 25672;
   reconfirmed threads 27296 (16:10:44–16:10:45) and 25456 (16:15:03–16:15:04),
-  each in one second, São Paulo time. HTTP SQL backend remains unidentified.
+  each in one second, São Paulo time; their SQL backend was unidentified.
+  On 2026-10-08 the MSSQL/SQLite wrappers each passed 13 checks, threads
+  25976/9916, including first/next/last-page values with explicit default aliases.
   See [the example](examples/http/README.md).
 - [ ] Extend TLPP HTTP acceptance to alternate configuration, transport failures,
-  larger/mixed Unicode values, other LIBs, HTTPS and identified SQL backends.
+  larger/mixed Unicode values, other LIBs, HTTPS and additional SQL backends.
 
 - [x] Optional `hbhttpd` adapter dispatches to the same registered services as
   NETIO and Protheus. Separate HTTP service credentials and admin permissions;
@@ -482,6 +506,10 @@ binary integrity/errors/resource release. MSSQL/Oracle claims need evidence.
   later shared-core GUI; tamper/wrong
   key/nonce/ODBC escaping/atomic writes/backup/migration/service-identity tests.
   OS vaults optional, not a Windows-only requirement.
+- [ ] Apply credential references/protection to SQL, NETIO/admin and HTTP on
+  hbBridge and client secrets on Protheus; distinct external installation keys,
+  no RPC secret bootstrap, and verified native TLPP decryption/provider support.
+  Encryption in files and authenticated transport require separate acceptance.
 - [ ] Package 003 design: common server-side credential provider with optional
   OpenBao KV v2/AppRole or Agent/Proxy, authorized configured references,
   bootstrap/CA validation, cache/token renewal/redaction and Zig 0.16 ABI/memory

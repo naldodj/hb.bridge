@@ -13,6 +13,7 @@ the intended architecture; [TODO](../TODO.md) tracks delivery and acceptance.
 | [Milestone 1](milestone1.md) | Shared registry, embedded NETIO, host lifecycle/configuration/admin. |
 | [Milestone 2](milestone2-framing.md) | HBBRIDGE/1, incremental server gzip, complete TLPP reads and runtime capacities. |
 | [Milestone 3](milestone3-sql.md) | SQLMIX, SQLite/MSSQL profiles, named dataset and database-side pages. |
+| [Dataset](dataset.md) | Field/header access, automatic sequential paging and pending UTF-8/FLOAT integrity corrections. |
 | [Configuration](configuration.md) | Server INI/JSON/CLI, AppServer client section and sanitized metadata. |
 | [HTTP and web administration](http.md) | Native hbhttpd, shared HTTP/JSON services, authenticated status panel and optional TLS. |
 | [TLPP HTTP example](../examples/http/README.md) | FWRest client, AppServer settings, bearer, generic RPC and paginated SQL dataset. |
@@ -23,7 +24,7 @@ the intended architecture; [TODO](../TODO.md) tracks delivery and acceptance.
 | [Standards](standards.md) | Four spaces, lowercase filenames, PascalCase functions/methods/namespaces/classes, maps and commit gates. |
 | [Dependencies](dependencies.md) | Managed hb_compile/Harbour/toolchain bootstrap. |
 | [Evolution review](evolution.md) | THREAD STATIC, optional Zig HTTP, upstream dependency resolution and tables for Protheus presentation. |
-| [Credentials](credentials.md) | Portable Windows/Linux credential architecture; implementation pending. |
+| [Credentials](credentials.md) | Portable protection of SQL, NETIO, admin and HTTP secrets on server and clients; implementation pending. |
 | [Licensing](licensing.md) | Proposed original-code license and unresolved provenance. |
 
 Every guide has an English canonical file and a Portuguese `.pt-BR` counterpart.
@@ -84,8 +85,9 @@ See [NETIO notes](../src/hb/transports/netio/README.md).
 
 SQLite Protheus acceptance passed 29 checks on 2026-10-04.
 Configuration acceptance passed 13, including activeAppServerIni, with
-Health/ADDON/Echo. These operator reports do not prove nondefault destination,
-MSSQL, Linux or post-refactor compilation.
+Health/ADDON/Echo. Those historical reports did not prove MSSQL or post-refactor
+compilation. The [acceptance record](acceptance.md) includes the later
+2026-10-08 MSSQL/SQLite TCP and HTTP runs and their remaining limitations.
 
 ## Syslog and further documentation
 

@@ -558,3 +558,184 @@ de commit para **141 arquivos**; log:
 `tmp/operator-acceptance-openbao-gate-20261007.log`. Links locais em **61
 documentos** e whitespace aprovados. Esta atualização documental não repetiu
 a suíte nativa nem acessou servidor OpenBao/MSSQL.
+
+## Homologação TCP Protheus MSSQL e SQLite pelo operador em 2026-10-08
+
+O operador forneceu saída de execução dos dois wrappers Query. A transcrição
+está preservada em `tmp/protheus-mssql-sqlite-operator-20261008.log`.
+Os horários abaixo são de São Paulo em 2026-10-08; o log identifica `marin`
+em `DNA-TECH-01` e a pilha `tttm120.rpo`, `tlpp.rpo`, `custom.rpo`.
+
+| Programa | Início informado / thread | Resultado |
+| --- | --- | --- |
+| `U_HBBridgeQueryTestMSSQL` | 10:06:10 / 660 | Todos os 29 checks true; `Protheus OK; profile=mssql/pData`. |
+| `U_HBBridgeQueryTestSQLite` | 10:06:43 / 3192 | Todos os 29 checks true; `Protheus OK; profile=sqlite_demo`. |
+
+Os checks cobrem campos nomeados e decimais, campos ausentes, EOF/close,
+resultados vazios, SQL inválido, perfis desconhecidos, recuperação posterior,
+páginas inicial/seguinte/final/vazia, ordinais ocultos, página/ordenação
+inválidas e limpeza da paginação. O registro homologa a execução pelo operador
+do contrato TCP existente de dataset/páginas com alias MSSQL explícito,
+além da regressão SQLite repetida. O relato não inclui log de sucesso do
+compilador nem hashes de artefatos; o agente não executou essas chamadas
+AppServer. As fixtures nativas ampliadas mantêm suas evidências separadas.
+
+O aceite HTTP com perfil MSSQL passou posteriormente em 2026-10-08; veja as
+[execuções HTTP com wrappers identificados](#homologação-http-protheus-mssql-e-sqlite-pelo-operador-em-2026-10-08).
+Os relatos HTTP anteriores sem backend SQL identificado mantêm seu escopo
+histórico.
+
+## Homologação MSSQL nativa em 2026-10-08
+
+O aceite Harbour opt-in executado pelo agente passou com **92 checks, zero
+falhas e nenhum skip** no banco SQL Server real. Evidências:
+`tmp/mssql-tests-b3d676f0daaf470a97af605a98a9681c/results.log` e
+`tmp/mssql-native-normalized-20261008.log`.
+
+| Componente | Valor exercitado |
+| --- | --- |
+| Plataforma | Windows x64. |
+| Alias SQL / banco | `mssql/pData` / `pData`. |
+| SQL Server | `16.0.1200.5`. |
+| Driver ODBC | Microsoft ODBC Driver 18, `18.6.2.1`, x64. |
+| Autenticação | Login SQL da configuração privada do servidor; sem credenciais nas evidências. |
+| Fontes Harbour | Commit fixado `6deac9cf3ad977ae829e5bca543d553b92dd4b6d`, build multithread. |
+| Zig / codepage | `0.16.0` / `UTF8EX`. |
+
+O executável foi compilado com o núcleo compartilhado do produto. Verificou
+constantes de conexão/versão/banco, campos nomeados, valores numéricos/decimais,
+NULL distinto de texto vazio, data/timestamp e bit nativos, texto acentuado/CJK
+e bytes Unicode exatos. As fixtures ampliadas verificaram VARCHAR e binário
+com 12000 bytes, NVARCHAR com 12000 caracteres, NULs internos, limites de
+blocos, emoji codificado como par substituto UTF-16 e binários vazios/NULL.
+Também passaram recuperação após SQL inválido/perfil desconhecido e erros
+sanitizados, páginas ordenadas com lacunas/desempate, ordinais ocultos,
+restauração da área/conexão padrão do chamador, liberação explícita de conexão
+e quatro chamadas concorrentes com valores isolados sob o mutex SQL existente.
+
+Essa rodada inclui o [patch SDDODBC](../config/patches/sddodbc.patch) em staging
+para leitura variável com `SQL_NO_TOTAL`, flags de campos binários e conversão
+de pares substitutos UTF-16 para UTF-8. SHA256 do patch:
+`F0DDE4C85F89D2A72B27040E65EB556E9E0D59838E064FB0FC2254650DA637E6`.
+O registro gerenciado informa SHA256 da biblioteca
+`B64952AF699A354762AD0C78DFE9BDDEED2DA12973EF652A5B9C8365E8602B5E`.
+SHA256 do executável de aceite:
+`6FA1AAFA04DE72C496290F456F7CB00068BC36EFC9E8EBB9AC0A6774D3DF0F69`.
+A preparação aplica o patch em cópia descartável e preserva o checkout fixado;
+veja [dependências](dependencies.pt-BR.md). A execução usou fixtures de
+constantes somente para leitura, sem gravar tabelas ERP nem reiniciar o host.
+
+A referência nativa executou três vezes a fixture determinística de 1000
+linhas, concorrência **1**, em **31, 32 e 31 ms**, total **94 ms**. Cada medição
+inclui conexão, consulta/materialização do resultado e desconexão. A memória
+**não foi medida**; os tempos são referência sem limite de desempenho e não
+medem os transportes TCP ou HTTP.
+
+A regressão Harbour padrão completa passou com **566 checks, zero falhas/sem
+skips**, incluindo 79 novas asserções de configuração. Evidências:
+`tmp/tests-f84004277a8d4cc2905131f706a1e181/results.log` e
+`tmp/mssql-full-regression-20261008.log`. O build isolado do produto passou em
+`out/mssql/hbbridge.exe`, SHA256
+`1F157D4099E7F954652C2AF645E4EB80DB971078D6522CC3AFF6D5DAC5715ADB`;
+log: `tmp/mssql-product-final-20261008.log`. Metadados sanitizados aceitaram
+os perfis MSSQL/SQLite privados e os exemplos MSSQL INI/JSON equivalentes,
+sem conectar: `tmp/mssql-config-final-smoke-20261008.log`.
+Os três validadores e as convenções passaram em **146 arquivos**:
+`tmp/mssql-commit-gate-20261008.log`. Links locais em 61 documentos e
+whitespace aprovados. Nenhum commit ou publicação efetuado.
+
+Isso fornece a evidência nativa de valores/tipos SQL de M03, junto do aceite
+TCP separado do operador acima. As [execuções HTTP abaixo](#homologação-http-protheus-mssql-e-sqlite-pelo-operador-em-2026-10-08)
+homologam M05 nos 13 casos exercitados. Permanecem pendentes conexão
+indisponível controlada/timeout nativo (M06), isolamento mais
+amplo de perfis/recursos (M07), referências de transportes/memória (M08) e
+evidências AppServer/finais restantes (M09); o pacote 001 não está concluído.
+
+## Homologação HTTP Protheus MSSQL e SQLite pelo operador em 2026-10-08
+
+O operador forneceu saída de execução dos dois wrappers de teste HTTP.
+Evidência: `tmp/protheus-http-mssql-sqlite-operator-20261008.log`. O relato
+identifica `marin` em `DNA-TECH-01` e a mesma pilha `tttm120.rpo`, `tlpp.rpo`,
+`custom.rpo`. Os horários abaixo são de São Paulo em 2026-10-08.
+
+| Programa / perfil SQL padrão | Execução informada | Resultado |
+| --- | --- | --- |
+| `U_HBBridgeHTTPTestMSSQL` / `mssql/pData` | Programa 10:33:32, thread 25976; teste 10:33:33–10:33:34 | Todos os 13 checks true/PASS, Health HTTP 200; duração 00:00:01. |
+| `U_HBBridgeHTTPTestSQLite` / `sqlite_demo` | Programa 10:34:06, thread 9916; teste 10:34:07–10:34:07 | Todos os 13 checks true/PASS, Health HTTP 200; duração 00:00:00. |
+
+Os [wrappers HTTP do operador](../src/tlpp/tests/protheus/hbbridgehttptest.tlpp)
+definem explicitamente o alias SQL padrão e encaminham ao teste comum.
+Mantêm a resolução existente de URL/token/timeout quando os argumentos de
+transporte são omitidos. Ambos passaram em `healthGet`, `healthPost`,
+`servicesGet`, `echo`, `addon`, `unknownService`, `adminForbidden`,
+`unauthorized`, `afterFailure`, `queryFirstPage`, `queryFirstValue`,
+`queryNextPage` e `queryLastValue`. Isso homologa M05 nos 13 casos exercitados
+com `mssql/pData`, incluindo os valores das páginas HTTP do dataset comum,
+e repete a regressão HTTP SQLite.
+
+São execuções AppServer do operador, sem log de sucesso do compilador nem
+hashes de artefatos fornecidos; o agente não executou essas chamadas HTTP.
+As durações informadas têm resolução de um segundo e não são benchmarks.
+Não homologam HTTPS/Linux nem ampliam a cobertura de tipos SQL/Unicode além
+da fixture HTTP exercitada. Relatos HTTP anteriores sem backend identificado
+continuam como evidência histórica. Falhas controladas e timeout nativo,
+isolamento mais amplo, referências de transportes/memória e evidências finais
+restantes continuam nas tarefas M06–M09.
+
+O alinhamento documental EN/PT passou nos três validadores e convenções para
+**146 arquivos**, links locais em **61 documentos** e whitespace. Log do crivo:
+`tmp/http-mssql-sqlite-commit-gate-20261008.log`. Os resultados de build/
+regressão nativos acima não foram repetidos nesta atualização documental.
+
+## Extensão do dataset e falhas de integridade em 2026-10-08
+
+Após os aceites acima, o responsável solicitou acesso mais simples aos campos
+e varredura sequencial das páginas. O dataset TLPP agora inclui `MoreToRead()`,
+`Header()`, seu alias de compatibilidade `DSStruct()`, `FieldInfo()`,
+`FieldCount()`, `FieldName()` e `GetRow()`. `Eof()`/`Skip()` mantêm o comportamento
+local à página; `MoreToRead()` busca a próxima ao atingir EOF e preserva o
+erro de uma requisição malsucedida. Cabeçalho, campo e linha retornam cópias
+JSON independentes. Veja [comportamento e proposta de contrato](dataset.pt-BR.md).
+
+O novo [U_HBBridgeDataSetTest](../src/tlpp/tests/protheus/hbbridgedatasettest.tlpp)
+isolado usa cliente simulado, sem SQL, credenciais, rede ou dados ERP.
+Seu relatório esperado de sucesso contém **45 checks e 17 chamadas simuladas**,
+cobrindo ordem/cópias de metadados, varredura automática, verificações repetidas,
+estado fechado/vazio, metadados inválidos e falha/recuperação. O agente tentou
+compilar com `scripts/build-totvs.cmd` em 2026-10-08 às 16:31:40 de São Paulo,
+thread 36788. Retornou exit 1, `COMPILEERROR-300 Failed to open repository`:
+`custom.rpo` estava em uso por um usuário. O compilador informou
+total/sucessos/erros `0/0/0`, portanto não compilou esses fontes. Log:
+`tmp/totvs-compile.log`. Não havia scripts de parada/início configurados e o
+AppServer ativo não foi parado. O novo teste de execução continua pendente;
+relatos anteriores do operador não homologam esses métodos. D02 no
+[WIP](../WIP.pt-BR.md) acompanha esse aceite.
+
+Uma prova separada do agente, com constantes MSSQL somente para leitura,
+reproduziu falha na serialização numérica: `CAST(123.4567 AS FLOAT)` preservou
+a fração nativamente, mas emitiu `123` no JSON. `DECIMAL(15,4)` emitiu
+`123.4567`, e `DECIMAL(16,2)` emitiu `123.46`. Evidência:
+`tmp/numeric-probe-20261008.log`. Os 92 checks nativos não exercitaram ida e
+volta JSON de FLOAT fracionário sem CAST decimal; seu sucesso anterior mantém
+o escopo das fixtures, sem certificar precisão numérica arbitrária.
+
+A inspeção dos fontes também identificou que o adaptador TCP usa o padrão
+`EN`/CP437 do Harbour fixado, sem selecionar `UTF8EX` como o worker HTTP, e
+seu caminho JSON não tem conversão UTF-8 explícita. Relatos TCP ASCII existentes
+não certificam acentos/Unicode nem equivalência TCP/HTTP. O ajuste de exibição
+com `OemToAnsi()` não comprova a codificação original da coluna SQL. Essas
+correções de texto/números continuam sem implementação e são acompanhadas em
+D03 antes de retomar M06.
+
+Largura/decimais do cabeçalho RDD atual não são definições de negócio da
+SX3/TOP_FIELD. O Protheus deve fornecer suas regras lógicas de campos e SQL
+explícito; hbBridge não deve descobrir tabelas ERP, filiais ou regras de
+salário implicitamente. A análise vinculada distingue metadados de origem,
+lógicos e de transmissão como evolução do contrato, não como parâmetros
+adicionais já aceitos pelo serviço.
+
+Documentação dataset/segurança e convenções dos fontes passaram pelos três
+validadores de commit em **150 arquivos**, links locais em **63 documentos** e
+whitespace. Log: `tmp/dataset-commit-gate-20261008.log`. Saídas do pré-processador
+TLPP são ignoradas como artefatos de build. A regressão nativa completa não
+foi repetida para este trabalho de navegação TLPP e documentação.

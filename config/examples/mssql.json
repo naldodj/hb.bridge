@@ -2,7 +2,10 @@
     "sqlProfiles": {
         "mssql_demo": {
             "driver": "mssql",
-            "connectionString": "DSN=hbBridgeMSSQL;Trusted_Connection=Yes;"
+            "dsn": "hbBridgeMSSQL",
+            "authentication": "integrated",
+            "encrypt": "mandatory",
+            "trustServerCertificate": false
         }
     }
 }

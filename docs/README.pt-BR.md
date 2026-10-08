@@ -36,6 +36,11 @@ O [exemplo HTTP TLPP](../examples/http/README.pt-BR.md) apresenta cliente
 FWRest, configuração AppServer, bearer, RPC genérico e dataset SQL paginado,
 com 13 checks homologados pelo operador em 2026-10-07.
 
+[Dataset](dataset.pt-BR.md) descreve acesso a campos/header, varredura com
+`MoreToRead()` e as correções de integridade UTF-8/FLOAT ainda pendentes.
+[Credenciais](credentials.pt-BR.md) abrange SQL, NETIO, administração e HTTP
+no servidor e nos clientes; o armazenamento criptografado não está implementado.
+
 A [análise de evolução](evolution.pt-BR.md) trata `THREAD STATIC`, HTTP Zig
 opcional, resolução externa pelo hb_compile e tabelas para apresentação
 Protheus, separando comportamento verificado de implementações futuras.
@@ -64,7 +69,8 @@ O [Marco 3 — SQL e paginação](milestone3-sql.pt-BR.md) descreve `RPCRDD.Quer
 SQLMIX, perfis SQLite/MSSQL, resultados por chave e páginas calculadas no SGBD
 com `ROW_NUMBER`/`BETWEEN`. O cliente `HBBridgeRPCDataSet` e `U_HBBridgeQueryTest`
 passaram no AppServer com SQLite em 2026-10-04: 29 checks verdadeiros,
-incluindo páginas. MSSQL real e a ampliação de tipos/volume continuam pendentes.
+incluindo páginas. A [homologação](acceptance.pt-BR.md) registra os aceites
+MSSQL/SQLite TCP e HTTP de 2026-10-08 e as limitações de tipos ainda pendentes.
 
 [Configuração](configuration.pt-BR.md) descreve INI/JSON, arquivo padrão ao lado do
 executável, precedência CLI, seções/perfis e metadados sem credenciais.

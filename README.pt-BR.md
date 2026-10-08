@@ -31,6 +31,18 @@ ou variáveis HBBRIDGE_TOTVS_*, sem instalação fixa. Guias de
 [dependências](docs/dependencies.pt-BR.md), [padrões](docs/standards.pt-BR.md) e
 [credenciais portáveis](docs/credentials.pt-BR.md) detalham o fluxo. Senha cifrada
 no INI com chave externa e CLI local permanece proposta, sem implementação.
+Os perfis MSSQL aceitam `ConnectionString` completa ou chaves estruturadas
+`Authentication`, `DSN`/`ODBCDriver`/`Server`, `Database`, `Username` e `Password`
+em INI/JSON privado, sem misturar as duas formas. As chaves estão no guia de
+[configuração](docs/configuration.pt-BR.md).
+
+O [desenho de credenciais](docs/credentials.pt-BR.md) agora abrange também
+NETIO/admin, HTTP e token cliente do AppServer, com provedores locais e chaves
+distintas por instalação. Os provedores de armazenamento cifrado não foram implementados.
+O [estudo do dataset](docs/dataset.pt-BR.md) detalha a API de metadados/
+navegação e as falhas identificadas em 2026-10-08: codepage TCP inconsistente
+e perda de fração FLOAT no JSON. Aceites anteriores preservam seu escopo;
+correções de integridade e aceite da extensão TLPP estão no [WIP](WIP.pt-BR.md).
 
 Ponte extensível que disponibiliza os recursos de Harbour, C e Zig ao ERP
 TOTVS Protheus (AdvPL/TLPP) e a clientes Harbour nativos. O objetivo é ampliar
@@ -133,8 +145,8 @@ Harbour, preservando a programação xBase na camada de serviços.
 | Módulos Harbour | Compilação em memória de `.prg`/`.hb` e carregamento de `.hrb` pelo serviço `ADDON.Execute`, com `module` e `params`. |
 | hbnetio | Listener nativo incorporado em `0.0.0.0:2941`, RPC filtrado e serialização Harbour. `HB_EXTERN` habilitado; gateway usa somente serviços registrados. |
 | HTTP/REST | `hbhttpd` incorporado, opcional e desativado por padrão. Chamadas JSON e status web autenticado usam o núcleo comum; credenciais de serviço/administração separadas. HTTPS direto exige build com OpenSSL e homologação própria. |
-| Cliente HTTP Protheus | `HBBridgeHTTPClient` usa FWRest nativo, bearer e contrato JSON compartilhado. Operador homologou 13 checks em 2026-10-07, incluindo paginação SQL; última rodada: thread 25456, um segundo. Backend SQL HTTP não identificado. |
-| Dados SQL | `RPCRDD.Query` usa SQLMIX com SQLite e MSSQL/ODBC; suporta páginas no SGBD e resultados por chave. Teste SQLite Protheus homologado em 2026-10-04 com 29 checks e reconfirmado em 2026-10-07 com `profile=sqlite_demo`; MSSQL real pendente. |
+| Cliente HTTP Protheus | `HBBridgeHTTPClient` usa FWRest nativo, bearer e contrato JSON compartilhado. Operador homologou 13 checks em cada banco MSSQL e SQLite em 2026-10-08, incluindo paginação SQL; wrappers selecionam `mssql/pData` e `sqlite_demo`. |
+| Dados SQL | `RPCRDD.Query` usa SQLMIX com SQLite e MSSQL/ODBC; suporta páginas no SGBD e resultados por chave. Em 2026-10-08 passaram 92 checks MSSQL nativos; operador homologou 29 checks Protheus TCP e 13 HTTP em cada perfil, `mssql/pData` e `sqlite_demo`. Falhas/tipos/plataformas ampliados mantêm seus aceites. |
 | Dados DBF | Acesso por RDDs nativos via NETIO previsto; ainda não integrado ao hbBridge. |
 | VF IO | Cliente Harbour usa `hb_vf*` com provedor NETIO; leitura/escrita binária testadas. Fachada de arquivos para TLPP permanece pendente. |
 | C e Zig | Ponte pela API C do Harbour e ABI C do Zig integrada ao `Health`; biblioteca Zig e toolchain exigidos pelo build atual. |
@@ -145,7 +157,8 @@ Harbour, preservando a programação xBase na camada de serviços.
 
 Com `Health`, `Echo` e a execução de addons homologados antes do Marco 1, o
 teste SQLite de `RPCRDD.Query` no AppServer passou em 2026-10-04, incluindo
-paginação. A conexão MSSQL real é o próximo aceite SQL. O NETIO já tem
+paginação. MSSQL real passou no núcleo Harbour e no Protheus TCP/HTTP em 2026-10-08;
+o próximo aceite SQL cobre falhas controladas, timeout nativo e recuperação. O NETIO já tem
 testes nativos; a rodada Protheus do Marco 1 foi confirmada em 2026-10-03:
 três fontes compilados sem erros e Health/Echo/ADDON executados com sucesso.
 A [matriz de homologação](docs/acceptance.pt-BR.md) registra AppServer `24.3.1.5`,
@@ -160,7 +173,11 @@ passaram as classes TLPP renomeadas, os 16 checks de configuração revisados,
 relógio/RPC, 29 checks SQLite e 13 checks HTTP. Os horários/threads identificam
 essa regressão Windows; não foram fornecidos log de compilação, argumentos,
 destino efetivo nem hashes dos artefatos. O backend SQL HTTP não foi identificado.
-MSSQL real, destino alternativo e Linux continuam exigindo homologação própria.
+Em 2026-10-08 passaram 92 checks MSSQL nativos em SQL Server `16.0.1200.5`,
+banco `pData`, ODBC Driver `18.6.2.1` x64 e autenticação SQL. O operador também
+homologou 29 checks TCP e 13 HTTP em cada perfil, `mssql/pData` e `sqlite_demo`;
+threads HTTP 25976/9916 usaram os wrappers específicos por backend.
+Destino alternativo, HTTPS, falhas/tipos ampliados e Linux exigem homologação própria.
 
 O [Marco 2 começou pela correção do fluxo TCP do produto](docs/milestone2-framing.pt-BR.md):
 o Harbour descompacta incrementalmente e o TLPP acumula uma unidade gzip completa.
@@ -171,7 +188,7 @@ os dois Echo com conteúdo integral idêntico. O gzip da requisição de dados
 ASCII variados teve **152.964 bytes**, acima do buffer padrão de 65.536 bytes.
 Handshake, blocos e compressão negociada continuam no TODO.
 O produto não mantém os tetos arbitrários de tamanho das provas de conceito.
-A suíte Harbour completa de 2026-10-06 passou em **487 verificações, zero falhas,
+A suíte Harbour completa de 2026-10-08 passou em **566 verificações, zero falhas,
 sem skips**, incluindo HTTP, concorrência de addons,
 INI/JSON, SQLite real, consultas paginadas e resultados iguais por NETIO/TCP, além de Echo
 de **24.000.000 bytes exatos** e JSON/gzip acima de 16 MiB nos dois sentidos.
@@ -340,6 +357,10 @@ posteriores passaram nos 13 checks: thread 27296 às 16:10:44–16:10:45 e
 thread 25456 às 16:15:03–16:15:04 (São Paulo), cada uma em um segundo.
 O backend SQL HTTP não foi identificado; a rodada TCP Query separada
 informou explicitamente SQLite.
+Em 2026-10-08, `U_HBBridgeHTTPTestMSSQL()` e `U_HBBridgeHTTPTestSQLite()`
+passaram nos 13 checks cada, com aliases SQL padrão explícitos `mssql/pData`
+e `sqlite_demo`. Os argumentos de transporte continuam usando o INI ativo.
+Veja [o aceite datado](docs/acceptance.pt-BR.md#homologação-http-protheus-mssql-e-sqlite-pelo-operador-em-2026-10-08).
 
 ### Extensibilidade e capacidades para as aplicações
 
@@ -979,8 +1000,10 @@ pendente. Políticas mais amplas de identidade/tokens, configuração de acesso,
 políticas de módulos também fazem parte da consolidação da ponte.
 
 O teste SQLite `U_HBBridgeQueryTest` foi homologado com o servidor preparado
-por `examples/sql/run.ps1`. O próximo aceite SQL é MSSQL/ODBC com o perfil
-correspondente. Serviço e conectores estão implementados; o launcher aceita
+por `examples/sql/run.ps1`. MSSQL/ODBC passou no núcleo Harbour e no TCP/HTTP;
+o próximo trabalho SQL corrige integridade UTF-8/FLOAT e homologa a extensão
+do dataset, seguido por falhas controladas, timeout nativo e recuperação.
+Serviço e conectores estão implementados; o launcher aceita
 perfis em JSON ou INI, como `-Config config/examples/sqlite.ini`.
 Em paralelo, a base de integração
 deverá evoluir o contrato de transferência e ampliar os casos homologados.

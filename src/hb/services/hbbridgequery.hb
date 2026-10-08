@@ -93,8 +93,8 @@ STATIC FUNCTION SQLQueryLocked( cSQL, hProfile, hPage )
             ENDIF
             hHeader[ cName ] := { "position" => nField - nOffset, ;
                 "type" => hb_FieldType( nField ), ;
-                "length" => dbFieldInfo( DBS_LEN, nField ), ;
-                "decimals" => dbFieldInfo( DBS_DEC, nField ) }
+                "length" => hb_FieldLen( nField ), ;
+                "decimals" => hb_FieldDec( nField ) }
         NEXT
         DO WHILE ! Eof()
             IF hPage != NIL
@@ -254,24 +254,175 @@ FUNCTION HBBridgeSQLProfiles( hProfiles, cBase, cError )
             cError := "Unsupported SQL profile driver: " + cName
             RETURN NIL
         ENDIF
-        cKey := iif( cDriver == "sqlite", "database", "connectionString" )
-        IF Len( hProfile ) != 2 .OR. ! hb_HHasKey( hProfile, cKey )
-            cError := "SQL profile requires only driver and " + cKey + ": " + cName
-            RETURN NIL
-        ENDIF
-        cValue := hProfile[ cKey ]
-        IF ! HB_ISSTRING( cValue ) .OR. Empty( AllTrim( cValue ) ) .OR. Chr( 0 ) $ cValue
-            cError := "Invalid SQL profile " + cKey + ": " + cName
-            RETURN NIL
-        ENDIF
-        IF cDriver == "sqlite" .AND. cValue != ":memory:"
-            cValue := HBBridgeAbsolutePath( cValue, cBase )
-            IF Empty( cValue )
-                cError := "Invalid SQL database path: " + cName
+        IF cDriver == "mssql"
+            cKey := "connectionString"
+            cValue := SQLMSSQLConnection( hProfile, @cError )
+            IF cValue == NIL
                 RETURN NIL
+            ENDIF
+        ELSE
+            cKey := "database"
+            IF Len( hProfile ) != 2 .OR. ! hb_HHasKey( hProfile, cKey )
+                cError := "SQL profile requires only driver and database: " + cName
+                RETURN NIL
+            ENDIF
+            cValue := hProfile[ cKey ]
+            IF ! HB_ISSTRING( cValue ) .OR. Empty( AllTrim( cValue ) ) .OR. Chr( 0 ) $ cValue
+                cError := "Invalid SQL profile database: " + cName
+                RETURN NIL
+            ENDIF
+            IF cValue != ":memory:"
+                cValue := HBBridgeAbsolutePath( cValue, cBase )
+                IF Empty( cValue )
+                    cError := "Invalid SQL database path: " + cName
+                    RETURN NIL
+                ENDIF
             ENDIF
         ENDIF
         hNormalized[ cName ] := { "driver" => cDriver, cKey => cValue }
     NEXT
 
 RETURN hNormalized
+
+/* Both configuration forms reach the existing SDDODBC query path. Never put
+ * credential values or arbitrary input keys into a validation error.
+ */
+STATIC FUNCTION SQLMSSQLConnection( hProfile, cError )
+
+    LOCAL hAllowed := { "driver" => .T., "authentication" => .T., "dsn" => .T., ;
+        "odbcDriver" => .T., "server" => .T., "database" => .T., "username" => .T., ;
+        "password" => .T., "encrypt" => .T., "trustServerCertificate" => .T. }
+    LOCAL cKey, xValue, cAuthentication, cConnection, cEncrypt
+
+    IF hb_HHasKey( hProfile, "connectionString" )
+        IF Len( hProfile ) != 2
+            cError := "SQL connectionString cannot be combined with structured connection keys."
+            RETURN NIL
+        ENDIF
+        IF ! SQLProfileTextValid( hProfile[ "connectionString" ] )
+            cError := "Invalid SQL profile connectionString."
+            RETURN NIL
+        ENDIF
+        RETURN hProfile[ "connectionString" ]
+    ENDIF
+    FOR EACH xValue IN hProfile
+        cKey := xValue:__enumKey()
+        IF ! HB_ISSTRING( cKey ) .OR. ! hb_HHasKey( hAllowed, cKey )
+            cError := "Unknown structured SQL connection key."
+            RETURN NIL
+        ENDIF
+        IF cKey == "trustServerCertificate"
+            IF ! HB_ISLOGICAL( xValue )
+                cError := "SQL trustServerCertificate must be logical."
+                RETURN NIL
+            ENDIF
+        ELSEIF ! SQLProfileTextValid( xValue, cKey == "password" )
+            cError := "Structured SQL connection values must be nonempty strings without NUL, CR or LF."
+            RETURN NIL
+        ENDIF
+    NEXT
+    IF ! hb_HHasKey( hProfile, "authentication" )
+        cError := "SQL authentication is required: sql or integrated."
+        RETURN NIL
+    ENDIF
+    cAuthentication := hProfile[ "authentication" ]
+    IF ! ( cAuthentication == "sql" .OR. cAuthentication == "integrated" )
+        cError := "SQL authentication must be sql or integrated."
+        RETURN NIL
+    ENDIF
+    IF hb_HHasKey( hProfile, "dsn" )
+        IF hb_HHasKey( hProfile, "odbcDriver" ) .OR. hb_HHasKey( hProfile, "server" )
+            cError := "SQL dsn cannot be combined with odbcDriver or server."
+            RETURN NIL
+        ENDIF
+        IF ! SQLDSNValid( hProfile[ "dsn" ] )
+            cError := "SQL dsn contains characters unsupported by the ODBC Driver Manager."
+            RETURN NIL
+        ENDIF
+        /* Driver Manager lookup uses the literal DSN value, including braces.
+         * Validate this identifier before appending it without braces.
+         */
+        cConnection := "DSN=" + hProfile[ "dsn" ] + ";"
+    ELSE
+        IF ! hb_HHasKey( hProfile, "odbcDriver" ) .OR. ! hb_HHasKey( hProfile, "server" ) .OR. ;
+            ! hb_HHasKey( hProfile, "database" )
+            cError := "SQL connection requires dsn or odbcDriver, server and database."
+            RETURN NIL
+        ENDIF
+        cConnection := SQLODBCAttribute( "DRIVER", hProfile[ "odbcDriver" ] ) + ;
+            SQLODBCAttribute( "SERVER", hProfile[ "server" ] )
+    ENDIF
+    IF hb_HHasKey( hProfile, "database" )
+        cConnection += SQLODBCAttribute( "DATABASE", hProfile[ "database" ] )
+    ENDIF
+    IF cAuthentication == "sql"
+        IF ! hb_HHasKey( hProfile, "username" ) .OR. ! hb_HHasKey( hProfile, "password" )
+            cError := "SQL authentication requires username and password."
+            RETURN NIL
+        ENDIF
+        cConnection += "Trusted_Connection=No;" + ;
+            SQLODBCAttribute( "UID", hProfile[ "username" ] ) + ;
+            SQLODBCAttribute( "PWD", hProfile[ "password" ] )
+    ELSE
+        IF hb_HHasKey( hProfile, "username" ) .OR. hb_HHasKey( hProfile, "password" )
+            cError := "Integrated SQL authentication cannot include username or password."
+            RETURN NIL
+        ENDIF
+        cConnection += "Trusted_Connection=Yes;"
+    ENDIF
+    IF hb_HHasKey( hProfile, "encrypt" )
+        cEncrypt := hProfile[ "encrypt" ]
+        DO CASE
+        CASE cEncrypt == "optional"
+            cEncrypt := "No"
+        CASE cEncrypt == "mandatory"
+            cEncrypt := "Yes"
+        CASE cEncrypt == "strict"
+            cEncrypt := "Strict"
+        OTHERWISE
+            cError := "SQL encrypt must be optional, mandatory or strict."
+            RETURN NIL
+        ENDCASE
+        cConnection += "Encrypt=" + cEncrypt + ";"
+    ENDIF
+    IF hb_HHasKey( hProfile, "trustServerCertificate" )
+        cConnection += "TrustServerCertificate=" + ;
+            iif( hProfile[ "trustServerCertificate" ], "Yes", "No" ) + ";"
+    ENDIF
+
+RETURN cConnection
+
+STATIC FUNCTION SQLProfileTextValid( xValue, lAllowWhitespace )
+    IF ! HB_ISSTRING( xValue )
+        RETURN .F.
+    ENDIF
+    IF ! HB_ISLOGICAL( lAllowWhitespace )
+        lAllowWhitespace := .F.
+    ENDIF
+RETURN Len( xValue ) > 0 .AND. ( lAllowWhitespace .OR. ! Empty( AllTrim( xValue ) ) ) .AND. ;
+    ! ( Chr( 0 ) $ xValue ) .AND. ! ( Chr( 13 ) $ xValue ) .AND. ! ( Chr( 10 ) $ xValue )
+
+/* SQLValidDSN documents the invalid punctuation. Keep the identifier literal
+ * and reject whitespace edges/control bytes instead of silently changing it.
+ * The installed ODBC manager remains responsible for its native length limit.
+ */
+STATIC FUNCTION SQLDSNValid( cValue )
+    LOCAL cInvalid := "[]{}(),;?*=!@" + Chr( 92 ), nIndex, cByte, nCode
+    IF ! ( cValue == AllTrim( cValue ) )
+        RETURN .F.
+    ENDIF
+    FOR nIndex := 1 TO hb_BLen( cValue )
+        cByte := hb_BSubStr( cValue, nIndex, 1 )
+        nCode := hb_BCode( cByte )
+        IF cByte $ cInvalid .OR. nCode < 32 .OR. nCode == 127
+            RETURN .F.
+        ENDIF
+    NEXT
+RETURN .T.
+
+/* Enclose free-text driver attributes with braces and double closing braces.
+ * A semicolon in a password stays inside that single value. DSN identifiers
+ * and fixed scalar choices have separate serialization above.
+ */
+STATIC FUNCTION SQLODBCAttribute( cKey, cValue )
+RETURN cKey + "={" + StrTran( cValue, "}", "}}" ) + "};"

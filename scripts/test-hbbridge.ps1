@@ -9,6 +9,8 @@ $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 . (Join-Path $PSScriptRoot 'toolchain.ps1')
 $toolchain = Resolve-HBBridgeToolchain -ProjectRoot $projectRoot -HbCompileRoot $HbCompileRoot -ZigPath $ZigPath
+& (Join-Path $PSScriptRoot 'prepare-odbc.ps1') -HbCompileRoot $toolchain.HbCompileRoot -ZigPath $toolchain.Zig
+if (-not $?) { throw 'Managed ODBC dependency preparation failed.' }
 $runRoot = Join-Path $projectRoot ('tmp/tests-' + [Guid]::NewGuid().ToString('N'))
 $addonRoot = Join-Path $runRoot 'addons'
 $buildRoot = Join-Path $runRoot 'build'

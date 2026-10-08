@@ -5,12 +5,22 @@ pela implementação nativa `rddsql`/`SQLMIX` do Harbour. O produto vincula
 `sddsqlt3` para SQLite e `sddodbc` para MSSQL via ODBC. Não há um RDD próprio.
 SQLite e o cliente dataset/paginação foram homologados no AppServer pelo
 operador em 04/10/2026, às 00:40:06, com 29 verificações verdadeiras.
-A conexão MSSQL real permanece pendente. Esse aceite antecede a nova leitura
+MSSQL ainda não havia sido homologado naquela rodada inicial. Esse aceite antecede a nova leitura
 de `[hbBridge]` no AppServer. Em novo relato manual registrado na sessão de
 2026-10-04, o operador confirmou essa leitura com os 13 checks do teste de
 configuração cliente, além de relógio, Health, ADDON, Echo e novamente os
 29 checks de Query `sqlite_demo`. O aceite cobre os testes executados no
-Windows alvo; MSSQL e destinos não padrão continuam pendentes.
+Windows alvo; não demonstrava MSSQL nem destinos não padrão.
+
+Em 2026-10-08, a rota nativa MSSQL passou em **92 checks, zero falhas e nenhum
+skip** com SQL Server `16.0.1200.5`, banco `pData`, ODBC Driver `18.6.2.1`,
+Windows x64 e Harbour `UTF8EX`. Separadamente, o operador passou nos
+**29 checks TCP e 13 HTTP de cada backend**, MSSQL (`mssql/pData`) e SQLite
+(`sqlite_demo`). São resultados delimitados nativos e do operador; cenários
+ampliados de falha/tipos/recursos/desempenho, HTTPS, identidades de serviço e
+Linux continuam previstos. A nova solicitação de dataset e os problemas
+reproduzidos de UTF-8/FLOAT estão registrados como **D02/D03 antes de retomar M06**
+no [WIP](../WIP.pt-BR.md); veja [homologação](acceptance.pt-BR.md) para evidências atribuíveis.
 
 ## Perfis no servidor
 
@@ -151,6 +161,30 @@ com fallback local quando as chaves não existem. `Close` libera o resultado; os
 de abertura deixam o dataset vazio. A classe possui o objeto de resposta
 completo para manter a validade dos objetos JSON internos.
 
+`Header()` retorna uma cópia JSON independente do cabeçalho; `DSStruct()` é
+seu alias de compatibilidade. `FieldInfo(name)` retorna uma cópia dos metadados
+de um campo. `FieldCount()` e `FieldName(position)` enumeram a ordem original
+das colunas SQL usando as posições explícitas do cabeçalho. `GetRow()` copia
+a linha atual sem avançar. Esses acessos não fazem requisições de página.
+
+Use `while oDataSet:MoreToRead()` com `oDataSet:Skip()` explícito para percorrer
+todas as páginas sequencialmente. Ao atingir EOF da página, `MoreToRead()`
+requisita a próxima somente se houver indicação; chamadas repetidas na linha
+atual não avançam. Retorna falso no término normal ou na falha de requisição
+da próxima página; consulte `ErrorCode()` depois para distinguir falha.
+`Eof()` e `Skip()` permanecem locais à página, e `RowCount()` conta a página
+atual. O teste isolado `U_HBBridgeDataSetTest` aguarda homologação da nova API
+no AppServer; veja [métodos, propriedade e falhas de integridade](dataset.pt-BR.md).
+
+O cabeçalho existente descreve valores RDD, não regras lógicas SX3/TOP_FIELD.
+O Protheus fornece seus tamanhos/decimais lógicos ou CASTs explícitos no SQL.
+Uma prova constante de FLOAT preservou `123.4567` nativamente, mas emitiu `123`
+no JSON; o TCP também usa CP437 por padrão, enquanto o worker HTTP usa `UTF8EX`.
+São correções pendentes, não capacidades entregues pela navegação. O aceite
+anterior das fixtures não certifica precisão arbitrária de FLOAT/DECIMAL
+grande, acentos TCP nem collation escolhida. Collation é uma decisão explícita
+de comparação/ordenação SQL, distinta da codificação de texto do cliente.
+
 Após compilar o hbBridge atualizado, encerre a instância anterior com Ctrl+Q
 e execute na raiz do projeto:
 
@@ -271,8 +305,9 @@ delta `1097.692700`, tempo normalizado `1097.773500 ms` após `Sleep(1000)`,
 `result=OK`. Isso aceita os novos testes TLPP e supera a pendência histórica
 de execução que o bloqueio de parada deixou ao agente. Não foram informados
 horário, thread, hash, argumentos de chamada ou log de compilação dessa rodada.
-Destinos diferentes dos padrões, timeout/falhas/envios parciais forçados,
-MSSQL real e outras plataformas permanecem pendentes, conforme
+Esse relato histórico não homologava MSSQL; os resultados nativos, TCP e HTTP
+posteriores estão registrados acima. Destinos diferentes dos padrões,
+timeout/falhas/envios parciais forçados e outras plataformas permanecem pendentes, conforme
 [homologação](acceptance.pt-BR.md).
 
 O build do executável também passou em `tmp/marco3-product/hbbridge.exe`,

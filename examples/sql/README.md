@@ -47,7 +47,13 @@ only a server profile needs no TLPP recompile.
 Configure an ODBC driver/DSN for the hbBridge process architecture. The
 [MSSQL INI](../../config/examples/mssql.ini) and
 [JSON](../../config/examples/mssql.json) contain no password and use integrated
-authentication. The [multiple-profile example](../../config/examples/databases.ini)
+authentication through `DSN=hbBridgeMSSQL` and `Authentication=integrated`,
+with `Encrypt=mandatory` and `TrustServerCertificate=false`. Rebuild the
+product before using these structured fields. Windows uses the hbBridge
+process identity; Linux requires Kerberos. The
+[configuration guide](../../docs/configuration.md#mssql-profiles) covers
+SQL-login credentials, DSN-less destinations, JSON keys and encryption options.
+The [multiple-profile example](../../config/examples/databases.ini)
 contains SQLite and `mssql/pData`. Aliases are opaque, case-sensitive keys;
 each call/dataset may select another alias. Their names do not resolve tenant,
 company, branch, physical tables or ERP rules; Protheus prepares those inputs.
@@ -67,10 +73,86 @@ writing Protheus tables. Direct ODBC/SQLRDD does not perform DBAccess/business
 workflows. Encrypted INI credentials and a local management utility are proposed.
 
 Operator SQLite acceptance: 2026-10-04 00:40:06, thread 41228, all 29 checks
-true, later reconfirmed with the client INI acceptance. Real MSSQL and broader
-types/volumes/platforms remain pending. Renamed TLPP/revised profile behavior
-requires a new compile/test. See [milestone 3](../../docs/milestone3-sql.md),
+true, later reconfirmed with the client INI acceptance. The operator reconfirmed all 29 SQLite
+checks on 2026-10-07, thread 27136, after reported recompilation of the renamed
+TLPP classes. Changing only a server profile requires no further TLPP build.
+See [milestone 3](../../docs/milestone3-sql.md),
 [acceptance](../../docs/acceptance.md) and [tests](../../tests/README.md).
+
+## Private MSSQL configuration and native acceptance
+
+For a SQL login, fill the existing username and password in the prepared
+`[SQL/mssql/pData]` template in `C:/tmp/hbBridge.ini`. Keep the whole template
+commented until it is complete, then uncomment its lines. It uses `Driver=mssql`,
+`DSN=pData`, `Database=pData`, `Authentication=sql`, `Username` and `Password`;
+the [field reference](../../docs/configuration.md#mssql-profiles) includes a
+DSN-less equivalent using `ODBCDriver`, `Server` and `Database`. The alias
+selects only this configured connection; Protheus supplies its business inputs.
+
+Keep the filled private file and backups outside Git with restricted access.
+The current fields store the password in plaintext. No password is passed as
+a command argument or sent by the Protheus dataset. Encrypted storage and a
+credential editor remain future work; see [credentials](../../docs/credentials.md).
+
+Rebuild the product and validate the completed file without opening a database:
+
+```powershell
+./scripts/build-hbbridge.ps1
+./out/hbbridge.exe --config-info "-config=C:/tmp/hbBridge.ini"
+```
+
+Run the dedicated native MSSQL acceptance only after the profile is ready:
+
+```powershell
+./scripts/test-hbbridge-mssql.ps1 -Config C:/tmp/hbBridge.ini -Profile mssql/pData
+```
+
+Both arguments are required. This runner builds the current shared product
+core in an isolated temporary directory and starts no listeners. It verifies
+the constant connection probe, actual SQL Server version/database, named
+values, decimals, nulls, native dates/timestamps, bit and exact Unicode values,
+empty results, failure recovery, pages and hidden ordinals. It also checks
+caller workarea/connection restoration, four concurrent calls and three
+1000-row baseline executions. The shared mutex serializes SQL execution;
+the baseline records elapsed time without a speed threshold.
+
+Results go to `tmp/mssql-tests-*/results.log`, with fixed error codes and
+sanitized metadata. Exit `0` means the exercised native checks passed; `1`
+means acceptance failed; missing/invalid configuration, wrong profile type or
+an unavailable connection returns prerequisite status `2`. Prerequisites are
+never successful MSSQL tests. This command does not execute the separate
+29-check Protheus TCP dataset test or the HTTP test.
+
+For Protheus acceptance, start the product with the same private profile:
+
+```powershell
+./examples/sql/run.ps1 -Config C:/tmp/hbBridge.ini -Profile mssql/pData
+```
+
+Then run `U_HBBridgeQueryTest("mssql/pData", "127.0.0.1", 1512, 30000)` with
+the actual client destination. Use the same explicit alias for
+[HTTP acceptance](../http/README.md). The convenience entries
+`U_HBBridgeQueryTestMSSQL()` and `U_HBBridgeQueryTestSQLite()` provide the
+local example aliases without changing the generic client's defaults.
+
+On 2026-10-08, the private SQL-login profile passed **92 native checks, zero
+failures and no skips** against SQL Server `16.0.1200.5`, database `pData`,
+ODBC Driver `18.6.2.1`, Windows x64 and Harbour `UTF8EX`. The staged
+[SDDODBC patch](../../config/patches/sddodbc.patch) handles unknown-length
+streamed text/binary values and UTF-16 surrogate pairs. The fixture verifies
+long values, embedded NULs, empty strings and NULLs without an application
+payload ceiling. The baseline selected 1000 rows three times in 31/32/31 ms
+(94 ms total, concurrency one); memory was not measured and this is no speed
+guarantee.
+
+The operator separately passed **29 TCP checks for MSSQL**, thread 660, and
+repeated **29 for SQLite**, thread 3192, on
+2026-10-08. The operator subsequently passed **13 HTTP checks per backend**
+through `U_HBBridgeHTTPTestMSSQL()` and `U_HBBridgeHTTPTestSQLite()`, threads
+25976 and 9916. These entries select the local example profiles while reusing
+the common HTTP test and dataset. HTTPS, Linux, integrated/service identities
+and broader failure/type/resource/performance cases remain pending. See
+[acceptance](../../docs/acceptance.md) for evidence and scope.
 
 ## SERVICE_NOT_FOUND
 

@@ -31,6 +31,7 @@ local edits are preserved. Existing developer checkouts are untouched.
 | `.deps/hb_compile/out/zig/` | Windows Harbour tools, includes and libraries. |
 | `.deps/hb_compile/out/linux/` | Linux native Harbour installation. |
 | `.deps/http/` | Isolated hbhttpd/hbtcpio preparation and checked patch/build receipt. |
+| `.deps/odbc/` | Isolated SDDODBC preparation and checked patch/build receipt. |
 | `.hbcommit/` | Maintenance sources; uses the same compiled `hbrun`. |
 | `out/` | Product executable; `tmp/` holds isolated builds and logs. |
 
@@ -71,6 +72,26 @@ pinned Harbour checkout remains intact. `-hblib` is hbmk2's library build
 mode, rather than a separate contrib dependency.
 [Git attributes](../.gitattributes) force LF for `config/patches/*.patch`,
 keeping manifest checksums stable across Windows/Linux clones.
+
+MSSQL acceptance identified an SDDODBC variable-length fetch defect when a
+Unicode `SQLGetData` length probe returns `SQL_NO_TOTAL`. The managed
+[sddodbc.patch](../config/patches/sddodbc.patch) corrects this connector path,
+binary field flags and UTF-16 surrogate conversion for UTF-8 codepages,
+preserving embedded NULs and empty/null values across chunks. It imposes no
+payload ceiling. [prepare-odbc.ps1](../scripts/prepare-odbc.ps1)
+checks the manifest's `harbour.odbcPatch` checksum and applies the reviewed
+patch to `.deps/odbc/stage-<id>/sddodbc`, preserving the pinned source checkout.
+It builds only SDDODBC and installs its library/metadata into the selected
+managed Harbour installation. Windows uses native ODBC libraries; Linux
+requires unixODBC development headers and libraries.
+
+Bootstrap prepares this connector after Harbour, including when the base
+toolchain is reused. Product builds and both Harbour test launchers also
+prepare it before linking. `.deps/odbc/receipt.json` records the Harbour
+revision, patch SHA256 and installed library SHA256; unchanged matching
+artifacts are reused. `./scripts/prepare-odbc.ps1 -ForceBuild` rebuilds only
+this staged connector. Acceptance results remain separate from compilation;
+the patch and successful build alone do not certify all drivers or Linux.
 
 Plain HTTP requires no OpenSSL SDK. Direct HTTPS is an optional build with
 `HB_HTTP_TLS=1`, **hbssl**, the target OpenSSL SDK/runtime and

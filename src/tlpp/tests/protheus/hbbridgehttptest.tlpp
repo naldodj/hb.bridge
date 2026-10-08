@@ -2,6 +2,16 @@
 #include "protheus.ch"
 #include "tlpp-core.th"
 
+procedure U_HBBridgeHTTPTestMSSQL(cURL, cToken, nTimeoutSeconds, cSQLProfile, cAddonModule)
+    DEFAULT cSQLProfile:="mssql/pData"
+    U_HBBridgeHTTPTest(cURL, cToken, nTimeoutSeconds, cSQLProfile, cAddonModule)
+return
+
+procedure U_HBBridgeHTTPTestSQLite(cURL, cToken, nTimeoutSeconds, cSQLProfile, cAddonModule)
+    DEFAULT cSQLProfile:="sqlite_demo"
+    U_HBBridgeHTTPTest(cURL, cToken, nTimeoutSeconds, cSQLProfile, cAddonModule)
+return
+
 procedure U_HBBridgeHTTPTest(cURL, cToken, nTimeoutSeconds, cSQLProfile, cAddonModule)
     local cTimeStart,cTimeEnd as character
     ConOut("hbBridge U_HBBridgeHTTPTest Start: "+DTos(Date())+"/"+(cTimeStart:=Time()))
@@ -32,7 +42,7 @@ static procedure HBBridgeHTTPTest(cURL, cToken, nTimeoutSeconds, cSQLProfile, cA
         cSQLProfile := GetPvProfString("hbBridge", "SQLProfile", "", cIniFile)
     endif
 
-    DEFAULT cSQLProfile:=character
+    DEFAULT cSQLProfile:="sqlite_demo"
     DEFAULT cAddonModule:="examples/hbbridgesampleaddon.hb"
 
     oClient := HBBridge.Client.HBBridgeHTTPClient():New(cURL, cToken, nTimeoutSeconds)

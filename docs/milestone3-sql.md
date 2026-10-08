@@ -6,10 +6,20 @@
 rddsql/SQLMIX, linked sddsqlt3 for SQLite and sddodbc for MSSQL/ODBC; it does
 not implement a new RDD.
 Operator SQLite dataset/page acceptance: 2026-10-04 00:40:06, all 29 checks.
-Real MSSQL remains pending. A later report in the same session accepted all
+MSSQL had not yet been accepted in that initial run. A later report in the same session accepted all
 13 AppServer-INI client configuration checks, clock/RPC and SQLite again.
 These reports concern the Windows target, not new renames/Linux/nondefault
 destinations.
+
+On 2026-10-08, the native MSSQL route passed **92 checks, zero failures and no
+skips** against SQL Server `16.0.1200.5`, database `pData`, ODBC Driver
+`18.6.2.1`, Windows x64 and Harbour `UTF8EX`. The operator separately passed
+**29 TCP and 13 HTTP checks for each backend**, MSSQL (`mssql/pData`) and
+SQLite (`sqlite_demo`). These are bounded native and operator results;
+broader failure/type/resource/performance cases, HTTPS, service identities
+and Linux remain work. The owner's new dataset request and reproduced
+UTF-8/FLOAT findings are now tracked as **D02/D03 before resuming M06** in
+[WIP](../WIP.md); see [acceptance](acceptance.md) for attributable evidence.
 
 ## Server profiles
 
@@ -141,6 +151,30 @@ AppServer [hbBridge], falling back to defaults when keys are absent.
 Close releases the result; an open failure leaves an empty dataset.
 The dataset owns the complete response so nested JSON references remain valid.
 
+`Header()` returns an independent header JSON object; `DSStruct()` is its
+compatibility alias. `FieldInfo(name)` returns one field's independent metadata.
+`FieldCount()` and `FieldName(position)` enumerate the original SQL column
+order using explicit header positions. `GetRow()` copies the current row
+without advancing. These accessors perform no remote page requests.
+
+Use `while oDataSet:MoreToRead()` with an explicit `oDataSet:Skip()` for a
+sequential scan across pages. At page EOF, `MoreToRead()` requests the next
+page only when one is advertised; repeated calls on a current row do not
+advance. It returns false on normal completion or a failed next-page request;
+check `ErrorCode()` afterwards to distinguish failure. `Eof()` and `Skip()`
+remain page-local, and `RowCount()` remains the current page count.
+The isolated `U_HBBridgeDataSetTest` awaits AppServer acceptance of this new
+API; see [dataset methods, ownership and integrity findings](dataset.md).
+
+The existing header describes RDD values, not SX3/TOP_FIELD logical rules.
+Protheus supplies its own logical sizes/decimals or explicit SQL casts.
+A constant FLOAT probe retained `123.4567` natively but emitted `123` in JSON;
+TCP's default CP437 execution also differs from HTTP's `UTF8EX` worker.
+These are pending corrections, not capabilities delivered by navigation.
+Earlier fixture acceptance does not certify arbitrary FLOAT/large DECIMAL
+precision, accented TCP values or chosen collation. Collation is an explicit
+SQL comparison/sort decision, separate from client text encoding.
+
 Stop an old host with Ctrl+Q, build the current product, then launch from root:
 
 ~~~powershell
@@ -230,8 +264,9 @@ Later they confirmed all 29 again, 13 configuration checks, Health/ADDON/two
 200,000-byte Echo results, varied gzip 152,964 bytes, Windows clock raw
 1097.692700/normalized 1097.773500 ms after Sleep(1000), OK.
 Time/thread/artifact hashes/call arguments/build log were not provided for that
-later report. MSSQL, nondefault no-argument destinations, forced partial sends,
-failures/timeouts and other platforms remain pending.
+later report. That historical report did not accept MSSQL; its later native,
+TCP and HTTP results are recorded above. Nondefault no-argument destinations,
+forced partial sends, broader failures/timeouts and other platforms remain pending.
 
 An isolated product JSON/page smoke returned ID=10, rowCount=1, hasNext=true;
 a later INI launcher smoke did the same without replacing the active canonical

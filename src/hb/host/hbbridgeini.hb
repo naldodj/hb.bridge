@@ -18,7 +18,10 @@ FUNCTION HBBridgeConfigINI( cContents, hDefaults, cError )
             "PASSWORD" => "httpPassword", "TLS" => "httpTLS", "CERTIFICATE" => "httpCertificate", ;
             "PRIVATEKEY" => "httpPrivateKey" } }
     LOCAL hProfileKeys := { "DRIVER" => "driver", "DATABASE" => "database", ;
-        "CONNECTIONSTRING" => "connectionString" }
+        "CONNECTIONSTRING" => "connectionString", "AUTHENTICATION" => "authentication", ;
+        "DSN" => "dsn", "ODBCDRIVER" => "odbcDriver", "SERVER" => "server", ;
+        "USERNAME" => "username", "PASSWORD" => "password", "ENCRYPT" => "encrypt", ;
+        "TRUSTSERVERCERTIFICATE" => "trustServerCertificate" }
     LOCAL hFile := {=>}, hSeenSections := {=>}, hSeenKeys := {=>}
     LOCAL cSection := "", cProfile := "", cSectionID, cLine, cKey, cValue, cTarget
     LOCAL nStart := 1, nEnd, nLine := 0, nEqual, lHasSection := .F.
@@ -98,7 +101,17 @@ FUNCTION HBBridgeConfigINI( cContents, hDefaults, cError )
                 RETURN NIL
             ENDIF
             cTarget := hProfileKeys[ cKey ]
-            hFile[ "sqlProfiles" ][ cProfile ][ cTarget ] := iif( cTarget == "driver", Lower( cValue ), cValue )
+            IF cTarget == "trustServerCertificate"
+                IF ! ( Lower( cValue ) == "true" .OR. Lower( cValue ) == "false" )
+                    cError := "INI logical values must be true or false at line " + hb_ntos( nLine ) + "."
+                    RETURN NIL
+                ENDIF
+                hFile[ "sqlProfiles" ][ cProfile ][ cTarget ] := Lower( cValue ) == "true"
+            ELSEIF cTarget == "driver" .OR. cTarget == "authentication" .OR. cTarget == "encrypt"
+                hFile[ "sqlProfiles" ][ cProfile ][ cTarget ] := Lower( cValue )
+            ELSE
+                hFile[ "sqlProfiles" ][ cProfile ][ cTarget ] := cValue
+            ENDIF
         ELSE
             IF ! hb_HHasKey( hSections[ cSection ], cKey )
                 cError := "Chave INI desconhecida na linha " + hb_ntos( nLine ) + "."

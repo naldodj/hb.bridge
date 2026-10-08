@@ -1,13 +1,89 @@
-# MSSQL credentials on Windows and Linux
+# Credentials on Windows, Linux and Protheus
 
 [Português](credentials.pt-BR.md)
 
-Status: architecture proposal. The current runtime accepts an ODBC
-`connectionString` in each MSSQL profile; an encrypted password format,
-credential editor and key provider have **not** been implemented. Do not put
+Current configuration supports structured MSSQL fields or an ODBC
+`connectionString`. SQL authentication uses plain `Username`/`Password` in
+the private server file; integrated authentication omits those fields.
+Encrypted credential storage remains an architecture proposal: an encrypted
+password format, credential editor and key provider have **not** been
+implemented. Do not put
 an `encrypted_secret` placeholder in a runtime configuration and expect it
 to be decrypted. Protheus sends the profile alias and query, not database
 credentials. These credentials belong to the hbBridge server installation.
+
+## All credential consumers: current state and intended protection
+
+The concern raised on 2026-10-08 applies to every credential, including the
+AppServer client. Keeping a file outside Git does not encrypt its contents.
+The following inventory was checked against the public host and TLPP sources;
+no private configuration values were inspected for this review.
+
+| Consumer | Current storage/use | Scope of the encrypted-storage design |
+| --- | --- | --- |
+| SQL profile on hbBridge | `[SQL/<alias>]` `Username`/`Password`, or `UID/PWD` in an ODBC string; integrated authentication omits the SQL password. | Resolve the SQL secret only on hbBridge. Protheus receives no SQL password and selects only the installed profile alias. |
+| Native NETIO client/server | `[NETIO] Password` on hbBridge; Harbour clients supply the same usable secret to `netio_Connect()`. | Protect each consumer's local copy with its own credential provider. A Protheus NETIO facade and NETIO secret configuration have not been implemented. |
+| Administration | `[Admin] Password` protects the native NETIO administration endpoint and the web administrator's Basic authentication. | Protect the installed secret; keep administrative access separate from service access. The current two admin endpoints share this setting. |
+| HTTP service | `[HTTP] Password` on hbBridge; `[hbBridge] HTTPToken` in the active AppServer INI, or an explicit constructor argument, on Protheus. | Protect both installations. The TLPP client currently reads the token directly, without decryption, and sends it as Bearer authentication. |
+| HBBRIDGE/1 TCP client | The current TLPP configuration has no authentication secret; the common TCP transport has no credential authentication/TLS layer. | Define authentication and protected transport separately; encrypted INI storage cannot add them to the wire protocol. |
+| HTTPS private key | `PrivateKey` identifies a server-side PEM file when the TLS build/configuration is available. | Protect that file and its backups separately; a certificate path is not a private-key encryption provider. |
+
+Implementation references: [host INI mapping](../src/hb/host/hbbridgeini.hb),
+[host validation](../src/hb/host/hbbridgeconfig.hb),
+[NETIO adapter](../src/hb/transports/netio/hbbridgenetio.hb),
+[HTTP authorization](../src/hb/transports/http/hbbridgehttp.hb),
+[TLPP HTTP client](../src/tlpp/hbbridgehttpclient.tlpp) and
+[TLPP TCP configuration](../src/tlpp/hbbridgeconfig.tlpp).
+
+The intended common contract is a credential reference resolved locally by
+the consumer, or a versioned authenticated ciphertext whose master key is
+outside the INI and repository. Each installation/service identity owns its
+key and provisioning procedure. An AppServer token and its hbBridge counterpart
+may represent the same service secret, but their encrypted local copies must
+not require distributing one universal decryption key. Credentials should
+also be distinct by purpose: SQL, NETIO service, administration and HTTP service.
+Only HTTP-service/admin separation is enforced by current validation.
+
+Use a portable file provider on Windows/Linux, with permissions restricted to
+the consuming service identity; OS vaults and OpenBao remain optional adapters.
+[DPAPI](https://learn.microsoft.com/en-us/windows/win32/api/dpapi/nf-dpapi-cryptprotectdata)
+is an optional Windows integration, not the sole cross-platform backend.
+AppServer requires its own supported TLPP adapter and protected provisioning.
+The exact TOTVS cryptographic API, supported cipher, key access and behavior
+under the Windows/Linux AppServer service identities remain to be verified.
+The Zig cipher candidate below does not establish that TLPP can decrypt it;
+Harbour `HB_FUNC` exports do not become native AppServer functions.
+Do not bootstrap access by returning SQL passwords, NETIO passwords or master
+keys through an RPC secret service. Provision each consumer locally or through
+an explicitly authenticated administrative channel.
+
+SQL login and native NETIO require a usable secret at connection time; a
+one-way password hash cannot replace those inputs. NETIO uses the password
+as the stream-encryption key. A future HTTP-only verifier may have different
+storage needs, but it requires an explicit authorization redesign; the current
+HTTP adapter compares the supplied credential with its configured value.
+Do not treat Base64, a hardcoded application key or a password hash inserted
+in the existing `Password` field as encrypted credential support.
+
+Protection in files and protection in transit have separate acceptance.
+Pinned [Harbour NETIO documentation](https://github.com/harbour/core/blob/6deac9cf3ad977ae829e5bca543d553b92dd4b6d/contrib/hbnetio/readme.txt)
+describes ZLIB/Blowfish, and the native adapter uses that stream rather than
+a TLS certificate handshake. It must not be advertised as modern TLS with
+certificate/hostname validation. HTTP Bearer/Basic secrets require protected
+transport; acceptance over local HTTP does not accept HTTPS. The
+[Bearer specification](https://www.rfc-editor.org/rfc/rfc6750#section-5.2)
+requires protecting tokens in both storage and transport. SQL ODBC TLS,
+NETIO transport protection and AppServer-to-hbBridge HTTPS need separate tests.
+
+Before accepting encrypted credentials, verify both consumers on Windows and
+Linux, with the actual service identities: no plaintext secret in either INI,
+no fixed key in source/binaries, failure on tampering/wrong key/missing provider,
+separate permissions/backups, atomic manual updates and explicit migration.
+Exercise SQL, NETIO service/admin and HTTP service/admin, including the TLPP
+client, and verify that diagnostics, discovery, logs and exceptions expose no
+secrets. Missing decryption support must fail explicitly rather than pass the
+ciphertext as a password or silently fall back to a plaintext copy. These are
+future acceptance criteria; this review introduces no runtime cryptography.
 
 For the operator's current Protheus deployment, database passwords rarely
 change, and a change requires manual coordination of database access, ODBC
@@ -27,12 +103,12 @@ backend for a product that must also run on Linux.
 | Option | Advantage | Constraint |
 | --- | --- | --- |
 | Integrated authentication | No SQL password in hbBridge configuration. | Windows uses the process identity; Linux requires Kerberos credentials and renewal for services. |
-| Plain ODBC string in a restricted INI | Already supported; simple initial configuration. | Contains plaintext secrets if `UID/PWD` are supplied; backups and copied files carry them. |
+| Structured SQL credentials or ODBC string in a restricted INI | Supported configuration for the current acceptance. | `Username`/`Password` or `UID/PWD` are plaintext secrets; backups and copied files carry them. |
 | Encrypted password in INI, external key file | Same envelope and management workflow on both systems. | Key permissions, backup, optional encryption master-key replacement and service access require their own procedure; compromise of the running service still exposes usable credentials. |
 | OS vault | Uses existing administrative controls. | OS-specific identity, provisioning and migration; optional backend behind the common contract. |
 | External secret manager | Central secure storage and audit. | Additional service dependency; optional backend for reading stable SQL credentials. |
 
-Recommended baseline: public connection settings plus an authenticated,
+Proposed encrypted-storage baseline: public connection settings plus an authenticated,
 versioned encrypted password envelope in `hbbridge.ini`, with the master key
 provided outside that INI. The first portable provider can be a key file
 restricted to the service identity; Windows/Linux vault providers can follow.
@@ -89,7 +165,7 @@ alongside integrated authentication, encrypted INI with an external key and
 OS providers. It belongs to package 003 in [WIP](../WIP.md). Neither OpenBao
 nor a database secrets engine, dynamic credentials or an MSSQL plugin is a
 prerequisite for the initial credential provider or package 001 MSSQL
-acceptance. No OpenBao adapter, secret RPC service or new parser fields have
+acceptance. No OpenBao adapter, secret RPC service or credential-provider parser fields have
 been implemented.
 
 The intended SQL flow remains `Protheus alias/query -> hbBridge authorized
@@ -176,23 +252,71 @@ file permissions and ODBC TLS solve different parts of the problem.
 
 ## Current MSSQL acceptance path
 
-Install an ODBC driver for the server architecture and define a DSN, or supply
-a DSN-less connection string in a private configuration file. The supplied
+Install an ODBC driver for the server architecture and configure a DSN, or
+the structured `ODBCDriver`/`Server`/`Database` fields. The supplied
 [INI](../config/examples/mssql.ini) and [JSON](../config/examples/mssql.json)
-examples use integrated authentication and contain no password. On Linux,
-`Trusted_Connection=Yes` requires Kerberos rather than Windows SSPI; the
-service must maintain valid tickets. The Microsoft driver supports
-[DSN/DSN-less strings](https://learn.microsoft.com/en-us/sql/connect/odbc/linux-mac/connection-string-keywords-and-data-source-names-dsns?view=sql-server-ver17)
-and documents [Linux integrated authentication](https://learn.microsoft.com/en-us/sql/connect/odbc/linux-mac/using-integrated-authentication?view=sql-server-ver17).
+examples use `Authentication=integrated`, with no username/password fields.
+Windows uses the hbBridge process identity; Linux needs Kerberos service
+credentials. See [Microsoft's integrated-authentication guide](https://learn.microsoft.com/en-us/sql/connect/odbc/linux-mac/using-integrated-authentication?view=sql-server-ver17).
+
+For the local SQL-login route, edit `C:/tmp/hbBridge.ini` outside Git. Fill
+`Username` and `Password` in the prepared `[SQL/mssql/pData]` template, using
+the existing SQL login. Keep its lines commented until all required values
+are ready, then uncomment the whole section. `DSN=pData` selects the ODBC
+data source; `Database=pData` explicitly selects its database. These names
+are installation examples, not product defaults. The
+[configuration guide](configuration.md#mssql-profiles) lists DSN-less settings,
+JSON keys, punctuation handling, encryption and validation rules.
+
+This file stores the filled SQL password in plaintext. Restrict access to
+the hbBridge process identity and authorized administrators, including its
+backups. Supply only the private file path and alias to launchers; keep
+credentials out of command arguments, logs and AppServer settings. Existing
+`ConnectionString` profiles remain supported as an exclusive alternative.
+
+Rebuild the product for structured fields and validate without connecting:
 
 ```powershell
-./examples/sql/run.ps1 -Config config/examples/mssql.ini -Profile mssql_demo
+./scripts/build-hbbridge.ps1
+./out/hbbridge.exe --config-info "-config=C:/tmp/hbBridge.ini"
 ```
 
-Run `U_HBBridgeQueryTest("mssql_demo", "127.0.0.1", 1512, 30000)` in Protheus
-after rebuilding the renamed TLPP classes. The test uses constant SELECTs and
+After the private profile is filled and enabled, run native acceptance:
+
+```powershell
+./scripts/test-hbbridge-mssql.ps1 -Config C:/tmp/hbBridge.ini -Profile mssql/pData
+```
+
+It uses the shared query core without listeners and begins with a constant
+connection probe and actual SQL Server identification. Its read-only fixtures
+check native values/types, pages, sanitized failures, cleanup and isolation;
+the measured volume is 1000 rows. Prerequisite failures exit `2` and do not
+count as successful MSSQL acceptance. It does not execute the Protheus tests.
+
+Start the product separately for those tests:
+
+```powershell
+./examples/sql/run.ps1 -Config C:/tmp/hbBridge.ini -Profile mssql/pData
+```
+
+Run `U_HBBridgeQueryTest("mssql/pData", "127.0.0.1", 1512, 30000)` in Protheus
+with the current TLPP classes. The convenience entries
+`U_HBBridgeQueryTestMSSQL()` and `U_HBBridgeQueryTestSQLite()` supply the local
+example aliases; they do not change the generic client's defaults.
+A server-profile change alone needs no further TLPP build. The test uses constant SELECTs and
 checks SQL values, error recovery and pagination without writing Protheus
 tables. Current SQL operations are direct ODBC/SQLRDD access, independent of
 DBAccess's connection management, business rules and locking. Keep production
-writes out of this acceptance step. Real MSSQL acceptance, encrypted credential
-management and service identity tests on both systems remain pending.
+writes out of this acceptance step.
+
+On 2026-10-08, the filled private SQL-authentication profile passed **92 native
+checks, zero failures and no skips** against SQL Server `16.0.1200.5`, database
+`pData`, ODBC Driver `18.6.2.1`, Windows x64 and Harbour `UTF8EX`. The operator
+separately passed all **29 Protheus TCP checks for MSSQL** and repeated all
+**29 SQLite checks**, threads 660 and 3192 respectively. Later the same day,
+the operator passed **13 HTTP checks each** through
+`U_HBBridgeHTTPTestMSSQL()` and `U_HBBridgeHTTPTestSQLite()`, threads 25976 and
+9916. These separate operator runs accept the exercised TCP/HTTP routes;
+integrated authentication, Windows/Linux service identities, HTTPS, encrypted
+credential management and broader failure/type cases remain pending. See
+[acceptance](acceptance.md) for attributable evidence and remaining work.

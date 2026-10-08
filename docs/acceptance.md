@@ -479,3 +479,180 @@ commit validators for **141 files**; log:
 `tmp/operator-acceptance-openbao-gate-20261007.log`. Local links across **61
 documents** and whitespace passed. This documentation update did not rerun
 the native suite or access an OpenBao/MSSQL server.
+
+## Protheus TCP MSSQL and SQLite operator acceptance on 2026-10-08
+
+The operator supplied runtime output from the two Query wrappers. The
+transcript is preserved at `tmp/protheus-mssql-sqlite-operator-20261008.log`.
+Times below are São Paulo on 2026-10-08; the log identifies `marin` on
+`DNA-TECH-01` and the `tttm120.rpo`, `tlpp.rpo`, `custom.rpo` stack.
+
+| Program | Reported start / thread | Result |
+| --- | --- | --- |
+| `U_HBBridgeQueryTestMSSQL` | 10:06:10 / 660 | All 29 checks true; `Protheus OK; profile=mssql/pData`. |
+| `U_HBBridgeQueryTestSQLite` | 10:06:43 / 3192 | All 29 checks true; `Protheus OK; profile=sqlite_demo`. |
+
+The checks cover named fields and decimals, missing fields, EOF/close, empty
+results, invalid SQL, unknown profiles, subsequent recovery, first/next/last/
+empty pages, hidden ordinals, invalid page/order and page cleanup. This records
+operator runtime acceptance of the existing TCP dataset/page contract with
+the explicit MSSQL alias, plus the repeated SQLite regression. The report
+contains no compiler-success log or artifact hashes; the agent did not run
+these AppServer calls. Native extended fixtures retain their separate evidence.
+
+HTTP acceptance with the MSSQL profile subsequently passed on 2026-10-08;
+see the [identified HTTP wrapper runs](#protheus-http-mssql-and-sqlite-operator-acceptance-on-2026-10-08).
+Earlier HTTP reports without an identified SQL backend retain their historical
+scope.
+
+## Native MSSQL acceptance on 2026-10-08
+
+The agent-run opt-in Harbour acceptance passed **92 checks, zero failures,
+no skips** against the real SQL Server database. Evidence:
+`tmp/mssql-tests-b3d676f0daaf470a97af605a98a9681c/results.log` and
+`tmp/mssql-native-normalized-20261008.log`.
+
+| Component | Exercised value |
+| --- | --- |
+| Platform | Windows x64. |
+| SQL alias / database | `mssql/pData` / `pData`. |
+| SQL Server | `16.0.1200.5`. |
+| ODBC driver | Microsoft ODBC Driver 18, `18.6.2.1`, x64. |
+| Authentication | SQL login from the private server configuration; no credentials in the evidence. |
+| Harbour source | Pinned commit `6deac9cf3ad977ae829e5bca543d553b92dd4b6d`, multithread build. |
+| Zig / codepage | `0.16.0` / `UTF8EX`. |
+
+The executable was built from the shared product core. It verified constant
+connection/version/database probes, named fields, numeric/decimal values,
+NULL versus empty text, native date/timestamp and bit values, accented/CJK
+text and exact Unicode bytes. Extended fixtures verified 12000-byte VARCHAR
+and binary data, 12000-character NVARCHAR, embedded NULs, chunk boundaries,
+an emoji encoded as a UTF-16 surrogate pair, and empty/NULL binary values.
+The tests also passed invalid SQL/unknown-profile recovery and sanitized
+errors, ordered pages with gaps/tie breakers, hidden ordinals, caller
+workarea/default-connection restoration, explicit connection release and
+four concurrent calls with isolated values under the existing SQL mutex.
+
+This run includes the staged [SDDODBC patch](../config/patches/sddodbc.patch)
+for `SQL_NO_TOTAL` variable-length fetching, binary field flags and UTF-16
+surrogate conversion to UTF-8. Patch SHA256:
+`F0DDE4C85F89D2A72B27040E65EB556E9E0D59838E064FB0FC2254650DA637E6`.
+The managed receipt records library SHA256
+`B64952AF699A354762AD0C78DFE9BDDEED2DA12973EF652A5B9C8365E8602B5E`.
+Acceptance executable SHA256:
+`6FA1AAFA04DE72C496290F456F7CB00068BC36EFC9E8EBB9AC0A6774D3DF0F69`.
+Preparation patches a disposable copy and preserves the pinned checkout;
+see [dependencies](dependencies.md). The run used read-only constant fixtures,
+with no ERP-table writes or host restart.
+
+The native baseline executed the deterministic 1000-row fixture three times,
+concurrency **1**, in **31, 32 and 31 ms**, total **94 ms**. Each measurement
+includes connection, query/result materialization and disconnection. Memory
+was **not measured**; the measurements are a reference without a speed
+threshold and do not measure TCP or HTTP performance.
+
+The full default Harbour regression passed **566 checks, zero failures/no
+skips**, including the 79 added configuration assertions. Evidence:
+`tmp/tests-f84004277a8d4cc2905131f706a1e181/results.log` and
+`tmp/mssql-full-regression-20261008.log`. The isolated product build passed at
+`out/mssql/hbbridge.exe`, SHA256
+`1F157D4099E7F954652C2AF645E4EB80DB971078D6522CC3AFF6D5DAC5715ADB`;
+log: `tmp/mssql-product-final-20261008.log`. Sanitized configuration metadata
+accepted the private MSSQL/SQLite profiles and equivalent public MSSQL INI/JSON
+without connecting: `tmp/mssql-config-final-smoke-20261008.log`.
+All three commit validators and project conventions passed **146 files**:
+`tmp/mssql-commit-gate-20261008.log`. Local links across 61 documents and
+whitespace passed. No commit or publication was performed.
+
+This supplies the native SQL value/type evidence for M03 alongside the separate
+operator TCP result above. The [operator HTTP runs below](#protheus-http-mssql-and-sqlite-operator-acceptance-on-2026-10-08)
+accept M05 for the 13 exercised cases. Controlled unavailable-connection/
+native-timeout cases (M06), broader profile/resource
+isolation (M07), transport/memory baselines (M08) and remaining AppServer/final
+package evidence (M09) retain their pending work; package 001 is not complete.
+
+## Protheus HTTP MSSQL and SQLite operator acceptance on 2026-10-08
+
+The operator supplied runtime output from both HTTP test wrappers. Evidence:
+`tmp/protheus-http-mssql-sqlite-operator-20261008.log`. The report identifies
+`marin` on `DNA-TECH-01` and the same `tttm120.rpo`, `tlpp.rpo`, `custom.rpo`
+stack. Times below are São Paulo on 2026-10-08.
+
+| Program / default SQL profile | Reported execution | Result |
+| --- | --- | --- |
+| `U_HBBridgeHTTPTestMSSQL` / `mssql/pData` | Program 10:33:32, thread 25976; test 10:33:33–10:33:34 | All 13 checks true/PASS, Health HTTP 200; elapsed 00:00:01. |
+| `U_HBBridgeHTTPTestSQLite` / `sqlite_demo` | Program 10:34:06, thread 9916; test 10:34:07–10:34:07 | All 13 checks true/PASS, Health HTTP 200; elapsed 00:00:00. |
+
+The operator's [HTTP wrappers](../src/tlpp/tests/protheus/hbbridgehttptest.tlpp)
+default the SQL alias explicitly and forward to the common test. They retain
+the existing URL/token/timeout resolution for omitted transport arguments.
+Both runs passed `healthGet`, `healthPost`, `servicesGet`, `echo`, `addon`,
+`unknownService`, `adminForbidden`, `unauthorized`, `afterFailure`,
+`queryFirstPage`, `queryFirstValue`, `queryNextPage` and `queryLastValue`.
+This accepts M05 for those 13 exercised cases with `mssql/pData`, including
+the common dataset's HTTP page values, and repeats the SQLite HTTP regression.
+
+These are operator AppServer executions, without a supplied compiler-success
+log or artifact hashes; the agent did not execute these HTTP calls. The
+reported elapsed times have one-second resolution and are not performance
+benchmarks. They establish neither HTTPS/Linux acceptance nor expanded SQL
+type/Unicode coverage beyond the exercised HTTP fixture. Earlier HTTP reports
+without an identified backend remain historical evidence. Controlled failures
+and native timeout, broader isolation, transport/memory baselines and remaining
+final package evidence continue under M06–M09.
+
+The paired documentation alignment passed all three commit validators and
+project conventions for **146 files**, local links across **61 documents**
+and whitespace checks. Gate log:
+`tmp/http-mssql-sqlite-commit-gate-20261008.log`. Native build/regression
+results above were not rerun for this documentation update.
+
+## Dataset extension and integrity findings on 2026-10-08
+
+The owner requested easier field access and sequential page traversal after
+the accepted runs above. The TLPP dataset now includes `MoreToRead()`,
+`Header()`, its compatibility alias `DSStruct()`, `FieldInfo()`, `FieldCount()`,
+`FieldName()` and `GetRow()`. `Eof()`/`Skip()` retain page-local behavior;
+`MoreToRead()` fetches the next page at EOF and preserves a failed request's
+error. Header, field and row access return independent JSON copies. See
+[dataset behavior and proposed contract](dataset.md).
+
+The new isolated [U_HBBridgeDataSetTest](../src/tlpp/tests/protheus/hbbridgedatasettest.tlpp)
+uses a mock client, without SQL, credentials, network calls or ERP data.
+Its expected successful report is **45 checks and 17 mock calls**, covering
+metadata ordering/copies, automatic traversal, repeated checks, closed/empty
+state, invalid metadata and failure/recovery. The agent attempted compilation
+with `scripts/build-totvs.cmd` on 2026-10-08 at 16:31:40 São Paulo, thread
+36788. It returned exit 1, `COMPILEERROR-300 Failed to open repository`:
+`custom.rpo` was in use by one user. The compiler reported total/success/errors
+`0/0/0`, so it did not compile these sources. Log: `tmp/totvs-compile.log`.
+No stop/start scripts were configured, and the active AppServer was not stopped.
+The new runtime test remains unexecuted; prior operator reports do not accept
+these methods. D02 in [WIP](../WIP.md) tracks that acceptance.
+
+A separate agent-run, read-only constant MSSQL probe reproduced a numeric
+serialization defect: `CAST(123.4567 AS FLOAT)` retained its fractional value
+natively but emitted `123` in JSON. `DECIMAL(15,4)` emitted `123.4567`, and
+`DECIMAL(16,2)` emitted `123.46`. Evidence:
+`tmp/numeric-probe-20261008.log`. The 92 native checks did not exercise a raw
+fractional FLOAT JSON round trip; their earlier success remains bounded to
+their fixtures and does not certify arbitrary numeric precision.
+
+Source inspection also found that the TCP adapter uses the pinned Harbour
+default `EN`/CP437 without the HTTP worker's `UTF8EX` selection, and its JSON
+path lacks explicit UTF-8 conversion. Existing ASCII TCP reports do not
+certify accented/Unicode values or TCP/HTTP parity. An `OemToAnsi()` display
+workaround is not proof of the SQL column's encoding. These text/numeric
+corrections remain unimplemented and are tracked under D03 before M06 resumes.
+
+Current RDD header width/decimals are not SX3/TOP_FIELD business definitions.
+Protheus must supply its logical field rules and explicit SQL; hbBridge must
+not discover ERP tables, branches or salary rules implicitly. The linked
+dataset analysis distinguishes source, logical and wire metadata as future
+contract work, not currently accepted extra service parameters.
+
+The dataset/security documentation and source conventions passed all three
+commit validators for **150 files**, local links across **63 documents** and
+whitespace checks. Gate log: `tmp/dataset-commit-gate-20261008.log`.
+TLPP preprocessor outputs are ignored as generated build artifacts. No full
+native regression was repeated for the TLPP/navigation and documentation work.

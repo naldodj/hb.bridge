@@ -109,7 +109,14 @@ The [TLPP example](../examples/http/README.md) uses
 `HBBridge.Client.HBBridgeHTTPClient` and `U_HBBridgeHTTPTest`, built with the
 same `src/tlpp/` tree. FWRest issues GET/POST with the service bearer, while
 `HBBridgeRPCDataSet` reuses its existing SQL page contract over HTTP.
-The operator accepted 13 checks on 2026-10-07; see [acceptance](acceptance.md).
+The operator accepted 13 checks on 2026-10-07 without identifying that SQL
+backend. On 2026-10-08, `U_HBBridgeHTTPTestMSSQL()` and
+`U_HBBridgeHTTPTestSQLite()` separately passed **13 checks each**, using
+fixture defaults `mssql/pData` and `sqlite_demo`. MSSQL ran on thread 25976
+at 10:33:33–10:33:34; SQLite ran on thread 9916 at 10:34:07, São Paulo time.
+Both include SQL pages/values through the common dataset; see
+[acceptance](acceptance.md). These convenience entries do not force a profile
+on the generic HTTP client.
 
 Request text follows the AppServer encoding and is converted with EncodeUTF8.
 Parsed response strings retain UTF-8; the accent comparison converts that
@@ -178,7 +185,13 @@ no skips**, log tmp/http-tests-f3476462dfbb4fe6b64d63b0de1c1149/results.log.
 It covered byte-exact HTTP framing under UTF8EX, accents/CJK/supplementary
 characters, BMP escapes and surrogate pairs, SQLite text, native Unicode
 execution, credential bytes and malformed-input rejection. It tested plain
-HTTP; direct HTTPS, Linux and MSSQL Unicode remain unaccepted.
+HTTP; it did not cover direct HTTPS, Linux or MSSQL Unicode. The 2026-10-08
+native MSSQL suite later accepted the exercised Unicode types and the
+operator's HTTP entries accepted their 13 common checks per backend.
+Broader SQL Unicode/types through Protheus HTTP, HTTPS, Linux and controlled
+failure/resource/performance cases remain pending. The operator reports
+do not replace the native **92 MSSQL** or **566 default regression** checks.
+Resume M06 in [WIP](../WIP.md) for controlled failures/recovery.
 
 hbhttpd's native request parsing/timeouts differ from the Protheus adapter.
 Its buffers/timeouts do not inherit `protheusReadChunkBytes`,

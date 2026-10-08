@@ -95,8 +95,8 @@ programming.
 | Addons | In-memory `.prg`/`.hb` compilation and `.hrb` execution through `ADDON.Execute`, receiving `module`/`params`. |
 | NETIO | Embedded native listener `0.0.0.0:2941`, filtered RPC and Harbour serialization. `HB_EXTERN` enabled; registered services only. |
 | HTTP/REST | Embedded `hbhttpd`, optional and disabled by default. JSON service calls and authenticated web status share the core; service/admin credentials are separate. Direct HTTPS requires an OpenSSL-enabled build and its own acceptance. |
-| Protheus HTTP client | `HBBridgeHTTPClient` uses native FWRest, bearer authentication and the shared JSON contract. Operator accepted 13 checks on 2026-10-07, including SQL pagination; latest run: thread 25456, one second. HTTP SQL backend was not identified. |
-| SQL | SQLMIX with SQLite/MSSQL-ODBC, named results and database-side pages. SQLite Protheus: 29 accepted checks on 2026-10-04, reconfirmed on 2026-10-07 with `profile=sqlite_demo`. Real MSSQL acceptance pending. |
+| Protheus HTTP client | `HBBridgeHTTPClient` uses native FWRest, bearer authentication and the shared JSON contract. Operator accepted 13 checks each for MSSQL and SQLite on 2026-10-08, including SQL pagination; wrappers select `mssql/pData` and `sqlite_demo`. |
+| SQL | SQLMIX with SQLite/MSSQL-ODBC, named results and database-side pages. On 2026-10-08: 92 native MSSQL checks passed; operator accepted 29 Protheus TCP and 13 HTTP checks each for `mssql/pData` and `sqlite_demo`. Wider failure/type/platform acceptance remains. |
 | DBF | Native RDD access over NETIO planned; not integrated yet. |
 | VF IO | Harbour `hb_vf*` with NETIO has binary read/write tests; TLPP facade pending. |
 | C/Zig | C API/ABI bridge in Health; Zig library and toolchain required. |
@@ -105,7 +105,7 @@ programming.
 | Syslog | UDP module exists but is not called in the active request lifecycle. |
 | Debugging | Native hbdebug exists; product/addon debug profile and HBDAP integration pending. |
 
-The latest complete Harbour run on 2026-10-06 passed **487 checks, zero failures,
+The latest complete Harbour run on 2026-10-08 passed **566 checks, zero failures,
 no skips**, including HTTP, addon concurrency,
 INI/JSON, real SQLite, pages, equivalent NETIO/TCP results, an exact
 **24,000,000-byte Echo**, and JSON/gzip over 16 MiB in both directions.
@@ -124,8 +124,12 @@ after reported recompilation following the `.hb` migration, the operator
 accepted renamed TLPP, all 16 revised configuration checks, clock/RPC,
 29 paginated SQLite checks and 13 HTTP checks. Times/threads identify this
 Windows regression; no compilation log, call arguments, effective destination
-or artifact hashes were supplied. A nondefault destination, real MSSQL and
-Linux still require their own acceptance.
+or artifact hashes were supplied for that report. On 2026-10-08, native MSSQL
+acceptance passed 92 checks against SQL Server `16.0.1200.5`, database `pData`,
+ODBC Driver `18.6.2.1` x64 and SQL authentication. The operator also accepted
+29 TCP and 13 HTTP checks each for `mssql/pData` and `sqlite_demo`; HTTP
+threads 25976/9916 used the backend-specific wrappers. Nondefault destinations,
+HTTPS, broader failure/type cases and Linux require their own acceptance.
 
 ## Intended architecture
 
@@ -252,6 +256,10 @@ dataset. The earlier 2026-10-07 report used thread 25672. Later runs passed
 all 13 checks: thread 27296 at 16:10:44–16:10:45 and thread 25456 at
 16:15:03–16:15:04 (São Paulo), each in one second. Their HTTP SQL backend
 was not identified; the separate TCP Query run explicitly used SQLite.
+On 2026-10-08, `U_HBBridgeHTTPTestMSSQL()` and `U_HBBridgeHTTPTestSQLite()`
+each passed all 13 checks, with explicit default SQL aliases `mssql/pData`
+and `sqlite_demo`. Their transport arguments still use the active INI.
+See [the dated acceptance](docs/acceptance.md#protheus-http-mssql-and-sqlite-operator-acceptance-on-2026-10-08).
 
 ### Extensible capabilities
 
@@ -374,7 +382,15 @@ cancellation, SQL timeouts and incremental BLOBs remain pending.
 
 ### Portable SQL credentials
 
-Current profiles accept connection strings; **encrypted password storage and
+The [credential design](docs/credentials.md) now also covers NETIO/admin,
+HTTP and the AppServer's client token, with local providers and distinct
+installation keys. None of the encrypted-storage providers is implemented.
+
+Current MSSQL profiles accept a complete connection string or structured
+`Authentication`, `DSN`/`ODBCDriver`/`Server`, `Database`, `Username` and
+`Password` fields in a private INI/JSON. The two forms cannot be mixed.
+See the [configuration keys](docs/configuration.md).
+**Encrypted password storage and
 a credential utility are not implemented**. Integrated authentication uses
 the hbBridge process identity; a DSN is not a credential vault.
 
@@ -700,10 +716,19 @@ See [test instructions](tests/README.md).
 
 ## Operation, licensing and contributions
 
+The [dataset review](docs/dataset.md) documents the new metadata/navigation
+API and the 2026-10-08 findings: TCP codepage inconsistency and fractional
+FLOAT loss in JSON. Earlier fixture acceptance remains valid for its exercised
+cases; these integrity corrections and AppServer acceptance of the extension
+are tracked in [WIP](WIP.md).
+
 [Syslog](src/hb/telemetry/hbbridgesyslog.hb) sends UDP to `127.0.0.1:514`
 but is not integrated into lifecycle/RPC yet.
 Broader identity/token policies, credential management, module trust and deployment policies
-remain work. The next SQL acceptance is real MSSQL/ODBC; blocks, DBF, TLPP VF,
+remain work. The next SQL work corrects UTF-8/FLOAT integrity and accepts the
+dataset extension, then covers controlled connection failures, native timeout
+and recovery against MSSQL/ODBC;
+blocks, DBF, TLPP VF,
 services, jobs/batches and functional C/Zig extensions follow incrementally.
 Discover only delivered capabilities; metrics for correlation, latency,
 wire/expanded bytes, memory/errors/resources guide concurrency/compression.

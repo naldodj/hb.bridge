@@ -16,6 +16,8 @@ if (-not (Test-Path -LiteralPath $configPath -PathType Leaf)) {
 }
 . (Join-Path $PSScriptRoot 'toolchain.ps1')
 $toolchain = Resolve-HBBridgeToolchain -ProjectRoot $projectRoot -HbCompileRoot $HbCompileRoot -ZigPath $ZigPath
+& (Join-Path $PSScriptRoot 'prepare-odbc.ps1') -HbCompileRoot $toolchain.HbCompileRoot -ZigPath $toolchain.Zig
+if (-not $?) { throw 'Managed ODBC dependency preparation failed.' }
 $runRoot = Join-Path $projectRoot ('tmp/mssql-tests-' + [Guid]::NewGuid().ToString('N'))
 $buildRoot = Join-Path $runRoot 'build'
 New-Item -ItemType Directory -Path $buildRoot | Out-Null

@@ -31,6 +31,7 @@ existentes do desenvolvedor permanecem intactos.
 | `.deps/hb_compile/out/zig/` | Ferramentas, includes e bibliotecas Harbour Windows. |
 | `.deps/hb_compile/out/linux/` | Instalação Harbour nativa Linux. |
 | `.deps/http/` | Preparo isolado hbhttpd/hbtcpio e registro de patch/build verificados. |
+| `.deps/odbc/` | Preparo isolado SDDODBC e registro de patch/build verificados. |
 | `.hbcommit/` | Fontes de manutenção; usam o mesmo `hbrun` compilado. |
 | `out/` | Executável do produto; `tmp/` guarda builds isolados e logs. |
 
@@ -70,6 +71,26 @@ checkout Harbour fixado permanece íntegro. `-hblib` é o modo de compilação
 de biblioteca do hbmk2, não uma dependência contrib separada.
 Os [atributos Git](../.gitattributes) impõem LF em `config/patches/*.patch`,
 mantendo checksums do manifesto iguais em clones Windows/Linux.
+
+O aceite MSSQL identificou uma falha de leitura variável do SDDODBC quando a
+sondagem Unicode de tamanho com `SQLGetData` retorna `SQL_NO_TOTAL`. O patch
+gerenciado [sddodbc.patch](../config/patches/sddodbc.patch) corrige esse caminho,
+flags de campos binários e conversão de pares substitutos UTF-16 para codepages
+UTF-8, preservando NUL embutido e vazio/nulo entre blocos. Sem teto de payload.
+[prepare-odbc.ps1](../scripts/prepare-odbc.ps1)
+verifica o checksum `harbour.odbcPatch` do manifesto e aplica o patch revisado
+em `.deps/odbc/stage-<id>/sddodbc`, preservando o checkout de fontes fixado.
+Compila somente SDDODBC e instala biblioteca/metadados na instalação Harbour
+gerenciada selecionada. Windows usa bibliotecas ODBC nativas; Linux exige
+headers e bibliotecas de desenvolvimento unixODBC.
+
+O bootstrap prepara esse conector após Harbour, inclusive quando reaproveita
+o toolchain base. O build do produto e os dois launchers de testes Harbour
+também o preparam antes de vincular. `.deps/odbc/receipt.json` registra revisão
+Harbour, SHA256 do patch e SHA256 da biblioteca instalada; artefatos iguais
+e válidos são reaproveitados. `./scripts/prepare-odbc.ps1 -ForceBuild` recompila
+somente esse conector em staging. O aceite permanece separado da compilação:
+o patch e um build concluído não homologam todos os drivers ou Linux.
 
 HTTP aberto não exige SDK OpenSSL. HTTPS direto é um build opcional com
 `HB_HTTP_TLS=1`, **hbssl**, SDK/runtime OpenSSL da arquitetura e

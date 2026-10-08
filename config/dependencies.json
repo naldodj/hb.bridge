@@ -11,6 +11,10 @@
         "httpPatch": {
             "path": "config/patches/hbhttpd.patch",
             "sha256": "52f937f65edd03110c6dbc19a86c2d6e4a8031d04a6d686de0b5afc3d304cc1b"
+        },
+        "odbcPatch": {
+            "path": "config/patches/sddodbc.patch",
+            "sha256": "f0dde4c85f89d2a72b27040e65eb556e9e0d59838e064fb0fc2254650da637e6"
         }
     },
     "zig": {

@@ -7,8 +7,10 @@ class HBBridgeRPCDataSet
 
     private data oClient as object
     private data jResult as json
+    private data jFieldNames as json
     private data nRowIndex as numeric
     private data nTotalRows as numeric
+    private data nTotalFields as numeric
     private data cErrorCode as character
     private data cErrorMessage as character
     private data cAliasProfile as character
@@ -22,6 +24,12 @@ class HBBridgeRPCDataSet
     public method HasNextPage() as logical
     public method PageNumber() as numeric
     public method PageSize() as numeric
+    public method MoreToRead() as logical
+    public method Header() as json
+    public method FieldInfo(cFieldName as character) as json
+    public method FieldCount() as numeric
+    public method FieldName(nPosition as numeric) as character
+    public method GetRow() as json
     public method FieldGet(cFieldName as character) as variant
     public method Skip()
     public method Eof() as logical
@@ -39,8 +47,10 @@ method New(oClient) class HBBridgeRPCDataSet
         self:oClient := HBBridge.Client.HBBridgeClient():New()
     endif
     self:jResult := Nil
+    self:jFieldNames := Nil
     self:nRowIndex := 0
     self:nTotalRows := 0
+    self:nTotalFields := 0
     self:cErrorCode := ""
     self:cErrorMessage := ""
     self:cAliasProfile := ""
@@ -53,7 +63,14 @@ method OpenSQL(cAliasProfile, cSql, jPage) class HBBridgeRPCDataSet
 
     local jParams := JSONObject():New() as json
     local jResponse as json
+    local jFieldNames as json
+    local aNames as array
+    local cFieldName := "" as character
+    local cPosition := "" as character
     local cRowKey := "" as character
+    local nField := 0 as numeric
+    local nFields := 0 as numeric
+    local nPosition := 0 as numeric
     local nRow := 0 as numeric
     local lValid := .F. as logical
 
@@ -67,6 +84,12 @@ method OpenSQL(cAliasProfile, cSql, jPage) class HBBridgeRPCDataSet
     endif
     jResponse := self:oClient:CallService("RPCRDD.Query", jParams)
     FreeObj(@jParams)
+
+    if !(ValType(jResponse) $ "JO")
+        self:cErrorCode := "INVALID_RESULT"
+        self:cErrorMessage := "SQL query result does not match the keyed dataset contract."
+        return(.F.)
+    endif
 
     if jResponse:HasProperty("success")
         if ValType(jResponse["success"]) == "L"
@@ -154,16 +177,55 @@ method OpenSQL(cAliasProfile, cSql, jPage) class HBBridgeRPCDataSet
             endif
         next
     endif
+    if lValid
+        jFieldNames := JSONObject():New()
+        // GetNames() requires an array. Allocate it once per open, then cache
+        // ordinal keys in JSON to avoid repeated copies, sorting or searches.
+        aNames := jResponse["header"]:GetNames()
+        nFields := Len(aNames)
+        for nField := 1 to nFields
+            cFieldName := aNames[nField]
+            if !(ValType(jResponse["header"][cFieldName]) $ "JO")
+                lValid := .F.
+                exit
+            endif
+            if !jResponse["header"][cFieldName]:HasProperty("position")
+                lValid := .F.
+                exit
+            endif
+            if ValType(jResponse["header"][cFieldName]["position"]) != "N"
+                lValid := .F.
+                exit
+            endif
+            nPosition := jResponse["header"][cFieldName]["position"]
+            if nPosition < 1 .or. nPosition > nFields .or. nPosition != Int(nPosition)
+                lValid := .F.
+                exit
+            endif
+            cPosition := tlpp.ToStr(nPosition)
+            if jFieldNames:HasProperty(cPosition)
+                lValid := .F.
+                exit
+            endif
+            jFieldNames[cPosition] := cFieldName
+        next
+        aNames := Nil
+    endif
     if !lValid
         self:cErrorCode := "INVALID_RESULT"
         self:cErrorMessage := "SQL query result does not match the keyed dataset contract."
+        if ValType(jFieldNames) $ "JO"
+            FreeObj(@jFieldNames)
+        endif
         FreeObj(@jResponse)
         return(.F.)
     endif
 
     // Own the complete response so nested JSON objects retain their lifetime.
     self:jResult := jResponse
+    self:jFieldNames := jFieldNames
     self:nTotalRows := jResponse["rowCount"]
+    self:nTotalFields := nFields
     self:nRowIndex := IIf(self:nTotalRows > 0, 1, 0)
     self:cAliasProfile := cAliasProfile
     self:cSql := cSql
@@ -230,6 +292,67 @@ method PageSize() class HBBridgeRPCDataSet
 
 return(0)
 
+method MoreToRead() class HBBridgeRPCDataSet
+
+    // Repeated calls keep the current record. Only an exhausted page can
+    // fetch its successor; failures retain ErrorCode()/ErrorMessage().
+    // False can mean end or failure: inspect ErrorCode() after the loop.
+    if self:Eof()
+        if !self:HasNextPage()
+            return(.F.)
+        endif
+        if !self:NextPage()
+            return(.F.)
+        endif
+    endif
+
+return(!self:Eof())
+
+method Header() class HBBridgeRPCDataSet
+
+    local jHeader := JSONObject():New() as json
+
+    // The caller owns this deep snapshot and releases it with FreeObj().
+    if ValType(self:jResult) $ "JO"
+        jHeader:FromJSON(self:jResult["header"]:ToJSON())
+    endif
+
+return(jHeader)
+
+method FieldInfo(cFieldName) class HBBridgeRPCDataSet
+
+    local jField := JSONObject():New() as json
+    local cKey := Upper(AllTrim(cFieldName)) as character
+
+    if ValType(self:jResult) $ "JO"
+        if self:jResult["header"]:HasProperty(cKey)
+            jField:FromJSON(self:jResult["header"][cKey]:ToJSON())
+        endif
+    endif
+
+return(jField)
+
+method FieldCount() class HBBridgeRPCDataSet
+return(self:nTotalFields)
+
+method FieldName(nPosition) class HBBridgeRPCDataSet
+
+    if nPosition >= 1 .and. nPosition <= self:nTotalFields .and. nPosition == Int(nPosition)
+        return(self:jFieldNames[tlpp.ToStr(nPosition)])
+    endif
+
+return("")
+
+method GetRow() class HBBridgeRPCDataSet
+
+    local jRow := JSONObject():New() as json
+
+    if !self:Eof()
+        jRow:FromJSON(self:jResult["rows"][tlpp.ToStr(self:nRowIndex)]:ToJSON())
+    endif
+
+return(jRow)
+
 method FieldGet(cFieldName) class HBBridgeRPCDataSet
 
     local cKey := Upper(AllTrim(cFieldName)) as character
@@ -260,15 +383,21 @@ return(self:nRowIndex == 0 .or. self:nRowIndex > self:nTotalRows)
 method Close() class HBBridgeRPCDataSet
 
     local jResponse := self:jResult as json
+    local jFieldNames := self:jFieldNames as json
 
     self:jResult := Nil
+    self:jFieldNames := Nil
     self:nRowIndex := 0
     self:nTotalRows := 0
+    self:nTotalFields := 0
     self:cAliasProfile := ""
     self:cSql := ""
     self:cOrderBy := ""
     if ValType(jResponse) $ "JO"
         FreeObj(@jResponse)
+    endif
+    if ValType(jFieldNames) $ "JO"
+        FreeObj(@jFieldNames)
     endif
 
 return

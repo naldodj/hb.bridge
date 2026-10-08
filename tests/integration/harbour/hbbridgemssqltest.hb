@@ -81,6 +81,7 @@ STATIC FUNCTION MSSQLRun( cConfigPath, cProfile, nFailures, nChecks )
     ENDIF
     MSSQLDataset( hRegistry, cProfile, @nFailures, @nChecks )
     MSSQLTypes( hRegistry, cProfile, @nFailures, @nChecks )
+    MSSQLVariableFields( hRegistry, cProfile, @nFailures, @nChecks )
     MSSQLPages( hRegistry, cProfile, @nFailures, @nChecks )
     MSSQLRestoration( hRegistry, cProfile, hProfiles[ cProfile ], @nFailures, @nChecks )
     MSSQLConcurrency( hRegistry, cProfile, @nFailures, @nChecks )
@@ -91,7 +92,8 @@ RETURN iif( nFailures == 0, 0, 1 )
 
 STATIC PROCEDURE MSSQLDataset( hRegistry, cProfile, nFailures, nChecks )
 
-    LOCAL hResult, cSQL := "SELECT 1 AS ID, 'Harbour' AS NAME, 12.5 AS AMOUNT " + ;
+    LOCAL hResult, xFirstName, xSecondName, lNames
+    LOCAL cSQL := "SELECT 1 AS ID, 'Harbour' AS NAME, 12.5 AS AMOUNT " + ;
         "UNION ALL SELECT 2, 'hbBridge', 0.0 ORDER BY ID"
 
     hResult := MSSQLQuery( hRegistry, cProfile, cSQL )
@@ -105,9 +107,14 @@ STATIC PROCEDURE MSSQLDataset( hRegistry, cProfile, nFailures, nChecks )
             "named header preserves column order", @nFailures, @nChecks )
         MSSQLAssert( MSSQLCell( hResult, 1, "ID" ) == 1 .AND. MSSQLCell( hResult, 2, "ID" ) == 2, ;
             "ordered integer values", @nFailures, @nChecks )
-        MSSQLAssert( AllTrim( MSSQLCell( hResult, 1, "NAME" ) ) == "Harbour" .AND. ;
-            AllTrim( MSSQLCell( hResult, 2, "NAME" ) ) == "hbBridge", ;
-            "ASCII values", @nFailures, @nChecks )
+        xFirstName := MSSQLCell( hResult, 1, "NAME" )
+        xSecondName := MSSQLCell( hResult, 2, "NAME" )
+        lNames := HB_ISSTRING( xFirstName ) .AND. HB_ISSTRING( xSecondName )
+        IF lNames
+            lNames := AllTrim( xFirstName ) == "Harbour" .AND. AllTrim( xSecondName ) == "hbBridge"
+        ENDIF
+        MSSQLAssert( lNames, "ASCII values; native types=" + ValType( xFirstName ) + ;
+            "/" + ValType( xSecondName ), @nFailures, @nChecks )
         MSSQLAssert( HB_ISNUMERIC( MSSQLCell( hResult, 1, "AMOUNT" ) ) .AND. ;
             Abs( MSSQLCell( hResult, 1, "AMOUNT" ) - 12.5 ) < 0.000001, ;
             "constant decimal value", @nFailures, @nChecks )
@@ -152,7 +159,7 @@ STATIC PROCEDURE MSSQLTypes( hRegistry, cProfile, nFailures, nChecks )
         "NULL_TEXT" => { "type" => "U", "value" => NIL }, ;
         "EMPTY_TEXT" => { "type" => "C", "value" => "" }, ;
         "EVENT_DATE" => { "type" => "D", "value" => hb_SToD( "20261007" ) }, ;
-        "EVENT_TIME" => { "type" => "T", "value" => hb_SToT( "20261007123456.123" ) }, ;
+        "EVENT_TIME" => { "type" => "T", "value" => hb_SToT( "20261007123456123" ) }, ;
         "FLAG" => { "type" => "L", "value" => .T. }, ;
         "UNICODE_TEXT" => { "type" => "C", "value" => hb_HexToStr( "C3A7C3A3E6BCA2E5AD97" ) } }
     hResult := MSSQLQuery( hRegistry, cProfile, cSQL )
@@ -178,6 +185,64 @@ STATIC PROCEDURE MSSQLTypes( hRegistry, cProfile, nFailures, nChecks )
         ENDIF
         MSSQLAssert( MSSQLHasCell( hResult, 1, cName ) .AND. lValue, ;
             "native value " + cName, @nFailures, @nChecks )
+    NEXT
+
+RETURN
+
+/* Exercise multiple ODBC chunks, embedded NULs and UTF-16 surrogate pairs.
+ * These are read-only constants, with exact expected bytes before assertions.
+ */
+STATIC PROCEDURE MSSQLVariableFields( hRegistry, cProfile, nFailures, nChecks )
+
+    LOCAL cUnicode := hb_HexToStr( "C3A7C3A3E6BCA2E5AD97" )
+    LOCAL cSQL := "SELECT REPLICATE(CAST('a' AS varchar(max)),12000) AS LONG_ASCII, " + ;
+        "REPLICATE(CAST(NCHAR(231)+NCHAR(227)+NCHAR(28450)+NCHAR(23383) AS nvarchar(max)),3000) AS LONG_UNICODE, " + ;
+        "REPLICATE(CAST('ab'+CHAR(0)+'c' AS varchar(max)),3000) AS LONG_ASCII_NUL, " + ;
+        "REPLICATE(CAST(N'x' AS nvarchar(max)),2046)+CONVERT(nvarchar(max),0x3DD800DE)+" + ;
+        "REPLICATE(CAST(N'x' AS nvarchar(max)),2049) AS UNICODE_BOUNDARY, " + ;
+        "CAST('' AS varchar(max)) AS EMPTY_ASCII, CAST(NULL AS varchar(max)) AS NULL_ASCII, " + ;
+        "CONVERT(varbinary(max),REPLICATE(CAST('ab'+CHAR(0)+'c' AS varchar(max)),3000)) AS LONG_BINARY, " + ;
+        "CAST(0x0001FF007F AS varbinary(max)) AS BINARY_DATA, " + ;
+        "CAST(0x AS varbinary(max)) AS EMPTY_BINARY, CAST(NULL AS varbinary(max)) AS NULL_BINARY"
+    LOCAL hExpected := { ;
+        "LONG_ASCII" => { "type" => "C", "value" => Replicate( "a", 12000 ) }, ;
+        "LONG_UNICODE" => { "type" => "C", "value" => Replicate( cUnicode, 3000 ) }, ;
+        "LONG_ASCII_NUL" => { "type" => "C", "value" => Replicate( "ab" + Chr( 0 ) + "c", 3000 ) }, ;
+        "UNICODE_BOUNDARY" => { "type" => "C", "value" => Replicate( "x", 2046 ) + ;
+            hb_HexToStr( "F09F9880" ) + Replicate( "x", 2049 ) }, ;
+        "EMPTY_ASCII" => { "type" => "C", "value" => "" }, ;
+        "NULL_ASCII" => { "type" => "U", "value" => NIL }, ;
+        "LONG_BINARY" => { "type" => "C", "value" => Replicate( "ab" + Chr( 0 ) + "c", 3000 ) }, ;
+        "BINARY_DATA" => { "type" => "C", "value" => hb_HexToStr( "0001FF007F" ) }, ;
+        "EMPTY_BINARY" => { "type" => "C", "value" => "" }, ;
+        "NULL_BINARY" => { "type" => "U", "value" => NIL } }
+    LOCAL hResult := MSSQLQuery( hRegistry, cProfile, cSQL ), hField, cName, xActual, lValue
+
+    MSSQLAssert( MSSQLSuccess( hResult ), "variable field fixture opens: " + MSSQLCode( hResult ), ;
+        @nFailures, @nChecks )
+    IF ! MSSQLSuccess( hResult )
+        RETURN
+    ENDIF
+    MSSQLAssert( hResult[ "rowCount" ] == 1 .AND. Len( hResult[ "header" ] ) == Len( hExpected ), ;
+        "variable field fixture shape", @nFailures, @nChecks )
+    FOR EACH hField IN hExpected
+        cName := hField:__enumKey()
+        xActual := MSSQLCell( hResult, 1, cName )
+        MSSQLAssert( MSSQLHasCell( hResult, 1, cName ) .AND. ValType( xActual ) == hField[ "type" ], ;
+            "variable native type " + cName + " expected " + hField[ "type" ] + " actual " + ValType( xActual ), ;
+            @nFailures, @nChecks )
+        lValue := .F.
+        IF ValType( xActual ) == hField[ "type" ]
+            lValue := xActual == hField[ "value" ]
+        ENDIF
+        MSSQLAssert( MSSQLHasCell( hResult, 1, cName ) .AND. lValue, ;
+            "variable native value " + cName, @nFailures, @nChecks )
+        IF cName == "UNICODE_BOUNDARY" .AND. HB_ISSTRING( xActual ) .AND. ! lValue
+            ? "Unicode fixture expectedBytes=" + hb_ntos( hb_BLen( hField[ "value" ] ) ) + ;
+                "; actualBytes=" + hb_ntos( hb_BLen( xActual ) ) + ;
+                "; expectedBoundary=" + hb_StrToHex( hb_BSubStr( hField[ "value" ], 2047, 8 ) ) + ;
+                "; actualBoundary=" + hb_StrToHex( hb_BSubStr( xActual, 2047, 8 ) )
+        ENDIF
     NEXT
 
 RETURN
@@ -373,15 +438,17 @@ RETURN NIL
 STATIC FUNCTION MSSQLCode( hResult )
 
     LOCAL cCode := "INVALID_RESULT"
+    LOCAL hCodes := { "INVALID_PARAMS" => .T., "PROFILE_NOT_FOUND" => .T., ;
+        "CONNECTION_FAILED" => .T., "QUERY_FAILED" => .T., "INVALID_PAGE" => .T., ;
+        "AMBIGUOUS_COLUMN" => .T., "CONNECTION_CLOSE_FAILED" => .T., ;
+        "SERVICE_ERROR" => .T., "SERVICE_NOT_FOUND" => .T., "INVALID_RESULT" => .T. }
 
     IF MSSQLSuccess( hResult )
         RETURN "OK"
     ENDIF
     IF HB_ISHASH( hResult ) .AND. hb_HHasKey( hResult, "code" ) .AND. HB_ISSTRING( hResult[ "code" ] )
         /* Only product-defined fixed codes are allowed into diagnostic logs. */
-        IF AScan( { "INVALID_PARAMS", "PROFILE_NOT_FOUND", "CONNECTION_FAILED", "QUERY_FAILED", ;
-            "INVALID_PAGE", "AMBIGUOUS_COLUMN", "CONNECTION_CLOSE_FAILED", "SERVICE_ERROR", ;
-            "SERVICE_NOT_FOUND", "INVALID_RESULT" }, hResult[ "code" ] ) > 0
+        IF hb_HHasKey( hCodes, hResult[ "code" ] )
             cCode := hResult[ "code" ]
         ENDIF
     ENDIF

@@ -4,6 +4,8 @@ zig-out/
 .github/instructions/
 *.obj
 *.o
+*.erx_tlpp
+*.ppx_tlpp
 *.lib
 *.a
 *.dll

@@ -85,8 +85,22 @@ after aligning the active AppServer INI, or invoke it with explicit values:
 U_HBBridgeHTTPTest("http://127.0.0.1:8080", "<service-secret>", 30, "sqlite_demo")
 ```
 
+The convenience entries select local fixture aliases and reuse the common
+test, reading the omitted URL/token/timeout from the active AppServer INI:
+
+```advpl
+U_HBBridgeHTTPTestMSSQL()  // SQL profile mssql/pData
+U_HBBridgeHTTPTestSQLite() // SQL profile sqlite_demo
+```
+
+Their arguments follow the same order as `U_HBBridgeHTTPTest`; an explicit
+fourth argument overrides the fixture alias. The aliases are test defaults,
+not mandatory library configuration. WebApp entries:
+[MSSQL](https://localhost:4321/webapp/?p=U_HBBridgeHTTPTestMSSQL&e=PROTHEUS),
+[SQLite](https://localhost:4321/webapp/?p=U_HBBridgeHTTPTestSQLite&e=PROTHEUS).
+
 Arguments are URL, service token, timeout in seconds, SQL profile and addon
-module. The omitted SQL profile uses `[hbBridge] SQLProfile`; an explicitly
+module. In the generic entry, the omitted SQL profile uses `[hbBridge] SQLProfile`; an explicitly
 empty fourth argument skips SQL. The addon defaults to
 `examples/hbbridgesampleaddon.hb` on the **server**, and an explicitly empty
 fifth argument skips addon execution. For services without those fixtures:
@@ -166,7 +180,8 @@ accent comparison, addon execution, unknown service (404), forbidden
 administration (403), invalid token (normalized 401), recovery after failure,
 and two query pages with their values.
 
-The supplied output did not identify the SQL alias or backend. It confirms
+The supplied 2026-10-07 output did not identify the SQL alias or backend. It
+confirms
 pagination for the selected profile and does not establish MSSQL acceptance.
 Broader Unicode/codepage coverage, HTTPS and alternative client configurations
 remain pending. See [the acceptance record](../../docs/acceptance.md).
@@ -177,6 +192,22 @@ operator repeated all **13 checks successfully** on the same date: thread
 **16:15:03–16:15:04**. Times are São Paulo; both runs took one second and
 reported Health HTTP 200, addon execution and paginated values. These are
 operator reports, not agent AppServer runs or a supplied compiler log.
-The accompanying Query test identifies `sqlite_demo`; the HTTP reports do not
-identify their own SQL backend or actual module argument. MSSQL acceptance
-remains separate; [the matrix](../../docs/acceptance.md) records the exact scope.
+The accompanying Query test identifies `sqlite_demo`; those 2026-10-07 HTTP
+reports do not identify their own SQL backend or actual module argument.
+
+On **2026-10-08**, the operator passed all **13 checks per backend** through
+the dedicated entries above. MSSQL: thread **25976**, program start
+**10:33:32**, test **10:33:33–10:33:34**, displayed duration one second.
+SQLite: thread **9916**, program start **10:34:06**, test **10:34:07**,
+displayed duration zero seconds. Times are São Paulo local time. Both routes
+passed Health, discovery, Echo/accent, addon, failure/recovery and the
+shared dataset's first/next pages and values. Entrypoint defaults identify
+`mssql/pData` and `sqlite_demo`; the generic client still has no forced alias.
+
+These are operator AppServer runs, separate from the **92 native MSSQL** and
+**566 default Harbour regression** checks already recorded. Transcript:
+`tmp/protheus-http-mssql-sqlite-operator-20261008.log`. HTTPS, Linux, broader
+SQL Unicode/types, controlled network/driver failures, resource isolation and
+HTTP performance measurements still need their own acceptance. See
+[the matrix](../../docs/acceptance.md) and the next M06 task in
+[WIP](../../WIP.md).

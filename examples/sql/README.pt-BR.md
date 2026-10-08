@@ -67,6 +67,14 @@ ajuste o [arquivo de exemplo](../../config/examples/mssql.json) e execute:
 ./examples/sql/run.ps1 -Config config/examples/databases.ini -Profile mssql/pData
 ```
 
+Os exemplos públicos [INI](../../config/examples/mssql.ini) e
+[JSON](../../config/examples/mssql.json) não contêm senha: usam
+`DSN=hbBridgeMSSQL`, `Authentication=integrated`, `Encrypt=mandatory` e
+`TrustServerCertificate=false`. Recompile o produto antes de usar os campos
+estruturados. Windows usa a identidade do processo hbBridge; Linux exige
+Kerberos. O [guia de configuração](../../docs/configuration.pt-BR.md#perfis-mssql)
+descreve credenciais SQL, destinos sem DSN, chaves JSON e opções de criptografia.
+
 No Protheus, informe explicitamente o perfil:
 
 ```advpl
@@ -93,6 +101,81 @@ Caminhos relativos de bancos são resolvidos a partir da pasta do INI/JSON.
 O contrato, a paginação e os pontos ainda pendentes de homologação estão no
 [Marco 3](../../docs/milestone3-sql.pt-BR.md).
 
+## Configuração MSSQL privada e aceite nativo
+
+Para login SQL, preencha usuário e senha existentes no template
+`[SQL/mssql/pData]` preparado em `C:/tmp/hbBridge.ini`. Mantenha todo o template
+comentado até completar os campos; depois descomente suas linhas. Ele usa
+`Driver=mssql`, `DSN=pData`, `Database=pData`, `Authentication=sql`, `Username`
+e `Password`; a [referência de campos](../../docs/configuration.pt-BR.md#perfis-mssql)
+inclui o equivalente sem DSN com `ODBCDriver`, `Server` e `Database`. O alias
+seleciona somente essa conexão configurada; Protheus fornece os dados de negócio.
+
+Mantenha arquivo privado preenchido e backups fora do Git, com acesso restrito.
+Os campos atuais armazenam a senha em texto aberto. A senha não é passada
+como argumento nem enviada pelo dataset Protheus. Armazenamento cifrado e
+editor de credenciais continuam futuros; veja [credenciais](../../docs/credentials.pt-BR.md).
+
+Recompile o produto e valide o arquivo preenchido sem abrir banco:
+
+```powershell
+./scripts/build-hbbridge.ps1
+./out/hbbridge.exe --config-info "-config=C:/tmp/hbBridge.ini"
+```
+
+Execute o aceite nativo MSSQL dedicado depois de preparar o perfil:
+
+```powershell
+./scripts/test-hbbridge-mssql.ps1 -Config C:/tmp/hbBridge.ini -Profile mssql/pData
+```
+
+Os dois argumentos são obrigatórios. O runner compila o núcleo compartilhado
+atual em diretório temporário isolado e não inicia listeners. Verifica a
+constante de conexão, versão/banco SQL Server reais, campos nomeados, decimais,
+nulls, datas/timestamps nativos, bit e Unicode exato, resultados vazios,
+recuperação de falhas, páginas e ordinais ocultos. Também verifica restauração
+de área/conexão do chamador, quatro chamadas concorrentes e três execuções de
+referência com 1000 linhas. O mutex compartilhado serializa o SQL; a medição
+registra tempo decorrido sem impor limite de desempenho.
+
+Os resultados ficam em `tmp/mssql-tests-*/results.log`, com códigos de erro
+fixos e metadados sanitizados. Status `0` significa que os checks nativos
+executados passaram; `1` indica falha no aceite; configuração ausente/inválida,
+tipo de perfil incorreto ou conexão indisponível retorna pré-requisito `2`.
+Pré-requisitos não contam como testes MSSQL bem-sucedidos. Esse comando não
+executa o teste separado do dataset Protheus TCP com 29 checks nem o teste HTTP.
+
+Para o aceite Protheus, inicie o produto com o mesmo perfil privado:
+
+```powershell
+./examples/sql/run.ps1 -Config C:/tmp/hbBridge.ini -Profile mssql/pData
+```
+
+Depois execute `U_HBBridgeQueryTest("mssql/pData", "127.0.0.1", 1512, 30000)`
+com o destino real do cliente. Use o mesmo alias explícito no
+[aceite HTTP](../http/README.pt-BR.md). As entradas de conveniência
+`U_HBBridgeQueryTestMSSQL()` e `U_HBBridgeQueryTestSQLite()` fornecem os aliases
+locais de exemplo sem alterar os padrões do cliente genérico.
+
+Em 2026-10-08, o perfil privado com login SQL passou em **92 checks nativos,
+zero falhas e nenhum skip** com SQL Server `16.0.1200.5`, banco `pData`, ODBC
+Driver `18.6.2.1`, Windows x64 e Harbour `UTF8EX`. O
+[patch SDDODBC](../../config/patches/sddodbc.patch) preparado pelo build trata
+texto/binário de tamanho desconhecido por leitura incremental e pares
+substitutos UTF-16. A fixture verifica valores longos, NULs embutidos, strings
+vazias e NULLs sem teto de payload da aplicação. A referência selecionou 1000
+linhas três vezes em 31/32/31 ms (total 94 ms, concorrência um); a memória não
+foi medida e o resultado não é garantia de desempenho.
+
+Separadamente, o operador passou nos **29 checks TCP para MSSQL**, thread 660,
+e repetiu os **29 para SQLite**, thread 3192, em
+2026-10-08. Depois, o operador passou nos **13 checks HTTP de cada backend**
+por `U_HBBridgeHTTPTestMSSQL()` e `U_HBBridgeHTTPTestSQLite()`, threads 25976 e
+9916. Essas entradas selecionam os perfis locais de exemplo e reutilizam o
+teste HTTP comum e o dataset. HTTPS, Linux, identidades integrada/de serviço e
+cenários ampliados de falha/tipos/recursos/desempenho permanecem pendentes. Veja
+[homologação](../../docs/acceptance.pt-BR.md) para evidência e escopo.
+
 ## SERVICE_NOT_FOUND
 
 Esse erro indica que o processo conectado não registrou `RPCRDD.Query`, antes
@@ -109,7 +192,7 @@ passou em **416 verificações**, zero falhas e nenhum skip; o log fica em
 precedem os ajustes PascalCase/HTTP de 2026-10-06.
 O operador homologou SQLite no AppServer em
 04/10/2026 às 00:40:06, com as 29 verificações do dataset e paginação verdadeiras.
-MSSQL real permanece pendente. Esse aceite antecede a nova leitura da seção
+Naquela rodada, MSSQL real ainda estava pendente. Esse aceite antecede a nova leitura da seção
 `[hbBridge]` no AppServer. A nova configuração cliente foi aceita em relato
 manual posterior, registrado na sessão de 2026-10-04: seus 13 checks,
 incluindo `activeAppServerIni`, passaram, assim como relógio Windows,
@@ -117,4 +200,5 @@ Health, ADDON, ambos os Echo de 200.000 bytes e novamente os 29 checks de
 Query `sqlite_demo`. Não foram informados argumentos das chamadas ou log de
 compilação. Destinos diferentes dos padrões e cenários forçados de
 timeout/falhas/envios parciais ainda precisam de homologação; o relato não
-substitui o teste MSSQL. Veja a [matriz](../../docs/acceptance.pt-BR.md).
+substitui o teste MSSQL, posteriormente aceito no núcleo e TCP em 2026-10-08
+conforme registrado acima. Veja a [matriz](../../docs/acceptance.pt-BR.md).

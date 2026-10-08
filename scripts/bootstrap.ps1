@@ -105,6 +105,8 @@ if (-not $ForceBuild -and (Test-Path -LiteralPath $receiptFile)) {
         $null = Resolve-HBBridgeToolchain -ProjectRoot $projectRoot
         & (Join-Path $PSScriptRoot 'prepare-http.ps1')
         if (-not $?) { throw 'Managed HTTP dependency preparation failed.' }
+        & (Join-Path $PSScriptRoot 'prepare-odbc.ps1') -HbCompileRoot $hbCompileRoot -ZigPath $zigPath
+        if (-not $?) { throw 'Managed ODBC dependency preparation failed.' }
         Write-Host "Managed Harbour is ready: $installRoot"
         return
     }
@@ -170,6 +172,8 @@ try {
     $null = Resolve-HBBridgeToolchain -ProjectRoot $projectRoot
     & (Join-Path $PSScriptRoot 'prepare-http.ps1') -ForceBuild:$ForceBuild
     if (-not $?) { throw 'Managed HTTP dependency preparation failed.' }
+    & (Join-Path $PSScriptRoot 'prepare-odbc.ps1') -HbCompileRoot $hbCompileRoot -ZigPath $zigPath -ForceBuild:$ForceBuild
+    if (-not $?) { throw 'Managed ODBC dependency preparation failed.' }
     $libraryDirectory = if ($IsWindows) { 'lib/win/zig' } else { 'lib/linux/gcc' }
     foreach ($library in @('hbnetio', 'rddsql', 'sddsqlt3', 'sddodbc')) {
         $expectedLibrary = Join-Path $installRoot "$libraryDirectory/lib$library.a"

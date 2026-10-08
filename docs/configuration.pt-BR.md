@@ -42,7 +42,7 @@ locais analisados; as chaves descrevem recursos próprios do hbBridge.
 | `[NETIO]` | `Host`, `Port`, `Root`, `Password`, `TimeoutMs` |
 | `[Admin]` | `Host`, `Port`, `Password` |
 | `[HTTP]` | `Enabled`, `Host`, `Port`, `Password`, `TLS`, `Certificate`, `PrivateKey` |
-| `[SQL/profile_name]` | `Driver` e `Database` para SQLite; `Driver` e `ConnectionString` para MSSQL/ODBC |
+| `[SQL/profile_name]` | SQLite: `Driver`/`Database`; MSSQL: campos estruturados abaixo ou `Driver`/`ConnectionString` |
 
 Exemplo mínimo para o teste SQLite:
 
@@ -62,7 +62,10 @@ senha. Os perfis são os mesmos consumidos por `RPCRDD.Query`. Para MSSQL:
 ```ini
 [SQL/mssql_demo]
 Driver=mssql
-ConnectionString=DSN=hbBridgeMSSQL;Trusted_Connection=Yes;
+DSN=hbBridgeMSSQL
+Authentication=integrated
+Encrypt=mandatory
+TrustServerCertificate=false
 ```
 
 Um INI com perfil MSSQL habilita o serviço, mas a consulta exige DSN/driver
@@ -72,13 +75,127 @@ ODBC disponíveis ao processo. O teste Protheus deve informar o perfil:
 .\examples\sql\run.ps1 -Config config/examples/mssql.ini -Profile mssql_demo
 ```
 
+## Perfis MSSQL
+
+Recompile o hbBridge antes de usar os campos MSSQL estruturados. Eles são
+normalizados para a mesma string ODBC privada usada pelo executor SQLMIX/SDDODBC
+existente. Escolha uma forma de destino e um modo de autenticação:
+
+| Chave INI | Chave JSON | Significado |
+| --- | --- | --- |
+| `Driver` | `driver` | `mssql`. |
+| `DSN` | `dsn` | DSN ODBC existente; exclui `ODBCDriver` e `Server`. |
+| `ODBCDriver` | `odbcDriver` | Nome do driver instalado; obrigatório com `Server` e `Database` quando não há DSN. |
+| `Server` | `server` | Endpoint SQL Server, como `localhost,1433`; exige `ODBCDriver` e `Database`. |
+| `Database` | `database` | Obrigatório sem DSN; opcional com DSN para substituir seu banco. |
+| `Authentication` | `authentication` | Obrigatório: `sql` ou `integrated`. São modos do hbBridge. |
+| `Username` | `username` | Login SQL não vazio, obrigatório com `Authentication=sql`. |
+| `Password` | `password` | Senha SQL não vazia, obrigatória com `Authentication=sql`. |
+| `Encrypt` | `encrypt` | Opcional: `optional`, `mandatory`, `strict`, mapeados para ODBC `No`, `Yes`, `Strict`. A omissão mantém o padrão do driver. |
+| `TrustServerCertificate` | `trustServerCertificate` | Booleano opcional: INI `true`/`false`, JSON `true`/`false`. |
+
+`Authentication=integrated` omite completamente `Username` e `Password`;
+campos de credenciais são rejeitados mesmo vazios. Usa a identidade do processo
+hbBridge no Windows. No Linux exige Kerberos configurado e credenciais de
+serviço válidas. Veja o [guia Microsoft de autenticação integrada](https://learn.microsoft.com/en-us/sql/connect/odbc/linux-mac/using-integrated-authentication?view=sql-server-ver17).
+
+Para autenticação SQL, preencha login e senha existentes em arquivo privado
+fora do Git. O exemplo usa DSN com banco explícito; substitua os dois
+placeholders de credenciais antes de ativar o perfil:
+
+```ini
+[SQL/mssql/pData]
+Driver=mssql
+DSN=pData
+Database=pData
+Authentication=sql
+Username=<SQL_LOGIN>
+Password=<SQL_PASSWORD>
+Encrypt=mandatory
+TrustServerCertificate=false
+```
+
+Para conectar sem DSN, substitua `DSN=pData` pelas duas linhas abaixo e
+mantenha `Database=pData`, autenticação e demais opções:
+
+```ini
+ODBCDriver=ODBC Driver 18 for SQL Server
+Server=localhost,1433
+```
+
+Não acrescente chaves ODBC nem aspas aos valores desses campos. O construtor
+envolve driver/servidor/banco/login/senha em chaves e escapa `}` como `}}`,
+preservando `;`, `#` e `=` internos. Nomes de DSN são validados e emitidos sem
+chaves para a busca pelo Driver Manager; enums de autenticação/TLS usam valores
+ODBC fixos. DSN não pode conter `\[]{}(),;?*=!@`, caracteres de controle ou
+espaços externos. NUL e quebras de linha são rejeitados nos campos da conexão.
+O INI remove espaços/tabs externos e não possui sintaxe de valores entre aspas,
+inclusive para senhas.
+
+Para instalações, os exemplos públicos usam `Encrypt=mandatory` e
+`TrustServerCertificate=false`. Um perfil de desenvolvimento local pode
+escolher explicitamente `Encrypt=optional` quando necessário ao seu ambiente;
+o hbBridge nunca tenta novamente reduzindo criptografia ou validação do
+certificado. O suporte do driver/servidor determina o uso de `strict`. Veja as
+[opções de criptografia Microsoft](https://learn.microsoft.com/en-us/sql/connect/odbc/dsn-connection-string-attribute?view=sql-server-ver17#encrypt).
+
+`Driver=mssql` com `ConnectionString` (`connectionString` no JSON) continua
+aceito sem alteração. Não pode ser combinado com nenhum campo estruturado,
+incluindo autenticação, banco ou criptografia. Guarde strings com credenciais
+no mesmo arquivo privado da instalação. Campos estruturados configuram a
+conexão, sem implementar armazenamento cifrado de credenciais.
+
+Após recompilar, valide o arquivo privado preenchido sem abrir SQL:
+
+```powershell
+./out/hbbridge.exe --config-info "-config=C:/tmp/hbBridge.ini"
+```
+
+Mantenha comentado um template de autenticação SQL ainda incompleto:
+`Username`/`Password` vazios em perfil ativo impedem a validação. Depois de
+preencher e ativar o perfil, execute explicitamente o aceite nativo dedicado:
+
+```powershell
+./scripts/test-hbbridge-mssql.ps1 -Config C:/tmp/hbBridge.ini -Profile mssql/pData
+```
+
+O runner compila em diretório temporário isolado e usa o núcleo compartilhado
+de consultas sem iniciar listeners. Configuração ausente/inválida, tipo de
+perfil incorreto ou conexão indisponível retornam status de pré-requisito
+`2`; não homologam MSSQL. Veja o [exemplo SQL](../examples/sql/README.pt-BR.md).
+
+Em 2026-10-08, a rota nativa passou em **92 checks, zero falhas e nenhum skip**
+com SQL Server `16.0.1200.5`, banco `pData`, ODBC Driver `18.6.2.1`, Windows x64
+e Harbour `UTF8EX`, usando o perfil privado `mssql/pData` com autenticação SQL.
+Separadamente, o operador passou nos **29 checks TCP de cada backend**,
+MSSQL e SQLite. Mais tarde no mesmo dia, `U_HBBridgeHTTPTestMSSQL()` e
+`U_HBBridgeHTTPTestSQLite()` passaram nos **13 checks HTTP cada**, threads
+25976 e 9916. Seus padrões de conveniência selecionam `mssql/pData` e
+`sqlite_demo` sem alterar os padrões do cliente genérico. Identidades
+integrada/de serviço, HTTPS, Linux e cenários ampliados de falha/tipos
+permanecem pendentes; veja [homologação](acceptance.pt-BR.md).
+
+O build prepara o [patch SDDODBC](../config/patches/sddodbc.patch) revisado sem
+alterar o fonte upstream fixado. Ele trata `SQL_NO_TOTAL` por leitura
+incremental, usa a flag de campo binário e combina pares substitutos UTF-16
+ao produzir UTF-8. A fixture nativa cobre texto/binário longos, NULs embutidos,
+valores vazios e NULLs. Os chunks de transferência não impõem teto de payload
+da aplicação; memória do runtime e capacidades nativas do driver continuam valendo.
+
 ## Regras de leitura
 
 Seções e chaves INI ignoram maiúsculas/minúsculas; o nome do perfil SQL mantém
-sua caixa, como no JSON. Valores de `Driver` são normalizados para minúsculas.
+sua caixa, como no JSON. Valores INI de `Driver`, `Authentication` e `Encrypt`
+são normalizados para minúsculas; booleanos ignoram caixa. JSON exige enums
+exatos em minúsculas e booleanos nativos.
 Use `chave=valor`, sem aspas adicionais. Espaços/tabs externos são removidos;
-os internos permanecem. Números são decimais canônicos e devem respeitar
-a validação compartilhada. Senhas podem ser vazias para manter os padrões.
+os internos permanecem. JSON preserva espaços na senha; no INI, a remoção
+das extremidades também vale para senhas. Os demais campos de texto
+estruturados devem conter algo além de espaços. Números são decimais
+canônicos e devem respeitar
+a validação compartilhada. Senhas de listeners vazias mantêm o comportamento
+padrão/desativado. Perfil MSSQL ativo com autenticação SQL exige credenciais
+não vazias.
 
 Comentários começam por `;` ou `#` no início da linha, após espaços.
 Não há comentários inline: o texto após o primeiro `=` permanece inteiro,
@@ -220,17 +337,25 @@ relógio/Health/ADDON e os dois Echo exatos de 200.000 bytes. HTTP às
 16:15:03–16:15:04, thread 25456, passou nos 13 checks em um segundo,
 sem identificar o backend SQL. A execução do operador fornece horários/threads,
 mas não log real do compilador, hashes, argumentos ou Host/Port efetivos.
-O agente não executou os testes AppServer. MSSQL real, destino alternativo
+O agente não executou os testes AppServer. Os resultados nativos MSSQL e TCP/HTTP
+do operador posteriores, de 2026-10-08, estão registrados acima e em
+[homologação](acceptance.pt-BR.md). Destino alternativo
 com argumentos omitidos, Linux e falhas/relógio/tipos ampliados permanecem pendentes.
 
 ## Armazenamento portável de credenciais
 
-**Comportamento atual:** INI/JSON podem conter uma string de conexão ODBC;
+**Comportamento atual:** INI/JSON aceitam campos MSSQL estruturados, incluindo
+usuário/senha SQL em texto aberto, ou uma string de conexão ODBC;
 envelope de credencial cifrada, utilitário local de credenciais e interface
 gráfica de administração ainda não foram implementados. Autenticação integrada
 usa a identidade do processo servidor. Para selecionar um perfil de banco,
 o AppServer usa somente SQLProfile. O parser estrito ainda não aceita as
 seções ou campos propostos para provedores de credenciais.
+
+Essa separação do banco não elimina outros segredos cliente: `HTTPToken` no
+AppServer também está em texto aberto. O mesmo desenho de provedores deve
+abranger credenciais NETIO/admin/HTTP no hbBridge e as credenciais dos clientes,
+com chaves provisionadas separadamente. Veja o [inventário](credentials.pt-BR.md).
 
 **Arquitetura proposta:** manter campos públicos do perfil e um envelope
 versionado de senha cifrada em INI/JSON, com chave mestra fora desse arquivo

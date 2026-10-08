@@ -1,0 +1,272 @@
+diff --git a/sddodbc/core.c b/sddodbc/core.c
+index 3f08975..e2c9949 100755
+--- a/sddodbc/core.c
++++ b/sddodbc/core.c
+@@ -49,6 +49,7 @@
+ #include "hbapiitm.h"
+ #include "hbdate.h"
+ #include "hbapistr.h"
++#include "hbapicdp.h"
+ #include "hbset.h"
+ #include "hbvm.h"
+
+@@ -688,6 +689,171 @@ static HB_ERRCODE odbcClose( SQLBASEAREAP pArea )
+ }
+
+
++#if defined( UNICODE )
++/* The native U16 string converter treats surrogate units independently.
++ * Decode complete Unicode scalars for UTF-8 VM codepages; retain the native
++ * converter for other VM codepages. Reject malformed UTF-16 explicitly.
++ */
++static HB_BOOL odbcPutUTF8( PHB_ITEM * ppItem, const O_HB_CHAR * pText, HB_SIZE nUnits )
++{
++   HB_SIZE nIndex, nSize = 0, nOffset = 0;
++   int     iPass;
++   char *  pUTF8 = NULL;
++
++   for( iPass = 0; iPass < 2; ++iPass )
++   {
++      for( nIndex = 0; nIndex < nUnits; ++nIndex )
++      {
++         HB_WCHAR32 wc = pText[ nIndex ];
++         if( wc >= 0xD800 && wc <= 0xDBFF )
++         {
++            HB_WCHAR32 low;
++            if( ++nIndex >= nUnits )
++               goto failure;
++            low = pText[ nIndex ];
++            if( low < 0xDC00 || low > 0xDFFF )
++               goto failure;
++            wc = 0x10000 + ( ( wc - 0xD800 ) << 10 ) + low - 0xDC00;
++         }
++         else if( wc >= 0xDC00 && wc <= 0xDFFF )
++            goto failure;
++         if( iPass == 0 )
++         {
++            HB_SIZE nBytes = ( HB_SIZE ) hb_cdpUTF8CharSize( wc );
++            if( nSize > HB_SIZE_MAX - nBytes - 1 )
++               goto failure;
++            nSize += nBytes;
++         }
++         else
++            nOffset += hb_cdpU32CharToUTF8( pUTF8 + nOffset, wc );
++      }
++      if( iPass == 0 )
++         pUTF8 = ( char * ) hb_xgrab( nSize + 1 );
++   }
++   pUTF8[ nSize ] = '\0';
++   *ppItem = hb_itemPutCLPtr( *ppItem, pUTF8, nSize );
++   return HB_TRUE;
++
++failure:
++   if( pUTF8 )
++      hb_xfree( pUTF8 );
++   return HB_FALSE;
++}
++#endif
++
++
++/* SQL_NO_TOTAL is valid while converting or streaming variable-length data.
++ * Accumulate raw units before text conversion, preserving surrogate pairs
++ * across chunks and embedded NULs. The buffer size is not a value size limit.
++ */
++static SQLRETURN odbcGetVarData( SQLHSTMT hStmt, SQLUSMALLINT ui,
++                                HB_BOOL fBinary, PHB_ITEM * ppItem, SQLLEN * piLen )
++{
++   O_HB_CHAR buffer[ 2048 ];
++   char *    pValue = NULL;
++   HB_SIZE   nLen = 0, nCapacity = 0;
++   HB_SIZE   nPayload = sizeof( buffer ) - ( fBinary ? 0 : sizeof( O_HB_CHAR ) );
++   SQLSMALLINT iTargetType;
++
++#if defined( UNICODE )
++   iTargetType = fBinary ? SQL_C_BINARY : SQL_C_WCHAR;
++#else
++   iTargetType = fBinary ? SQL_C_BINARY : SQL_C_CHAR;
++#endif
++
++   for( ;; )
++   {
++      SQLLEN    iLen = SQL_NULL_DATA;
++      SQLRETURN res = SQLGetData( hStmt, ui, iTargetType, buffer,
++                                  ( SQLLEN ) sizeof( buffer ), &iLen );
++      HB_SIZE   nChunk, nNeeded;
++      HB_BOOL   fMore = HB_FALSE;
++
++      if( ! SQL_SUCCEEDED( res ) )
++         break;
++      if( iLen == SQL_NULL_DATA )
++      {
++         if( nLen != 0 )
++            break;
++         if( *ppItem )
++            hb_itemClear( *ppItem );
++         else
++            *ppItem = hb_itemNew( NULL );
++         *piLen = SQL_NULL_DATA;
++         if( pValue )
++            hb_xfree( pValue );
++         return SQL_SUCCESS;
++      }
++      if( iLen == SQL_NO_TOTAL )
++      {
++         /* A final successful call must supply the actual byte count. */
++         if( res != SQL_SUCCESS_WITH_INFO )
++            break;
++         nChunk = nPayload;
++         fMore = HB_TRUE;
++      }
++      else
++      {
++         if( iLen < 0 )
++            break;
++         nChunk = ( HB_SIZE ) iLen;
++         if( nChunk > nPayload )
++         {
++            if( res != SQL_SUCCESS_WITH_INFO )
++               break;
++            nChunk = nPayload;
++            fMore = HB_TRUE;
++         }
++      }
++      if( ! fBinary && nChunk % sizeof( O_HB_CHAR ) != 0 )
++         break;
++      if( nLen > HB_SIZE_MAX - sizeof( O_HB_CHAR ) ||
++          nChunk > HB_SIZE_MAX - sizeof( O_HB_CHAR ) - nLen )
++         break;
++      nNeeded = nLen + nChunk + sizeof( O_HB_CHAR );
++      if( nNeeded > nCapacity )
++      {
++         HB_SIZE nNew = nCapacity ? nCapacity : sizeof( buffer );
++         while( nNew < nNeeded )
++         {
++            if( nNew > HB_SIZE_MAX / 2 )
++            {
++               nNew = nNeeded;
++               break;
++            }
++            nNew *= 2;
++         }
++         pValue = ( char * ) ( pValue ? hb_xrealloc( pValue, nNew ) : hb_xgrab( nNew ) );
++         nCapacity = nNew;
++      }
++      memcpy( pValue + nLen, buffer, nChunk );
++      nLen += nChunk;
++      if( ! fMore )
++      {
++         memset( pValue + nLen, 0, sizeof( O_HB_CHAR ) );
++         if( fBinary )
++            *ppItem = hb_itemPutCL( *ppItem, pValue, nLen );
++#if defined( UNICODE )
++         else if( HB_CDP_ISUTF8( hb_vmCDP() ) )
++         {
++            if( ! odbcPutUTF8( ppItem, ( O_HB_CHAR * ) pValue, nLen / sizeof( O_HB_CHAR ) ) )
++               break;
++         }
++#endif
++         else
++            *ppItem = O_HB_ITEMPUTSTRLEN( *ppItem, ( O_HB_CHAR * ) pValue,
++                                         nLen / sizeof( O_HB_CHAR ) );
++         hb_xfree( pValue );
++         *piLen = 0; /* Non-NULL; the item owns the complete value length. */
++         return SQL_SUCCESS;
++      }
++   }
++   if( pValue )
++      hb_xfree( pValue );
++   return SQL_ERROR;
++}
++
++
+ static HB_ERRCODE odbcGoTo( SQLBASEAREAP pArea, HB_ULONG ulRecNo )
+ {
+    SQLHSTMT  hStmt;
+@@ -704,11 +870,17 @@ static HB_ERRCODE odbcGoTo( SQLBASEAREAP pArea, HB_ULONG ulRecNo )
+
+    while( ulRecNo > pArea->ulRecCount && ! pArea->fFetched )
+    {
+-      if( ! SQL_SUCCEEDED( SQLFetch( hStmt ) ) )
++      res = SQLFetch( hStmt );
++      if( res == SQL_NO_DATA )
+       {
+          pArea->fFetched = HB_TRUE;
+          break;
+       }
++      if( ! SQL_SUCCEEDED( res ) )
++      {
++         hb_errRT_ODBCDD( EG_READ, ESQLDD_FETCH, "Could not fetch SQL data", pArea->szQuery, 0 );
++         return HB_FAILURE;
++      }
+
+       pArray = hb_itemArrayNew( pArea->area.uiFieldCount );
+       pItem  = NULL;
+@@ -720,49 +892,7 @@ static HB_ERRCODE odbcGoTo( SQLBASEAREAP pArea, HB_ULONG ulRecNo )
+          switch( pField->uiType )
+          {
+             case HB_FT_STRING:
+-               if( pField->uiType & HB_FF_BINARY )
+-               {
+-                  char buffer[ 1 ];
+-
+-                  iLen = 0;
+-                  if( SQL_SUCCEEDED( res = SQLGetData( hStmt, ui, SQL_C_BINARY, buffer, 0, &iLen ) ) )
+-                  {
+-                     if( iLen >= 0 )
+-                     {
+-                        char * val = ( char * ) hb_xgrab( iLen + 1 );
+-                        if( SQL_SUCCEEDED( res = SQLGetData( hStmt, ui, SQL_C_BINARY, val, iLen + 1, &iLen ) ) )
+-                           pItem = hb_itemPutCLPtr( pItem, val, ( HB_SIZE ) iLen );
+-                        else
+-                           hb_xfree( val );
+-                     }
+-                  }
+-               }
+-               else
+-               {
+-                  O_HB_CHAR buffer[ 1 ];
+-#if defined( UNICODE )
+-                  SQLSMALLINT iTargetType = SQL_C_WCHAR;
+-#else
+-                  SQLSMALLINT iTargetType = SQL_C_CHAR;
+-#endif
+-
+-                  iLen = 0;
+-                  if( SQL_SUCCEEDED( res = SQLGetData( hStmt, ui, iTargetType, buffer, 0, &iLen ) ) )
+-                  {
+-                     if( iLen >= 0 )
+-                     {
+-                        O_HB_CHAR * val = ( O_HB_CHAR * ) hb_xgrab( iLen + sizeof( O_HB_CHAR ) );
+-                        if( SQL_SUCCEEDED( res = SQLGetData( hStmt, ui, iTargetType, val, iLen + sizeof( O_HB_CHAR ), &iLen ) ) )
+-                        {
+-#if defined( UNICODE )
+-                           iLen >>= 1;
+-#endif
+-                           pItem = O_HB_ITEMPUTSTRLEN( pItem, val, ( HB_SIZE ) iLen );
+-                        }
+-                        hb_xfree( val );
+-                     }
+-                  }
+-               }
++               res = odbcGetVarData( hStmt, ui, ( pField->uiFlags & HB_FF_BINARY ) != 0, &pItem, &iLen );
+                break;
+
+             case HB_FT_INTEGER:
+@@ -840,9 +970,14 @@ static HB_ERRCODE odbcGoTo( SQLBASEAREAP pArea, HB_ULONG ulRecNo )
+             }
+          }
+
+-         /* TODO: check SQL_SUCCEEDED( res ) */
+-         /* TODO: check for SQL_NO_TOTAL. What does this mean? */
+-         HB_SYMBOL_UNUSED( res );
++         if( ! SQL_SUCCEEDED( res ) )
++         {
++            if( pItem )
++               hb_itemRelease( pItem );
++            hb_itemRelease( pArray );
++            hb_errRT_ODBCDD( EG_READ, ESQLDD_FETCH, "Could not retrieve SQL field data", pArea->szQuery, 0 );
++            return HB_FAILURE;
++         }
+
+          if( pItem )
+          {

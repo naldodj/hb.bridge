@@ -1,0 +1,310 @@
+/* Released to Public Domain. */
+#include "protheus.ch"
+#include "tlpp-core.th"
+
+// No configuration, network, database or ERP table is read by this test.
+procedure U_HBBridgeDataSetTest()
+
+    local oClient := HBBridge.Tests.HBBridgeDataSetMockClient():New() as object
+    local oDataSet := HBBridge.RDD.HBBridgeRPCDataSet():New(oClient) as object
+    local jChecks := JSONObject():New() as json
+    local jHeader as json
+    local jInfo as json
+    local jRow as json
+    local jRequest as json
+    local jResponse as json
+    local aChecks as array
+    local nCheck := 0 as numeric
+    local nCalls := 0 as numeric
+    local nRecords := 0 as numeric
+    local nSum := 0 as numeric
+    local lOpened := .F. as logical
+    local lOk := .T. as logical
+    local cSql := "SELECT ID, NAME FROM fixture" as character
+
+    jHeader := oDataSet:Header()
+    jInfo := oDataSet:FieldInfo("ID")
+    jRow := oDataSet:GetRow()
+    jChecks["closedMetadata"] := oDataSet:FieldCount() == 0 .and. ;
+        oDataSet:FieldName(1) == "" .and. jHeader:ToJSON() == "{}" .and. ;
+        jInfo:ToJSON() == "{}"
+    jChecks["closedRow"] := jRow:ToJSON() == "{}" .and. oDataSet:Eof()
+    jChecks["closedMoreToRead"] := !oDataSet:MoreToRead() .and. oClient:CallCount() == 0
+    FreeObj(@jHeader)
+    FreeObj(@jInfo)
+    FreeObj(@jRow)
+
+    QueueDataSetResult(oClient, DataSetResult(10, 2, 1, 2, .T.))
+    QueueDataSetResult(oClient, DataSetResult(30, 1, 2, 2, .F.))
+    lOpened := oDataSet:OpenPage("opaque/profile", cSql, 1, 2, "ID ASC")
+    jChecks["openPage"] := lOpened .and. oClient:CallCount() == 1
+    if lOpened
+        jChecks["fieldCount"] := oDataSet:FieldCount() == 2
+        jChecks["fieldOrdinalOrder"] := oDataSet:FieldName(1) == "ID" .and. ;
+            oDataSet:FieldName(2) == "NAME"
+        jChecks["invalidOrdinal"] := oDataSet:FieldName(0) == "" .and. ;
+            oDataSet:FieldName(-1) == "" .and. oDataSet:FieldName(1.5) == "" .and. ;
+            oDataSet:FieldName(3) == ""
+        jHeader := oDataSet:Header()
+        jChecks["headerFields"] := jHeader["ID"]["position"] == 1 .and. ;
+            jHeader["NAME"]["position"] == 2
+        jHeader["ID"]["position"] := 2
+        jHeader["ID"]["format"]["label"] := "changed header"
+        jInfo := oDataSet:FieldInfo(" id ")
+        jChecks["headerDefensiveCopy"] := jInfo["position"] == 1 .and. ;
+            jInfo["format"]["label"] == "identifier" .and. ;
+            oDataSet:FieldName(1) == "ID"
+        FreeObj(@jHeader)
+        jInfo["position"] := 2
+        jInfo["format"]["label"] := "changed field"
+        jHeader := oDataSet:DSStruct()
+        jChecks["fieldInfoDefensiveCopy"] := jHeader["ID"]["position"] == 1 .and. ;
+            jHeader["ID"]["format"]["label"] == "identifier"
+        FreeObj(@jInfo)
+        jHeader["ID"]["format"]["label"] := "changed alias"
+        jInfo := oDataSet:FieldInfo("ID")
+        jChecks["dsStructDefensiveAlias"] := jInfo["format"]["label"] == "identifier"
+        FreeObj(@jHeader)
+        FreeObj(@jInfo)
+        jInfo := oDataSet:FieldInfo("missing")
+        jChecks["missingFieldInfo"] := jInfo:ToJSON() == "{}"
+        FreeObj(@jInfo)
+
+        jRow := oDataSet:GetRow()
+        jChecks["getRowCurrent"] := jRow["ID"] == 10 .and. jRow["NAME"] == "row10"
+        jRow["ID"] := -1
+        jRow["NAME"] := "changed row"
+        jChecks["getRowDefensiveCopy"] := oDataSet:FieldGet("ID") == 10 .and. ;
+            oDataSet:FieldGet("NAME") == "row10" .and. oClient:CallCount() == 1
+        FreeObj(@jRow)
+        jChecks["moreToReadCurrent"] := oDataSet:MoreToRead() .and. ;
+            oDataSet:MoreToRead() .and. oDataSet:FieldGet("ID") == 10 .and. ;
+            oClient:CallCount() == 1
+        nRecords++
+        oDataSet:Skip()
+        jChecks["skipWithinPage"] := !oDataSet:Eof() .and. ;
+            oDataSet:FieldGet("ID") == 20 .and. oClient:CallCount() == 1
+        jChecks["moreWithinPage"] := oDataSet:MoreToRead() .and. oClient:CallCount() == 1
+        nRecords++
+        oDataSet:Skip()
+        jChecks["eofRemainsPageLocal"] := oDataSet:Eof() .and. oDataSet:HasNextPage() .and. ;
+            oClient:CallCount() == 1
+        oDataSet:Skip()
+        jChecks["skipAtBoundaryDoesNotFetch"] := oDataSet:Eof() .and. ;
+            oClient:CallCount() == 1
+        jChecks["moreFetchesNextPage"] := oDataSet:MoreToRead() .and. ;
+            oDataSet:FieldGet("ID") == 30 .and. oDataSet:PageNumber() == 2 .and. ;
+            oDataSet:RowCount() == 1 .and. oClient:CallCount() == 2
+        jChecks["moreAfterFetchIsIdempotent"] := oDataSet:MoreToRead() .and. ;
+            oDataSet:MoreToRead() .and. oDataSet:FieldGet("ID") == 30 .and. ;
+            oClient:CallCount() == 2
+        jRequest := oClient:Request(2)
+        jChecks["nextPageKeepsRequest"] := jRequest["alias"] == "opaque/profile" .and. ;
+            jRequest["sql"] == cSql .and. jRequest["page"]["number"] == 2 .and. ;
+            jRequest["page"]["size"] == 2 .and. jRequest["page"]["orderBy"] == "ID ASC"
+        FreeObj(@jRequest)
+        nRecords++
+        oDataSet:Skip()
+        jChecks["lastPageStops"] := !oDataSet:MoreToRead() .and. ;
+            !oDataSet:MoreToRead() .and. oClient:CallCount() == 2 .and. ;
+            nRecords == 3 .and. Empty(oDataSet:ErrorCode())
+        jRow := oDataSet:GetRow()
+        jChecks["eofRowIsEmpty"] := jRow:ToJSON() == "{}"
+        FreeObj(@jRow)
+        jChecks["metadataSurvivesEof"] := oDataSet:FieldCount() == 2 .and. ;
+            oDataSet:FieldName(2) == "NAME"
+    endif
+    oDataSet:Close()
+    jHeader := oDataSet:Header()
+    jChecks["closeClearsMetadata"] := oDataSet:FieldCount() == 0 .and. ;
+        jHeader:ToJSON() == "{}" .and. oDataSet:FieldName(1) == "" .and. ;
+        !oDataSet:MoreToRead() .and. oClient:CallCount() == 2
+    FreeObj(@jHeader)
+
+    QueueDataSetResult(oClient, DataSetResult(0, 0, 1, 2, .F.))
+    lOpened := oDataSet:OpenPage("opaque/profile", cSql, 1, 2, "ID ASC")
+    jChecks["emptyPage"] := lOpened .and. oDataSet:Eof() .and. ;
+        oDataSet:FieldCount() == 2 .and. !oDataSet:MoreToRead() .and. ;
+        !oDataSet:MoreToRead() .and. oClient:CallCount() == 3
+
+    QueueDataSetResult(oClient, DataSetResult(70, 2, 1, 2, .T.))
+    jResponse := JSONObject():New()
+    jResponse["success"] := .F.
+    jResponse["code"] := "TIMEOUT"
+    jResponse["error"] := "Controlled next-page failure."
+    QueueDataSetResult(oClient, jResponse)
+    lOpened := oDataSet:OpenPage("opaque/profile", cSql, 1, 2, "ID ASC")
+    jChecks["failureFixtureOpen"] := lOpened .and. oClient:CallCount() == 4
+    oDataSet:Skip()
+    oDataSet:Skip()
+    jChecks["nextPageFailure"] := !oDataSet:MoreToRead() .and. oClient:CallCount() == 5 .and. ;
+        oDataSet:ErrorCode() == "TIMEOUT" .and. ;
+        oDataSet:ErrorMessage() == "Controlled next-page failure."
+    jChecks["failureDoesNotRetry"] := !oDataSet:MoreToRead() .and. ;
+        !oDataSet:MoreToRead() .and. oClient:CallCount() == 5 .and. ;
+        oDataSet:ErrorCode() == "TIMEOUT"
+    jHeader := oDataSet:Header()
+    jRow := oDataSet:GetRow()
+    jChecks["failureClearsOldResult"] := oDataSet:Eof() .and. oDataSet:FieldCount() == 0 .and. ;
+        jHeader:ToJSON() == "{}" .and. jRow:ToJSON() == "{}"
+    FreeObj(@jHeader)
+    FreeObj(@jRow)
+
+    QueueDataSetResult(oClient, DataSetResult(99, 1, 0, 0, .F.))
+    lOpened := oDataSet:OpenSQL("opaque/profile", cSql)
+    jChecks["reopenAfterFailure"] := lOpened .and. Empty(oDataSet:ErrorCode()) .and. ;
+        Empty(oDataSet:ErrorMessage()) .and. oDataSet:MoreToRead() .and. ;
+        oDataSet:FieldGet("ID") == 99 .and. oClient:CallCount() == 6
+    oDataSet:Skip()
+    jChecks["unpagedStopsWithoutFetch"] := !oDataSet:MoreToRead() .and. ;
+        !oDataSet:MoreToRead() .and. oClient:CallCount() == 6
+
+    jResponse := DataSetResult(1, 1, 0, 0, .F.)
+    jResponse["header"]["NAME"]["position"] := 1
+    QueueDataSetResult(oClient, jResponse)
+    lOpened := oDataSet:OpenSQL("opaque/profile", cSql)
+    jChecks["duplicatePositionRejected"] := !lOpened .and. ;
+        oDataSet:ErrorCode() == "INVALID_RESULT" .and. oDataSet:FieldCount() == 0
+    nCalls := oClient:CallCount()
+    jChecks["invalidMetadataDoesNotRetry"] := !oDataSet:MoreToRead() .and. ;
+        oClient:CallCount() == nCalls .and. oDataSet:ErrorCode() == "INVALID_RESULT"
+
+    jResponse := DataSetResult(1, 1, 0, 0, .F.)
+    jResponse["header"]["NAME"] := JSONObject():New()
+    jResponse["header"]["NAME"]["type"] := "C"
+    QueueDataSetResult(oClient, jResponse)
+    lOpened := oDataSet:OpenSQL("opaque/profile", cSql)
+    jChecks["missingPositionRejected"] := !lOpened .and. oDataSet:ErrorCode() == "INVALID_RESULT"
+
+    jResponse := DataSetResult(1, 1, 0, 0, .F.)
+    jResponse["header"]["NAME"]["position"] := 1.5
+    QueueDataSetResult(oClient, jResponse)
+    lOpened := oDataSet:OpenSQL("opaque/profile", cSql)
+    jChecks["fractionalPositionRejected"] := !lOpened .and. oDataSet:ErrorCode() == "INVALID_RESULT"
+
+    jResponse := DataSetResult(1, 1, 0, 0, .F.)
+    jResponse["header"]["NAME"]["position"] := 3
+    QueueDataSetResult(oClient, jResponse)
+    lOpened := oDataSet:OpenSQL("opaque/profile", cSql)
+    jChecks["outOfRangePositionRejected"] := !lOpened .and. oDataSet:ErrorCode() == "INVALID_RESULT"
+
+    jResponse := DataSetResult(1, 1, 0, 0, .F.)
+    jResponse["header"]["NAME"]["position"] := "2"
+    QueueDataSetResult(oClient, jResponse)
+    lOpened := oDataSet:OpenSQL("opaque/profile", cSql)
+    jChecks["nonNumericPositionRejected"] := !lOpened .and. oDataSet:ErrorCode() == "INVALID_RESULT"
+
+    jResponse := DataSetResult(1, 1, 0, 0, .F.)
+    jResponse["header"]["NAME"] := "not field metadata"
+    QueueDataSetResult(oClient, jResponse)
+    lOpened := oDataSet:OpenSQL("opaque/profile", cSql)
+    jChecks["nonObjectMetadataRejected"] := !lOpened .and. oDataSet:ErrorCode() == "INVALID_RESULT"
+
+    QueueDataSetResult(oClient, DataSetResult(44, 1, 0, 0, .F.))
+    lOpened := oDataSet:OpenSQL("opaque/profile", cSql)
+    jChecks["reopenAfterInvalidMetadata"] := lOpened .and. Empty(oDataSet:ErrorCode()) .and. ;
+        oDataSet:FieldCount() == 2 .and. oDataSet:FieldGet("ID") == 44
+
+    jResponse := DataSetResult(0, 0, 0, 0, .F.)
+    jResponse["header"] := JSONObject():New()
+    QueueDataSetResult(oClient, jResponse)
+    lOpened := oDataSet:OpenSQL("opaque/profile", cSql)
+    nCalls := oClient:CallCount()
+    jChecks["emptyHeaderAccepted"] := lOpened .and. oDataSet:FieldCount() == 0 .and. ;
+        oDataSet:FieldName(1) == "" .and. !oDataSet:MoreToRead() .and. ;
+        oClient:CallCount() == nCalls
+
+    QueueDataSetResult(oClient, DataSetResult(100, 2, 1, 2, .T.))
+    QueueDataSetResult(oClient, DataSetResult(120, 2, 2, 2, .T.))
+    QueueDataSetResult(oClient, DataSetResult(140, 1, 3, 2, .F.))
+    nCalls := oClient:CallCount()
+    nRecords := 0
+    lOpened := oDataSet:OpenPage("opaque/profile", cSql, 1, 2, "ID ASC")
+    while oDataSet:MoreToRead()
+        nRecords++
+        nSum += oDataSet:FieldGet("ID")
+        oDataSet:Skip()
+    enddo
+    jChecks["moreToReadLoopVisitsEveryRow"] := lOpened .and. nRecords == 5 .and. nSum == 600
+    jChecks["moreToReadLoopRequestsEachPageOnce"] := oDataSet:PageNumber() == 3 .and. ;
+        oClient:CallCount() == nCalls + 3 .and. Empty(oDataSet:ErrorCode())
+    jChecks["moreToReadLoopStopsAtEnd"] := !oDataSet:MoreToRead() .and. ;
+        !oDataSet:HasNextPage() .and. oClient:CallCount() == nCalls + 3
+
+    // GetNames() exposes a native array; enumerate once only for the report.
+    aChecks := jChecks:GetNames()
+    for nCheck := 1 to Len(aChecks)
+        lOk := jChecks[aChecks[nCheck]] .and. lOk
+    next
+    nCheck := Len(aChecks)
+    aChecks := Nil
+    ConOut("hbBridge dataset navigation checks: " + jChecks:ToJSON())
+    ConOut("hbBridge dataset navigation Protheus " + IIf(lOk, "OK", "FAILED") + ;
+        "; checks=" + tlpp.ToStr(nCheck) + "; mock calls=" + tlpp.ToStr(oClient:CallCount()))
+    oDataSet:Close()
+    oClient:Close()
+    FreeObj(@oDataSet)
+    FreeObj(@oClient)
+    FreeObj(@jChecks)
+
+return
+
+static procedure QueueDataSetResult(oClient as object, jResponse as json)
+
+    oClient:Queue(jResponse)
+    FreeObj(@jResponse)
+
+return
+
+static function DataSetResult(nFirstId as numeric, nRows as numeric, nPage as numeric, ;
+    nSize as numeric, lHasNext as logical) as json
+
+    local jResult := JSONObject():New() as json
+    local jHeader := JSONObject():New() as json
+    local jRows := JSONObject():New() as json
+    local jField as json
+    local jFormat as json
+    local jRow as json
+    local jPage as json
+    local nRow := 0 as numeric
+    local nId := 0 as numeric
+
+    // Insert NAME first to ensure FieldName() follows position, not key order.
+    jField := JSONObject():New()
+    jField["position"] := 2
+    jField["type"] := "C"
+    jField["length"] := 32
+    jField["decimals"] := 0
+    jHeader["NAME"] := jField
+    jField := JSONObject():New()
+    jField["position"] := 1
+    jField["type"] := "N"
+    jField["length"] := 10
+    jField["decimals"] := 0
+    jFormat := JSONObject():New()
+    jFormat["label"] := "identifier"
+    jField["format"] := jFormat
+    jHeader["ID"] := jField
+    for nRow := 1 to nRows
+        nId := nFirstId + (nRow - 1) * 10
+        jRow := JSONObject():New()
+        jRow["ID"] := nId
+        jRow["NAME"] := "row" + tlpp.ToStr(nId)
+        jRows[tlpp.ToStr(nRow)] := jRow
+    next
+    jResult["success"] := .T.
+    jResult["resultVersion"] := 1
+    jResult["rowCount"] := nRows
+    jResult["header"] := jHeader
+    jResult["rows"] := jRows
+    if nPage > 0
+        jPage := JSONObject():New()
+        jPage["number"] := nPage
+        jPage["size"] := nSize
+        jPage["hasNext"] := lHasNext
+        jPage["firstRow"] := IIf(nRows > 0, (nPage - 1) * nSize + 1, 0)
+        jPage["lastRow"] := IIf(nRows > 0, (nPage - 1) * nSize + nRows, 0)
+        jResult["page"] := jPage
+    endif
+
+return(jResult)

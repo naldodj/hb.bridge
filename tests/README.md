@@ -61,6 +61,43 @@ no skips**, log tmp/tests-d1b829ff332c414f816a6e70748152d1/results.log.
 It added two INI and two explicit SQL alias checks. This predates the
 PascalCase/HTTP changes of 2026-10-06 and requires their separate validation.
 
+## Opt-in real MSSQL core acceptance
+
+Prepare a private profile using the [credential keys](../docs/configuration.md),
+then run:
+
+```powershell
+./scripts/test-hbbridge-mssql.ps1 -Config C:/tmp/hbBridge.ini -Profile mssql/pData
+```
+
+The [MSSQL target](integration/harbour/hbbridgemssqltest.hbp) uses the shared
+product components and an explicit alias. It opens no host listeners and does
+not replace the running executable. Read-only constant fixtures cover named
+results, native types/nulls/Unicode, pagination, recovery, caller workarea and
+connection restoration, four concurrent callers and three 1000-row baseline
+runs. Expected types and exact values are declared before the assertions;
+unsupported representations fail instead of being silently converted.
+
+Exit 2 means a missing or invalid prerequisite, including a missing profile
+or unsuccessful connection probe; exit 1 means an assertion/runtime failure.
+Only exit 0 after the actual checks accepts this core route. Logs under
+`tmp/mssql-tests-<id>/results.log` omit connection strings and raw driver errors.
+This opt-in route is separate from the default SQLite suite and from the
+29 Protheus TCP checks. A compilation or prerequisite check certifies neither
+MSSQL values nor AppServer/HTTP execution.
+
+Execution on 2026-10-08 passed **92 checks, zero failures and no skips** against
+SQL Server `16.0.1200.5`, database `pData`, ODBC Driver `18.6.2.1`, Windows x64
+and Harbour `UTF8EX`, with SQL authentication and alias `mssql/pData`. Log:
+`tmp/mssql-tests-b3d676f0daaf470a97af605a98a9681c/results.log`.
+The staged [SDDODBC patch](../config/patches/sddodbc.patch) covers incremental
+`SQL_NO_TOTAL` reads, the binary field flag and UTF-16 surrogate pairs in UTF-8.
+Fixtures preserve long text/binary values, embedded NULs, empty values and
+NULLs. Chunk buffers impose no total application payload ceiling.
+The 1000-row baseline ran three times in 31/32/31 ms, 94 ms total, concurrency
+one, with memory unmeasured. This is a local reference, not a speed guarantee.
+See [acceptance](../docs/acceptance.md) for precise scope and remaining cases.
+
 ## Protheus compilation and calls
 
 Compile all src/tlpp, including tests/protheus. Public product APIs are
@@ -124,6 +161,28 @@ sanitized --config-info from the updated executable. SERVICE_NOT_FOUND means
 Query was not registered (usually no profiles); PROFILE_NOT_FOUND means
 the service exists but the requested alias does not.
 
+## Isolated TLPP dataset checks
+
+Compile the whole `src/tlpp` tree, including the new
+[HBBridgeDataSetMockClient](../src/tlpp/tests/protheus/hbbridgedatasetmockclient.tlpp)
+and [U_HBBridgeDataSetTest](../src/tlpp/tests/protheus/hbbridgedatasettest.tlpp),
+then call `U_HBBridgeDataSetTest()` or its
+[WebApp entry](https://localhost:4321/webapp/?p=U_HBBridgeDataSetTest&e=PROTHEUS).
+It requires no hbBridge listener, SQL profile, credentials or ERP table.
+
+The expected successful result is **45 checks and 17 mock calls**. The test
+covers `MoreToRead()` across pages; repeated checks without record consumption;
+preserved page-local `Eof()`/`Skip()`; `Header()`/`DSStruct()`/`FieldInfo()`
+defensive copies; `FieldCount()`/`FieldName()` column order; `GetRow()` copies;
+empty/closed state, malformed metadata and page failure/recovery.
+The agent's 2026-10-08 compile attempt returned exit 1,
+`COMPILEERROR-300 Failed to open repository`, because `custom.rpo` was in use;
+total/success/errors were `0/0/0`, without source compilation. Log:
+`tmp/totvs-compile.log`. The active AppServer was not stopped. These new
+sources still require compilation and execution; expected counts are not
+accepted results.
+See [dataset API and integrity findings](../docs/dataset.md).
+
 ## Manual acceptance and remaining scenarios
 
 [U_HBBridgeHTTPTest](../src/tlpp/tests/protheus/hbbridgehttptest.tlpp) exercises
@@ -135,7 +194,8 @@ Two later runs passed all 13 checks: thread 27296 (program start 16:10:40,
 test 16:10:44–16:10:45) and thread 25456 (program start 16:15:02,
 test 16:15:03–16:15:04), each in one second. Times are São Paulo local time.
 This is AppServer evidence separate from the Harbour runner. None of these
-HTTP reports identifies its SQL profile/backend or establishes HTTPS/broader Unicode.
+2026-10-07 HTTP reports identifies its SQL profile/backend or establishes
+HTTPS/broader Unicode; the identified 2026-10-08 runs are recorded below.
 
 Operator report 2026-10-03: normal Health/ADDON/two Echo calls passed with
 200000 identical bytes; varied request gzip 152964 bytes. Earlier milestone1
@@ -163,10 +223,37 @@ paths after operator-reported recompilation. It supplies times/threads,
 but no actual compiler log, artifact hashes, arguments or effective destination.
 The agent did not run these AppServer tests.
 
-Pending: real MSSQL, identified HTTP SQL backend, nondefault
+On 2026-10-08 the operator supplied **29 passing
+MSSQL TCP checks**, thread 660, and **29 passing SQLite TCP checks**, thread
+3192. The convenience entries `U_HBBridgeQueryTestMSSQL()` and
+`U_HBBridgeQueryTestSQLite()` select the local example aliases; the generic
+client retains no forced profile. This operator result is separate from the
+92 native MSSQL checks above.
+
+The operator then passed **13 HTTP checks for each backend** on 2026-10-08:
+`U_HBBridgeHTTPTestMSSQL`, thread 25976, program start 10:33:32, test
+10:33:33–10:33:34 (one second); `U_HBBridgeHTTPTestSQLite`, thread 9916,
+program start 10:34:06, test 10:34:07 (zero displayed seconds). São Paulo
+times. Both include the shared dataset's first/next pages and values; the
+entrypoint defaults select `mssql/pData` and `sqlite_demo`. These are operator
+AppServer runs, separate from native automation. Transcript:
+`tmp/protheus-http-mssql-sqlite-operator-20261008.log`.
+See [acceptance](../docs/acceptance.md). The owner's new dataset request and
+UTF-8/FLOAT findings take priority as D02/D03 in [WIP](../WIP.md), before M06
+controlled failures/recovery. No new native run is inferred from these reports.
+
+A later read-only constant probe found `CAST(123.4567 AS FLOAT)` remained
+fractional natively but became `123` in JSON; `DECIMAL(15,4)` became `123.4567`
+and `DECIMAL(16,2)` became `123.46`. The 92 native checks did not cover that
+raw FLOAT JSON case. TCP also lacks HTTP's explicit `UTF8EX` execution and
+currently falls back to CP437. Existing fixture results do not certify
+arbitrary precision or accented TCP values. Runtime fixes and transport parity
+checks remain pending; see [the analysis](../docs/dataset.md).
+
+Pending: HTTPS, integrated/service identities, nondefault
 host/port/profile, Linux, clock precision/adjustment/wrap, forced socket
 timeout/connection failure/positive partial Send/Receive/GetError,
-MAXSTRINGSIZE, null/nested/multibyte/non-ASCII values, larger/incompressible data
+MAXSTRINGSIZE, broader Protheus null/nested/multibyte/non-ASCII values, larger/incompressible data
 and Harbour codepage/revision compatibility. Persistent calls/pool/multiplex,
 coalescence/disconnect/replay prevention, explicit-tenant session owner/TTL/
 cleanup, TLS/JWT and optional gRPC/Smartlink/AMQP are roadmap work. Test technical

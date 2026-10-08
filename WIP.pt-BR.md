@@ -12,11 +12,11 @@ registra resultados verificados; ChangeLog e Git preservam o histórico.
 | Item | Valor atual |
 | --- | --- |
 | ID | `001-mssql-acceptance` |
-| Abertura / atualização | 2026-10-07 |
-| Situação | MSSQL planejado; migração preparatória .hb autorizada explicitamente concluída. Nenhuma execução MSSQL registrada ainda. |
+| Abertura / atualização | 2026-10-07 / 2026-10-08 |
+| Situação | MSSQL nativo homologado: 92 checks; Protheus TCP: 29 e HTTP: 13 em cada banco MSSQL/SQLite. Pacote permanece aberto. |
 | Objetivo | Homologar RPCRDD.Query/dataset existentes em banco MSSQL real identificado, por Harbour, TCP Protheus e HTTP Protheus. |
 | Referência do produto | Código publicado `50e1c65`; checkout na abertura `bce52d2` inclui atualização do badge de clones. |
-| Próxima tarefa | M01: registrar perfil alvo, ambiente ODBC e autenticação sem guardar segredos aqui. |
+| Próxima tarefa | Aceite da API dataset solicitada e correções UTF-8/FLOAT abaixo; depois retomar M06. |
 
 ### Decisões já tomadas
 
@@ -27,7 +27,8 @@ registra resultados verificados; ChangeLog e Git preservam o histórico.
   constantes e fixture isolada de leitura; preservar tabelas ERP de produção.
 - Perfis continuam aliases opacos selecionados explicitamente por chamada.
   `mssql/pData` é exemplo, sem perfil obrigatório nem resolução de contexto.
-- Usar string ODBC privada ou autenticação integrada já suportadas. Credenciais
+- Usar string ODBC completa privada ou chaves MSSQL estruturadas, com
+  autenticação SQL/integrada explícita. Credenciais
   cifradas/CLI portáveis ficam para pacote posterior; sua implementação não é
   pré-requisito deste aceite.
 - O responsável esclareceu em 2026-10-07 que as credenciais SQL são estáveis;
@@ -80,23 +81,50 @@ não repetir a migração concluída nem deduzir homologação MSSQL.
 
 ### Trabalho em ordem
 
-- [ ] **M01 — Identificar o alvo.** Registrar alias SQL real, banco, endpoint,
+O responsável ampliou a análise em 2026-10-08 após os aceites HTTP: acesso ao
+header/varredura automática do dataset, encoding/collation e tamanhos/decimais
+lógicos. Uma prova com constantes revelou perda numérica FLOAT no JSON e a
+inspeção dos fontes encontrou inconsistência de codepage TCP. São novas
+constatações de aceite, sem motivo para repetir o inventário concluído.
+
+- [x] **D01 — Revisar a interface consumidora.** Conferir exemplos locais
+  FileRead/FileNavigator fornecidos; adotar `MoreToRead()` e métodos de metadados,
+  preservando `Eof()`/`Skip()` locais à página e `DSStruct()` do usuário.
+- [ ] **D02 — Homologar a extensão TLPP do dataset.** Compilar/exercitar cópias
+  de cabeçalho/campo/linha, ordem das colunas, varredura automática, verificações
+  repetidas, vazio/fechado e falha/recuperação de página. Novos mocks sem dados ERP.
+  Implementação e fixture de 45 checks preparados. A tentativa de compilação de
+  2026-10-08 falhou antes de compilar os fontes: `COMPILEERROR-300`, RPO custom
+  em uso (`tmp/totvs-compile.log`, thread 36788). Aceite de execução pendente.
+- [ ] **D03 — Corrigir integridade textual e numérica.** Garantir execução/
+  transporte UTF-8 consistentes, conversão textual cliente explícita e binários;
+  corrigir a perda FLOAT fracionária reproduzida no JSON e definir decimal
+  exato/metadados nativos versus lógicos do chamador sem consultas ERP implícitas.
+  Veja [constatações e contrato](docs/dataset.pt-BR.md). Os aceites ASCII/DECIMAL
+  anteriores não homologam esses casos recém-identificados.
+- [x] **S01 — Ampliar desenho de credenciais.** Abranger SQL, NETIO/admin e
+  HTTP no hbBridge e segredos cliente locais do AppServer, chaves externas por
+  instalação, provedores portáveis e suporte TLPP verificado separadamente.
+  Criptografia permanece sem implementação; o [escopo](docs/credentials.pt-BR.md)
+  registra o restante. Senhas SQL estáveis/atualizações manuais mantidas.
+
+- [x] **M01 — Identificar o alvo.** Registrar alias SQL real, banco, endpoint,
   versão MSSQL, driver/versão/arquitetura ODBC, método de autenticação e
   identidade do processo hbBridge. Verificar acesso à configuração privada.
   Senhas, tokens e strings completas com credenciais ficam fora de Git/WIP.
-- [ ] **M02 — Preparar aceite reproduzível.** Usar o [launcher SQL](examples/sql/README.pt-BR.md)
+- [x] **M02 — Preparar aceite reproduzível.** Usar o [launcher SQL](examples/sql/README.pt-BR.md)
   e INI/JSON privado. Preparar uma rota de teste MSSQL real opt-in, separada da
   suíte SQLite padrão. Falta de conector/configuração obrigatória é falha de
   pré-requisito, nunca teste MSSQL bem-sucedido. Identificar o backend no resultado.
-- [ ] **M03 — Homologar SQL Harbour.** Executar SELECTs de constantes e fixture
+- [x] **M03 — Homologar SQL Harbour.** Executar SELECTs de constantes e fixture
   reproduzível com colunas nomeadas, números/decimais suportados, nulos, datas
   e textos acentuados/Unicode. Definir representações esperadas antes das
   asserções; registrar restrições de runtime/tipo sem conversão silenciosa.
-- [ ] **M04 — Homologar TCP Protheus.** Executar
+- [x] **M04 — Homologar TCP Protheus.** Executar
   [U_HBBridgeQueryTest](src/tlpp/tests/protheus/hbbridgequerytest.tlpp) no alias
   MSSQL explícito, incluindo os 29 checks. Acrescentar casos de backend
   necessários ao produto/testes compartilhados, sem outra implementação Query.
-- [ ] **M05 — Homologar HTTP Protheus.** Executar
+- [x] **M05 — Homologar HTTP Protheus.** Executar
   [U_HBBridgeHTTPTest](src/tlpp/tests/protheus/hbbridgehttptest.tlpp) com o mesmo
   alias MSSQL explícito e dataset comum. Conferir perfil/backend escolhido,
   valores e páginas; sucesso HTTP genérico não basta.
@@ -128,15 +156,83 @@ Qualquer alteração do escopo/critério obrigatório deve ser registrada antes 
 
 ### Pré-requisitos atuais e nota para retomada
 
-Endpoint/banco/ODBC/autenticação/configuração privada específicos ainda não
-foram confirmados para este pacote. É um pré-requisito pendente, sem evidência
-de conexão malsucedida. O ambiente Protheus informado usa MSSQL, mas seu
-DBAccess não define um perfil de conexão hbBridge. Enquanto os dados do
-ambiente estiverem pendentes, preparar tarefas independentes do próprio aceite.
+O inventário local somente de leitura identificou a instância padrão
+`MSSQLSERVER` ativa, escutando em TCP 1433. O DSN ODBC `pData` de 64 bits aponta
+para `(local)` e banco `pData`. Microsoft ODBC Driver 18 for SQL Server instalado, versão
+do produto **18.6.2.1**, x64; Driver 17 também disponível. Identidade do console:
+`DNA-TECH-01\marin`; identidades de serviço exigem homologação separada.
 
-Progresso/evidência: P01/P02 concluídas; tarefas MSSQL continuam pendentes.
-Próxima ação: M01. Registrar novos progressos/evidências aqui em ambos os
-idiomas; não reiniciar M01 quando suas informações estiverem registradas e válidas.
+O operador escolheu preencher um INI privado, sem conexão pronta.
+`C:/tmp/hbBridge.ini` continha inicialmente apenas o perfil SQL `sqlite_demo`.
+Em 2026-10-08 foi acrescentado um modelo comentado `mssql/pData`, com backup
+privado e preservação byte a byte das configurações existentes. Ele usa DSN
+`pData` instalado, `Authentication=sql` explícita e campos `Username`/`Password`
+vazios para preenchimento local e remoção dos comentários pelo operador. A
+política local explícita `Encrypt=optional` acompanha o DSN de desenvolvimento;
+TLS de uma instalação exige sua configuração de certificado. Nenhuma credencial
+SQL foi lida do DBAccess, alterada no ODBC ou guardada no repositório.
+
+O operador habilitou o perfil e preencheu as credenciais durante este trabalho.
+A configuração estruturada foi validada sem exibir valores. Uma prova somente
+de leitura com `System.Data.Odbc`, as credenciais privadas e autenticação SQL
+conectou ao **SQL Server 16.0.1200.5**, banco **pData**, em 2026-10-08.
+M01 está concluída. Nenhuma credencial foi alterada ou copiada ao repositório.
+
+A rota nativa dedicada compilou. Quatro casos controlados de argumento/
+configuração/perfil ausente ou backend incorreto retornaram saída 2, sem abrir
+conexão SQL. M02 está concluída. A rota opt-in é
+`scripts/test-hbbridge-mssql.ps1 -Config C:/tmp/hbBridge.ini -Profile mssql/pData`;
+compila componentes compartilhados independentemente do host instalado e
+informa falta de pré-requisito com saída 2. Sua primeira conexão nativa real
+retornou `CONNECTION_FAILED`: uma comparação reproduziu Driver Manager `IM002`
+com `DSN={pData}` e conectou com `DSN=pData` sem chaves. Essa serialização
+foi corrigida mantendo o escape de credenciais. O serializador corrigido
+conectou nativamente. As fixtures revelaram então o tratamento incorreto de
+`SQL_NO_TOTAL` pelo SDDODBC na conversão VARCHAR/Unicode e um erro de flag
+binária. Um patch verificado do conector em cópia gerenciada preserva dados
+variáveis, vazio/nulo e blocos UTF-16, sem alterar o checkout fixado original.
+O patch do conector também converte pares substitutos UTF-16 em UTF-8 válido,
+inclusive quando separados entre blocos. Em 2026-10-08 a fixture nativa passou
+em **92 checks, zero falhas/sem skips**, incluindo VARCHAR/NVARCHAR/binários
+longos, NUL embutido, vazio/nulo, Unicode suplementar, datas/timestamps,
+paginação, recuperação, restauração dos recursos do chamador e quatro workers
+sem mistura de resultados. Evidências:
+`tmp/mssql-tests-b3d676f0daaf470a97af605a98a9681c/results.log` e
+`tmp/mssql-native-normalized-20261008.log`. M03 concluída neste alvo Windows.
+A referência do núcleo leu 1000 linhas constantes em três execuções:
+31/32/31 ms, total 94 ms, concorrência 1, incluindo conexão/materialização/
+desconexão; memória não medida. M06/M07 têm evidência parcial; conexão
+indisponível/timeout nativo controlados e isolamento ampliado de perfis faltam.
+M08 ainda exige TCP/HTTP e memória. A regressão padrão passou em **566 checks,
+zero falhas/sem skips**: `tmp/tests-f84004277a8d4cc2905131f706a1e181/results.log`.
+
+O operador forneceu execuções TCP em 2026-10-08, horário de São Paulo:
+`U_HBBridgeQueryTestMSSQL`, 10:06:10, thread 660, perfil `mssql/pData`, e
+`U_HBBridgeQueryTestSQLite`, 10:06:43, thread 3192, perfil `sqlite_demo`.
+Ambos os relatos contêm os 29 checks verdadeiros. O operador acrescentou esses
+wrappers ao teste TLPP existente; seus padrões continuam somente nos testes,
+sem alterar o alias SQL opcional do produto. Evidência:
+`tmp/protheus-mssql-sqlite-operator-20261008.log`. M04 homologada nos casos
+exercitados; sem novo log de compilador ou hash do artefato servidor fornecido.
+
+O operador também forneceu execuções HTTP em 2026-10-08, horário de São Paulo:
+`U_HBBridgeHTTPTestMSSQL`, programa 10:33:32, thread 25976, corpo 10:33:33–34,
+e `U_HBBridgeHTTPTestSQLite`, programa 10:34:06, thread 9916, corpo 10:34:07.
+Ambas contêm os 13 checks true/PASS e Health HTTP 200. Os wrappers acrescentados
+pelo operador e conferidos no fonte definem `mssql/pData` e `sqlite_demo`,
+respectivamente, encaminhando ao teste HTTP comum; padrões da biblioteca preservados.
+Evidência: `tmp/protheus-http-mssql-sqlite-operator-20261008.log`.
+M05 homologada nesses casos. A duração informada de 1 s/0 s tem resolução de
+segundos inteiros e não substitui as medições de M08. Sem log de compilador,
+argumentos explícitos da chamada ou hash do artefato servidor fornecidos.
+HTTPS, transporte ampliado de tipos nativos e Linux têm aceites separados.
+
+Progresso/evidência: P01/P02 e M01–M05 concluídas nos casos exercitados.
+Tratar D02/D03 da nova solicitação antes de retomar M06 com conexão
+indisponível/timeout nativo controlados, erros sanitizados e recuperação;
+SQL inválido/perfil desconhecido já têm evidências no núcleo e TCP.
+Sem nova evidência que exija revisão, não repetir migração, inventário ou
+casos nativos/TCP/HTTP homologados. M07–M09 e critérios do pacote permanecem.
 
 ## Pacotes seguintes: direção reservada
 

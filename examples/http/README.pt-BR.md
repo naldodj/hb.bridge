@@ -85,8 +85,22 @@ após alinhar o INI do AppServer ativo, ou invoque com valores explícitos:
 U_HBBridgeHTTPTest("http://127.0.0.1:8080", "<service-secret>", 30, "sqlite_demo")
 ```
 
+As entradas de conveniência selecionam aliases locais de fixture e
+reutilizam o teste comum, lendo URL/token/timeout omitidos do INI AppServer ativo:
+
+```advpl
+U_HBBridgeHTTPTestMSSQL()  // Perfil SQL mssql/pData
+U_HBBridgeHTTPTestSQLite() // Perfil SQL sqlite_demo
+```
+
+Os argumentos seguem a ordem de `U_HBBridgeHTTPTest`; o quarto argumento
+explícito substitui o alias de fixture. Esses aliases são padrões dos testes,
+não configuração obrigatória da biblioteca. Entradas WebApp:
+[MSSQL](https://localhost:4321/webapp/?p=U_HBBridgeHTTPTestMSSQL&e=PROTHEUS),
+[SQLite](https://localhost:4321/webapp/?p=U_HBBridgeHTTPTestSQLite&e=PROTHEUS).
+
 Os argumentos são URL, token do serviço, timeout em segundos, perfil SQL e
-módulo addon. O perfil SQL omitido usa `[hbBridge] SQLProfile`; quarto argumento
+módulo addon. Na entrada genérica, o perfil SQL omitido usa `[hbBridge] SQLProfile`; quarto argumento
 explicitamente vazio pula SQL. O addon padrão é
 `examples/hbbridgesampleaddon.hb` no **servidor**, e quinto argumento
 explicitamente vazio pula sua execução. Para serviços sem essas fixtures:
@@ -167,7 +181,8 @@ retornaram verdadeiro: Health por GET/POST, descoberta de serviços, Echo de
 administração proibida (403), token inválido (401 normalizado), recuperação
 após falha e duas páginas de query com seus valores.
 
-A saída fornecida não identifica o alias SQL nem o SGBD. Ela confirma a
+A saída fornecida de 2026-10-07 não identifica o alias SQL nem o SGBD. Ela
+confirma a
 paginação no perfil selecionado e não comprova homologação MSSQL.
 Cobertura ampla de Unicode/codepages, HTTPS e configurações alternativas do
 cliente continuam pendentes. Consulte [o registro de homologação](../../docs/acceptance.pt-BR.md).
@@ -178,6 +193,22 @@ repetiu todas as **13 verificações com sucesso** na mesma data: thread
 **16:15:03–16:15:04**. Horários de São Paulo; ambas as execuções duraram um
 segundo, com Health HTTP 200, addon e valores paginados aprovados. São relatos
 do operador, sem execução AppServer pelo agente nem log do compilador fornecido.
-O teste Query acompanhante identifica `sqlite_demo`; os relatos HTTP não
-identificam seu próprio SGBD nem o argumento real do módulo. Homologação MSSQL
-continua separada; a [matriz](../../docs/acceptance.pt-BR.md) registra o escopo exato.
+O teste Query acompanhante identifica `sqlite_demo`; aqueles relatos HTTP
+de 2026-10-07 não identificam seu próprio SGBD nem o argumento real do módulo.
+
+Em **2026-10-08**, o operador passou nas **13 verificações de cada backend**
+pelas entradas dedicadas acima. MSSQL: thread **25976**, início do programa
+**10:33:32**, teste **10:33:33–10:33:34**, duração exibida de um segundo.
+SQLite: thread **9916**, início do programa **10:34:06**, teste **10:34:07**,
+duração exibida de zero segundos. Horários locais de São Paulo. Ambas as
+rotas passaram em Health, descoberta, Echo/acento, addon, falha/recuperação e
+primeira/próxima página e valores do dataset comum. Os padrões das entradas
+identificam `mssql/pData` e `sqlite_demo`; o cliente genérico continua sem alias forçado.
+
+São execuções AppServer do operador, separadas dos **92 checks nativos MSSQL**
+e das **566 regressões Harbour padrão** já registradas. Transcrição:
+`tmp/protheus-http-mssql-sqlite-operator-20261008.log`. HTTPS, Linux,
+Unicode/tipos SQL ampliados, falhas controladas de rede/driver, isolamento de
+recursos e medições de desempenho HTTP precisam de homologação própria. Veja
+[a matriz](../../docs/acceptance.pt-BR.md) e a próxima tarefa M06 no
+[WIP](../../WIP.pt-BR.md).

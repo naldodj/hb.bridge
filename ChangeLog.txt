@@ -5,6 +5,67 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Add native service registry and host runtime)"
  */
 
+2026-10-08 19:34 UTC naldodj (Extend dataset navigation and review data integrity)
+  * HBBridgeRPCDataSet and paired dataset, SQL, acceptance and test guides
+    + MoreToRead fetches the next page at page EOF; preserve local Eof/Skip.
+    + Header/DSStruct, FieldInfo and GetRow return independent JSON copies;
+      FieldCount/FieldName cache and expose original SQL column order.
+    + Isolated U_HBBridgeDataSetTest prepares 45 checks and 17 mock calls
+      for metadata, traversal, repeated checks and failed-page recovery.
+    ! Declare the operator query sample's field count and initialize its
+      record counter; preserve the supplied SQL and manual navigation.
+  ! Read-only MSSQL constant probe found native FLOAT 123.4567 serialized
+    as JSON 123; TCP also lacks HTTP's explicit UTF8EX execution.
+    Record pending corrections and separate SQL storage, caller logical
+    field definitions and wire representation; no automatic SX3/TOP_FIELD.
+  * Expand credential design to SQL, NETIO/admin and HTTP on hbBridge and
+    client secrets on AppServer, with external keys and portable providers.
+    Encryption remains unimplemented; no credentials or private INI changed.
+  ; TLPP build attempt failed before source compilation: COMPILEERROR-300,
+    custom RPO in use, total/success/errors 0/0/0; active AppServer not stopped.
+    New TLPP runtime acceptance and integrity corrections remain in WIP.
+    Ignore native TLPP preprocessor output (.erx_tlpp/.ppx_tlpp) as build files.
+  ; Three commit validators/conventions passed for 150 files; local links
+    across 63 documents and whitespace passed; full native suite not repeated.
+
+2026-10-08 13:35 UTC naldodj (Accept operator MSSQL and SQLite HTTP tests)
+  * Paired acceptance records for the operator's HTTP test wrappers
+    + MSSQL mssql/pData: all 13 checks true/PASS, Health HTTP 200,
+      2026-10-08 10:33:33-10:33:34 Sao Paulo, thread 25976, elapsed 1 s.
+    + SQLite sqlite_demo: all 13 checks true/PASS, Health HTTP 200,
+      10:34:07, thread 9916, elapsed 0 s at one-second resolution.
+    + Record the supplied transcript and accept WIP M05 for the exercised
+      common HTTP/dataset cases; controlled failure/timeout work is next.
+  ; Operator runtime evidence without compiler log or artifact hashes;
+    no performance benchmark, HTTPS/Linux or expanded SQL-type claim.
+  ; Preserve the operator's TLPP wrappers and historical acceptance;
+    documentation only, without builds or host/configuration changes.
+  ; Three commit validators/conventions passed for 146 files; local links
+    across 61 documents and whitespace passed; native regressions not repeated.
+
+2026-10-08 13:20 UTC naldodj (Accept native MSSQL and Protheus TCP queries)
+  * INI/JSON SQL profiles and configuration regressions
+    + Structured SQL/integrated authentication, DSN/DSN-less destination,
+      optional TLS policy and escaped credential fields; retain full strings.
+    ! Serialize validated DSNs without braces for the native ODBC manager.
+  + Checked staged SDDODBC patch and managed preparation/cache
+    ! Preserve SQL_NO_TOTAL variable data, binary flags, empty/NULL/NUL values
+      and UTF-16 surrogate pairs in UTF-8; propagate native read failures.
+    + Integrate connector preparation into bootstrap, build and test scripts,
+      preserving the pinned Harbour source checkout and runtime capacities.
+  * Extend the opt-in shared-core MSSQL fixture and paired EN/PT guides
+    + Native MSSQL: 92 checks, zero failures/no skips; SQL Server 16.0.1200.5,
+      database pData, ODBC Driver 18.6.2.1 x64, SQL authentication, UTF8EX.
+    + Operator TCP: all 29 checks for mssql/pData and all 29 for sqlite_demo,
+      2026-10-08, threads 660/3192; preserve the operator's TLPP test wrappers.
+    + Native baseline: 1000 rows, three executions, 31/32/31 ms; memory not
+      measured. Mark WIP M01-M04 complete; explicit MSSQL HTTP is next.
+  ; Full regression: 566 checks, zero failures/no skips; isolated product
+    build and sanitized configuration checks passed. All three commit
+    validators passed for 146 files; documentation links/whitespace checked.
+  ; Credentials remain in the private local INI; no ERP-table writes,
+    installed-host replacement, automatic password rotation or publication.
+
 2026-10-07 23:37 UTC naldodj (Scope credential management to stable SQL passwords)
   * Paired credential/configuration design, TODO and WIP
     + Record the owner's operational requirement: stable SQL credentials,

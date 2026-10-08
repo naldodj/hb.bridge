@@ -66,8 +66,9 @@ O operador homologou **13 checks** em 2026-10-07, thread 25672. As rodadas
 posteriores passaram nos 13: thread 27296 (programa às 16:10:40, teste
 16:10:44–16:10:45) e thread 25456 (programa às 16:15:02, teste
 16:15:03–16:15:04), cada uma em um segundo. Horários locais de São Paulo.
-Essa prova AppServer é separada do runner Harbour. Os relatos HTTP não
-identificam perfil/backend SQL nem comprovam HTTPS/Unicode mais amplo.
+Essa prova AppServer é separada do runner Harbour. Os relatos HTTP de
+2026-10-07 não identificam perfil/backend SQL nem comprovam HTTPS/Unicode
+mais amplo; as rodadas identificadas de 2026-10-08 estão registradas abaixo.
 
 [hbbridgequerytest.tlpp](../src/tlpp/tests/protheus/hbbridgequerytest.tlpp)
 acrescenta `U_HBBridgeQueryTest`: campos por nome, decimal, EOF, fechamento,
@@ -83,7 +84,8 @@ Na nova rodada manual registrada na sessão de 2026-10-04, confirmou novamente
 os 29 checks verdadeiros no perfil `sqlite_demo`, junto do novo teste de
 configuração cliente. Em 2026-10-07 às 16:13:33, thread 27136, o log
 reconfirmou todos os 29 checks verdadeiros com `profile=sqlite_demo`.
-MSSQL real permanece pendente.
+Naquela rodada MSSQL real ainda estava pendente; o aceite nativo e TCP
+posterior, de 2026-10-08, está registrado abaixo.
 
 Com a seção `[hbBridge]` do AppServer alinhada ao servidor, abra
 [U_HBBridgeQueryTest no WebApp](https://localhost:4321/webapp/?p=U_HBBridgeQueryTest&e=PROTHEUS).
@@ -161,9 +163,58 @@ Config, Connection e HTTP aceitam a regressão das classes/namespace TLPP
 renomeados e dos novos caminhos de addon `.hb` no Windows alvo.
 O log fornece horários/threads; não foram fornecidos log real do compilador,
 hashes, argumentos ou destino efetivo. O agente não executou esses testes.
-Continuam pendentes MSSQL real, backend SQL HTTP identificado, destino
+Em 2026-10-08, o operador forneceu **29 checks TCP
+MSSQL aprovados**, thread 660, e **29 checks TCP SQLite aprovados**, thread
+3192. As entradas de conveniência `U_HBBridgeQueryTestMSSQL()` e
+`U_HBBridgeQueryTestSQLite()` selecionam aliases locais de exemplo; o cliente
+genérico continua sem perfil forçado. Esse resultado do operador é separado
+dos 92 checks MSSQL nativos abaixo.
+
+Depois, o operador passou nos **13 checks HTTP de cada backend**, em 2026-10-08:
+`U_HBBridgeHTTPTestMSSQL`, thread 25976, início do programa 10:33:32, teste
+10:33:33–10:33:34 (um segundo); `U_HBBridgeHTTPTestSQLite`, thread 9916,
+início do programa 10:34:06, teste 10:34:07 (zero segundos exibidos). Horários
+de São Paulo. Ambos incluem primeira/próxima página e valores do dataset
+comum; os padrões das entradas selecionam `mssql/pData` e `sqlite_demo`.
+São execuções AppServer do operador, separadas da automação nativa. Transcrição:
+`tmp/protheus-http-mssql-sqlite-operator-20261008.log`.
+Veja [homologação](../docs/acceptance.pt-BR.md). A nova solicitação de dataset e
+as falhas UTF-8/FLOAT têm prioridade como D02/D03 no [WIP](../WIP.pt-BR.md),
+antes de M06, falhas controladas/recuperação. Esses relatos não implicam nova rodada nativa.
+
+Uma prova posterior de constantes somente para leitura mostrou que
+`CAST(123.4567 AS FLOAT)` continuou fracionário nativamente, mas virou `123`
+no JSON; `DECIMAL(15,4)` virou `123.4567` e `DECIMAL(16,2)` virou `123.46`.
+Os 92 checks nativos não cobriam esse caso de FLOAT sem CAST decimal no JSON.
+O TCP também não seleciona `UTF8EX` como o HTTP e usa CP437 por padrão.
+Os resultados das fixtures existentes não certificam precisão arbitrária nem
+acentos TCP. As correções e os checks de equivalência dos transportes continuam
+pendentes; veja [a análise](../docs/dataset.pt-BR.md).
+
+Continuam pendentes HTTPS, identidades integrada/de serviço, destino
 alternativo com argumentos omitidos, Linux e os cenários de falha/timeout,
 precisão/wrap, capacidades e tipos ampliados da [matriz](../docs/acceptance.pt-BR.md).
+
+## Checks TLPP isolados do dataset
+
+Compile toda a árvore `src/tlpp`, incluindo os novos
+[HBBridgeDataSetMockClient](../src/tlpp/tests/protheus/hbbridgedatasetmockclient.tlpp)
+e [U_HBBridgeDataSetTest](../src/tlpp/tests/protheus/hbbridgedatasettest.tlpp),
+e execute `U_HBBridgeDataSetTest()` ou a
+[entrada WebApp](https://localhost:4321/webapp/?p=U_HBBridgeDataSetTest&e=PROTHEUS).
+Não requer listener hbBridge, perfil SQL, credenciais nem tabela ERP.
+
+O resultado esperado de sucesso tem **45 checks e 17 chamadas simuladas**.
+O teste cobre `MoreToRead()` entre páginas; verificações repetidas sem consumir
+linhas; `Eof()`/`Skip()` locais à página preservados; cópias independentes de
+`Header()`/`DSStruct()`/`FieldInfo()`; ordem de colunas com `FieldCount()`/
+`FieldName()`; cópia em `GetRow()`; estado vazio/fechado, metadados inválidos
+e falha/recuperação de página. A tentativa de compilação do agente em
+2026-10-08 retornou exit 1, `COMPILEERROR-300 Failed to open repository`, pois
+`custom.rpo` estava em uso; total/sucessos/erros foram `0/0/0`, sem compilação dos
+fontes. Log: `tmp/totvs-compile.log`. O AppServer ativo não foi parado. Os
+novos fontes ainda requerem compilação e execução; contagens esperadas não
+são resultados homologados. Veja [API do dataset e falhas de integridade](../docs/dataset.pt-BR.md).
 
 ## Regressoes Harbour existentes
 
@@ -223,6 +274,45 @@ nativos, core, descoberta, addons, VF IO binario, admin separado, filtros RPC,
 credenciais e parada/reinicio/rollback. As portas NETIO/admin dos testes sao
 selecionadas entre portas livres; nao usa nem para os endpoints da instalacao.
 
+## Homologação MSSQL real do núcleo opt-in
+
+Prepare um perfil privado com as [chaves de credenciais](../docs/configuration.pt-BR.md)
+e execute:
+
+```powershell
+./scripts/test-hbbridge-mssql.ps1 -Config C:/tmp/hbBridge.ini -Profile mssql/pData
+```
+
+O [alvo MSSQL](integration/harbour/hbbridgemssqltest.hbp) usa os componentes
+compartilhados do produto e um alias explícito. Não abre listeners do host nem
+substitui o executável ativo. Fixtures de constantes somente de leitura cobrem
+resultados nomeados, tipos nativos/nulos/Unicode, páginas, recuperação,
+restauração da workarea/conexão do chamador, quatro chamadas concorrentes e
+três execuções de referência com 1000 linhas. Tipos e valores esperados são
+declarados antes das asserções; representações incompatíveis falham, sem
+conversão silenciosa para obter aprovação.
+
+Saída 2 indica pré-requisito ausente/inválido, incluindo perfil inexistente ou
+falha na conexão inicial; saída 1 indica falha de asserção/runtime. Somente a
+saída 0 após executar as verificações homologa essa rota do núcleo. Os logs em
+`tmp/mssql-tests-<id>/results.log` omitem strings de conexão e erros brutos do
+driver. Essa rota é separada da suíte SQLite padrão e dos 29 checks TCP
+Protheus. Compilação ou verificação de pré-requisito não homologa valores
+MSSQL nem execução AppServer/HTTP.
+
+A execução de 2026-10-08 passou em **92 checks, zero falhas e nenhum skip**
+com SQL Server `16.0.1200.5`, banco `pData`, ODBC Driver `18.6.2.1`, Windows x64
+e Harbour `UTF8EX`, autenticação SQL e alias `mssql/pData`. Log:
+`tmp/mssql-tests-b3d676f0daaf470a97af605a98a9681c/results.log`.
+O [patch SDDODBC](../config/patches/sddodbc.patch) preparado pelo build cobre
+leitura incremental de `SQL_NO_TOTAL`, flag de campo binário e pares
+substitutos UTF-16 em UTF-8. As fixtures preservam texto/binário longos, NULs
+embutidos, valores vazios e NULLs. Os buffers de chunks não impõem teto total
+de payload da aplicação. A referência de 1000 linhas executou três vezes em
+31/32/31 ms, total 94 ms, concorrência um, sem medir memória. É uma referência
+local, não uma garantia de desempenho. Veja [homologação](../docs/acceptance.pt-BR.md)
+para o escopo preciso e os cenários restantes.
+
 ## Proximas verificacoes
 
 - Validar chamadas sequenciais persistentes antes de pool e multiplexacao;
@@ -237,7 +327,7 @@ selecionadas entre portas livres; nao usa nem para os endpoints da instalacao.
 - Homologar no AppServer timeout, falhas de conexão e envios parciais forçados,
   incluindo os retornos de `Receive`/`GetError`; o fluxo normal já foi aceito.
 - Verificar a configuração cliente com destino/porta diferentes dos padrões
-  e manter MSSQL real e outras plataformas na matriz de homologação.
+  e ampliar MSSQL HTTP, tipos Protheus e outras plataformas na matriz de homologação.
 - Testar limites de bytes comprimidos e descomprimidos, truncamento,
   timeout e entradas invalidas.
 - Validar políticas positivas e desativadas com `0`, buffers configuráveis e

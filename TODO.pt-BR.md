@@ -102,7 +102,8 @@ Recursos disponíveis no Harbour só serão considerados integrados após os ace
 - [x] `RPCRDD.Query` com SQLMIX/SQLite/MSSQL-ODBC, resultados por chave,
   páginas no SGBD e cliente `HBBridgeRPCDataSet`; SQLite AppServer aceito em 2026-10-04,
   com 29 checks verdadeiros; reconfirmado em 2026-10-07 às 16:13:33,
-  thread 27136, `profile=sqlite_demo`. MSSQL real pendente.
+  thread 27136, `profile=sqlite_demo`. Em 2026-10-08 passaram 92 checks MSSQL
+  nativos, 29 TCP e 13 HTTP em cada banco MSSQL/SQLite.
 - [x] Módulo Syslog UDP disponível, ainda sem ligação ao fluxo de chamadas.
 - [x] Contrato único `HBBRIDGE/1`, JSON e gzip, com constantes compartilhadas em `includes/hbbridge.h`.
 - [x] Regressões Harbour de `Echo`, erros e rejeição de entradas fora do contrato do produto.
@@ -528,13 +529,26 @@ testado; somente versões e capacidades efetivamente implementadas são anunciad
 - [x] Escolher SQLite para a primeira regressão real, mantendo MSSQL/ODBC como
   segundo backend. Dependências e resultados em `docs/milestone3-sql.pt-BR.md`.
 - [x] Habilitar `rddsql`/`SQLMIX` com `sddodbc` para MSSQL e `sddsqlt3` para SQLite.
-- [ ] Homologar conexão/consulta/paginação com MSSQL real e registrar driver,
-  DSN, versão do servidor e bibliotecas cliente.
+- [x] Homologar conexão/consulta/paginação MSSQL nativa: 92 checks em 2026-10-08,
+  SQL Server 16.0.1200.5, banco/DSN pData, ODBC Driver 18.6.2.1 x64,
+  autenticação SQL; textos/binários longos, vazio/nulo, Unicode e liberação.
+- [x] Homologação Protheus TCP MSSQL e SQLite pelo operador: 29 checks cada,
+  2026-10-08, perfis `mssql/pData` e `sqlite_demo`.
+- [x] Homologação HTTP Protheus MSSQL/SQLite explícita pelo operador: 13 checks
+  cada, 2026-10-08, wrappers `mssql/pData`/`sqlite_demo`, threads 25976/9916.
+- [ ] Casos restantes de falha/timeout, isolamento e baseline de transporte/
+  memória do [WIP](WIP.pt-BR.md).
 - [ ] Avaliar `hbodbc`/`hbsqlit3` quando a operação exigir a API direta.
 - [x] Implementar `RPCRDD.Query` no registro/dispatcher, com perfil lógico,
   `alias`, `sql`, metadados e retorno por chave com contagem/versão explícitas.
 - [x] Atualizar exemplos de perfis para MSSQL/SQLite, mantendo credenciais no
   servidor; arquivos JSON/INI não implementam criptografia nesta etapa.
+- [x] Chaves MSSQL estruturadas para autenticação SQL/integrada explícita,
+  destino DSN ou sem DSN e política TLS opcional; construir a string ODBC no
+  servidor, preservando a alternativa de string completa sem misturar formas.
+- [x] [Teste MSSQL do núcleo opt-in](scripts/test-hbbridge-mssql.ps1), com
+  configuração/perfil privados explícitos e falta de pré-requisito sem sucesso.
+  Compilar essa rota não homologa conexão com o banco.
 - [x] Implementar `HBBridgeRPCDataSet` com JSONObject e `U_HBBridgeQueryTest`, incluindo
   páginas explícitas, erros, EOF e fechamento; fontes sob `src/tlpp/`.
 - [x] Preparar `examples/sql/run.ps1` com perfil SQLite padrão, configuração/
@@ -549,9 +563,18 @@ testado; somente versões e capacidades efetivamente implementadas são anunciad
 - [x] Integrar regressões com SQLite em arquivo, chamadas concorrentes e o
   mesmo serviço por cliente Harbour NETIO e TCP/JSON.
 - [x] Registrar o aceite SQLite Protheus informado pelo operador, distinguindo-o
-  da regressão Harbour. Aceite MSSQL continua pendente.
+  da regressão Harbour. MSSQL nativo/TCP homologado em 2026-10-08;
+  HTTP MSSQL/SQLite homologado com 13 checks cada no mesmo dia;
+  demais plataformas/tipos mantêm seus próprios aceites.
 
 ### Evolução do acesso a dados
+
+- [ ] Correção de integridade UTF-8/FLOAT identificada no aceite: TCP atual pode
+  usar CP437 Harbour e a prova de 2026-10-08 perdeu fração FLOAT no JSON.
+  Separar metadados SQL nativos, definições lógicas do chamador e valores no
+  transporte; SX3/TOP_FIELD resolvidos no Protheus. [Análise](docs/dataset.pt-BR.md).
+- [ ] Homologação AppServer de Header/DSStruct, FieldInfo/FieldCount/FieldName/
+  GetRow e varredura MoreToRead entre páginas, incluindo falhas na busca.
 
 - [ ] Adicionar parâmetros SQL e metadados de tipo, tamanho, precisão e nulos,
   com evolução compatível do cabeçalho atual.
@@ -673,10 +696,12 @@ disponibilidade consultável, sem alterar os transportes para cada extensão.
   GET/POST/bearer, erros JSON e dataset SQL existente. Operador homologou os
   13 checks em 2026-10-07, inicialmente thread 25672; reconfirmados nas threads
   27296 (16:10:44–16:10:45) e 25456 (16:15:03–16:15:04), cada uma em um segundo,
-  horário de São Paulo. Backend SQL HTTP não identificado.
+  horário de São Paulo; backend SQL dessas execuções não identificado.
+  Em 2026-10-08 os wrappers MSSQL/SQLite passaram nos 13 checks cada, threads
+  25976/9916, incluindo valores de páginas inicial/seguinte/final com aliases explícitos.
   Veja o [exemplo](examples/http/README.pt-BR.md).
 - [ ] Ampliar aceite HTTP TLPP para configuração alternativa, falhas de transporte,
-  Unicode variado/maior, outras LIBs, HTTPS e backends SQL identificados.
+  Unicode variado/maior, outras LIBs, HTTPS e backends SQL adicionais.
 
 - [x] Adaptador opcional `hbhttpd` chama os mesmos serviços registrados que
   NETIO e Protheus. Credenciais HTTP e permissões administrativas separadas;
@@ -738,6 +763,10 @@ homologação operacional do conjunto.
   decodificar claims não equivale a autenticar a chamada.
 - [ ] Definir armazenamento de perfis/segredos, usando bibliotecas existentes
   quando houver criptografia em repouso e chaves externas ao repositório.
+- [ ] Aplicar referências/proteção a SQL, NETIO/admin e HTTP no hbBridge e aos
+  segredos cliente no Protheus; chaves externas distintas por instalação, sem
+  bootstrap RPC de segredos e com suporte TLPP nativo/provedor verificado.
+  Criptografia em arquivos e transporte autenticado têm aceites separados.
 - [ ] Desenho do pacote 003: provedor comum de credenciais no servidor com
   OpenBao KV v2/AppRole ou Agent/Proxy opcionais, referências configuradas
   autorizadas, validação de bootstrap/CA, cache/renovação de token/sanitização
