@@ -75,7 +75,7 @@ PROCEDURE M2FramingTests( nFailures, nChecks )
     M1Assert( hResponse == NIL .AND. nWireSize == 0, "M2 premature TCP EOF rejects an incomplete gzip trailer", @nFailures, @nChecks )
     hResponse := MTRequest( hServer[ "port" ], '{"service":"Echo","params":{"data":"still healthy"}}' )
     M1Assert( M2EchoMatches( hResponse, "still healthy" ), "M2 server remains usable after invalid compressed messages", @nFailures, @nChecks )
-    hResponse := MTRequest( hServer[ "port" ], '{"service":"ADDON.examples/hbbridgesampleaddon.prg","params":{}}' )
+    hResponse := MTRequest( hServer[ "port" ], '{"service":"ADDON.examples/hbbridgesampleaddon.hb","params":{}}' )
     M1Assert( HB_ISHASH( hResponse ) .AND. hResponse[ "code" ] == "SERVICE_NOT_FOUND", ;
         "M2 rejects unregistered addon aliases through the shared service contract", @nFailures, @nChecks )
     M2LargeEcho( hServer[ "port" ], cData, @nFailures, @nChecks )

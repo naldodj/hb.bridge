@@ -2,6 +2,11 @@
 
 [English](TODO.md)
 
+[WIP](WIP.pt-BR.md) registra o pacote ativo delimitado, tarefas ordenadas,
+decisões, pré-requisitos e evidências. Continue por ele, sem reanalisar todo
+este roadmap. Concilie itens concluídos aqui ao encerrar o pacote;
+commits/publicações intermediários preservam seu progresso. Pacote 001: MSSQL real.
+
 ## Alinhamento atual: executor, perfis e compilação
 
 hbBridge é um executor genérico. Protheus resolve regras de negócio, tenantID,
@@ -15,8 +20,9 @@ sqlite_demo pertence apenas ao exemplo SQLite. Cada `OpenSQL`/`OpenPage` escolhe
 um alias, como mssql/pData; barra e maiúsculas são preservadas sem dedução de
 driver, empresa ou filial. O teste sem alias/SQLProfile retorna PROFILE_REQUIRED
 antes da rede. Drivers atuais: sqlite e mssql; Oracle exige conector e aceite
-próprios. A nova configuração acrescenta três checks aos 13 antigos e as
-classes renomeadas precisam de nova compilação/homologação Protheus.
+próprios. A configuração revisada e as classes renomeadas foram homologadas
+pelo operador em 2026-10-07: os 16 checks passaram após recompilação informada
+na migração para `.hb`.
 
 O build usa dependências fixadas próprias em .deps/, resolvidas por
 scripts/bootstrap.ps1. O runtime compilado fornece hbrun/hbmk2; .hbcommit/
@@ -95,7 +101,8 @@ Recursos disponíveis no Harbour só serão considerados integrados após os ace
 - [x] Biblioteca `hbnetio` na composição `hbbridge.hbm`, com listener nativo integrado no marco 1.
 - [x] `RPCRDD.Query` com SQLMIX/SQLite/MSSQL-ODBC, resultados por chave,
   páginas no SGBD e cliente `HBBridgeRPCDataSet`; SQLite AppServer aceito em 2026-10-04,
-  com 29 checks verdadeiros. MSSQL real pendente.
+  com 29 checks verdadeiros; reconfirmado em 2026-10-07 às 16:13:33,
+  thread 27136, `profile=sqlite_demo`. MSSQL real pendente.
 - [x] Módulo Syslog UDP disponível, ainda sem ligação ao fluxo de chamadas.
 - [x] Contrato único `HBBRIDGE/1`, JSON e gzip, com constantes compartilhadas em `includes/hbbridge.h`.
 - [x] Regressões Harbour de `Echo`, erros e rejeição de entradas fora do contrato do produto.
@@ -145,9 +152,12 @@ arquivos e a validação sobre a revisão de referência `b45595b`.
   nomes/chamadas das fixtures HRB; automatizar o preparo sem skips na execução validada.
 - [x] Registrar a revisão Git de referência e comparar as regressões
   antes/depois da reorganização, distinguindo correções do próprio teste.
+- [x] Adotar `.hb` nos fontes Harbour próprios, `.tlpp` no Protheus e `.hrb`
+  nos addons compilados; migrar referências atuais de fontes/build/docs,
+  preservando nomes-base comuns, builds `.hbp` e suporte a addons `.prg`.
 - [x] Classificar os fontes entre host, núcleo, transportes, serviços,
   carregamento de addons, telemetria e clientes.
-- [x] Separar a entrada e o ciclo de vida do console em `src/hb/host/hbbridgemain.prg`;
+- [x] Separar a entrada e o ciclo de vida do console em `src/hb/host/hbbridgemain.hb`;
   o mesmo host será ampliado para serviço no marco 5.
 - [x] Mover o dispatcher existente para `src/hb/core/` e extrair handlers para
   `src/hb/services/`. Registro versionado e contexto nativo ficam no marco 1.
@@ -162,7 +172,7 @@ arquivos e a validação sobre a revisão de referência `b45595b`.
   referenciando addons e clientes compartilhados.
 - [x] Migrar testes e fixtures para `tests/integration/harbour/`; reunir os
   testes Protheus em `src/tlpp/tests/protheus/` para compilar a árvore TLPP inteira;
-  verificar `Health` e o addon PRG de exemplo também na suíte Harbour.
+  verificar `Health` e o addon Harbour de exemplo também na suíte Harbour.
 - [x] Criar `tests/unit/` e `tests/contract/` com escopo e estado documentados.
 - [x] Extrair testes dedicados de tipos/erros/registro para `tests/contract/`
   e criar unitários de configuração em `tests/unit/` no marco 1.
@@ -173,6 +183,10 @@ arquivos e a validação sobre a revisão de referência `b45595b`.
   verificações da referência normalizada e 74 após a extração, sem falhas.
 - [x] Reexecutar o teste TLPP real no AppServer após a reorganização, conforme
   homologação ; ambiente registrado na [matriz](docs/acceptance.pt-BR.md).
+- [x] Recompilar e homologar classes TLPP renomeadas e seleção de perfil revisada:
+  recompilação informada pelo operador após `.hb`; Query/Config/Connection/HTTP
+  passaram em 2026-10-07. Os 16 checks de configuração foram verdadeiros às
+  16:14:06, thread 30596; log real do compilador e hashes não fornecidos.
 
 **Aceite estrutural atingido:** produto e exemplo compartilham implementação e
 binário; a suíte Harbour e o build/CLI do produto foram validados. NETIO, serviço,
@@ -295,6 +309,11 @@ Depuração concorrente só será anunciada após suporte e testes dos workers.
   `U_HBBridgeQueryTest` com 29 checks verdadeiros em 2026-10-04.
   A tentativa de compilação pelo agente ficou bloqueada na parada dos
   processos; o aceite posterior é da execução manual informada pelo operador.
+- [x] Homologar a configuração revisada e as classes TLPP renomeadas em 2026-10-07
+  após recompilação informada: 16 checks verdadeiros, incluindo explicitProfile,
+  noForcedProfile e invalidProfile; regressões Query/relógio/RPC/HTTP passaram.
+  Horários/threads fornecidos; log real do compilador, hashes, argumentos e
+  destino efetivo não fornecidos. Veja [homologação](docs/acceptance.pt-BR.md).
 - [ ] Registrar rodada com Host/Port/SQLProfile diferentes dos padrões e
   argumentos omitidos, identificando o artefato e a configuração utilizados.
 - [x] Tornar payload/rede, buffer e prazo Protheus políticas explícitas da
@@ -318,6 +337,8 @@ Depuração concorrente só será anunciada após suporte e testes dos workers.
 - [x] Recompilar `src/tlpp/` e homologar Health, Echo e ADDON do marco 1
   no AppServer : 3 fontes compilados sem erros e teste
   real com sucesso, confirmado pelos logs em 2026-10-03.
+  Classes renomeadas e perfil revisado aceitos pelo operador na regressão de
+  2026-10-07 após recompilação informada.
 
 **Aceite:** cliente Harbour remoto conecta-se ao listener NETIO em 2941 e
 executa um serviço registrado e uma função do core. O Protheus continua
@@ -373,6 +394,9 @@ continuam pendentes.
 - [x] Homologar escala/avanço do `TimeCounter()` no Windows: `Unix=false`,
   delta bruto `1097.692700`, normalizado `1097.773500` ms após `Sleep(1000)`;
   teste de relógio `OK` informado pelo operador em 2026-10-04.
+  Reconfirmado em 2026-10-07 às 16:14:31, thread 27084: delta bruto
+  `1089.987500`, normalizado `1090.088100 ms`, `OK`; Health/ADDON e os dois
+  Echo exatos de 200.000 bytes também passaram, com gzip de 152.964 bytes.
 - [ ] Homologar `TimeCounter()` no Linux e ampliar precisão, ajustes de relógio
   e wrap no build alvo; detectar alterações de unidade
   no build alvo para manter o contorno compatível com futuras correções.
@@ -518,7 +542,8 @@ testado; somente versões e capacidades efetivamente implementadas são anunciad
   `scripts/run-hbbridge.ps1` também no exemplo mínimo.
 - [x] Homologar SQLite no Protheus com `HBBridgeRPCDataSet`: leitura por nome,
   decimal, vazio, consulta/perfil inválidos, recuperação, páginas, EOF e
-  fechamento; 29 checks verdadeiros em 2026-10-04 às 00:40:06.
+  fechamento; 29 checks verdadeiros em 2026-10-04 às 00:40:06, reconfirmados
+  em 2026-10-07 às 16:13:33, thread 27136, profile=sqlite_demo.
 - [ ] Homologar conexão SQL indisponível, tipos/nulos ampliados e volume real
   no AppServer; perfil desconhecido não comprova falha do conector.
 - [x] Integrar regressões com SQLite em arquivo, chamadas concorrentes e o
@@ -646,7 +671,10 @@ disponibilidade consultável, sem alterar os transportes para cada extensão.
 
 - [x] Cliente/exemplo HTTP TLPP com INI ativo do AppServer, FWRest nativo,
   GET/POST/bearer, erros JSON e dataset SQL existente. Operador homologou os
-  13 checks em 2026-10-07; veja o [exemplo](examples/http/README.pt-BR.md).
+  13 checks em 2026-10-07, inicialmente thread 25672; reconfirmados nas threads
+  27296 (16:10:44–16:10:45) e 25456 (16:15:03–16:15:04), cada uma em um segundo,
+  horário de São Paulo. Backend SQL HTTP não identificado.
+  Veja o [exemplo](examples/http/README.pt-BR.md).
 - [ ] Ampliar aceite HTTP TLPP para configuração alternativa, falhas de transporte,
   Unicode variado/maior, outras LIBs, HTTPS e backends SQL identificados.
 
@@ -710,6 +738,15 @@ homologação operacional do conjunto.
   decodificar claims não equivale a autenticar a chamada.
 - [ ] Definir armazenamento de perfis/segredos, usando bibliotecas existentes
   quando houver criptografia em repouso e chaves externas ao repositório.
+- [ ] Desenho do pacote 003: provedor comum de credenciais no servidor com
+  OpenBao KV v2/AppRole ou Agent/Proxy opcionais, referências configuradas
+  autorizadas, validação de bootstrap/CA, cache/renovação de token/sanitização
+  e aceite de ABI/memória Zig 0.16. Guardar credenciais SQL estáveis e permitir
+  atualização manual; rotação automática de senha SQL/plugins dinâmicos de
+  banco ficam fora deste escopo inicial. Renovar token do cofre ou substituir
+  chave de criptografia não muda a senha SQL. Veja a
+  [análise de credenciais](docs/credentials.pt-BR.md). Nenhum serviço implementado;
+  essa frente futura não é pré-requisito do pacote MSSQL 001.
 - [ ] Tornar concorrência, timeouts, filas e memória configuráveis; validar
   compatibilidade com threads das rotinas, drivers e extensões escolhidos.
 - [ ] Conectar Syslog ao ciclo do servidor e às chamadas, preservando operação

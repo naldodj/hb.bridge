@@ -3,7 +3,7 @@
 [Português (Brasil)](milestone1.pt-BR.md)
 
 The console host embeds the Protheus adapter and hbnetio in one process.
-Both use [the service registry](../src/hb/core/hbbridgedispatcher.prg).
+Both use [the service registry](../src/hb/core/hbbridgedispatcher.hb).
 The host creates/seals its catalog before listeners; mutable call parameters
 and results never belong to the shared catalog.
 

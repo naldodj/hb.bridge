@@ -88,7 +88,7 @@ U_HBBridgeHTTPTest("http://127.0.0.1:8080", "<service-secret>", 30, "sqlite_demo
 Os argumentos são URL, token do serviço, timeout em segundos, perfil SQL e
 módulo addon. O perfil SQL omitido usa `[hbBridge] SQLProfile`; quarto argumento
 explicitamente vazio pula SQL. O addon padrão é
-`examples/hbbridgesampleaddon.prg` no **servidor**, e quinto argumento
+`examples/hbbridgesampleaddon.hb` no **servidor**, e quinto argumento
 explicitamente vazio pula sua execução. Para serviços sem essas fixtures:
 
 ```advpl
@@ -171,3 +171,13 @@ A saída fornecida não identifica o alias SQL nem o SGBD. Ela confirma a
 paginação no perfil selecionado e não comprova homologação MSSQL.
 Cobertura ampla de Unicode/codepages, HTTPS e configurações alternativas do
 cliente continuam pendentes. Consulte [o registro de homologação](../../docs/acceptance.pt-BR.md).
+
+Após informar recompilação posterior à migração Harbour `.hb`, o operador
+repetiu todas as **13 verificações com sucesso** na mesma data: thread
+**27296**, teste **16:10:44–16:10:45**, e thread **25456**, teste
+**16:15:03–16:15:04**. Horários de São Paulo; ambas as execuções duraram um
+segundo, com Health HTTP 200, addon e valores paginados aprovados. São relatos
+do operador, sem execução AppServer pelo agente nem log do compilador fornecido.
+O teste Query acompanhante identifica `sqlite_demo`; os relatos HTTP não
+identificam seu próprio SGBD nem o argumento real do módulo. Homologação MSSQL
+continua separada; a [matriz](../../docs/acceptance.pt-BR.md) registra o escopo exato.

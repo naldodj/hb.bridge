@@ -208,4 +208,55 @@ O check do INI ativo confirma a leitura válida; destino diferente dos
 padrões e chamada sem argumentos precisam ser identificados em rodada
 própria. As 412 verificações Harbour daquela rodada permanecem um resultado
 independente. A validação gerenciada posterior teve 416 checks em 2026-10-04;
-renomes de classes e os 16 checks revisados ainda exigem novo aceite Protheus.
+esse resultado permanece separado do aceite AppServer.
+
+A recompilação informada pelo operador após a migração para `.hb` e o log
+fornecido de 2026-10-07 (horários de São Paulo) aceitam as classes TLPP
+renomeadas e os 16 checks de configuração revisados às 16:14:06, thread 30596,
+incluindo `explicitProfile`, `noForcedProfile` e `invalidProfile`.
+Query às 16:13:33, thread 27136, reconfirmou os 29 checks com
+`profile=sqlite_demo`; Connection às 16:14:31, thread 27084, reconfirmou
+relógio/Health/ADDON e os dois Echo exatos de 200.000 bytes. HTTP às
+16:15:03–16:15:04, thread 25456, passou nos 13 checks em um segundo,
+sem identificar o backend SQL. A execução do operador fornece horários/threads,
+mas não log real do compilador, hashes, argumentos ou Host/Port efetivos.
+O agente não executou os testes AppServer. MSSQL real, destino alternativo
+com argumentos omitidos, Linux e falhas/relógio/tipos ampliados permanecem pendentes.
+
+## Armazenamento portável de credenciais
+
+**Comportamento atual:** INI/JSON podem conter uma string de conexão ODBC;
+envelope de credencial cifrada, utilitário local de credenciais e interface
+gráfica de administração ainda não foram implementados. Autenticação integrada
+usa a identidade do processo servidor. Para selecionar um perfil de banco,
+o AppServer usa somente SQLProfile. O parser estrito ainda não aceita as
+seções ou campos propostos para provedores de credenciais.
+
+**Arquitetura proposta:** manter campos públicos do perfil e um envelope
+versionado de senha cifrada em INI/JSON, com chave mestra fora desse arquivo
+e do repositório. Uma abstração de provedor de chaves admite arquivo externo
+protegido no Windows/Linux e provedores opcionais de ambiente/cofre/SO.
+Usar criptografia autenticada de biblioteca existente e auditada, com versão,
+salt/nonce, tag de autenticação e identidade explícita da chave. Chaves fixas
+embutidas e ofuscação reversível não protegem senhas. O desenho usa credenciais
+SQL estáveis: na instalação Protheus atual do operador, mudanças de senha de
+banco são raras e exigem coordenação manual ODBC/DBAccess. OpenBao KV v2 opcional
+armazenaria com segurança a credencial instalada e permitiria sua leitura.
+OpenBao, mecanismo de segredos de banco, credenciais dinâmicas e plugin MSSQL
+não são pré-requisitos do provedor inicial nem do aceite MSSQL atual.
+
+Um utilitário local deve solicitar senhas com segurança, atualizar/remover/testar
+credenciais e compartilhar o núcleo de armazenamento/conexão com futura GUI.
+Identidade do serviço, permissões, suporte à troca opcional da chave mestra de
+criptografia, backup e restauração precisam de testes nos dois sistemas. Trocar
+a chave mestra cifra novamente a mesma senha SQL; renovar o token de
+autenticação OpenBao mantém
+acesso à mesma credencial armazenada. Nenhuma operação muda a senha no banco.
+Provisionamento inicial protegido da autenticação, validação CA/hostname,
+prazos do provedor e comportamento explícito de atualização/indisponibilidade
+continuam necessários no provedor OpenBao opcional. Futuras atualizações manuais
+e migração da credencial continuam previstas, sem alterar automaticamente
+credenciais externas ODBC/DBAccess. Credential Manager Windows é opcional,
+sem ser pré-requisito. Não extrair o formato interno de senha do DBAccess;
+configurar explicitamente a credencial própria do hbBridge. Veja o
+[desenho de credenciais](credentials.pt-BR.md) e o [TODO](../TODO.pt-BR.md).

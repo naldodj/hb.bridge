@@ -2,6 +2,11 @@
 
 [English](AGENTS.md) · [Padrões detalhados](docs/standards.pt-BR.md)
 
+- No trabalho de pacote, leia [WIP.pt-BR.md](WIP.pt-BR.md) e retome a próxima
+  tarefa pendente. Atualize progresso/evidências nas duas versões. Reabra
+  decisões somente por novas evidências, falhas reproduzíveis, mudanças de
+  requisito/dependência ou instruções do usuário. Renove WIP com os critérios
+  atendidos; commits/publicações intermediários não o reiniciam. TODO mantém o roadmap.
 - Use quatro espaços por nível de indentação nos fontes próprios. Preserve a
   formatação, os avisos de copyright e as licenças dos arquivos de terceiros.
 - Use identificadores em inglês. Arquivos em minúsculas. Funções, procedures,
@@ -10,8 +15,14 @@
   `HBBridgeClient` fica em `hbbridgeclient.tlpp`.
 - Use a mesma convenção de módulos em Harbour, TLPP, C e Zig; a extensão
   identifica a linguagem. Os módulos do produto começam com `hbbridge`.
+- Use `.hb` nos fontes Harbour próprios, testes e addons. Preserve arquivos
+  `.prg` upstream e o suporte a entradas `.prg` externas/do runtime.
+  Entradas `.hbp`/`.hbm` compilam `.hb` como fonte; um caminho `.hb` como
+  primeiro argumento do `hbmk2` seleciona execução de script. Na compilação
+  direta, ponha `-hbexe` (executável) ou `-gh` (HRB) antes do caminho do fonte.
 - Preserve nomes convencionais Git (`README`, `LICENSE`, `AGENTS`, `TODO`,
-  `ChangeLog`) e o sufixo `.pt-BR`. Toda documentação tem versão inglesa e
+  `ChangeLog`), os nomes solicitados `WIP.md`/`WIP.pt-BR.md` do projeto e o
+  sufixo `.pt-BR`. Toda documentação tem versão inglesa e
   portuguesa. Os demais documentos usam nomes em inglês e minúsculas.
 - Preserve a grafia de APIs externas, campos de protocolo/JSON sensíveis a
   maiúsculas e macros/símbolos exigidos pelo compilador, incluindo `HB_FUNC`.

@@ -2,6 +2,10 @@
 
 [Português (Brasil)](README.pt-BR.md)
 
+The [active work package](WIP.md) defines the next tasks, recorded decisions
+and completion criteria. Package 001 covers real MSSQL acceptance;
+[TODO](TODO.md) retains the full roadmap. WIP is renewed after package closure.
+
 An extensible bridge that brings Harbour, C and Zig capabilities to TOTVS
 Protheus (AdvPL/TLPP) and native Harbour clients. It extends applications with
 RPC, data and file access, module execution and native processing, using the
@@ -85,14 +89,14 @@ programming.
 | Capability | Delivered state |
 | --- | --- |
 | TCP server | Multithreaded, configurable; default bind `0.0.0.0:1512`. Local clients use `127.0.0.1`. |
-| Protheus client | `HBBridgeClient`, `HBBRIDGE/1`, JSON and memory gzip in both directions; one connection per call. AppServer `[hbBridge]` defaults with explicit argument overrides. All 13 configuration checks accepted by the operator in the session of 2026-10-04. |
+| Protheus client | `HBBridgeClient`, `HBBRIDGE/1`, JSON and memory gzip in both directions; one connection per call. AppServer `[hbBridge]` defaults with explicit argument overrides. Revised 16 configuration checks accepted by the operator on 2026-10-07, including explicit/empty/invalid profile selection. |
 | Services | Shared versioned registry: `Health`, `Echo`, `ADDON.Execute`, `Core.Upper`, `Core.Version`, `Service.List`, `Admin.Status`, and `RPCRDD.Query` when SQL profiles exist. |
-| Protheus RPC | Health, ADDON and two identical 200,000-byte Echo results accepted on 2026-10-03 and confirmed on 2026-10-04; fragmented request gzip: 152,964 bytes. Windows clock test passed. |
+| Protheus RPC | Health, ADDON and two identical 200,000-byte Echo results accepted on 2026-10-03 and reconfirmed on 2026-10-04 and 2026-10-07; fragmented request gzip: 152,964 bytes. Windows clock test passed. |
 | Addons | In-memory `.prg`/`.hb` compilation and `.hrb` execution through `ADDON.Execute`, receiving `module`/`params`. |
 | NETIO | Embedded native listener `0.0.0.0:2941`, filtered RPC and Harbour serialization. `HB_EXTERN` enabled; registered services only. |
 | HTTP/REST | Embedded `hbhttpd`, optional and disabled by default. JSON service calls and authenticated web status share the core; service/admin credentials are separate. Direct HTTPS requires an OpenSSL-enabled build and its own acceptance. |
-| Protheus HTTP client | `HBBridgeHTTPClient` uses native FWRest, bearer authentication and the shared JSON contract. Operator accepted 13 checks on 2026-10-07, including SQL pagination. |
-| SQL | SQLMIX with SQLite/MSSQL-ODBC, named results and database-side pages. SQLite Protheus: 29 accepted checks on 2026-10-04. Real MSSQL acceptance pending. |
+| Protheus HTTP client | `HBBridgeHTTPClient` uses native FWRest, bearer authentication and the shared JSON contract. Operator accepted 13 checks on 2026-10-07, including SQL pagination; latest run: thread 25456, one second. HTTP SQL backend was not identified. |
+| SQL | SQLMIX with SQLite/MSSQL-ODBC, named results and database-side pages. SQLite Protheus: 29 accepted checks on 2026-10-04, reconfirmed on 2026-10-07 with `profile=sqlite_demo`. Real MSSQL acceptance pending. |
 | DBF | Native RDD access over NETIO planned; not integrated yet. |
 | VF IO | Harbour `hb_vf*` with NETIO has binary read/write tests; TLPP facade pending. |
 | C/Zig | C API/ABI bridge in Health; Zig library and toolchain required. |
@@ -114,11 +118,14 @@ The native thread-static probe passed 31 separate assertions. Zig HTTP,
 automatic OpenSSL resolution and SQL materialization are still pending.
 
 [Acceptance](docs/acceptance.md) records AppServer `24.3.1.5`, LIB `20260706`,
-RPO/dictionary `12.1.2510`, and the Harbour/Zig reference build. The latest
-operator report confirmed configuration, clock/RPC and paginated SQLite, without
-a compilation log, call arguments or artifact hashes. Valid active-INI reading
-was accepted; a nondefault destination needs an identified run.
-Source renames are not a new Protheus/Linux acceptance run.
+RPO/dictionary `12.1.2510`, and the Harbour/Zig reference build. The earlier
+2026-10-04 operator report covered 13 configuration checks. On 2026-10-07,
+after reported recompilation following the `.hb` migration, the operator
+accepted renamed TLPP, all 16 revised configuration checks, clock/RPC,
+29 paginated SQLite checks and 13 HTTP checks. Times/threads identify this
+Windows regression; no compilation log, call arguments, effective destination
+or artifact hashes were supplied. A nondefault destination, real MSSQL and
+Linux still require their own acceptance.
 
 ## Intended architecture
 
@@ -241,7 +248,10 @@ The [TLPP HTTP example](examples/http/README.md) uses
 and `HTTPTimeoutSeconds` in the active AppServer `[hbBridge]` section.
 `U_HBBridgeHTTPTest()` covers GET Health/discovery, POST Health/Echo/addon,
 401/403/404 errors, recovery and optional SQL pages through the existing
-dataset. The operator reported all 13 checks passed on 2026-10-07.
+dataset. The earlier 2026-10-07 report used thread 25672. Later runs passed
+all 13 checks: thread 27296 at 16:10:44–16:10:45 and thread 25456 at
+16:15:03–16:15:04 (São Paulo), each in one second. Their HTTP SQL backend
+was not identified; the separate TCP Query run explicitly used SQLite.
 
 ### Extensible capabilities
 
@@ -306,8 +316,8 @@ dispatching through `HBNETIOSRV_RPCMAIN`.
 See its [example](https://github.com/harbour/core/blob/master/contrib/hbnetio/utils/hbnetio/rpcdemo.hb).
 
 hbBridge `ADDON.Execute` receives
-`{"module":"examples/hbbridgesampleaddon.prg","params":{...}}`.
-[The loader](src/hb/addons/hbbridgeaddon.prg) compiles in memory using
+`{"module":"examples/hbbridgesampleaddon.hb","params":{...}}`.
+[The loader](src/hb/addons/hbbridgeaddon.hb) compiles in memory using
 `hb_compileBuf`; HRB uses `hb_hrbLoad`/`hb_hrbDo`/`hb_hrbUnload`,
 with symbols/statics isolated between simultaneously active HRBs. Harbour may
 retain STATIC values when reusing an unloaded module; initialize per-call state
@@ -421,7 +431,7 @@ or 128-byte-header ceiling.
 | Harbour → Protheus | Incremental C gzip. | TLPP `GzStrDecomp`. |
 
 The [client](src/tlpp/hbbridgeclient.tlpp) and
-[framing](src/hb/transports/protheus/hbbridgeframing.prg) use memory buffers,
+[framing](src/hb/transports/protheus/hbbridgeframing.hb) use memory buffers,
 without temporary files or `GzCompress`/`GzDecomp` file APIs.
 The decoder/[compressor](src/c/hbbridgecompressor.c) preserve zlib state across
 chunks, validate CRC/trailer and exact payload length. No fixed 16 MiB ceiling
@@ -448,9 +458,11 @@ are multiplied by 1,000. A counter regression expires the budget.
 The test checks scale/advance over `Sleep(1000)`, including detecting a future
 runtime unit correction.
 
-The Windows operator report recorded raw `1097.692700`, normalized
-`1097.773500 ms`, result `OK`. Full monotonic/wrap behavior and Linux remain
-pending. Harbour uses `HBBridgeMonotonicMs()` for deadlines/uptime.
+The 2026-10-04 Windows operator report recorded raw `1097.692700`, normalized
+`1097.773500 ms`, result `OK`. The 2026-10-07 run at 16:14:31, thread 27084,
+reconfirmed `OK`: raw `1089.987500`, normalized `1090.088100 ms`.
+Full monotonic/wrap behavior and Linux remain pending. Harbour uses
+`HBBridgeMonotonicMs()` for deadlines/uptime.
 
 `GzStrComp`/`GzStrDecomp` require complete strings and actual AppServer
 `MAXSTRINGSIZE`/memory. TOTVS exposes no expansion allocation budget; checking
@@ -601,7 +613,12 @@ Own source uses **four spaces**, English identifiers and lowercase filenames.
 **Functions, procedures, methods, namespaces and classes use PascalCase**,
 explicitly chosen by the project owner:
 `HBBridgeClient` ↔ `hbbridgeclient.tlpp`.
-Harbour/TLPP equivalents share the pattern and differ by extension.
+Project-owned Harbour sources use `.hb`, Protheus sources use `.tlpp`, and
+compiled Harbour addons use `.hrb`. Related Harbour/TLPP/C/Zig modules share
+the same basename convention; extensions identify the language.
+Ordinary `.hbp` builds keep their existing workflow. `ADDON.Execute` still
+accepts `.prg` sources for compatibility alongside `.hb` sources and `.hrb`
+modules.
 Standard repository filenames retain conventional spelling; docs have English
 canonical files and `.pt-BR` counterparts.
 Preserve vendor formatting/notices. See [standards](docs/standards.md).
@@ -677,13 +694,13 @@ AppServer/TLPP environment, not a downloadable Harbour dependency.
 Use [the common launcher](scripts/run-hbbridge.ps1) or
 [the minimal example](examples/mvp/run.ps1), compile TLPP and execute
 `U_HBBridgeConnectionTest()`. It exercises Health/Echo and default-enabled
-ADDON with `examples/hbbridgesampleaddon.prg`.
+ADDON with `examples/hbbridgesampleaddon.hb`.
 The launcher sets the working directory for `addons/examples/`.
 See [test instructions](tests/README.md).
 
 ## Operation, licensing and contributions
 
-[Syslog](src/hb/telemetry/hbbridgesyslog.prg) sends UDP to `127.0.0.1:514`
+[Syslog](src/hb/telemetry/hbbridgesyslog.hb) sends UDP to `127.0.0.1:514`
 but is not integrated into lifecycle/RPC yet.
 Broader identity/token policies, credential management, module trust and deployment policies
 remain work. The next SQL acceptance is real MSSQL/ODBC; blocks, DBF, TLPP VF,

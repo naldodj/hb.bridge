@@ -2,7 +2,7 @@
 
 O host de console hospeda o adaptador Protheus e a biblioteca `hbnetio` no
 mesmo processo. Ambos usam o registro de serviços de
-[hbbridgedispatcher.prg](../src/hb/core/hbbridgedispatcher.prg). O host cria o catálogo antes
+[hbbridgedispatcher.hb](../src/hb/core/hbbridgedispatcher.hb). O host cria o catálogo antes
 dos listeners; `HBBridgeRegistrySeal()` encerra o registro pela API pública.
 O catálogo não contém parâmetros ou resultados mutáveis de uma chamada.
 

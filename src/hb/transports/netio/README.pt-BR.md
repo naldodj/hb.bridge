@@ -2,7 +2,7 @@
 
 [English](README.md)
 
-[hbbridgenetio.prg](hbbridgenetio.prg) incorpora as APIs nativas `netio_Listen/Accept/Server`
+[hbbridgenetio.hb](hbbridgenetio.hb) incorpora as APIs nativas `netio_Listen/Accept/Server`
 ao mesmo executável. Threads e conexões pertencem ao host, que coordena parada,
 reinício e rollback. Dados usam `0.0.0.0:2941`; administração usa
 `127.0.0.1:2940` com credencial própria e raiz de arquivos desabilitada.

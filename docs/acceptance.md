@@ -402,3 +402,80 @@ The agent's final working-tree gate passed **139 files** with `check.hb`,
 `tmp/commit-gate-tlpp-http-20261007.log`. Working-tree/index whitespace and
 all local links across 59 documents passed. The existing user-staged snapshot
 was preserved; these validations did not create a commit or publication.
+
+## Native Harbour source extension on 2026-10-07
+
+The owner authorized `.hb` for project-owned Harbour sources. All **26** files
+under `src/hb/`, `tests/` and `addons/` were renamed, and product/test HBP/HBM,
+fixture scripts, sample addon paths and current documentation were updated.
+Comparison against HEAD confirmed preserved Harbour implementation bodies,
+apart from migrated filenames and the sample addon's descriptive test label.
+Upstream sources and the loader's `.prg`/`.hrb` compatibility were preserved.
+
+The Windows Harbour regression passed **487 checks, zero failures, no skips**
+using `.hb` sources and the runtime-compiled `.hb` sample addon. Logs:
+`tmp/tests-1c63707aa3ab435082fe50a415a0a834/results.log` and
+`tmp/hb-extension-tests-20261007.log`.
+
+The isolated product build passed at
+`tmp/hb-extension-product-20261007/hbbridge.exe`, SHA256
+`E8A06659FB8E6D319392747753D008877962C2240F1FB232D38021133C6D07CF`.
+Build log: `tmp/hb-extension-product-build-20261007.log`. Help and configuration
+metadata smoke checks passed without starting listeners; log:
+`tmp/hb-extension-product-smoke-20261007.log`.
+
+The convention scanner now includes `.hb` for class filenames, PascalCase
+and four-space indentation. PowerShell parsing, eight focused positive/negative
+convention cases and xBase Git attributes passed.
+
+The two TLPP test source changes only replace the sample addon path with
+`examples/hbbridgesampleaddon.hb`. They were not recompiled or executed in the
+AppServer during the agent's migration run. Subsequent operator recompilation
+and runtime reports below supersede that pending regression status. Earlier
+RPO acceptance used the `.prg` sample path. Package 001 MSSQL milestones remain pending.
+
+The full working-tree gate passed **141 files** with `check.hb`, `commit.hb`,
+`3rdpatch.hb` and project conventions; log:
+`tmp/hb-extension-commit-gate-20261007.log`. Local links across **61 documents**
+and `git diff --check` passed. The index was preserved; no commit was created.
+
+## Post-migration Protheus operator acceptance on 2026-10-07
+
+The operator confirmed recompilation after the `.hb` migration and supplied
+HTTP output in chat, followed by Query/configuration/TCP/HTTP output in
+`F:/tmp/hbridge.news.txt`. The supplied reports are preserved in
+`tmp/protheus-http-hb-operator-20261007.log` and
+`tmp/protheus-suite-hb-operator-20261007.log`; the original attachment copy,
+including its separate OpenBao RFC, is `tmp/hbridge-news-20261007.txt`.
+
+All times below are São Paulo on 2026-10-07. The reports show `marin` on
+`DNA-TECH-01` with the same `tttm120.rpo`, `tlpp.rpo` and `custom.rpo` stack.
+
+| Program | Reported execution | Result |
+| --- | --- | --- |
+| `U_HBBridgeHTTPTest` | Program 16:10:40, thread 27296; test 16:10:44–16:10:45 | All 13 checks true/PASS, Health HTTP 200; elapsed 1 s. |
+| `U_HBBridgeQueryTest` | Program 16:13:33, thread 27136 | All 29 dataset/page checks true; profile `sqlite_demo`. |
+| `U_HBBridgeConfigTest` | Program 16:14:06, thread 30596 | All 16 checks true, including `explicitProfile`, `noForcedProfile` and `invalidProfile`. |
+| `U_HBBridgeConnectionTest` | Program 16:14:31, thread 27084 | Clock, Health, ADDON and both exact 200000-byte Echo calls passed; fragmented request gzip 152964 bytes. |
+| `U_HBBridgeHTTPTest` | Program 16:15:02, thread 25456; test 16:15:03–16:15:04 | All 13 checks true/PASS, Health HTTP 200; elapsed 1 s. |
+
+The clock reported `Unix=false`, TimeCounter delta **1089.987500** and
+normalized **1090.088100 ms** after Sleep(1000), result OK. The revised
+configuration test covers the optional SQL alias without forcing a demo
+profile. Both HTTP runs include addon execution, rejected credentials,
+forbidden/unknown services, recovery and first/next/last-page values.
+
+These are operator executions, not agent-run AppServer tests or a supplied
+compiler-success log. They supersede the pending renamed-TLPP/16-check
+configuration regression status for the exercised cases. The addon sources
+now default to `.hb`; the reports do not echo the actual module argument,
+connection arguments or server executable hash. Query explicitly identifies
+SQLite; HTTP does not identify its SQL backend, so its results do not certify
+MSSQL. Nondefault endpoints, other platforms, clock adjustment/wrap and forced
+socket failures retain their separate acceptance tasks.
+
+The updated EN/PT acceptance and OpenBao design documentation passed all three
+commit validators for **141 files**; log:
+`tmp/operator-acceptance-openbao-gate-20261007.log`. Local links across **61
+documents** and whitespace passed. This documentation update did not rerun
+the native suite or access an OpenBao/MSSQL server.

@@ -7,6 +7,11 @@ through one extensible implementation. [README](README.md) describes the
 current product and intended architecture. A checked item records implemented
 code or specifically identified evidence, not unrestricted platform acceptance.
 
+[WIP](WIP.md) records the bounded active package, ordered tasks, decisions,
+prerequisites and evidence. Continue there instead of reanalyzing this entire
+roadmap. Reconcile completed items here when the package closes; intermediate
+commits/publication preserve its progress. Package 001 is real MSSQL acceptance.
+
 ## Principles to preserve
 
 - Harbour's familiar xBase syntax makes services approachable to AdvPL/TLPP
@@ -58,7 +63,8 @@ code or specifically identified evidence, not unrestricted platform acceptance.
 - [x] Protheus Health/ADDON/two 200,000-byte Echo calls manually accepted;
   varied request gzip 152,964 bytes, identical complete result.
 - [x] SQLMIX/SQLite/MSSQL-ODBC Query, keyed dataset and database-side pagination.
-  Operator accepted 29 SQLite checks on 2026-10-04; real MSSQL remains pending.
+  Operator accepted 29 SQLite checks on 2026-10-04, reconfirmed on 2026-10-07
+  at 16:13:33, thread 27136, `profile=sqlite_demo`; real MSSQL remains pending.
 - [x] Syslog UDP module exists; integration into call lifecycle is pending.
 - [x] Shared protocol constants, rejection of other signatures/formats and
   [brainstorming transport review](docs/transports-sessions-security.md).
@@ -96,11 +102,14 @@ test-fixture fixes from implementation changes.
   telemetry and clients; maintain shared hbbridge.hbm with separate entry points.
 - [x] Keep examples/mvp as a launcher of the product, not duplicated sources.
 - [x] Move Harbour integration/unit/contract tests and compile all Protheus
-  tests with the `src/tlpp/` tree. Exercise Health and the PRG addon in Harbour.
+  tests with the `src/tlpp/` tree. Exercise Health and the sample addon in Harbour.
 - [x] Validate product build/CLI and structural TLPP acceptance separately;
   milestone 1 AppServer behavior was accepted 2026-10-03.
 - [x] Rename TLPP files/classes consistently and related Harbour/C/Zig modules;
   retain published U_ test entry names and PascalCase classes.
+- [x] Adopt `.hb` for project-owned Harbour sources, `.tlpp` for Protheus and
+  `.hrb` for compiled addons; migrate current source/build/doc references,
+  preserving shared basenames, ordinary `.hbp` builds and `.prg` addon support.
 - [x] Move maintenance tools to .hbcommit; preserve upstream notices and remove
   the bundled bin/harbour runtime from the layout.
 - [x] Pin and resolve project-owned hb_compile, Harbour and checksum-verified Zig;
@@ -112,8 +121,10 @@ test-fixture fixes from implementation changes.
   validate cache receipts by capabilities/triplet/versions. No duplicate resolver.
 - [ ] Resolve the pinned hb_compile native-Linux gap upstream or declare a
   supported WSL/Docker route; pin external package baselines/checksums as well.
-- [ ] Recompile/run renamed TLPP classes and revised optional-profile checks
-  on the AppServer. Earlier accepted binaries do not cover these new names.
+- [x] Recompile/run renamed TLPP classes and revised optional-profile checks
+  on the AppServer: operator-reported recompilation after `.hb` migration;
+  Query/Config/Connection/HTTP passed on 2026-10-07. All 16 configuration
+  checks were true at 16:14:06, thread 30596. No compiler log/hashes supplied.
 - [ ] Execute Linux bootstrap/build/runtime acceptance and other architectures;
   Windows results do not certify them. Record build receipts and exact artifacts.
 
@@ -183,9 +194,14 @@ VS Code extension, with cleanup and documented capabilities/limitations.
   settings and optional SQLProfile, explicit overrides first. No demo default.
 - [x] Earlier operator acceptance: 13 configuration checks, clock/RPC and 29 SQLite
   checks in report recorded 2026-10-04. Prior agent stop-process failure is
-  historical; no later compiler log/time/thread/hash was supplied.
+  historical; that 2026-10-04 report supplied no compiler log/time/thread/hash.
+- [x] Revised operator acceptance on 2026-10-07 after reported recompilation:
+  renamed TLPP and all 16 configuration checks, including explicitProfile,
+  noForcedProfile and invalidProfile; Query/clock/RPC/HTTP regressions passed.
+  Times/threads supplied; actual compiler log, artifact hashes, call arguments
+  and effective destination were not supplied. See [acceptance](docs/acceptance.md).
 - [ ] Test nondefault host/port/profile with omitted arguments and record
-  binary/configuration identity, then revised 16 configuration checks after rename.
+  binary/configuration identity.
 - [x] Optional size/time budgets and configurable chunks/workers validated
   against real capacities;0disables application caps/server deadline.
 - [ ] Operational memory budgets and negotiated transfer capacities in stage2.
@@ -200,7 +216,8 @@ VS Code extension, with cleanup and documented capabilities/limitations.
   blocks and live pointers. Test admin/filter/credentials/VF IO/shutdown.
 - [ ] Cross-codepage/runtime serialization compatibility and session resource IDs.
 - [x] Prior milestone 1 TLPP compile/RPC accepted 2026-10-03:3sources without
-  compiler errors; new rename/profile behavior requires renewed acceptance.
+  compiler errors; renamed TLPP/profile behavior accepted by the operator
+  in the 2026-10-07 regression after reported recompilation.
 
 Acceptance: native remote/core service, continued Protheus Health/Echo/addons,
 configurable channels and separate admin, with each client's interoperable
@@ -233,9 +250,11 @@ negotiated compression remain pending. See [milestone 2](docs/milestone2-framing
   documents reproduced units.
 - [x] Windows operator clock acceptance:Unix=false, delta1097.692700,
   normalized1097.773500ms after Sleep(1000), OK2026-10-04.
+  Reconfirmed 2026-10-07 16:14:31, thread 27084: raw 1089.987500,
+  normalized 1090.088100ms, OK.
 - [ ] Linux clock, precision, clock adjustments/wrap and future build-unit changes.
 - [x] Normal Protheus Health/ADDON/two 200,000-byte Echo calls accepted 2026-10-03
-  and reconfirmed2026-10-04; varied request gzip 152,964 bytes.
+  and reconfirmed 2026-10-04 and 2026-10-07; varied request gzip 152,964 bytes.
 - [ ] Forced socket failure/timeout/positive partial Send and exact host artifact;
   blocking Send has no timeout argument, and codec/JSON work is not budget-limited.
 
@@ -323,7 +342,8 @@ per-value limits; tested slow-consumer/invalid-decode/disconnect behavior.
 - [x] SQL aliases are opaque/case-sensitive, including mssql/pData; multiple
   profiles coexist. Optional client default is empty; explicit call wins.
 - [x] SQLite file/concurrency/NETIO-vs-TCP regressions; operator 29-check dataset/
-  pagination acceptance 2026-10-04 00:40:06 and later reconfirmation.
+  pagination acceptance 2026-10-04 00:40:06 and later reconfirmations,
+  latest 2026-10-07 16:13:33, thread 27136, profile=sqlite_demo.
 - [ ] Real MSSQL connect/query/page acceptance: driver/DSN/server/client versions.
 - [ ] Unavailable connector, broader type/null coverage and real volume in
   Protheus; unknown alias is not connector-failure proof.
@@ -407,7 +427,10 @@ binary integrity/errors/resource release. MSSQL/Oracle claims need evidence.
 
 - [x] TLPP HTTP client/example with active AppServer INI settings, native
   FWRest, GET/POST/bearer, JSON service errors and the existing SQL dataset.
-  Operator accepted all 13 checks on 2026-10-07; see [the example](examples/http/README.md).
+  Operator accepted all 13 checks on 2026-10-07, initially thread 25672;
+  reconfirmed threads 27296 (16:10:44–16:10:45) and 25456 (16:15:03–16:15:04),
+  each in one second, São Paulo time. HTTP SQL backend remains unidentified.
+  See [the example](examples/http/README.md).
 - [ ] Extend TLPP HTTP acceptance to alternate configuration, transport failures,
   larger/mixed Unicode values, other LIBs, HTTPS and identified SQL backends.
 
@@ -455,9 +478,18 @@ binary integrity/errors/resource release. MSSQL/Oracle claims need evidence.
   revalidation; invalid key/signature/audience/expiry/context/certificate tests,
   no secrets/tokens in logs. ERP context remains caller-resolved.
 - [ ] Portable authenticated encrypted INI secret/key-provider contract, external
-  keys, local CLI set/delete/test/rotate and later shared-core GUI; tamper/wrong
+  keys, local CLI set/delete/test and optional encryption-key replacement,
+  later shared-core GUI; tamper/wrong
   key/nonce/ODBC escaping/atomic writes/backup/migration/service-identity tests.
   OS vaults optional, not a Windows-only requirement.
+- [ ] Package 003 design: common server-side credential provider with optional
+  OpenBao KV v2/AppRole or Agent/Proxy, authorized configured references,
+  bootstrap/CA validation, cache/token renewal/redaction and Zig 0.16 ABI/memory
+  acceptance. Store stable SQL credentials and support manual updates; automatic
+  SQL password rotation/dynamic database plugins are outside this initial scope.
+  Vault token renewal and encryption-key replacement do not change the SQL
+  password. See the [credential review](docs/credentials.md). No service is
+  implemented; this future work is not a prerequisite for MSSQL package 001.
 - [ ] Configurable concurrency/timeout/queues/memory and driver/thread acceptance;
   connect Syslog lifecycle/calls, collector-failure resilience and redaction.
 - [ ] Correlation/latency/errors/wire+expanded bytes/memory/active resources;

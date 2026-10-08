@@ -11,13 +11,13 @@ milestones and the current naming/build reorganization.
 
 | Historical source | Current component | Responsibility |
 | --- | --- | --- |
-| `src/hb/server/server.prg` — Main | [host/hbbridgemain.prg](../src/hb/host/hbbridgemain.prg) | Entry, options, console lifecycle. |
-| Same file — receive/send | [Protheus framing](../src/hb/transports/protheus/hbbridgeframing.prg) | Framing/compression. |
-| `src/hb/server/mt_server.prg` | [Protheus server](../src/hb/transports/protheus/hbbridgeserver.prg) | Listener, workers, shutdown. |
-| `src/hb/dispatcher/dispatcher.prg` | [core dispatcher](../src/hb/core/hbbridgedispatcher.prg) | Registry/dispatch/validation; native values since Milestone 1. |
-| Service responses inside dispatcher | [builtin services](../src/hb/services/hbbridgeservices.prg) | Health/Echo/ADDON and discovery. |
+| `src/hb/server/server.prg` — Main | [host/hbbridgemain.hb](../src/hb/host/hbbridgemain.hb) | Entry, options, console lifecycle. |
+| Same file — receive/send | [Protheus framing](../src/hb/transports/protheus/hbbridgeframing.hb) | Framing/compression. |
+| `src/hb/server/mt_server.prg` | [Protheus server](../src/hb/transports/protheus/hbbridgeserver.hb) | Listener, workers, shutdown. |
+| `src/hb/dispatcher/dispatcher.prg` | [core dispatcher](../src/hb/core/hbbridgedispatcher.hb) | Registry/dispatch/validation; native values since Milestone 1. |
+| Service responses inside dispatcher | [builtin services](../src/hb/services/hbbridgeservices.hb) | Health/Echo/ADDON and discovery. |
 | C block inside addon loader | [C/Zig bridge](../src/c/hbbridgezig.c) | Harbour API and Zig ABI. |
-| `tests/harbour/` | [integration suite](../tests/integration/harbour/hbbridgeservertest.prg) | MT suite and fixtures. |
+| `tests/harbour/` | [integration suite](../tests/integration/harbour/hbbridgeservertest.hb) | MT suite and fixtures. |
 | `tests/protheus/` | [TLPP tests](../src/tlpp/tests/protheus/hbbridgeconnectiontest.tlpp) | All Protheus sources beneath the compilable TLPP tree. |
 
 Loader, telemetry, TLPP client, Zig library, sample addon and configuration
@@ -63,7 +63,10 @@ owner's explicit decision. Preserve required native/public API spellings; see
 [standards](standards.md).
 
 Harbour counterparts follow the same basename convention; extensions identify
-the source language. Commit tools move from `bin/` to `.hbcommit/`.
+the source language: project-owned Harbour uses `.hb`, Protheus uses `.tlpp`,
+and compiled addons use `.hrb`. Ordinary `.hbp` builds keep their workflow;
+`ADDON.Execute` also accepts `.prg` sources for compatibility. Commit tools
+move from `bin/` to `.hbcommit/`.
 Managed dependency bootstrap builds the project's own Harbour/hbrun rather than
 depending on an embedded `bin/harbour` or a fixed external checkout.
 English documentation has preserved `.pt-BR` counterparts.

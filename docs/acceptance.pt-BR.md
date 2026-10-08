@@ -483,3 +483,78 @@ O crivo final da árvore de trabalho passou para **139 arquivos** com `check.hb`
 `tmp/commit-gate-tlpp-http-20261007.log`. Whitespace da árvore/índice e links
 locais em 59 documentos passaram. O índice preparado pelo usuário foi
 preservado; essas validações não criaram commit nem publicação.
+
+## Extensão nativa dos fontes Harbour em 2026-10-07
+
+O responsável autorizou `.hb` para os fontes Harbour próprios. Foram renomeados
+os **26** arquivos em `src/hb/`, `tests/` e `addons/`; atualizados HBP/HBM do
+produto/testes, scripts de fixtures, caminhos do addon e documentação atual.
+A comparação com HEAD confirmou os corpos da implementação Harbour preservados,
+exceto os nomes migrados e o texto descritivo do teste do addon de exemplo.
+Fontes de terceiros e compatibilidade `.prg`/`.hrb` do loader foram preservados.
+
+A regressão Harbour Windows passou com **487 verificações, zero falhas e sem
+skips**, usando fontes `.hb` e o addon de exemplo `.hb` compilado em runtime.
+Logs: `tmp/tests-1c63707aa3ab435082fe50a415a0a834/results.log` e
+`tmp/hb-extension-tests-20261007.log`.
+
+O build isolado passou em `tmp/hb-extension-product-20261007/hbbridge.exe`, SHA256
+`E8A06659FB8E6D319392747753D008877962C2240F1FB232D38021133C6D07CF`.
+Log: `tmp/hb-extension-product-build-20261007.log`. Verificações de ajuda e
+metadados de configuração passaram sem iniciar listeners; log:
+`tmp/hb-extension-product-smoke-20261007.log`.
+
+O scanner de convenções inclui `.hb` para nomes de arquivos/classes,
+PascalCase e indentação de quatro espaços. Passaram a análise sintática
+PowerShell, oito casos positivos/negativos das convenções e os atributos xBase.
+
+Nos dois testes TLPP, somente o caminho do addon de exemplo foi alterado para
+`examples/hbbridgesampleaddon.hb`. Eles não foram recompilados nem executados
+no AppServer durante a migração executada pelo agente. Os relatos posteriores
+de recompilação/execução abaixo superam essa pendência de regressão. O aceite
+anterior do RPO usava `.prg`. Os marcos MSSQL do pacote 001 continuam pendentes.
+
+O crivo completo da árvore passou para **141 arquivos** com `check.hb`,
+`commit.hb`, `3rdpatch.hb` e convenções; log:
+`tmp/hb-extension-commit-gate-20261007.log`. Links locais em **61 documentos**
+e `git diff --check` passaram. O índice foi preservado; nenhum commit criado.
+
+## Homologação Protheus pelo operador após a migração em 2026-10-07
+
+O operador confirmou recompilação após a migração `.hb` e forneceu saída HTTP
+no chat, seguida de Query/configuração/TCP/HTTP em `F:/tmp/hbridge.news.txt`.
+Relatos preservados em `tmp/protheus-http-hb-operator-20261007.log` e
+`tmp/protheus-suite-hb-operator-20261007.log`; a cópia do anexo original,
+incluindo a RFC OpenBao separada, está em `tmp/hbridge-news-20261007.txt`.
+
+Os horários abaixo são de São Paulo em 2026-10-07. Os relatos mostram `marin`
+em `DNA-TECH-01` e a mesma pilha `tttm120.rpo`, `tlpp.rpo` e `custom.rpo`.
+
+| Programa | Execução informada | Resultado |
+| --- | --- | --- |
+| `U_HBBridgeHTTPTest` | Programa 16:10:40, thread 27296; teste 16:10:44–16:10:45 | Todos os 13 checks true/PASS, Health HTTP 200; duração 1 s. |
+| `U_HBBridgeQueryTest` | Programa 16:13:33, thread 27136 | Todos os 29 checks de dataset/páginas true; perfil `sqlite_demo`. |
+| `U_HBBridgeConfigTest` | Programa 16:14:06, thread 30596 | Todos os 16 checks true, incluindo `explicitProfile`, `noForcedProfile` e `invalidProfile`. |
+| `U_HBBridgeConnectionTest` | Programa 16:14:31, thread 27084 | Relógio, Health, ADDON e ambos os Echo exatos de 200000 bytes aprovados; gzip da requisição fragmentada 152964 bytes. |
+| `U_HBBridgeHTTPTest` | Programa 16:15:02, thread 25456; teste 16:15:03–16:15:04 | Todos os 13 checks true/PASS, Health HTTP 200; duração 1 s. |
+
+O relógio informou `Unix=false`, delta TimeCounter **1089.987500** e medida
+normalizada **1090.088100 ms** após Sleep(1000), resultado OK. O teste de
+configuração revisado cobre alias SQL opcional sem forçar perfil de demonstração.
+As duas execuções HTTP incluem addon, credencial rejeitada, serviços proibido/
+desconhecido, recuperação e valores das páginas inicial/seguinte/final.
+
+São execuções do operador, sem teste AppServer executado pelo agente nem log
+de sucesso do compilador fornecido. Superam a pendência dos renomes TLPP e
+dos 16 checks de configuração nos casos exercitados. Os fontes agora usam
+addon `.hb` por padrão; os relatos não mostram o argumento real do módulo,
+argumentos de conexão ou hash do executável servidor. Query identifica SQLite;
+HTTP não identifica backend SQL e não homologa MSSQL. Endpoints alternativos,
+outras plataformas, ajuste/wrap do relógio e falhas de socket provocadas mantêm
+suas tarefas de homologação próprias.
+
+Os registros EN/PT de aceite e desenho OpenBao passaram nos três validadores
+de commit para **141 arquivos**; log:
+`tmp/operator-acceptance-openbao-gate-20261007.log`. Links locais em **61
+documentos** e whitespace aprovados. Esta atualização documental não repetiu
+a suíte nativa nem acessou servidor OpenBao/MSSQL.

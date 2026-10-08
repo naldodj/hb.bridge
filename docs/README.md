@@ -8,6 +8,7 @@ the intended architecture; [TODO](../TODO.md) tracks delivery and acceptance.
 
 | Guide | Scope |
 | --- | --- |
+| [Active work package](../WIP.md) | Current scope, next task, decisions, completion evidence and renewal; first package is real MSSQL acceptance. |
 | [Architecture](architecture.md) | Generic executor boundary, caller-resolved ERP context and multiple explicit database profiles. |
 | [Milestone 1](milestone1.md) | Shared registry, embedded NETIO, host lifecycle/configuration/admin. |
 | [Milestone 2](milestone2-framing.md) | HBBRIDGE/1, incremental server gzip, complete TLPP reads and runtime capacities. |
@@ -88,7 +89,7 @@ MSSQL, Linux or post-refactor compilation.
 
 ## Syslog and further documentation
 
-[The Syslog module](../src/hb/telemetry/hbbridgesyslog.prg) is linked and can send
+[The Syslog module](../src/hb/telemetry/hbbridgesyslog.hb) is linked and can send
 UDP to 127.0.0.1:514; active host/RPC flow does not call its open/write/close
 functions. Integration and collector acceptance remain work.
 Protocol, addon API and deployment guides will expand as behavior stabilizes.

@@ -88,7 +88,7 @@ U_HBBridgeHTTPTest("http://127.0.0.1:8080", "<service-secret>", 30, "sqlite_demo
 Arguments are URL, service token, timeout in seconds, SQL profile and addon
 module. The omitted SQL profile uses `[hbBridge] SQLProfile`; an explicitly
 empty fourth argument skips SQL. The addon defaults to
-`examples/hbbridgesampleaddon.prg` on the **server**, and an explicitly empty
+`examples/hbbridgesampleaddon.hb` on the **server**, and an explicitly empty
 fifth argument skips addon execution. For services without those fixtures:
 
 ```advpl
@@ -170,3 +170,13 @@ The supplied output did not identify the SQL alias or backend. It confirms
 pagination for the selected profile and does not establish MSSQL acceptance.
 Broader Unicode/codepage coverage, HTTPS and alternative client configurations
 remain pending. See [the acceptance record](../../docs/acceptance.md).
+
+After reporting recompilation following the Harbour `.hb` migration, the
+operator repeated all **13 checks successfully** on the same date: thread
+**27296**, test **16:10:44–16:10:45**, and thread **25456**, test
+**16:15:03–16:15:04**. Times are São Paulo; both runs took one second and
+reported Health HTTP 200, addon execution and paginated values. These are
+operator reports, not agent AppServer runs or a supplied compiler log.
+The accompanying Query test identifies `sqlite_demo`; the HTTP reports do not
+identify their own SQL backend or actual module argument. MSSQL acceptance
+remains separate; [the matrix](../../docs/acceptance.md) records the exact scope.

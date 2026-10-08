@@ -14,8 +14,8 @@ $addonRoot = Join-Path $runRoot 'addons'
 $buildRoot = Join-Path $runRoot 'build'
 New-Item -ItemType Directory -Path $addonRoot, $buildRoot | Out-Null
 New-Item -ItemType Directory -Path (Join-Path $addonRoot 'examples') | Out-Null
-Copy-Item -LiteralPath (Join-Path $projectRoot 'addons/examples/hbbridgesampleaddon.prg') `
-    -Destination (Join-Path $addonRoot 'examples/hbbridgesampleaddon.prg')
+Copy-Item -LiteralPath (Join-Path $projectRoot 'addons/examples/hbbridgesampleaddon.hb') `
+    -Destination (Join-Path $addonRoot 'examples/hbbridgesampleaddon.hb')
 
 $previousEnvironment = Enter-HBBridgeToolchain -Toolchain $toolchain
 Push-Location -LiteralPath $projectRoot
@@ -29,7 +29,7 @@ try {
         hbbridgeisolationaddon = 'hbbridge_mt_isolation'
     }
     foreach ($fixture in $fixtures.GetEnumerator()) {
-        $source = Join-Path $projectRoot "tests/integration/harbour/$($fixture.Key).prg"
+        $source = Join-Path $projectRoot "tests/integration/harbour/$($fixture.Key).hb"
         $target = Join-Path $addonRoot $fixture.Value
         & $toolchain.Hbmk2 -gh -n2 -w3 -es2 $source "-o$target"
         if ($LASTEXITCODE -ne 0) { throw "Could not compile addon fixture $($fixture.Key)." }

@@ -49,12 +49,12 @@ function Test-ProjectConventions {
         }
 
         if ($relativePath.StartsWith('.hbcommit/') -or $relativePath.Contains('/third_party/')) { continue }
-        if ($relativePath -notmatch '\.(prg|tlpp|c|zig|ps1)$') { continue }
+        if ($relativePath -notmatch '\.(hb|prg|tlpp|c|zig|ps1)$') { continue }
         $content = [IO.File]::ReadAllText($filePath)
         # Read only declarations; ignore examples in comments and native ABI macros.
         $declarationSource = [regex]::Replace($content, '/\*[\s\S]*?\*/', '')
         $declarationSource = [regex]::Replace($declarationSource, '(?m)^\s*(?://|\*|#(?!if|else|endif|define|include)).*$', '')
-        if ($relativePath -match '\.(prg|tlpp)$') {
+        if ($relativePath -match '\.(hb|prg|tlpp)$') {
             $classDeclarations = [regex]::Matches($declarationSource, '(?im)^\s*(?:(?:create|define)\s+)?class\s+([a-z_][a-z0-9_]*)')
             foreach ($classDeclaration in $classDeclarations) {
                 if ([IO.Path]::GetFileNameWithoutExtension($relativePath) -cne $classDeclaration.Groups[1].Value.ToLowerInvariant()) {
@@ -63,7 +63,7 @@ function Test-ProjectConventions {
             }
         }
         $declarationPattern = switch -Regex ($relativePath) {
-            '\.(prg|tlpp)$' {
+            '\.(hb|prg|tlpp)$' {
                 '(?im)^\s*(?:(?:static|public|private|protected|init|exit|user|create|define)\s+)*(?:function|procedure|method|namespace|class)\s+([a-z_][a-z0-9_.]*)'
             }
             '\.ps1$' { '(?im)^\s*function\s+([a-z_][a-z0-9_-]*)' }

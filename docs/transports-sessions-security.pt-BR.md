@@ -39,8 +39,8 @@ original; os resultados históricos não a homologam.
 O servidor atual faz bind em `0.0.0.0`, com porta padrão `1512` definida pelo
 ponto de entrada. O destino local do cliente é `127.0.0.1`. A assinatura atual
 é `HBBRIDGE/1`, contrato único do adaptador Protheus. O brainstorming descreve a
-versão anterior nesses pontos. Consulte [hbbridgemain.prg](../src/hb/host/hbbridgemain.prg)
-e [hbbridgeserver.prg](../src/hb/transports/protheus/hbbridgeserver.prg).
+versão anterior nesses pontos. Consulte [hbbridgemain.hb](../src/hb/host/hbbridgemain.hb)
+e [hbbridgeserver.hb](../src/hb/transports/protheus/hbbridgeserver.hb).
 
 O [cliente TLPP](../src/tlpp/hbbridgeclient.tlpp) cria e fecha o socket dentro de
 `CallService`; o worker atende uma requisição e encerra a conexão. A existência

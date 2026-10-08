@@ -1,6 +1,6 @@
 # Marco 3 — primeira entrega de RPCRDD.Query
 
-O serviço [hbbridgequery.prg](../src/hb/services/hbbridgequery.prg) consulta bancos
+O serviço [hbbridgequery.hb](../src/hb/services/hbbridgequery.hb) consulta bancos
 pela implementação nativa `rddsql`/`SQLMIX` do Harbour. O produto vincula
 `sddsqlt3` para SQLite e `sddodbc` para MSSQL via ODBC. Não há um RDD próprio.
 SQLite e o cliente dataset/paginação foram homologados no AppServer pelo
@@ -232,7 +232,7 @@ Não é necessário recompilar TLPP apenas para corrigir a configuração do hos
 
 ## Regressões e referências
 
-[hbbridgequerytest.prg](../tests/integration/harbour/hbbridgequerytest.prg) integra
+[hbbridgequerytest.hb](../tests/integration/harbour/hbbridgequerytest.hb) integra
 o runner Harbour. Cria um SQLite real em arquivo isolado, consulta dados
 persistidos, compara o serviço pelos transportes NETIO e TCP/JSON e exercita
 concorrência, resultados vazios, nulos em expressão, perfis e erros. Inclui

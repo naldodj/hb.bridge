@@ -2,6 +2,11 @@
 
 [Português](AGENTS.pt-BR.md) · [Detailed standards](docs/standards.md)
 
+- For package work, read [WIP.md](WIP.md) and resume its next unfinished task.
+  Update progress/evidence and both language versions. Reopen decisions only
+  for new evidence, reproducible failures, changed requirements/dependencies
+  or user instructions. Renew WIP after its completion criteria pass;
+  intermediate commits/publication do not reset it. TODO retains the roadmap.
 - Use four spaces per indentation level in project-owned sources. Preserve
   upstream formatting, copyright and license notices in third-party files.
 - Use English identifiers. Files are lowercase. Functions, procedures,
@@ -10,8 +15,14 @@
   `HBBridgeClient` lives in `hbbridgeclient.tlpp`.
 - Use the same module naming convention for Harbour, TLPP, C and Zig;
   extensions identify the language. Product modules start with `hbbridge`.
+- Use `.hb` for project-owned Harbour sources, tests and addons. Preserve
+  upstream `.prg` files and support for external/runtime `.prg` inputs.
+  `.hbp`/`.hbm` entries compile `.hb` as source; a `.hb` path as the first
+  `hbmk2` argument selects script execution. For direct compilation, put
+  `-hbexe` (executable) or `-gh` (HRB) before the source path.
 - Preserve conventional Git document names (`README`, `LICENSE`, `AGENTS`,
-  `TODO`, `ChangeLog`) and the agreed `.pt-BR` locale suffix. Pair English
+  `TODO`, `ChangeLog`), the project's requested `WIP.md`/`WIP.pt-BR.md` names
+  and the agreed `.pt-BR` locale suffix. Pair English
   documentation with Portuguese. Other document basenames are lowercase English.
 - Preserve external API spellings, case-sensitive protocol/JSON fields and
   compiler-required C macros/symbols, including uppercase `HB_FUNC` symbols.

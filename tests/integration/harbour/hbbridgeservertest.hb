@@ -66,8 +66,8 @@ STATIC PROCEDURE MTBuiltinServices( hServer, nFailures, nChecks )
     hResponse := MTRequest( hServer[ "port" ], '{"service":"Health","params":{}}' )
     MTAssert( MTIsSuccess( hResponse ), "Health reaches Zig through the extracted C bridge", @nFailures, @nChecks )
 
-    hResponse := MTRequest( hServer[ "port" ], '{"service":"ADDON.Execute","params":{"module":"examples/hbbridgesampleaddon.prg","params":{}}}' )
-    MTAssert( MTIsSuccess( hResponse ), "sample PRG addon compiles and executes", @nFailures, @nChecks )
+    hResponse := MTRequest( hServer[ "port" ], '{"service":"ADDON.Execute","params":{"module":"examples/hbbridgesampleaddon.hb","params":{}}}' )
+    MTAssert( MTIsSuccess( hResponse ), "sample Harbour addon compiles and executes", @nFailures, @nChecks )
 
 RETURN
 
@@ -156,7 +156,7 @@ STATIC PROCEDURE MTAddons( hServer, nFailures, nChecks )
         MTAssert( MTEchoMatches( MTEchoRequest( hServer[ "port" ], 88 ), 88 ), ;
             "Echo succeeds after addon runtime error", @nFailures, @nChecks )
     ELSE
-        ? "SKIP: compile tests/integration/harbour/hbbridgefaultaddon.prg to addons/hbbridge_mt_fault.hrb"
+        ? "SKIP: compile tests/integration/harbour/hbbridgefaultaddon.hb to addons/hbbridge_mt_fault.hrb"
     ENDIF
 
     IF File( "addons/hbbridge_mt_isolation.hrb" )
@@ -209,7 +209,7 @@ STATIC PROCEDURE MTAddons( hServer, nFailures, nChecks )
             ENDIF
         NEXT
     ELSE
-        ? "SKIP: compile tests/integration/harbour/hbbridgeisolationaddon.prg to addons/hbbridge_mt_isolation.hrb"
+        ? "SKIP: compile tests/integration/harbour/hbbridgeisolationaddon.hb to addons/hbbridge_mt_isolation.hrb"
     ENDIF
 
 RETURN

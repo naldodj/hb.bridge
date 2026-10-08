@@ -38,8 +38,8 @@ argumentos omitidos vêm de `[hbBridge]` no INI usado pelo AppServer, com
 O [template cliente](../../config/examples/protheus-appserver.ini) deve ser
 mesclado ao INI do AppServer, separadamente do INI do servidor hbBridge.
 Os cenários são `Health`, `Echo` e
-`ADDON.Execute` com `module = "examples/hbbridgesampleaddon.prg"` e os parâmetros
-do módulo, usando o [addon compartilhado](../../addons/examples/hbbridgesampleaddon.prg).
+`ADDON.Execute` com `module = "examples/hbbridgesampleaddon.hb"` e os parâmetros
+do módulo, usando o [addon compartilhado](../../addons/examples/hbbridgesampleaddon.hb).
 O contrato Protheus é `HBBRIDGE/1`, JSON enquadrado e gzip nos dois sentidos.
 O núcleo é genérico; Protheus resolve regras de negócio, tenant, empresa,
 filial/xFilial e tabelas e fornece parâmetros explícitos aos serviços/addons.

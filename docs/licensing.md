@@ -44,7 +44,7 @@ conditions equivalent to MIT.
 ## Findings in current sources
 
 The `FileSig` helper in
-[the addon loader](../src/hb/addons/hbbridgeaddon.prg) matches the upstream
+[the addon loader](../src/hb/addons/hbbridgeaddon.hb) matches the upstream
 `hbnetio.prg` helper after whitespace normalization; the load/compile flow
 also resembles it. The upstream utility header is GPL v2-or-later without
 the library linking exception. A local public-domain notice does not establish

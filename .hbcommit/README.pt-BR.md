@@ -21,6 +21,16 @@ próprio projeto. Não depende de um runtime incluído neste diretório nem de
 um comando `hbrun` global. `-HbCompileRoot` e `-ZigPath` são substituições
 explícitas para desenvolvimento; o uso normal requer o bootstrap local.
 
+Fontes Harbour próprios, testes e addons usam `.hb`. `.hb` e `.prg` passam
+pelas mesmas regras de nomes e indentação do projeto; arquivos upstream
+mantêm a extensão e as exceções de formatação. Entradas `.prg` externas/do
+runtime continuam suportadas. Os scripts de manutenção `.hb` rodam pelo
+`hbrun`. O `hbmk2` compila entradas `.hb` em arquivos de build `.hbp`/`.hbm`,
+mas um caminho `.hb` como primeiro argumento na linha de comando seleciona
+execução de script. Para compilar o fonte diretamente, ponha `-hbexe` ou
+`-gh` antes do caminho, por exemplo `hbmk2 -hbexe module.hb` ou
+`hbmk2 -gh module.hb`.
+
 A validação padrão cobre arquivos versionados existentes e novos arquivos
 não ignorados. Executa `check.hb` e `commit.hb`, verifica nomes nos fontes e
 pares de documentação e chama `3rdpatch.hb -validate` para cada componente
@@ -43,6 +53,11 @@ Funções, procedures, métodos, namespaces e classes próprios usam PascalCase
 e identificadores em inglês; entradas de teste existentes `U_` mantêm a compatibilidade.
 A indentação dos fontes próprios usa quatro espaços. APIs nativas e
 convenções dos fontes de terceiros conservam sua grafia e formatação.
+
+Os arquivos de acompanhamento solicitados `WIP.md` e `WIP.pt-BR.md` têm
+exceções exatas de maiúsculas no `check.hb`; demais arquivos seguem a regra
+normal. O [ciclo dos pacotes](../WIP.pt-BR.md#atualização-e-renovação-do-wip)
+é separado de commit/publicação de mudanças intermediárias.
 
 `3rdpatch.hb -validate` não baixa arquivos, aplica patches nem reescreve
 fontes. Os metadados de cada componente declaram `ORIGIN`, `VER`, `URL`,

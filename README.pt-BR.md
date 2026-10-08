@@ -2,6 +2,10 @@
 
 [English](README.md)
 
+O [pacote ativo](WIP.pt-BR.md) define próximas tarefas, decisões registradas e
+critérios de conclusão. O pacote 001 cobre homologação MSSQL real;
+[TODO](TODO.pt-BR.md) mantém o roadmap completo. WIP é renovado após encerrar o pacote.
+
 ## Alinhamento atual: executor, perfis e compilação
 
 hbBridge é um executor genérico. Protheus resolve regras de negócio, tenantID,
@@ -15,8 +19,9 @@ sqlite_demo pertence apenas ao exemplo SQLite. Cada `OpenSQL`/`OpenPage` escolhe
 um alias, como mssql/pData; barra e maiúsculas são preservadas sem dedução de
 driver, empresa ou filial. O teste sem alias/SQLProfile retorna PROFILE_REQUIRED
 antes da rede. Drivers atuais: sqlite e mssql; Oracle exige conector e aceite
-próprios. A nova configuração acrescenta três checks aos 13 antigos e as
-classes renomeadas precisam de nova compilação/homologação Protheus.
+próprios. A configuração revisada e as classes renomeadas foram homologadas
+pelo operador em 2026-10-07: os 16 checks passaram após recompilação informada
+na migração para `.hb`.
 
 O build usa dependências fixadas próprias em .deps/, resolvidas por
 scripts/bootstrap.ps1. O runtime compilado fornece hbrun/hbmk2; .hbcommit/
@@ -122,14 +127,14 @@ Harbour, preservando a programação xBase na camada de serviços.
 | Recurso | Situação no código atual |
 | --- | --- |
 | Servidor TCP | Multithread, bind/porta configuráveis, padrão `0.0.0.0:1512`; cliente local usa `127.0.0.1`. |
-| Cliente Protheus | `HBBridgeClient`, contrato único `HBBRIDGE/1` com JSON e gzip em memória nos dois sentidos; uma conexão por chamada. Configuração em `[hbBridge]` do INI AppServer, com argumentos explícitos prioritários; teste de configuração homologado manualmente com 13 checks em 2026-10-04. |
+| Cliente Protheus | `HBBridgeClient`, contrato único `HBBRIDGE/1` com JSON e gzip em memória nos dois sentidos; uma conexão por chamada. Configuração em `[hbBridge]` do INI AppServer, com argumentos explícitos prioritários; 16 checks revisados homologados pelo operador em 2026-10-07, incluindo perfil explícito/vazio/inválido. |
 | Serviços | Registro versionado comum: `Health`, `Echo`, `ADDON.Execute`, `Core.Upper`, `Core.Version`, `Service.List`, `Admin.Status` e `RPCRDD.Query` quando há perfis SQL. |
-| Teste Protheus | Health, ADDON.Execute e dois Echo homologados manualmente em 2026-10-03 e repetidos com sucesso em 2026-10-04; 200.000 bytes idênticos e gzip de 152.964 bytes. Teste de relógio Windows também passou. |
+| Teste Protheus | Health, ADDON.Execute e dois Echo homologados manualmente em 2026-10-03 e repetidos com sucesso em 2026-10-04 e 2026-10-07; 200.000 bytes idênticos e gzip de 152.964 bytes. Teste de relógio Windows também passou. |
 | Módulos Harbour | Compilação em memória de `.prg`/`.hb` e carregamento de `.hrb` pelo serviço `ADDON.Execute`, com `module` e `params`. |
 | hbnetio | Listener nativo incorporado em `0.0.0.0:2941`, RPC filtrado e serialização Harbour. `HB_EXTERN` habilitado; gateway usa somente serviços registrados. |
 | HTTP/REST | `hbhttpd` incorporado, opcional e desativado por padrão. Chamadas JSON e status web autenticado usam o núcleo comum; credenciais de serviço/administração separadas. HTTPS direto exige build com OpenSSL e homologação própria. |
-| Cliente HTTP Protheus | `HBBridgeHTTPClient` usa FWRest nativo, bearer e contrato JSON compartilhado. Operador homologou 13 checks em 2026-10-07, incluindo paginação SQL. |
-| Dados SQL | `RPCRDD.Query` usa SQLMIX com SQLite e MSSQL/ODBC; suporta páginas no SGBD e resultados por chave. Teste SQLite Protheus homologado em 2026-10-04 com 29 checks; MSSQL real pendente. |
+| Cliente HTTP Protheus | `HBBridgeHTTPClient` usa FWRest nativo, bearer e contrato JSON compartilhado. Operador homologou 13 checks em 2026-10-07, incluindo paginação SQL; última rodada: thread 25456, um segundo. Backend SQL HTTP não identificado. |
+| Dados SQL | `RPCRDD.Query` usa SQLMIX com SQLite e MSSQL/ODBC; suporta páginas no SGBD e resultados por chave. Teste SQLite Protheus homologado em 2026-10-04 com 29 checks e reconfirmado em 2026-10-07 com `profile=sqlite_demo`; MSSQL real pendente. |
 | Dados DBF | Acesso por RDDs nativos via NETIO previsto; ainda não integrado ao hbBridge. |
 | VF IO | Cliente Harbour usa `hb_vf*` com provedor NETIO; leitura/escrita binária testadas. Fachada de arquivos para TLPP permanece pendente. |
 | C e Zig | Ponte pela API C do Harbour e ABI C do Zig integrada ao `Health`; biblioteca Zig e toolchain exigidos pelo build atual. |
@@ -149,6 +154,13 @@ A nova confirmação manual recebida em 2026-10-04 passou nos três testes
 Protheus: configuração com 13 checks, relógio/RPC e SQLite com 29 checks,
 incluindo paginação. A leitura do INI ativo foi aceita pelo teste de
 configuração; destino diferente dos padrões ainda precisa de rodada própria.
+
+Em 2026-10-07, após recompilação informada pelo operador na migração para `.hb`,
+passaram as classes TLPP renomeadas, os 16 checks de configuração revisados,
+relógio/RPC, 29 checks SQLite e 13 checks HTTP. Os horários/threads identificam
+essa regressão Windows; não foram fornecidos log de compilação, argumentos,
+destino efetivo nem hashes dos artefatos. O backend SQL HTTP não foi identificado.
+MSSQL real, destino alternativo e Linux continuam exigindo homologação própria.
 
 O [Marco 2 começou pela correção do fluxo TCP do produto](docs/milestone2-framing.pt-BR.md):
 o Harbour descompacta incrementalmente e o TLPP acumula uma unidade gzip completa.
@@ -275,7 +287,8 @@ define `Host`, `Port`, `TimeoutMs`, `MaxPayloadBytes`, `MaxWireBytes`,
 `GetSrvIniName()`; `HBBridgeClient():New()` usa os valores da seção, e seus
 argumentos explícitos os sobrepõem. Os testes sem argumentos também usam
 essas opções. A seção local já foi adicionada e o teste da configuração TLPP
-passou com 13 checks verdadeiros, incluindo leitura do INI ativo. Os perfis/conexões de banco pertencem ao servidor
+passou com 13 checks em 2026-10-04 e com os 16 revisados em 2026-10-07,
+incluindo leitura do INI ativo e seleção de perfil. Os perfis/conexões de banco pertencem ao servidor
 hbBridge; `SQLProfile` no AppServer apenas seleciona um alias remoto.
 
 `HBBridgeRuntimeLimits()` informa `stringBytesMax`, `socketChunkBytesMax`
@@ -322,7 +335,11 @@ O [exemplo HTTP em TLPP](examples/http/README.pt-BR.md) usa
 e `HTTPTimeoutSeconds` na seção `[hbBridge]` do AppServer ativo.
 `U_HBBridgeHTTPTest()` cobre Health/descoberta por GET, Health/Echo/addon por
 POST, erros 401/403/404, recuperação e páginas SQL opcionais com o dataset
-existente. O operador confirmou os 13 checks em 2026-10-07.
+existente. O relato anterior de 2026-10-07 usou a thread 25672. As rodadas
+posteriores passaram nos 13 checks: thread 27296 às 16:10:44–16:10:45 e
+thread 25456 às 16:15:03–16:15:04 (São Paulo), cada uma em um segundo.
+O backend SQL HTTP não foi identificado; a rodada TCP Query separada
+informou explicitamente SQLite.
 
 ### Extensibilidade e capacidades para as aplicações
 
@@ -446,7 +463,7 @@ Veja o [exemplo oficial](https://github.com/harbour/core/blob/master/contrib/hbn
 
 O serviço registrado `ADDON.Execute` recebe `params` com `module` e os
 parâmetros do módulo em `params`. O loader em
-[hbbridgeaddon.prg](src/hb/addons/hbbridgeaddon.prg), pela função `ExecuteAddonHRB`,
+[hbbridgeaddon.hb](src/hb/addons/hbbridgeaddon.hb), pela função `ExecuteAddonHRB`,
 compila fontes `.prg` e `.hb` em memória com
 `hb_compileBuf`; para `.hrb`, carrega o módulo compilado. A execução usa
 `hb_hrbLoad`/`hb_hrbDo`/`hb_hrbUnload`, com símbolos locais a cada HRB ativo.
@@ -454,7 +471,7 @@ O Harbour pode preservar valores `STATIC` ao reciclar um módulo descarregado;
 addons devem inicializar o estado de cada chamada a partir dos parâmetros.
 
 O teste Protheus chama `ADDON.Execute` com
-`{"module":"examples/hbbridgesampleaddon.prg","params":{...}}`, resolvido sob
+`{"module":"examples/hbbridgesampleaddon.hb","params":{...}}`, resolvido sob
 `addonRoot`, e verifica o retorno `success` do módulo de exemplo. O mesmo
 serviço está disponível pelo NETIO nativo. As regras de publicação, versão e
 atualização dos módulos continuam no roadmap.
@@ -587,7 +604,7 @@ Esse caminho usa buffers em memória. Não depende de arquivos
 temporários nem das APIs de arquivo `GzCompress`/`GzDecomp`. O cliente atual
 envia JSON dentro do frame comprimido, e o servidor também comprime a resposta.
 Os detalhes estão em [hbbridgeclient.tlpp](src/tlpp/hbbridgeclient.tlpp) e
-[hbbridgeframing.prg](src/hb/transports/protheus/hbbridgeframing.prg).
+[hbbridgeframing.hb](src/hb/transports/protheus/hbbridgeframing.hb).
 
 O contrato não fixa um teto de 16 MiB. Por padrão, o aplicativo não acrescenta
 limites de payload ou bytes transmitidos. O servidor respeita as capacidades
@@ -623,6 +640,8 @@ O teste Protheus verifica escala e avanço durante `Sleep(1000)` antes do RPC,
 inclusive para detectar eventual correção dessa diferença em novos builds.
 O operador confirmou esse teste no Windows em 2026-10-04: delta bruto de
 `1097.692700` e normalizado de `1097.773500` ms, resultado `OK`.
+Em 2026-10-07 às 16:14:31, thread 27084, reconfirmou `OK`: delta bruto
+`1089.987500`, normalizado `1090.088100 ms`.
 A documentação não garante monotonicidade/wrap de `TimeCounter`; essa
 validação ampliada e o caminho Linux permanecem pendentes. O servidor usa `HBBridgeMonotonicMs()` para
 os prazos e o uptime, sem depender de ajustes de data/hora.
@@ -800,17 +819,17 @@ hb.bridge/
 |-- src/
 |   |-- hb/
 |   |   |-- host/                        # Entrada, configuracao e ciclo de vida
-|   |   |-- core/hbbridgedispatcher.prg           # Registro versionado e valores Harbour
+|   |   |-- core/hbbridgedispatcher.hb           # Registro versionado e valores Harbour
 |   |   |-- transports/
-|   |   |   |-- netio/hbbridgenetio.prg         # RPC e arquivos nativos; threads do host
-|   |   |   |-- http/hbbridgehttp.prg          # HTTP/REST e status web com hbhttpd
+|   |   |   |-- netio/hbbridgenetio.hb         # RPC e arquivos nativos; threads do host
+|   |   |   |-- http/hbbridgehttp.hb          # HTTP/REST e status web com hbhttpd
 |   |   |   `-- protheus/
-|   |   |       |-- hbbridgeserver.prg       # Listener e workers do produto
-|   |   |       |-- hbbridgeadapter.prg          # JSON para o nucleo de servicos
-|   |   |       `-- hbbridgeframing.prg          # Recepcao/envio HBBRIDGE/1 com gzip
-|   |   |-- services/hbbridgeservices.prg         # Servicos, descoberta e administracao
-|   |   |-- addons/hbbridgeaddon.prg      # Compilacao e carga de modulos
-|   |   `-- telemetry/hbbridgesyslog.prg         # Modulo Syslog existente
+|   |   |       |-- hbbridgeserver.hb       # Listener e workers do produto
+|   |   |       |-- hbbridgeadapter.hb          # JSON para o nucleo de servicos
+|   |   |       `-- hbbridgeframing.hb          # Recepcao/envio HBBRIDGE/1 com gzip
+|   |   |-- services/hbbridgeservices.hb         # Servicos, descoberta e administracao
+|   |   |-- addons/hbbridgeaddon.hb      # Compilacao e carga de modulos
+|   |   `-- telemetry/hbbridgesyslog.hb         # Modulo Syslog existente
 |   |-- c/                              # API Harbour, gzip incremental e ABI C para Zig
 |   |-- zig/runtime/hbbridgeruntime.zig          # Biblioteca Zig demonstrativa
 |   `-- tlpp/                           # Clientes TCP/HTTP, HBBridgeRPCDataSet e tests/protheus
@@ -859,7 +878,7 @@ O perfil deverá compilar os fontes Harbour com informações de depuração (`-
 vincular o depurador e manter os fontes correspondentes acessíveis. Isso inclui
 os `.prg`/`.hb` compilados em memória pelo loader e os `.hrb` preparados fora
 do servidor. Hoje a composição [hbbridge.hbm](hbbridge.hbm) e a chamada a `hb_compileBuf` no
-[loader](src/hb/addons/hbbridgeaddon.prg) não habilitam `-b`; ter `hbdebug` no
+[loader](src/hb/addons/hbbridgeaddon.hb) não habilitam `-b`; ter `hbdebug` no
 toolchain não significa que esse fluxo já esteja integrado e homologado.
 No `hbmk2`, `-debug` controla informações para o depurador nativo C; a opção
 Harbour `-b` tem outra função. Veja o [hbmk2](https://github.com/harbour/core/blob/master/utils/hbmk2/hbmk2.prg).
@@ -945,7 +964,7 @@ compile o cliente TLPP e rode `U_HBBridgeConnectionTest()` de
 [hbbridgeconnectiontest.tlpp](src/tlpp/tests/protheus/hbbridgeconnectiontest.tlpp) no
 Protheus. O teste exercita `Health`, `Echo` e, com
 `__IS_THE_ADDONS_EXECUTION_ENABLED__` habilitado (padrão atual),
-`ADDON.Execute` com o módulo `examples/hbbridgesampleaddon.prg`. A execução a partir
+`ADDON.Execute` com o módulo `examples/hbbridgesampleaddon.hb`. A execução a partir
 da raiz permite ao servidor localizar o fonte em `addons/examples/`.
 O [launcher de exemplo](examples/mvp/run.ps1)
 prepara esse diretório automaticamente. O teste aceita host, porta e timeout,
@@ -954,7 +973,7 @@ com `scripts/test-hbbridge.ps1`; instruções em [testes](tests/README.pt-BR.md)
 
 ## Operação e próximos passos
 
-O módulo [hbbridgesyslog.prg](src/hb/telemetry/hbbridgesyslog.prg) está disponível para enviar
+O módulo [hbbridgesyslog.hb](src/hb/telemetry/hbbridgesyslog.hb) está disponível para enviar
 eventos UDP a `127.0.0.1:514`, mas sua ligação ao fluxo do servidor permanece
 pendente. Políticas mais amplas de identidade/tokens, configuração de acesso, gestão de credenciais e
 políticas de módulos também fazem parte da consolidação da ponte.
@@ -985,6 +1004,12 @@ minúsculas; funções, procedures, métodos, namespaces e classes usam
 [padrões](docs/standards.pt-BR.md). O
 [.editorconfig](.editorconfig) registra esse padrão. Cabeçalhos de terceiros
 preservam a formatação e os avisos de seus autores.
+
+Fontes Harbour próprios usam `.hb`, fontes Protheus usam `.tlpp`, e addons
+Harbour compilados usam `.hrb`. Módulos relacionados de Harbour/TLPP/C/Zig
+seguem a mesma convenção de nomes-base; a extensão identifica a linguagem.
+Builds comuns de `.hbp` mantêm o fluxo existente. `ADDON.Execute` continua
+aceitando fontes `.prg` por compatibilidade, além de fontes `.hb` e módulos `.hrb`.
 
 Prefira hashes no Harbour para registros, configurações, metadados e consultas
 por chave, evitando arrays com posições que representam campos nomeados.

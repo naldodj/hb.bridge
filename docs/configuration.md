@@ -191,12 +191,26 @@ artifact hashes or a compilation log. The active-INI check confirms valid
 reading; nondefault destinations/no-argument behavior require an identified run.
 The 412 Harbour checks remain independent evidence.
 
+The operator-reported recompilation after the `.hb` migration and supplied
+2026-10-07 São Paulo log accept renamed TLPP and all 16 revised configuration
+checks at 16:14:06, thread 30596, including `explicitProfile`, `noForcedProfile`
+and `invalidProfile`. Query at 16:13:33, thread 27136 reconfirmed all 29 checks
+with `profile=sqlite_demo`; Connection at 16:14:31, thread 27084 reconfirmed
+clock/Health/ADDON/two exact 200000-byte Echo calls. HTTP at 16:15:03–16:15:04,
+thread 25456 passed all 13 checks in one second, without identifying its SQL
+backend. This operator execution supplies times/threads, but no actual compiler
+log, hashes, call arguments or effective Host/Port. The agent did not execute
+the AppServer tests. Real MSSQL, nondefault destination/no-argument behavior,
+Linux and broader failure/clock/type scenarios remain pending.
+
 ## Portable credential storage
 
 **Current behavior:** INI/JSON can contain an ODBC connection string; there is
 no implemented encrypted credential envelope, local credential utility or
 administration GUI. An integrated-authentication connection uses the server
-process identity. AppServer carries only SQLProfile.
+process identity. AppServer carries only SQLProfile for selecting a database
+profile. The strict parser does not yet accept proposed credential-provider
+sections or fields.
 
 **Proposed architecture:** retain public profile fields and a versioned encrypted
 password envelope in INI/JSON, keeping its master key outside that file/repository.
@@ -204,11 +218,24 @@ A key-provider abstraction supports a protected external file on Windows/Linux
 and optional environment/vault/OS providers. Use authenticated encryption from
 an existing audited library, with version, salt/nonce, authentication tag and
 explicit key identity. Fixed embedded keys and reversible obfuscation are not
-password protection.
+password protection. The credential design targets stable SQL credentials:
+in the operator's current Protheus deployment, database-password changes are
+rare and require manual ODBC/DBAccess coordination. Optional OpenBao KV v2
+would securely store and provide read access to that installed credential.
+OpenBao, a database secrets engine, dynamic credentials and an MSSQL plugin
+are not prerequisites for the initial provider or current MSSQL acceptance.
 
 A local utility should prompt securely, update/remove/test credentials and
 share its storage/connection core with a future GUI. Service account ownership,
-file permissions, key rotation, backup and restoration must be tested on both
-operating systems. A Windows credential manager is optional, not a prerequisite.
+file permissions, support for optional encryption master-key replacement,
+backup and restoration must be tested on both operating systems. Changing the
+master key re-encrypts the
+same SQL password; OpenBao authentication-token renewal maintains access to
+the same stored credential. Neither operation changes the database password.
+Protected authentication bootstrap, CA/hostname validation, provider deadlines
+and explicit refresh/unavailable-provider behavior remain necessary for the
+optional OpenBao provider. The design retains future manual credential updates
+and migration, without automatically changing external ODBC/DBAccess credentials.
+A Windows credential manager is optional, not a prerequisite.
 Do not extract DBAccess's internal password format; configure hbBridge's own
 credential explicitly. See [credential design](credentials.md) and [TODO](../TODO.md).

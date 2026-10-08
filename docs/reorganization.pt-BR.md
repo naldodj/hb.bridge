@@ -11,13 +11,13 @@ preparando os próximos marcos do [TODO](../TODO.pt-BR.md).
 
 | Origem | Destino | Responsabilidade |
 | --- | --- | --- |
-| `src/hb/server/server.prg` — `Main` | [host/hbbridgemain.prg](../src/hb/host/hbbridgemain.prg) | Entrada, opções e ciclo de vida do console. |
-| `src/hb/server/server.prg` — recepção/envio | [transports/protheus/hbbridgeframing.prg](../src/hb/transports/protheus/hbbridgeframing.prg) | Enquadramento e compressão atuais. |
-| `src/hb/server/mt_server.prg` | [transports/protheus/hbbridgeserver.prg](../src/hb/transports/protheus/hbbridgeserver.prg) | Listener, workers e encerramento. |
-| `src/hb/dispatcher/dispatcher.prg` | [core/hbbridgedispatcher.prg](../src/hb/core/hbbridgedispatcher.prg) | Registro/despacho/validação; valores nativos desde o Marco 1. |
-| Respostas dos serviços no dispatcher | [services/hbbridgeservices.prg](../src/hb/services/hbbridgeservices.prg) | Hoje reúne Health/Echo/ADDON.Execute e descoberta. |
+| `src/hb/server/server.prg` — `Main` | [host/hbbridgemain.hb](../src/hb/host/hbbridgemain.hb) | Entrada, opções e ciclo de vida do console. |
+| `src/hb/server/server.prg` — recepção/envio | [transports/protheus/hbbridgeframing.hb](../src/hb/transports/protheus/hbbridgeframing.hb) | Enquadramento e compressão atuais. |
+| `src/hb/server/mt_server.prg` | [transports/protheus/hbbridgeserver.hb](../src/hb/transports/protheus/hbbridgeserver.hb) | Listener, workers e encerramento. |
+| `src/hb/dispatcher/dispatcher.prg` | [core/hbbridgedispatcher.hb](../src/hb/core/hbbridgedispatcher.hb) | Registro/despacho/validação; valores nativos desde o Marco 1. |
+| Respostas dos serviços no dispatcher | [services/hbbridgeservices.hb](../src/hb/services/hbbridgeservices.hb) | Hoje reúne Health/Echo/ADDON.Execute e descoberta. |
 | Bloco C do loader | [c/hbbridgezig.c](../src/c/hbbridgezig.c) | Mesma API Harbour e chamada à função Zig. |
-| `tests/harbour/` | [integration/harbour](../tests/integration/harbour/hbbridgeservertest.prg) | Suíte MT e fixtures. |
+| `tests/harbour/` | [integration/harbour](../tests/integration/harbour/hbbridgeservertest.hb) | Suíte MT e fixtures. |
 | `tests/protheus/` | [src/tlpp/tests/protheus](../src/tlpp/tests/protheus/hbbridgeconnectiontest.tlpp) | Teste TLPP, reunido à árvore compilável Protheus. |
 
 Loader, telemetria, cliente TLPP, biblioteca Zig, addon de exemplo e esboços de
@@ -65,8 +65,11 @@ namespaces e classes usam PascalCase por decisão explícita do responsável.
 APIs nativas conservam sua grafia exigida. Veja [padrões](standards.pt-BR.md).
 
 O Harbour segue a mesma convenção de nomes-base; a extensão identifica a
-linguagem. Os utilitários de commit ficam em `.hbcommit/`. O bootstrap
-compila Harbour/hbrun do próprio projeto, sem `bin/harbour` nem checkout
+linguagem: Harbour próprio usa `.hb`, Protheus usa `.tlpp`, e addons compilados
+usam `.hrb`. Builds comuns `.hbp` mantêm seu fluxo; `ADDON.Execute` também
+aceita fontes `.prg` por compatibilidade. Os utilitários de commit ficam em
+`.hbcommit/`. O bootstrap compila Harbour/hbrun do próprio projeto, sem
+`bin/harbour` nem checkout
 externo fixo; veja [dependências](dependencies.pt-BR.md). Documentos em
 inglês têm correspondente `.pt-BR`.
 

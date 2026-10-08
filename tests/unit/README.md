@@ -2,12 +2,12 @@
 
 [Português](README.pt-BR.md)
 
-[hbbridgeconfigtest.prg](hbbridgeconfigtest.prg) checks defaults, JSON/CLI
+[hbbridgeconfigtest.hb](hbbridgeconfigtest.hb) checks defaults, JSON/CLI
 precedence, directory resolution, invalid types/values and endpoint conflicts.
-[hbbridgeconfiginitest.prg](hbbridgeconfiginitest.prg) adds INI/JSON equivalence,
+[hbbridgeconfiginitest.hb](hbbridgeconfiginitest.hb) adds INI/JSON equivalence,
 autoload, sanitized metadata, strict parsing without changing password/ODBC
 punctuation (`;`, `#`, `=`), multiple profiles and slash/case-sensitive aliases.
-[hbbridgetimetest.prg](hbbridgetimetest.prg) checks monotonic advancement during
+[hbbridgetimetest.hb](hbbridgetimetest.hb) checks monotonic advancement during
 waits and concurrent reads without regression. The
 [runner](../../scripts/test-hbbridge.ps1) builds them with product components
 and executes them in an isolated directory.

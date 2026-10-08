@@ -2,7 +2,7 @@
 
 [Português](README.pt-BR.md)
 
-[hbbridgenetio.prg](hbbridgenetio.prg) embeds native netio_Listen/Accept/Server
+[hbbridgenetio.hb](hbbridgenetio.hb) embeds native netio_Listen/Accept/Server
 in the product. The host owns connections/threads and coordinates shutdown,
 restart and rollback. Data binds `0.0.0.0:2941`; administration binds
 `127.0.0.1:2940`, requires a separate credential and disables its file root.

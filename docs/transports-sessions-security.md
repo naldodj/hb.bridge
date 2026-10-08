@@ -37,8 +37,8 @@ brainstorming review; historical validation does not certify it.
 
 The current server binds 0.0.0.0, default port 1512; local client uses 127.0.0.1.
 The Protheus signature is HBBRIDGE/1. Brainstorming refers to older behavior.
-See [entry](../src/hb/host/hbbridgemain.prg) and
-[listener](../src/hb/transports/protheus/hbbridgeserver.prg).
+See [entry](../src/hb/host/hbbridgemain.hb) and
+[listener](../src/hb/transports/protheus/hbbridgeserver.hb).
 
 [The client](../src/tlpp/hbbridgeclient.tlpp) creates/closes its socket inside
 CallService; each worker serves one request then closes.

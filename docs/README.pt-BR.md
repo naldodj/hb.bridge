@@ -2,6 +2,10 @@
 
 [English](README.md)
 
+O [pacote ativo](../WIP.pt-BR.md) registra escopo atual, próxima tarefa,
+decisões, evidências e renovação. O primeiro pacote é MSSQL real; TODO
+permanece o roadmap completo, sem copiar todas as pendências para o WIP.
+
 [Arquitetura](architecture.pt-BR.md) fixa a divisão: Protheus resolve regras,
 tenant, empresa, filial/xFilial e nomes físicos; hbBridge executa parâmetros
 explícitos. Perfis são aliases opacos por chamada, sem banco demo fixo.
@@ -158,7 +162,7 @@ e referências no [transporte incorporado](../src/hb/transports/netio/README.pt-
 
 ## Syslog
 
-O modulo `src/hb/telemetry/hbbridgesyslog.prg` implementa envio UDP para
+O modulo `src/hb/telemetry/hbbridgesyslog.hb` implementa envio UDP para
 `127.0.0.1:514` e esta incluido no build. O fluxo atual do servidor nao
 chama `SyslogOpen`, `SyslogWrite` ou `SyslogClose`; portanto, nao ha emissao
 Syslog integrada ao atendimento RPC. A conexao desse modulo ao ciclo de

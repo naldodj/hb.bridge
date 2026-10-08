@@ -5,6 +5,52 @@
    Caminhos antigos descrevem os arquivos existentes na época.
  */
 
+2026-10-07 23:37 UTC naldodj (Definir gestão de credenciais com senhas SQL estáveis)
+  * Desenho de credenciais/configuração EN/PT, TODO e WIP registram a necessidade
+    operacional: senha SQL estável, armazenamento protegido e atualização manual,
+    sem rotação automática. KV OpenBao opcional dispensa plugin MSSQL dinâmico.
+    Renovação do token do cofre e chaves de criptografia são ciclos separados.
+  ; Caminho de aceite MSSQL e análise histórica preservados; mudança documental,
+    sem alterar credenciais ODBC, DBAccess ou banco.
+
+2026-10-07 23:30 UTC naldodj (Registrar aceite Protheus pós-migração e análise OpenBao)
+  * WIP, homologação, README/TODO e guias EN/PT de configuração/testes/HTTP:
+    recompilação informada e execuções de 2026-10-07; Query SQLite 29 checks
+    (thread 27136), configuração revisada 16 (30596), relógio/RPC (27084) e
+    HTTP 13 (27296 e 25456). Transcrições e evidências históricas preservadas.
+  ! Pendências dos renomes TLPP/configuração superadas nos casos exercitados;
+    MSSQL real e identificação do backend SQL HTTP continuam pendentes.
+  * Credenciais EN/PT: análise de OpenBao opcional servidor para pacote 003,
+    cliente/serviço existente, bootstrap protegido e ciclo de memória/leases.
+    KV separado de MSSQL dinâmico com plugin externo; esboço exige adaptar
+    APIs ao Zig 0.16 fixado antes de implementar.
+  ; Documentação/desenho; nenhum provedor de segredos ou serviço novo entregue.
+  ; Três validadores aprovados para 141 arquivos; links locais em 61 documentos
+    e whitespace aprovados. Regressões nativas não foram repetidas.
+
+2026-10-07 19:04 UTC naldodj (Adotar extensão nativa dos fontes Harbour)
+  * Renomeados 26 fontes Harbour próprios de .prg para .hb; atualizados HBP/HBM,
+    runner/fixtures, exemplos de addon e caminhos dos testes TLPP TCP/HTTP.
+    Fontes de terceiros e suporte a addons PRG preservados.
+  * commit-check aplica regras de classe/PascalCase/indentação a .hb;
+    gitattributes classifica como xBase. Documentado HBP versus execução de script.
+  * Convenções, README/TODO/guias EN/PT e escopo preparatório no WIP; mantidos
+    os marcos MSSQL e caminhos históricos no ChangeLog.
+  ; Regressão Harbour: 487 verificações, zero falhas/sem skips; build isolado
+    do produto aprovado. Novos caminhos TLPP exigem recompilação no AppServer.
+  ; Três validadores aprovados para 141 arquivos, incluindo convenções .hb;
+    links locais em 61 documentos e whitespace aprovados.
+
+2026-10-07 18:45 UTC naldodj (Registrar pacotes de trabalho ativos delimitados)
+  + WIP.md/WIP.pt-BR.md com pacote 001 MSSQL real: referência, decisões,
+    tarefas ordenadas, pré-requisitos, evidências e critérios de conclusão.
+    Prioridades seguintes reservadas; renovação após encerramento, mantendo
+    progresso em commits/publicações intermediários.
+  * AGENTS/README/TODO e guias bilíngues orientam retomar o pacote ativo,
+    registrar revisão justificada de decisões e preservar resumo/histórico.
+  * .hbcommit/check.hb permite exatamente os dois nomes WIP solicitados.
+  ; Planejamento/documentação; não homologa MSSQL nem entrega serviço novo.
+
 2026-10-07 18:21 UTC naldodj (Adicionar cliente HTTP TLPP e exemplo Protheus)
   + HBBridgeHTTPClient com FWRest nativo, GET/POST/bearer, INI ativo e argumentos
     explícitos, status HTTP e contrato comum de serviços.

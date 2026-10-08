@@ -186,7 +186,7 @@ PROCEDURE HTTPTests( nFailures, nChecks )
             hResponse[ "json" ][ "rows" ][ "1" ][ "CALLER_TEXT" ] == cUnicode, ;
             "HTTP SQLite query preserves UTF-8 text provided by the caller", @nFailures, @nChecks )
         hResponse := HTTPRequest( hConfig[ "httpPort" ], "POST", "/api/v1/services/ADDON.Execute", ;
-            '{"module":"examples/hbbridgesampleaddon.prg","params":{}}', cDataAuth )
+            '{"module":"examples/hbbridgesampleaddon.hb","params":{}}', cDataAuth )
         HTTPAssert( hResponse[ "status" ] == 200 .AND. hResponse[ "json" ][ "success" ], ;
             "HTTP uses the existing HRB addon executor", @nFailures, @nChecks )
         hResponse := HTTPRequest( hConfig[ "httpPort" ], "GET", "/api/v1/services", "", cDataAuth )

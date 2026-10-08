@@ -166,6 +166,7 @@ config/patches/*.patch text eol=lf
 *.ch linguist-language=xBase
 *.th linguist-language=xBase
 
+*.hb linguist-language=xBase
 *.prg linguist-language=xBase
 *.prx linguist-language=xBase
 *.prw linguist-language=xBase

@@ -5,6 +5,58 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Add native service registry and host runtime)"
  */
 
+2026-10-07 23:37 UTC naldodj (Scope credential management to stable SQL passwords)
+  * Paired credential/configuration design, TODO and WIP
+    + Record the owner's operational requirement: stable SQL credentials,
+      protected storage and manual updates without automatic password rotation.
+    + Optional OpenBao KV access does not require a dynamic MSSQL plugin;
+      distinguish vault token renewal and encryption keys from SQL passwords.
+    + Preserve the initial MSSQL acceptance path and historical RFC review.
+  ; Documentation only; no ODBC, DBAccess or database credentials changed.
+
+2026-10-07 23:30 UTC naldodj (Record post-migration Protheus acceptance and OpenBao review)
+  * WIP, acceptance, README/TODO and paired configuration/test/HTTP guides
+    + Operator-reported recompilation and 2026-10-07 runs: SQLite Query 29
+      checks (thread 27136), revised config 16 (30596), clock/RPC (27084),
+      HTTP 13 (27296 and 25456). Preserve transcripts and historical evidence.
+    ! Close pending renamed-TLPP/config regression status for exercised cases;
+      real MSSQL and identified HTTP SQL backend remain pending.
+  * docs/credentials.md and credentials.pt-BR.md
+    + Review optional server-side OpenBao provider for package 003, existing
+      bridge client boundary, protected bootstrap and memory/lease lifecycle.
+    + Separate KV storage from dynamic MSSQL credentials requiring an external
+      plugin; adapt the conceptual sample to pinned Zig 0.16 before implementation.
+  ; Documentation/design only: no secret provider or new runtime service delivered.
+  ; All three commit validators passed for 141 files; 61 documents' local
+    links and whitespace passed. Native regressions were not repeated.
+
+2026-10-07 19:04 UTC naldodj (Adopt native Harbour source extension)
+  * Rename 26 project-owned Harbour sources from .prg to .hb
+    + Update product/test HBP/HBM, fixture runner, addon examples and TLPP
+      TCP/HTTP test module paths; preserve third-party sources and PRG support.
+  * scripts/commit-check.ps1 and .gitattributes
+    + Apply existing class/PascalCase/indentation checks to .hb and classify
+      it as xBase; keep ordinary HBP compilation distinct from script execution.
+  * Paired conventions, README/TODO/guides and WIP preparatory scope
+    + Preserve MSSQL milestones and historical ChangeLog paths.
+  ; Harbour regression: 487 checks, zero failures/no skips; isolated product
+    build passed. TLPP sample path changes require AppServer recompilation.
+  ; All three commit validators passed for 141 files, including .hb convention
+    checks; local links across 61 documents and whitespace passed.
+
+2026-10-07 18:45 UTC naldodj (Record bounded active work packages)
+  + WIP.md and WIP.pt-BR.md
+    + Package 001 for real MSSQL acceptance: reference, established decisions,
+      ordered tasks, prerequisites, evidence and explicit completion criteria.
+    + Reserve following priorities and renew WIP only after package closure,
+      preserving progress through intermediate commits and publications.
+  * AGENTS, README, TODO and paired documentation/standards/tool guides
+    + Resume the active package rather than repeat project-wide analysis;
+      record justified decision changes and preserve closure/history.
+  * .hbcommit/check.hb
+    + Exact uppercase exceptions for the two requested WIP filenames.
+  ; Planning/documentation only; no MSSQL acceptance or new service claimed.
+
 2026-10-07 18:21 UTC naldodj (Add TLPP HTTP client and Protheus example)
   + src/tlpp/hbbridgehttpclient.tlpp
     + Namespaced HBBridgeHTTPClient with native FWRest GET/POST, bearer,

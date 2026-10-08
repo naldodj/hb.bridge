@@ -34,7 +34,7 @@ there is no parallel MVP or compatibility layer.
 
 ## Implementation
 
-- [Harbour framing](../src/hb/transports/protheus/hbbridgeframing.prg) preserves
+- [Harbour framing](../src/hb/transports/protheus/hbbridgeframing.hb) preserves
   decoder state across reads, applies policies/runtime capacities and dispatches
   only after valid completion. Receive/send budgets default 30 seconds.
 - [C decoder](../src/c/hbbridgedecoder.c) uses linked zlib inflate, explicit
@@ -119,7 +119,7 @@ POSIX was compiled, not runtime accepted in this delivery.
 ## Validation history
 
 [The runner](../scripts/test-hbbridge.ps1) shares product components and executes
-[framing tests](../tests/integration/harbour/hbbridgeframingtest.prg).
+[framing tests](../tests/integration/harbour/hbbridgeframingtest.hb).
 It compares all bytes for gzip exceeding 65,535, fragments header/trailer,
 checks expansion policies, CRC/excess/truncation/strict parsing and recovery.
 A slow-client test uses an explicit positive total budget; a new fragment

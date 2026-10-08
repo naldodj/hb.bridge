@@ -143,6 +143,8 @@ STATIC FUNCTION CheckFile( cName, /* @ */ aErr, lApplyFixes )
       "Makefile", ;
       "AGENTS.*", ;
       "TODO.*", ;
+      "WIP.md", ;
+      "WIP.pt-BR.md", ;
       "CONTRIBUTING.*", ;
       "DEPRECATED.*", ;
       "LICENSE.*", ;

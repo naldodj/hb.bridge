@@ -33,7 +33,7 @@ static procedure HBBridgeHTTPTest(cURL, cToken, nTimeoutSeconds, cSQLProfile, cA
     endif
 
     DEFAULT cSQLProfile:=character
-    DEFAULT cAddonModule:="examples/hbbridgesampleaddon.prg"
+    DEFAULT cAddonModule:="examples/hbbridgesampleaddon.hb"
 
     oClient := HBBridge.Client.HBBridgeHTTPClient():New(cURL, cToken, nTimeoutSeconds)
     jResponse := oClient:Health()

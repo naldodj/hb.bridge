@@ -21,6 +21,15 @@ It never depends on a bundled runtime under this directory or a global
 `hbrun` command. `-HbCompileRoot` and `-ZigPath` are explicit development
 overrides; normal use requires the local bootstrap.
 
+Project-owned Harbour sources, tests and addons use `.hb`. Both `.hb` and
+`.prg` receive the same project naming and indentation checks; upstream files
+retain their extension and formatting exceptions. External/runtime `.prg`
+inputs remain supported. The maintenance `.hb` scripts run through `hbrun`.
+`hbmk2` compiles `.hb` entries from `.hbp`/`.hbm` build files, but a `.hb` path
+as its first command-line argument selects script execution. To compile a
+source directly, put `-hbexe` or `-gh` before that path, for example
+`hbmk2 -hbexe module.hb` or `hbmk2 -gh module.hb`.
+
 The default check covers existing tracked files and nonignored new files.
 It runs both `check.hb` and `commit.hb`, validates the source naming and
 documentation pairs, and executes `3rdpatch.hb -validate` for each vendored
@@ -42,6 +51,11 @@ converted to lowercase. Own functions, procedures, methods, namespaces and
 classes use PascalCase and English identifiers; existing `U_` test entry points remain
 compatible. Own source indentation uses four spaces. Native APIs and
 third-party source conventions retain their required spelling and format.
+
+The user-requested tracking files `WIP.md` and `WIP.pt-BR.md` have exact
+uppercase filename exceptions in `check.hb`; other own filenames keep the
+normal rule. Their [package lifecycle](../WIP.md#updating-and-renewing-wip)
+is separate from committing or publishing an intermediate change.
 
 `3rdpatch.hb -validate` performs no downloads, patch applications or file
 rewrites. Each component metadata file declares `ORIGIN`, `VER`, `URL`,

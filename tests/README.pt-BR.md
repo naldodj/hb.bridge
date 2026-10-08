@@ -14,7 +14,7 @@ O pré-processador também gera o símbolo `U_` a partir de `User Function`;
 não é necessário converter a declaração existente.
 
 O teste chama `Health`, `Echo` e `ADDON.Execute` com
-`module = "examples/hbbridgesampleaddon.prg"` e os parâmetros do módulo (macro
+`module = "examples/hbbridgesampleaddon.hb"` e os parâmetros do módulo (macro
 `__IS_THE_ADDONS_EXECUTION_ENABLED__` habilitada) pelo cliente `HBBridgeClient`.
 As chamadas usam JSON no frame `HBBRIDGE/1`, com compressao e descompressao de strings nos
 dois sentidos: `GzStrComp`/`GzStrDecomp` no Protheus e
@@ -45,6 +45,10 @@ O teste do relógio também passou: `Unix=false`, delta bruto `1097.692700`,
 tempo normalizado `1097.773500 ms` após `Sleep(1000)` e `result=OK`.
 Isso aceita a medição normalizada no Windows alvo; outras plataformas e
 timeout/falhas provocados continuam na matriz de homologação.
+Em 2026-10-07 às 16:14:31, thread 27084, o operador reconfirmou Health,
+ADDON e os dois Echo exatos de 200.000 bytes, com gzip de 152.964 bytes.
+Relógio `OK`: `Unix=false`, delta bruto `1089.987500`, normalizado
+`1090.088100 ms` após `Sleep(1000)`.
 
 O resultado aparece no console do Protheus. `Health` ainda depende da
 biblioteca Zig demonstrativa do build atual. A execução do teste TLPP
@@ -58,9 +62,12 @@ O [teste HTTP TLPP](../src/tlpp/tests/protheus/hbbridgehttptest.tlpp),
 POST Health/Echo/addon, serviços inexistentes/proibidos, bearer inválido e
 recuperação. Reaproveita o dataset para páginas SQL opcionais.
 Veja [configuração e chamadas](../examples/http/README.pt-BR.md).
-O operador homologou **13 checks** em 2026-10-07, thread 25672; essa prova
-AppServer é separada do runner Harbour. O relato não identifica perfil/backend
-SQL nem comprova HTTPS/Unicode mais amplo.
+O operador homologou **13 checks** em 2026-10-07, thread 25672. As rodadas
+posteriores passaram nos 13: thread 27296 (programa às 16:10:40, teste
+16:10:44–16:10:45) e thread 25456 (programa às 16:15:02, teste
+16:15:03–16:15:04), cada uma em um segundo. Horários locais de São Paulo.
+Essa prova AppServer é separada do runner Harbour. Os relatos HTTP não
+identificam perfil/backend SQL nem comprovam HTTPS/Unicode mais amplo.
 
 [hbbridgequerytest.tlpp](../src/tlpp/tests/protheus/hbbridgequerytest.tlpp)
 acrescenta `U_HBBridgeQueryTest`: campos por nome, decimal, EOF, fechamento,
@@ -74,7 +81,9 @@ O operador homologou SQLite no AppServer em 04/10/2026 às 00:40:06,
 thread `41228`, perfil `sqlite_demo`, com todos os 29 checks verdadeiros.
 Na nova rodada manual registrada na sessão de 2026-10-04, confirmou novamente
 os 29 checks verdadeiros no perfil `sqlite_demo`, junto do novo teste de
-configuração cliente. MSSQL real permanece pendente.
+configuração cliente. Em 2026-10-07 às 16:13:33, thread 27136, o log
+reconfirmou todos os 29 checks verdadeiros com `profile=sqlite_demo`.
+MSSQL real permanece pendente.
 
 Com a seção `[hbBridge]` do AppServer alinhada ao servidor, abra
 [U_HBBridgeQueryTest no WebApp](https://localhost:4321/webapp/?p=U_HBBridgeQueryTest&e=PROTHEUS).
@@ -100,7 +109,7 @@ sem perfis no arquivo selecionado ou no `hbbridge.ini` junto ao binário,
 e confira a porta antes de repetir o teste. Um serviço já registrado com
 perfil desconhecido retorna `PROFILE_NOT_FOUND`.
 
-[hbbridgequerytest.prg](integration/harbour/hbbridgequerytest.prg) usa um SQLite
+[hbbridgequerytest.hb](integration/harbour/hbbridgequerytest.hb) usa um SQLite
 real em arquivo isolado, com perfis, valores, metadados, conexão/área restauradas,
 erros sanitizados e 16 chamadas concorrentes. Verifica páginas no SGBD,
 ordenação composta/descendente, lacunas, linha extra, página cheia/parcial/vazia,
@@ -146,8 +155,15 @@ compilador ao parar os processos TOTVS, permanece como histórico em
 execução dos novos testes. A [matriz](../docs/acceptance.pt-BR.md) distingue esse
 resultado dos cenários ainda não homologados. A versão revisada acrescenta
 `explicitProfile`, `noForcedProfile` e `invalidProfile`, totalizando 16 checks.
-Os novos nomes HBBridgeClient/HBBridgeRPCDataSet e os namespaces PascalCase
-exigem recompilar a árvore TLPP completa e executar esses testes novamente.
+Em 2026-10-07 às 16:14:06, thread 30596, todos os 16 passaram. O operador
+informou recompilação após a migração para `.hb`; os quatro testes Query,
+Config, Connection e HTTP aceitam a regressão das classes/namespace TLPP
+renomeados e dos novos caminhos de addon `.hb` no Windows alvo.
+O log fornece horários/threads; não foram fornecidos log real do compilador,
+hashes, argumentos ou destino efetivo. O agente não executou esses testes.
+Continuam pendentes MSSQL real, backend SQL HTTP identificado, destino
+alternativo com argumentos omitidos, Linux e os cenários de falha/timeout,
+precisão/wrap, capacidades e tipos ampliados da [matriz](../docs/acceptance.pt-BR.md).
 
 ## Regressoes Harbour existentes
 
@@ -158,7 +174,7 @@ A contraprova deliberada com um handle e 12 threads rejeitou 11 respostas.
 Addons inicializam estado por chamada explicitamente; veja
 [semântica HRB](../docs/milestone1.pt-BR.md#estado-hrb-e-propriedade-do-addon).
 
-[Os testes HTTP](integration/harbour/hbbridgehttptest.prg) usam hbhttpd nativo,
+[Os testes HTTP](integration/harbour/hbbridgehttptest.hb) usam hbhttpd nativo,
 rotas autenticadas, separação de bearer/admin, Health/Echo/addon/SQL do
 registro comum, equivalência NETIO, corpo JSON/erros, contextos concorrentes,
 status web sem segredos e parada/reinício/rollback. As contagens históricas
@@ -166,7 +182,7 @@ abaixo antecedem esse adaptador; seu aceite é registrado separadamente em
 [homologação](../docs/acceptance.pt-BR.md). Configuração e dependências estão
 no [guia HTTP](../docs/http.pt-BR.md).
 
-[integration/harbour/hbbridgeservertest.prg](integration/harbour/hbbridgeservertest.prg), com entrada `MTTests`, contem
+[integration/harbour/hbbridgeservertest.hb](integration/harbour/hbbridgeservertest.hb), com entrada `MTTests`, contem
 verificacoes automatizadas de concorrencia, clientes ociosos, erros, limite de
 workers e parada. Inclui `Echo` e resposta de erro com `HBBRIDGE/1`,
 conferindo o contrato do servidor real. Assinaturas diferentes, JSON sem
@@ -200,8 +216,8 @@ automatizada. Recompilacao e o teste do Marco 1 OK em 2026-10-03;
 os logs registram 3 fontes compilados sem erros, Health/ADDON/Echo
 com sucesso e retorno integral do Echo. Ver [matriz](../docs/acceptance.pt-BR.md).
 
-O runner tambem executa [configuracao](unit/hbbridgeconfigtest.prg),
-[contrato/registro](contract/hbbridgeservicestest.prg) e [NETIO nativo](integration/harbour/hbbridgenetiotest.prg),
+O runner tambem executa [configuracao](unit/hbbridgeconfigtest.hb),
+[contrato/registro](contract/hbbridgeservicestest.hb) e [NETIO nativo](integration/harbour/hbbridgenetiotest.hb),
 usando o mesmo host/nucleo do produto. A integracao verifica argumentos/resultados
 nativos, core, descoberta, addons, VF IO binario, admin separado, filtros RPC,
 credenciais e parada/reinicio/rollback. As portas NETIO/admin dos testes sao
@@ -242,7 +258,7 @@ substituem a verificacao de interoperabilidade com o Protheus.
 Validacao do Marco 1 em 2026-10-03: **159 verificacoes, zero falhas, sem skips**,
 com Harbour `3.2.1dev (r2608271822)` e Zig `0.16.0` no Windows x64.
 
-O [teste do contrato TCP](integration/harbour/hbbridgeframingtest.prg) amplia o
+O [teste do contrato TCP](integration/harbour/hbbridgeframingtest.hb) amplia o
 runner do Marco 2 com dados variados, gzip acima de 65.535 bytes nos dois
 sentidos, JSON maior que 16 MiB, fragmentação deliberada, políticas opcionais
 de tamanho, CRC inválido, truncamento, comprimento decimal canônico e cliente

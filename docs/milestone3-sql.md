@@ -2,7 +2,7 @@
 
 [Português (Brasil)](milestone3-sql.pt-BR.md)
 
-[The SQL service](../src/hb/services/hbbridgequery.prg) uses native Harbour
+[The SQL service](../src/hb/services/hbbridgequery.hb) uses native Harbour
 rddsql/SQLMIX, linked sddsqlt3 for SQLite and sddodbc for MSSQL/ODBC; it does
 not implement a new RDD.
 Operator SQLite dataset/page acceptance: 2026-10-04 00:40:06, all 29 checks.
@@ -203,7 +203,7 @@ validation/test guidance. No TLPP recompile is required for host configuration a
 
 ## Regression and acceptance evidence
 
-[SQL tests](../tests/integration/harbour/hbbridgequerytest.prg) create an isolated
+[SQL tests](../tests/integration/harbour/hbbridgequerytest.hb) create an isolated
 persistent SQLite file and compare NETIO/TCP named results under concurrency.
 Coverage includes empty/null expressions/profiles/errors, complete/partial/empty
 pages, compound/descending order, gaps, metadata, reserved/duplicate aliases

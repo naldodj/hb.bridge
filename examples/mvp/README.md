@@ -32,8 +32,8 @@ Omitted arguments read `[hbBridge]` in the active AppServer INI, falling back
 to `127.0.0.1:1512`. Merge the
 [client template](../../config/examples/protheus-appserver.ini) separately from
 the server INI. The test calls Health, Echo and ADDON.Execute with
-`module="examples/hbbridgesampleaddon.prg"` and module params; the
-[shared addon](../../addons/examples/hbbridgesampleaddon.prg) is enabled through
+`module="examples/hbbridgesampleaddon.hb"` and module params; the
+[shared addon](../../addons/examples/hbbridgesampleaddon.hb) is enabled through
 `__IS_THE_ADDONS_EXECUTION_ENABLED__`. Protheus uses HBBRIDGE/1, JSON and gzip.
 hbBridge is generic; business/tenant/company/branch/table rules remain in
 Protheus, and addons receive explicit application parameters.

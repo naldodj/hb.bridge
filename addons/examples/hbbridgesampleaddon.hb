@@ -1,4 +1,4 @@
-// addons/examples/hbbridgesampleaddon.prg
+// addons/examples/hbbridgesampleaddon.hb
 FUNCTION Main( cJsonParams )
     LOCAL oParams, oResp := {=>}
     hb_jsonDecode( cJsonParams, @oParams )

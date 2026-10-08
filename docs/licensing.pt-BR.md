@@ -47,7 +47,7 @@ as condições de distribuição são diferentes.
 
 ## Pontos encontrados no código atual
 
-O helper `FileSig` de [hbbridgeaddon.prg](../src/hb/addons/hbbridgeaddon.prg)
+O helper `FileSig` de [hbbridgeaddon.hb](../src/hb/addons/hbbridgeaddon.hb)
 coincide com o helper homônimo do utilitário `hbnetio.prg` após normalizar
 espaços. O fluxo de compilação/carregamento também apresenta semelhanças.
 O utilitário upstream tem GPL v2 ou posterior sem exceção de vinculação em

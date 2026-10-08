@@ -65,7 +65,7 @@ PROCEDURE M1NativeTests( nFailures, nChecks )
         hResult := netio_FuncExec( pData, "HBBridge.Call", "Service.List" )
         M1Assert( Len( hResult[ "services" ] ) == 6, "native service discovery", @nFailures, @nChecks )
         hResult := netio_FuncExec( pData, "HBBridge.Call", "ADDON.Execute", ;
-            { "module" => "examples/hbbridgesampleaddon.prg", "params" => {=>} } )
+            { "module" => "examples/hbbridgesampleaddon.hb", "params" => {=>} } )
         M1Assert( hResult[ "success" ], "native client executes existing JSON ABI addon", @nFailures, @nChecks )
         hResult := netio_FuncExec( pData, "HBBridge.Call", "ADDON.Execute", ;
             { "module" => "hbbridge_mt_fault.hrb", "params" => {=>} } )

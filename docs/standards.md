@@ -8,13 +8,26 @@ identifiers. Files are lowercase; functions, procedures, methods, namespaces
 and classes use PascalCase, following the owner's explicit clarification. Conventional
 Git filenames and the `.pt-BR` locale suffix are exceptions to lowercase.
 
+Project-owned Harbour modules, tests and addons use `.hb`; imported upstream
+sources retain `.prg`. External/runtime `.prg` inputs remain supported. This
+extension convention does not change the Harbour language or module names.
+Both `.hb` and `.prg` are classified as xBase by GitHub Linguist and checked
+for class filenames, PascalCase declarations and four-space indentation.
+Imported maintenance utilities and third-party sources keep their exceptions.
+
+`hbmk2` compiles `.hb` source entries in `.hbp` and `.hbm` build files.
+On the command line, a `.hb` path as the first argument selects script
+execution, like `hbrun`. For direct source compilation, put `-hbexe` before
+the path to build an executable, or `-gh` before it to produce an HRB:
+`hbmk2 -hbexe module.hb` or `hbmk2 -gh module.hb`.
+
 | Responsibility | TLPP class / file | Harbour module |
 | --- | --- | --- |
 | Client | `HBBridgeClient` / `hbbridgeclient.tlpp` | Native clients use NETIO APIs; no redundant client class is introduced. |
-| HTTP client | `HBBridgeHTTPClient` / `hbbridgehttpclient.tlpp` | `transports/http/hbbridgehttp.prg` adapts HTTP to the shared registry. |
-| Configuration | `HBBridgeConfig` / `hbbridgeconfig.tlpp` | `host/hbbridgeconfig.prg` and `host/hbbridgeini.prg` configure the server. |
+| HTTP client | `HBBridgeHTTPClient` / `hbbridgehttpclient.tlpp` | `transports/http/hbbridgehttp.hb` adapts HTTP to the shared registry. |
+| Configuration | `HBBridgeConfig` / `hbbridgeconfig.tlpp` | `host/hbbridgeconfig.hb` and `host/hbbridgeini.hb` configure the server. |
 | Time | `HBBridgeTime` / `hbbridgetime.tlpp` | `src/c/hbbridgetime.c` implements the monotonic server clock. |
-| SQL dataset | `HBBridgeRPCDataSet` / `hbbridgerpcdataset.tlpp` | `services/hbbridgequery.prg` implements SQL requests. |
+| SQL dataset | `HBBridgeRPCDataSet` / `hbbridgerpcdataset.tlpp` | `services/hbbridgequery.hb` implements SQL requests. |
 
 Matching names identify related responsibilities; these modules retain their
 different client/server roles. Harbour procedural modules do not need empty
@@ -46,6 +59,21 @@ English documentation uses the base filename; Portuguese adds `.pt-BR` before
 the extension. Update both together and preserve acceptance records,
 restrictions and pending work. Historical changelog paths describe the files
 that existed at the time; current instructions use the new names.
+
+## Active work packages
+
+The user-requested `WIP.md` and `WIP.pt-BR.md` are explicit uppercase filename
+exceptions. [WIP](../WIP.md) contains one active package's objective, ordered
+tasks, established decisions, prerequisites, progress, evidence and completion
+criteria. TODO remains the complete roadmap; acceptance and ChangeLog record
+results/history. Read WIP to resume the next task instead of restarting analysis.
+
+Update both versions throughout a package. Reconsider decisions only when
+new evidence/failures, changed requirements/dependencies or user instructions
+justify it, recording the reason. Close with attributable evidence, reconcile
+TODO and preserve closure in acceptance/ChangeLog before renewing the same
+files for the next bounded package. Commits and publication are independent
+of package closure; they do not erase unfinished work. Git retains old WIP versions.
 
 The [managed build](dependencies.md) owns dependencies under `.deps/`.
 `.hbcommit/` contains maintenance utilities, not a second runtime. Run the

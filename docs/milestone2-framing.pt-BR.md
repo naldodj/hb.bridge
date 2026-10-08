@@ -37,7 +37,7 @@ não há uma implementação paralela de MVP nem camada de retrocompatibilidade.
 
 ## Implementação
 
-- [hbbridgeframing.prg](../src/hb/transports/protheus/hbbridgeframing.prg) preserva o estado
+- [hbbridgeframing.hb](../src/hb/transports/protheus/hbbridgeframing.hb) preserva o estado
   de descompressão entre leituras, aplica as políticas configuradas e as
   capacidades do runtime e só despacha após o final válido. O prazo total
   de cada recepção/envio é configurável, com padrão de 30 segundos.
@@ -149,7 +149,7 @@ em execução nesta entrega.
 ## Validação
 
 O runner [test-hbbridge.ps1](../scripts/test-hbbridge.ps1) compila os mesmos
-componentes do produto e executa [hbbridgeframingtest.prg](../tests/integration/harbour/hbbridgeframingtest.prg)
+componentes do produto e executa [hbbridgeframingtest.hb](../tests/integration/harbour/hbbridgeframingtest.hb)
 junto às regressões do Marco 1. Os testes conferem conteúdo integral com
 dados variados cujo gzip supera 65.535 bytes; fragmentam inclusive o header
 e o trailer; verificam políticas de expansão, CRC inválido, bytes excedentes,
@@ -175,7 +175,7 @@ Resultado em `tmp/tests-1156a4ae33964edc925ff65e09748ddb/results.log`.
 As verificações de orçamento da resposta comprimida e limite por chamada
 zlib também passaram. O build isolado do candidato final e sua opção `--help`
 passaram com as últimas guardas de capacidade.
-As 29 verificações adicionais de [hbbridgetimetest.prg](../tests/unit/hbbridgetimetest.prg)
+As 29 verificações adicionais de [hbbridgetimetest.hb](../tests/unit/hbbridgetimetest.hb)
 conferem inteiro não negativo, leituras sem regressão, avanço durante espera e
 oito threads usando o mesmo relógio. Esses testes não alteram a hora do sistema.
 

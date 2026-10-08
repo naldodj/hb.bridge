@@ -16,30 +16,30 @@ the runner prepares both. See [dependencies](../docs/dependencies.md).
 
 ## Automated Harbour coverage
 
-- [Configuration](unit/hbbridgeconfigtest.prg): defaults, precedence, paths,
+- [Configuration](unit/hbbridgeconfigtest.hb): defaults, precedence, paths,
   invalid values and endpoint conflicts.
-- [INI](unit/hbbridgeconfiginitest.prg): JSON equivalence, autoload, BOM/CRLF,
+- [INI](unit/hbbridgeconfiginitest.hb): JSON equivalence, autoload, BOM/CRLF,
   strict numbers, punctuation/paths/errors, multiple profiles and alias case.
-- [Clock](unit/hbbridgetimetest.prg): monotonic waits/concurrent advancement.
-- [Contract](contract/hbbridgeservicestest.prg): registration/versions/channel
+- [Clock](unit/hbbridgetimetest.hb): monotonic waits/concurrent advancement.
+- [Contract](contract/hbbridgeservicestest.hb): registration/versions/channel
   permissions, types, independent metadata, handlers and JSON adaptation.
-- [NETIO](integration/harbour/hbbridgenetiotest.prg): native arguments,
+- [NETIO](integration/harbour/hbbridgenetiotest.hb): native arguments,
   core/discovery/addons, binary VF IO, separate admin, filters/credentials and
   stop/restart/rollback. Listeners choose free ports rather than installed ports.
-- [HTTP](integration/harbour/hbbridgehttptest.prg): native hbhttpd routes,
+- [HTTP](integration/harbour/hbbridgehttptest.hb): native hbhttpd routes,
   bearer/admin separation, shared Health/Echo/addon/SQL, NETIO equivalence,
   raw JSON body/errors, concurrent contexts, sanitized web status and
   shutdown/restart/startup rollback. HTTP acceptance is recorded separately;
   historical counts below predate this adapter.
-- [Framing](integration/harbour/hbbridgeframingtest.prg): fragmented gzip,
+- [Framing](integration/harbour/hbbridgeframingtest.hb): fragmented gzip,
   canonical lengths, CRC/truncation, optional budgets, deadlines, incremental
   codecs, exact 24-million-byte Echo and JSON/gzip beyond 16 MiB.
-- [SQL](integration/harbour/hbbridgequerytest.prg): persistent SQLite, profiles,
+- [SQL](integration/harbour/hbbridgequerytest.hb): persistent SQLite, profiles,
   values/metadata, workarea/default-connection restoration, sanitized errors,
   16 concurrent calls, SQL pages/order/gaps/sentinel/full/partial/empty pages,
   representable ordinals, duplicate/reserved aliases, equivalent NETIO/TCP
   results and explicit case-sensitive slash profile selection.
-- [MT](integration/harbour/hbbridgeservertest.prg): parallel/idle clients,
+- [MT](integration/harbour/hbbridgeservertest.hb): parallel/idle clients,
   invalid requests, worker settings, graceful shutdown, addon failure/isolation.
   The addon fixture holds 12 FORCELOCAL HRBs active behind a barrier and
   verifies owner/id plus counterBefore+1. Sequential reload may recycle
@@ -67,8 +67,9 @@ Compile all src/tlpp, including tests/protheus. Public product APIs are
 namespaced classes: HBBridgeClient, HBBridgeConfig, HBBridgeTime and
 HBBridgeRPCDataSet. Existing procedure U_ entry points are retained; the
 preprocessor also generates U_ from User Function, so no conversion is needed.
-Renamed classes and optional-profile changes require a new compile/runtime
-acceptance; prior RPO results do not cover this revision. The configurable
+Renamed classes and optional-profile changes were accepted by the operator
+on 2026-10-07 after reported recompilation following the `.hb` migration.
+No compiler log or artifact hashes were supplied. The configurable
 [build utility](../scripts/build-totvs.cmd) requires the licensed SDK.
 
 [Client INI template](../config/examples/protheus-appserver.ini): host/port/
@@ -82,8 +83,10 @@ tenant, xFilial or physical table names; the caller prepares business inputs.
 [U_HBBridgeConfigTest](../src/tlpp/tests/protheus/hbbridgeconfigtest.tlpp)
 checks defaults/INI/overrides, destination/numbers, zero/negative/fractional
 budgets, native chunk capacity, active INI and now explicit/empty/invalid
-profile selection. Previous acceptance covered 13 checks; the revised test
-adds three and requires a fresh run. Complement with no-argument Health/Query
+profile selection. The 2026-10-04 acceptance covered 13 checks; the revised
+16-check test passed on 2026-10-07 at 16:14:06, thread 30596, including
+`explicitProfile`, `noForcedProfile` and `invalidProfile`.
+Complement with no-argument Health/Query
 against a configured nondefault destination.
 
 [U_HBBridgeConnectionTest](../src/tlpp/tests/protheus/hbbridgeconnectiontest.tlpp)
@@ -91,7 +94,7 @@ checks TimeCounter after Sleep(1000), normalized units, nonregression and
 deadline arithmetic. The reproduced Linux scale needs seconds × 1000
 ([issue 12](https://github.com/naldodj/totvs-protheus-open-issues/issues/12));
 Windows uses milliseconds. A changed scale stops the test and reports raw data.
-Then Health, Echo and ADDON.Execute use examples/hbbridgesampleaddon.prg with
+Then Health, Echo and ADDON.Execute use examples/hbbridgesampleaddon.hb with
 __IS_THE_ADDONS_EXECUTION_ENABLED__. Echo compares all 200000 bytes, including
 varied ASCII whose request gzip must exceed 65535 bytes. Logs summarize
 integrity/size; Health still uses the demonstration Zig library.
@@ -127,9 +130,12 @@ the service exists but the requested alias does not.
 `HBBridgeHTTPClient` with GET Health/discovery, POST Health/Echo/addon,
 unknown/forbidden services, invalid bearer and recovery. It reuses the existing
 dataset for optional first/next/last SQL pages. See [HTTP setup and calls](../examples/http/README.md).
-The operator reported **13 checks passed** on 2026-10-07, thread 25672;
-this is AppServer evidence separate from the Harbour runner. The report
-does not name its SQL profile/backend or establish HTTPS/broader Unicode.
+The operator first reported **13 checks passed** on 2026-10-07, thread 25672.
+Two later runs passed all 13 checks: thread 27296 (program start 16:10:40,
+test 16:10:44–16:10:45) and thread 25456 (program start 16:15:02,
+test 16:15:03–16:15:04), each in one second. Times are São Paulo local time.
+This is AppServer evidence separate from the Harbour runner. None of these
+HTTP reports identifies its SQL profile/backend or establishes HTTPS/broader Unicode.
 
 Operator report 2026-10-03: normal Health/ADDON/two Echo calls passed with
 200000 identical bytes; varied request gzip 152964 bytes. Earlier milestone1
@@ -146,7 +152,18 @@ does not prove nondefault destination selection. Earlier agent stopping of
 elevated TOTVS processes failed before compilation; manual acceptance superseded
 that old execution gap, with history retained in the acceptance matrix.
 
-Pending: renamed TLPP/16-check configuration test, real MSSQL, nondefault
+The supplied 2026-10-07 log reconfirmed Query at 16:13:33, thread 27136:
+all 29 checks true, `profile=sqlite_demo`. Configuration at 16:14:06,
+thread 30596 passed all 16 revised checks. Connection at 16:14:31,
+thread 27084 passed Health, ADDON and both exact 200000-byte Echo calls;
+varied request gzip was 152964 bytes. Clock: `Unix=false`, raw
+`1089.987500`, normalized `1090.088100 ms` after `Sleep(1000)`, `OK`.
+With HTTP thread 25456 above, this accepts renamed TLPP and the `.hb` addon
+paths after operator-reported recompilation. It supplies times/threads,
+but no actual compiler log, artifact hashes, arguments or effective destination.
+The agent did not run these AppServer tests.
+
+Pending: real MSSQL, identified HTTP SQL backend, nondefault
 host/port/profile, Linux, clock precision/adjustment/wrap, forced socket
 timeout/connection failure/positive partial Send/Receive/GetError,
 MAXSTRINGSIZE, null/nested/multibyte/non-ASCII values, larger/incompressible data

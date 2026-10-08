@@ -57,7 +57,7 @@ procedure U_HBBridgeConnectionTest(cHost, nPort, nTimeout, nLargePayloadBytes)
 
     if (__IS_THE_ADDONS_EXECUTION_ENABLED__)
         jAddonParams := JSONObject():New()
-        jAddonParams["module"] := "examples\hbbridgesampleaddon.prg"
+        jAddonParams["module"] := "examples\hbbridgesampleaddon.hb"
         jAddonParams["params"] := jParams
         jResponse := oClient:CallService("ADDON.Execute", jAddonParams)
         FreeObj(@jAddonParams)
