@@ -1,4 +1,15 @@
-/* Released to Public Domain. */
+/*
+ _      _      _            _      _                                            _         _                      _
+| |__  | |__  | |__   _ __ (_)  __| |  __ _   ___     _ __  _ __    ___      __| |  __ _ | |_   __ _  ___   ___ | |_
+| '_ \ | '_ \ | '_ \ | '__|| | / _` | / _` | / _ \   | '__|| '_ \  / __|    / _` | / _` || __| / _` |/ __| / _ \| __|
+| | | || |_) || |_) || |   | || (_| || (_| ||  __/ _ | |   | |_) || (__  _ | (_| || (_| || |_ | (_| |\__ \|  __/| |_
+|_| |_||_.__/ |_.__/ |_|   |_| \__,_| \__, | \___|(_)|_|   | .__/  \___|(_) \__,_| \__,_| \__| \__,_||___/ \___| \__|
+                                      |___/                |_|
+
+Released to Public Domain.
+--------------------------------------------------------------------------------------
+*/
+
 #include "tlpp-core.th"
 
 namespace HBBridge.RDD
@@ -18,8 +29,10 @@ class HBBridgeRPCDataSet
     private data cOrderBy as character
 
     public method New(oClient as object) as object
-    public method OpenSQL(cAliasProfile as character, cSql as character, jPage as json) as logical
-    public method OpenPage(cAliasProfile as character, cSql as character, nPage as numeric, nSize as numeric, cOrderBy as character) as logical
+    public method OpenSQL(cSql as character, jPage as json) as logical
+    public method OpenPage(cSql as character, nPage as numeric, nSize as numeric, cOrderBy as character) as logical
+    public method PreviousPage() as logical
+    public method HasPreviousPage() as logical
     public method NextPage() as logical
     public method HasNextPage() as logical
     public method PageNumber() as numeric
@@ -32,6 +45,8 @@ class HBBridgeRPCDataSet
     public method FieldCount() as numeric
     public method FieldName(nPosition as numeric) as character
     public method GetRow() as json
+    public method GetRows() as json
+    public method GetOrderBy() as character
     public method FieldGet(cFieldName as character) as variant
     public method Skip()
     public method Eof() as logical
@@ -63,13 +78,14 @@ method New(oClient) class HBBridgeRPCDataSet
 
 return(self)
 
-method OpenSQL(cAliasProfile, cSql, jPage) class HBBridgeRPCDataSet
+method OpenSQL(cSql, jPage) class HBBridgeRPCDataSet
 
     local jParams := JSONObject():New() as json
     local jResponse as json
     local jFieldNames as json
     local aNames as array
     local cFieldName := "" as character
+    local cAliasProfile:=self:cAliasProfile as character
     local cPosition := "" as character
     local cRowKey := "" as character
     local nField := 0 as numeric
@@ -79,9 +95,8 @@ method OpenSQL(cAliasProfile, cSql, jPage) class HBBridgeRPCDataSet
     local lValid := .F. as logical
 
     self:Close()
-    self:cErrorCode := ""
-    self:cErrorMessage := ""
-    jParams["alias"] := cAliasProfile
+    self:cAliasProfile:=cAliasProfile
+    jParams["alias"] := self:cAliasProfile
     jParams["sql"] := cSql
     if ValType(jPage) $ "JO"
         jParams["page"] := jPage
@@ -239,7 +254,7 @@ method OpenSQL(cAliasProfile, cSql, jPage) class HBBridgeRPCDataSet
 
 return(.T.)
 
-method OpenPage(cAliasProfile, cSql, nPage, nSize, cOrderBy) class HBBridgeRPCDataSet
+method OpenPage(cSql, nPage, nSize, cOrderBy) class HBBridgeRPCDataSet
 
     local jPage := JSONObject():New() as json
     local lOpened := .F. as logical
@@ -247,29 +262,61 @@ method OpenPage(cAliasProfile, cSql, nPage, nSize, cOrderBy) class HBBridgeRPCDa
     jPage["number"] := nPage
     jPage["size"] := nSize
     jPage["orderBy"] := cOrderBy
-    lOpened := self:OpenSQL(cAliasProfile, cSql, jPage)
+    lOpened := self:OpenSQL(cSql, jPage)
     FreeObj(@jPage)
 
 return(lOpened)
 
+method PreviousPage() class HBBridgeRPCDataSet
+
+    local cSql as character
+    local cOrderBy as character
+    local nPage as numeric
+    local nSize as numeric
+
+    if !self:HasPreviousPage()
+        return(.F.)
+    endif
+
+    cSql := self:cSql
+    cOrderBy := self:cOrderBy
+    nPage := self:PageNumber() - 1
+    nSize := self:PageSize()
+
+return(self:OpenPage(cSql, nPage, nSize, cOrderBy))
+
+method HasPreviousPage() class HBBridgeRPCDataSet
+
+    if ValType(self:jResult) $ "JO"
+        if ((self:jResult:HasProperty("page")).and.(self:jResult["page"]:HasProperty("number")))
+            return(self:jResult["page"]["number"]!=1)
+        endif
+    endif
+
+return(.F.)
+
 method NextPage() class HBBridgeRPCDataSet
 
-    local cAliasProfile := self:cAliasProfile as character
-    local cSql := self:cSql as character
-    local cOrderBy := self:cOrderBy as character
-    local nPage := self:PageNumber() + 1 as numeric
-    local nSize := self:PageSize() as numeric
+    local cSql as character
+    local cOrderBy as character
+    local nPage as numeric
+    local nSize as numeric
 
     if !self:HasNextPage()
         return(.F.)
     endif
 
-return(self:OpenPage(cAliasProfile, cSql, nPage, nSize, cOrderBy))
+    cSql := self:cSql
+    cOrderBy := self:cOrderBy
+    nPage := self:PageNumber() + 1
+    nSize := self:PageSize()
+
+return(self:OpenPage(cSql, nPage, nSize, cOrderBy))
 
 method HasNextPage() class HBBridgeRPCDataSet
 
     if ValType(self:jResult) $ "JO"
-        if self:jResult:HasProperty("page")
+        if ((self:jResult:HasProperty("page")).and.(self:jResult["page"]:HasProperty("hasNext")))
             return(self:jResult["page"]["hasNext"])
         endif
     endif
@@ -279,7 +326,7 @@ return(.F.)
 method PageNumber() class HBBridgeRPCDataSet
 
     if ValType(self:jResult) $ "JO"
-        if self:jResult:HasProperty("page")
+        if ((self:jResult:HasProperty("page")).and.(self:jResult["page"]:HasProperty("number")))
             return(self:jResult["page"]["number"])
         endif
     endif
@@ -377,6 +424,16 @@ method GetRow() class HBBridgeRPCDataSet
 
 return(jRow)
 
+method GetRows() class HBBridgeRPCDataSet
+    local jRows := JSONObject():New() as json
+    if ((ValType(self:jResult)=="J").and.(self:jResult:HasProperty("rows")))
+        jRows:FromJSON(self:jResult["rows"]:ToJSON())
+    endif
+return(jRows)
+
+method GetOrderBy() class HBBridgeRPCDataSet
+return(self:cOrderBy)
+
 method FieldGet(cFieldName) class HBBridgeRPCDataSet
 
     local cKey := Upper(AllTrim(cFieldName)) as character
@@ -417,6 +474,8 @@ method Close() class HBBridgeRPCDataSet
     self:cAliasProfile := ""
     self:cSql := ""
     self:cOrderBy := ""
+    self:cErrorCode := ""
+    self:cErrorMessage := ""
     if ValType(jResponse) $ "JO"
         FreeObj(@jResponse)
     endif

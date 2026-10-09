@@ -1,0 +1,331 @@
+/*
+ _      _      _            _      _                  _           _                    __  _  _  _
+| |__  | |__  | |__   _ __ (_)  __| |  __ _   ___    | |_   ___  | |_ __   __ ___     / _|(_)| || |_   ___  _ __
+| '_ \ | '_ \ | '_ \ | '__|| | / _` | / _` | / _ \   | __| / _ \ | __|\ \ / // __|   | |_ | || || __| / _ \| '__|
+| | | || |_) || |_) || |   | || (_| || (_| ||  __/ _ | |_ | (_) || |_  \ V / \__ \ _ |  _|| || || |_ |  __/| |
+|_| |_||_.__/ |_.__/ |_|   |_| \__,_| \__, | \___|(_) \__| \___/  \__|  \_/  |___/(_)|_|  |_||_| \__| \___||_|
+                                      |___/
+HBBridgeTOTVSFilter
+--------------------------------------------------------------------------------------
+    The source code `hbbridge.totvs.filter.tlpp` is based on a more detailed and feature-rich
+    source code, `dna.tech.filter.tlpp`, and implements part of the functionalities
+    present in the latter.
+
+Released to Public Domain.
+--------------------------------------------------------------------------------------
+@type       Class
+@author     Marinaldo de Jesus (TOTVS/IP)
+@since      19/05/2026
+--------------------------------------------------------------------------------------
+*/
+#include "totvs.ch"
+#include "parmtype.ch"
+#include "dbstruct.ch"
+
+namespace HBBridge.Client
+
+class HBBridgeTOTVSFilter
+    static method BuildExpr(cAlias as character,nActivateType as numeric,lSQLFilter as logical,jF3 as json,aFilters as array,nFilterAndOR as numeric) as character
+    static method BuildCustomFilder(jData as json) as array
+end class
+
+static method BuildExpr(cAlias,nActivateType,lSQLFilter,jF3,aFilters,nFilterAndOR) class HBBridgeTOTVSFilter
+
+    local aFields:=Array(0) as array
+    local adbStruct as array
+
+    local bErrorBlock as codeblock
+
+    local cF3 as character
+    local cX3Box as character
+
+    local cFieldName as character
+    local cFieldDesc as character
+    local cFieldType as character
+    local cFieldPict as character
+
+    local nFieldSize as numeric
+    local nFieldDec as numeric
+
+    local cFWFilter:="" as character
+
+    local ljF3 as logical
+    local lFilter as logical
+
+    local nField as numeric
+    local nFields as numeric
+    local nFilter as numeric
+    local nFilters as numeric
+
+    local oError as object
+    local oOwner as object
+    local oFWFilter as object
+
+    begin sequence
+
+        paramtype 1 var cAlias as character
+        paramtype 2 var nActivateType as numeric optional default 2
+        paramtype 3 var lSQLFilter as logical optional default .F.
+        paramtype 4 var jF3 as json optional
+        paramtype 5 var aFilters as array optional default {}
+        paramtype 6 var nFilterAndOR as numeric optional default 1
+
+        ljF3:=(ValType(jF3)=="J").and.(!Empty(jF3:GetNames()))
+
+        aFields:=Array(0)
+
+        adbStruct:=(cAlias)->(dbStruct())
+        aFields:=array(0)
+        nFields:=Len(adbStruct)
+        for nField:=1 to nFields
+            cFieldName:=adbStruct[nField][DBS_NAME]
+            cFieldDesc:=GetSX3Cache(cFieldName,"X3_TITULO")
+            if (empty(cFieldDesc))
+                cFieldDesc:=cFieldName
+            endif
+            nFieldSize:=GetSX3Cache(cFieldName,"X3_TAMANHO")
+            if (empty(nFieldSize))
+                nFieldSize:=adbStruct[nField][DBS_LEN]
+            endif
+            cFieldPict:=GetSX3Cache(cFieldName,"X3_PICTURE")
+            if (empty(cFieldPict))
+                cFieldPict:=""
+            endif
+            cFieldType:=GetSX3Cache(cFieldName,"X3_TIPO")
+            if (empty(cFieldType))
+                cFieldType:=adbStruct[nField][DBS_TYPE]
+            endif
+            nFieldDec:=GetSX3Cache(cFieldName,"X3_DECIMAL")
+            if (empty(nFieldDec))
+                nFieldDec:=adbStruct[nField][DBS_DEC]
+            endif
+            cF3:=GetSX3Cache(cFieldName,"X3_F3")
+            if (empty(cF3))
+                if ((ljF3).and.(jF3:HasProperty(cFieldName)))
+                    cF3:=jF3[cFieldName]
+                else
+                    cF3:=""
+                endif
+            elseif ((ljF3).and.(!jF3:HasProperty(cFieldName)))
+                jF3[cFieldName]:=cF3
+            endif
+            cX3Box:=GetSX3Cache(cFieldName,"X3_CBOX")
+            if (empty(cX3Box))
+                cX3Box:=""
+            else
+                aX3Box:=SX3Box2Arr(cFieldName)
+            endif
+
+            aAdd(aFields,Array(10))
+
+            /*
+                Estrutura do array
+                [n][01] Campo
+                [n][02] Titulo
+                [n][03] Tipo de dado
+                [n][04] Tamanho
+                [n][05] Decimal
+                [n][06] Picture
+                [n][07] aOptions
+                [n][08] cLookUp
+                [n][09] bValid Indica o Code-Block de validacao do campo
+                [n][10] xAnswer Resposta para a pergunta
+            */
+
+            aFields[nField][01]:=cFieldName
+            aFields[nField][02]:=cFieldDesc
+            aFields[nField][03]:=cFieldType
+            aFields[nField][04]:=nFieldSize
+            aFields[nField][05]:=nFieldDec
+            aFields[nField][06]:=cFieldPict
+            if (!empty(cX3Box))
+                if (!empty(aX3Box))
+                    aFields[nField][07]:=aClone(aX3Box)
+                else
+                    aFields[nField][07]:=array(0)
+                endif
+            else
+                aFields[nField][07]:=array(0)
+            endif
+            aFields[nField][08]:=cF3
+            aFields[nField][09]:={||.T.}
+            aFields[nField][10]:=""
+        next nField
+
+        //https://tdn.totvs.com/display/public/framework/FWFilter
+        oOwner:=GetWndDefault()
+        oFWFilter:=FWFilter():New(oOwner,{||.T.})
+        oFWFilter:SetAlias(cAlias)
+        oFWFilter:SetField(aClone(aFields))
+        oFWFilter:SetSQLFilter(lSQLFilter)
+        if (nActivateType==1)
+            if (!Empty(aFilters))
+                nFilters:=Len(aFilters)
+                for nFilter:=1 to nFilters
+                    if (aScan(oFWFilter:aFilter,{|x|Compare(x,aFilters[nFilter])})==0)
+                        aAdd(oFWFilter:aFilter,aClone(aFilters[nFilter]))
+                        aAdd(oFWFilter:aCheckFil,.F.)
+                    endif
+                next nFilter
+            endif
+            oFWFilter:Activate(oOwner,.T.)
+            lFilter:=oFWFilter:oUIFilter:lExecute
+            lFilter:=((lFilter).and.(aScan(oFWFilter:aCheckFil,{|lChecked|lChecked})>0))
+            //Verifica se Confirmou o Filtro
+            if (lFilter)
+                bErrorBlock:=ErrorBlock({|o|oError:=o,__Break(o)})
+                begin sequence
+                    for nFilter:=1 to Len(oFWFilter:aCheckFil)
+                        if (oFWFilter:aCheckFil[nFilter])
+                            if (!Empty(cFWFilter))
+                                if (lSQLFilter)
+                                    if (!Empty(cFWFilter))
+                                        cFWFilter+=if((nFilterAndOR==1)," AND "," OR ")
+                                    endif
+                                    cFWFilter+=oFWFilter:GetFilterSQL(nFilter)
+                                else
+                                    if (!Empty(cFWFilter))
+                                        cFWFilter+=if((nFilterAndOR==1)," .AND. "," .OR. ")
+                                    endif
+                                    cFWFilter+=oFWFilter:GetFilterAdvpl(nFilter)
+                                endif
+                            else
+                                if (lSQLFilter)
+                                    cFWFilter:=oFWFilter:GetFilterSQL(nFilter)
+                                else
+                                    cFWFilter:=oFWFilter:GetFilterAdvpl(nFilter)
+                                endif
+                            endif
+                        endif
+                    next nFilter
+                recover
+                    cFWFilter:=""
+                    if (ValType(oError)=="O")
+                        FreeObj(@oError)
+                    endif
+                end sequence
+                ErrorBlock(bErrorBlock)
+                aFilters:=aClone(oFWFilter:aFilter)
+            endif
+        else
+            oFWFilter:EditFilter()
+            lFilter:=.T.
+            bErrorBlock:=ErrorBlock({|o|oError:=o,__Break(o)})
+            begin sequence
+                if (lSQLFilter)
+                    cFWFilter:=oFWFilter:GetFilterSQL(Len(oFWFilter:aCheckFil))
+                else
+                    cFWFilter:=oFWFilter:GetFilterAdvpl(Len(oFWFilter:aCheckFil))
+                endif
+            recover
+                cFWFilter:=""
+                if (ValType(oError)=="O")
+                    FreeObj(@oError)
+                endif
+            end sequence
+            ErrorBlock(bErrorBlock)
+            aFilters:=aClone(oFWFilter:aFilter)
+        endif
+
+        oFWFilter:Destroy()
+        FreeObj(@oFWFilter)
+
+    end sequence
+
+    FWFreeArray(@aFields)
+    FWFreeArray(@adbStruct)
+
+    DelClassIntF()
+
+return(cFWFilter)
+
+static method BuildCustomFilder(jData) class HBBridgeTOTVSFilter
+
+    local aCustomFilter as array
+    local aTemplateCustomFilter as array
+
+    local nFilter as numeric
+    local nFilters as numeric
+
+    paramtype 1 var jData as json
+
+    aTemplateCustomFilter:={;
+        "__TITLE__"; //Descricao do Filtro
+        ,"__FIELD_NAME____OP_ADVPL____VALUE__"; //Expressao AdvPL
+        ,"__FIELD_NAME____OP_SQL____VALUE__"; //Expressao SQL
+        ,{;
+            {;
+                "__FIELD_NAME__"; //Field
+                ,"FIELD"; //Type
+                ,"__TITLE__"; //Descricao do Filtro
+                ,"__FIELD_NAME____OP_ADVPL____VALUE__"; //Expressao AdvPL
+                ,"__FIELD_NAME____OP_SQL____VALUE__'"; //Expressao SQL
+            };
+            ,{;
+                "__OP_ADVPL__"; //Operador
+                ,"OPERATOR"; //Type
+                ,""; //??
+                ,""; //??
+                ,""; //??
+            };
+            ,{;
+                nil; //Valor da comparacao com o operador
+                ,"EXPRESSION"; //Type
+                ,""; //??
+                ,""; //??
+                ,""; //??
+                ,.T.; //??
+            };
+        };
+        ,.F.; //??
+        ,.F.; //??
+        ,.F.; //??
+        ,""; //??
+        ,""; //??
+        ,.F.; //??
+    }
+
+    aCustomFilter:=Array(0)
+    nFilters:=Len(jData)
+    for nFilter:=1 to nFilters
+        aAdd(aCustomFilter,aClone(aTemplateCustomFilter))
+        aCustomFilter[nFilter][1]:=StrTran(aCustomFilter[nFilter][1],"__TITLE__",JSONGetValue(jData[nFilter],"__TITLE__",""))
+        aCustomFilter[nFilter][2]:=StrTran(aCustomFilter[nFilter][2],"__FIELD_NAME__",JSONGetValue(jData[nFilter],"__FIELD_NAME__",""))
+        aCustomFilter[nFilter][2]:=StrTran(aCustomFilter[nFilter][2],"__OP_ADVPL__",JSONGetValue(jData[nFilter],"__OP_ADVPL__","=="))
+        aCustomFilter[nFilter][2]:=StrTran(aCustomFilter[nFilter][2],"__VALUE__",JSONGetValue(jData[nFilter],"__VALUE__","''"))
+        aCustomFilter[nFilter][3]:=StrTran(aCustomFilter[nFilter][3],"__FIELD_NAME__",JSONGetValue(jData[nFilter],"__FIELD_NAME__",""))
+        aCustomFilter[nFilter][3]:=StrTran(aCustomFilter[nFilter][3],"__OP_SQL__",JSONGetValue(jData[nFilter],"__OP_SQL__","="))
+        aCustomFilter[nFilter][3]:=StrTran(aCustomFilter[nFilter][3],"__VALUE__",JSONGetValue(jData[nFilter],"__VALUE__","''"))
+        aCustomFilter[nFilter][4][1][1]:=StrTran(aCustomFilter[nFilter][4][1][1],"__FIELD_NAME__",JSONGetValue(jData[nFilter],"__FIELD_NAME__",""))
+        aCustomFilter[nFilter][4][1][3]:=StrTran(aCustomFilter[nFilter][4][1][3],"__TITLE__",JSONGetValue(jData[nFilter],"__TITLE__",""))
+        aCustomFilter[nFilter][4][1][4]:=StrTran(aCustomFilter[nFilter][4][1][4],"__FIELD_NAME__",JSONGetValue(jData[nFilter],"__FIELD_NAME__",""))
+        aCustomFilter[nFilter][4][1][4]:=StrTran(aCustomFilter[nFilter][4][1][4],"__OP_ADVPL__",JSONGetValue(jData[nFilter],"__OP_ADVPL__","=="))
+        aCustomFilter[nFilter][4][1][4]:=StrTran(aCustomFilter[nFilter][4][1][4],"__VALUE__",JSONGetValue(jData[nFilter],"__VALUE__","''"))
+        aCustomFilter[nFilter][4][1][5]:=StrTran(aCustomFilter[nFilter][4][1][5],"__FIELD_NAME__",JSONGetValue(jData[nFilter],"__FIELD_NAME__",""))
+        aCustomFilter[nFilter][4][1][5]:=StrTran(aCustomFilter[nFilter][4][1][5],"__OP_SQL__",JSONGetValue(jData[nFilter],"__OP_SQL__","="))
+        aCustomFilter[nFilter][4][1][5]:=StrTran(aCustomFilter[nFilter][4][1][5],"__VALUE__",JSONGetValue(jData[nFilter],"__VALUE__","''"))
+        aCustomFilter[nFilter][4][2][1]:=StrTran(aCustomFilter[nFilter][4][2][1],"__OP_ADVPL__",JSONGetValue(jData[nFilter],"__OP_ADVPL__","=="))
+        aCustomFilter[nFilter][4][3][1]:=JSONGetValue(jData[nFilter],"__REAL_VALUE__",'')
+    next nFilter
+
+    FWFreeArray(@aTemplateCustomFilter)
+
+return(aCustomFilter)
+
+static function JSONGetValue(jData as json,cName as character,xDefault as variant) as variant
+
+    local cValType as character
+    local xValue:=xDefault as variant
+
+    cValType:=ValType(jData)
+    if ((cValType=="J").or.(cValType=="O"))
+        if (jData:HasProperty(cName))
+            xValue:=jData[cName]
+        endif
+    endif
+
+return(xValue)
+
+static function __Break(oError as object)
+    break(oError)
+return

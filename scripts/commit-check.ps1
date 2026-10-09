@@ -57,7 +57,7 @@ function Test-ProjectConventions {
         if ($relativePath -match '\.(hb|prg|tlpp)$') {
             $classDeclarations = [regex]::Matches($declarationSource, '(?im)^\s*(?:(?:create|define)\s+)?class\s+([a-z_][a-z0-9_]*)')
             foreach ($classDeclaration in $classDeclarations) {
-                if ([IO.Path]::GetFileNameWithoutExtension($relativePath) -cne $classDeclaration.Groups[1].Value.ToLowerInvariant()) {
+                if ([IO.Path]::GetFileNameWithoutExtension($relativePath).Replace(".","") -cne $classDeclaration.Groups[1].Value.ToLowerInvariant()) {
                     $failures.Add("${relativePath}: filename must match its class name in lowercase")
                 }
             }
@@ -79,7 +79,7 @@ function Test-ProjectConventions {
             if ($relativePath -ceq 'build.zig' -and $name -ceq 'build') { continue }
             if ($name.StartsWith('U_', [StringComparison]::Ordinal)) { $name = $name.Substring(2) }
             foreach ($segment in ($name -split '[.-]')) {
-                if ($segment -cnotmatch '^[A-Z][A-Za-z0-9]*$') {
+                if ($segment -cnotmatch '^(_{2})?[A-Z][A-Za-z0-9]*$') {
                     $failures.Add("${relativePath}: own function, procedure, method, namespace and class names must use PascalCase ($name)")
                     break
                 }

@@ -125,7 +125,8 @@ static procedure HBBridgeHTTPTest(cURL, cToken, nTimeoutSeconds, cSQLProfile, cA
         // Reuse the real dataset/pagination implementation through CallService.
         // The alias is opaque; this demonstration references no ERP tables.
         oDataSet := HBBridge.RDD.HBBridgeRPCDataSet():New(oClient)
-        lOpened := oDataSet:OpenPage(cSQLProfile, cSQL, 1, 1, "ID")
+        oDataSet:SetAliasProfile(cSQLProfile)
+        lOpened := oDataSet:OpenPage(cSQL, 1, 1, "ID")
         lOk := HTTPCheck(jChecks, "queryFirstPage", lOpened) .and. lOk
         if lOpened
             lOk := HTTPCheck(jChecks, "queryFirstValue", ;

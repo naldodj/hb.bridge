@@ -1,0 +1,13 @@
+-Main=MTTests
+-gtstd
+-ohbbridge.server.test
+hbbridge.server.test.hb
+hbbridge.netio.test.hb
+hbbridge.framing.test.hb
+hbbridge.query.test.hb
+hbbridge.http.test.hb
+../../unit/hbbridge.config.test.hb
+../../unit/hbbridge.config.ini.test.hb
+../../unit/hbbridge.time.test.hb
+../../contract/hbbridge.services.test.hb
+../../../hbbridge.hbm

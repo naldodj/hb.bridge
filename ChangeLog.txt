@@ -2,8 +2,14 @@
      * Change  ! Fix  % Optimize  + Add  - Remove  ; Comment
    Entries may not always be in chronological/commit order.
    Licensing status and proposal: docs/licensing.md.
-   (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Improve error handling, SQL paging and messages)"
+   (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Standardize hbBridge naming and paging)"
  */
+
+2026-10-09 20:04 UTC naldodj (Standardize hbBridge naming and paging)
+  Standardize hbBridge naming and paging
+  This patch renames source/test modules to the dotted hbBridge convention and updates build/config references to match.
+  It also adds dataset pagination helpers and filter/browse support, including the new HBBridgeTOTVSFilter and HBBridgeBrowseData/MSMGetEx helpers, while refining RPCDataSet behavior for previous/next page navigation and alias handling.
+  The commit-check tooling is updated to accept the dotted naming scheme and a PowerShell helper is added to flag non-ASCII characters.
 
 2026-10-09 01:05 UTC naldodj (Improve error handling, SQL paging and messages)
   Translate user-facing strings to English;

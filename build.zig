@@ -8,7 +8,7 @@ pub fn build(b: *std.Build) void {
         .linkage = .static,
         .name = "hbbridge_zig",
         .root_module = b.createModule(.{
-            .root_source_file = b.path("src/zig/runtime/hbbridgeruntime.zig"),
+            .root_source_file = b.path("src/zig/runtime/hbbridge.runtime.zig"),
             .target = target,
             .optimize = optimize,
         }),

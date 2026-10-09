@@ -82,7 +82,8 @@ static procedure HBBridgeQueryTest(cAliasProfile, cHost, nPort, nTimeout)
 
     oClient := HBBridge.Client.HBBridgeClient():New(cHost, nPort, nTimeout)
     oDataSet := HBBridge.RDD.HBBridgeRPCDataSet():New(oClient)
-    if !oDataSet:OpenSQL(cAliasProfile, cSql)
+    oDataSet:SetAliasProfile(cAliasProfile)
+    if !oDataSet:OpenSQL(cSql)
         ConOut("hbBridge RPCRDD.Query FAILED: " + oDataSet:ErrorCode() + "; " + oDataSet:ErrorMessage())
         if oDataSet:ErrorCode() == "SERVICE_NOT_FOUND"
             ConOut("hbBridge SQL service is unavailable at " + cHost + ":" + tlpp.ToStr(nPort) + ;
@@ -112,15 +113,18 @@ static procedure HBBridgeQueryTest(cAliasProfile, cHost, nPort, nTimeout)
     jChecks["eof"] := oDataSet:Eof() .and. ValType(oDataSet:FieldGet("ID")) == "U"
     oDataSet:Close()
     jChecks["close"] := oDataSet:Eof() .and. oDataSet:RowCount() == 0
-    jChecks["empty"] := oDataSet:OpenSQL(cAliasProfile, cEmptySql)
+    oDataSet:SetAliasProfile(cAliasProfile)
+    jChecks["empty"] := oDataSet:OpenSQL(cEmptySql)
     jChecks["emptyState"] := oDataSet:Eof() .and. oDataSet:RowCount() == 0
-    jChecks["invalidSql"] := !oDataSet:OpenSQL(cAliasProfile, "SELECT * FROM __HBBridgeMissingTable__")
+    jChecks["invalidSql"] := !oDataSet:OpenSQL("SELECT * FROM __HBBridgeMissingTable__")
     jChecks["invalidSqlCode"] := oDataSet:ErrorCode() == "QUERY_FAILED"
-    jChecks["unknownProfile"] := !oDataSet:OpenSQL("__HBBridgeMissingProfile__", "SELECT 1 AS ID")
+    oDataSet:SetAliasProfile("__HBBridgeMissingProfile__")
+    jChecks["unknownProfile"] := !oDataSet:OpenSQL("SELECT 1 AS ID")
     jChecks["unknownProfileCode"] := oDataSet:ErrorCode() == "PROFILE_NOT_FOUND"
-    jChecks["afterFailure"] := oDataSet:OpenSQL(cAliasProfile, "SELECT 7 AS ID")
+    oDataSet:SetAliasProfile(cAliasProfile)
+    jChecks["afterFailure"] := oDataSet:OpenSQL("SELECT 7 AS ID")
     jChecks["afterFailureValue"] := oDataSet:FieldGet("ID") == 7
-    jChecks["firstPage"] := oDataSet:OpenPage(cAliasProfile, cPageSql, 1, 1, "ID ASC")
+    jChecks["firstPage"] := oDataSet:OpenPage(cPageSql, 1, 1, "ID ASC")
     jChecks["firstPageState"] := oDataSet:RowCount() == 1 .and. oDataSet:FieldGet("ID") == 10 .and. ;
         oDataSet:PageNumber() == 1 .and. oDataSet:PageSize() == 1 .and. oDataSet:HasNextPage()
     jChecks["hiddenOrdinal"] := ValType(oDataSet:FieldGet("__HBBRIDGE_ROWNO")) == "U"
@@ -130,11 +134,11 @@ static procedure HBBridgeQueryTest(cAliasProfile, cHost, nPort, nTimeout)
     jChecks["lastPageState"] := oDataSet:FieldGet("ID") == 50 .and. ;
         oDataSet:PageNumber() == 2 .and. !oDataSet:HasNextPage()
     jChecks["noNextPage"] := !oDataSet:NextPage() .and. oDataSet:FieldGet("ID") == 50
-    jChecks["emptyPage"] := oDataSet:OpenPage(cAliasProfile, cPageSql, 3, 1, "ID") .and. ;
+    jChecks["emptyPage"] := oDataSet:OpenPage(cPageSql, 3, 1, "ID") .and. ;
         oDataSet:Eof() .and. !oDataSet:HasNextPage()
-    jChecks["invalidPage"] := !oDataSet:OpenPage(cAliasProfile, cPageSql, 0, 1, "ID")
+    jChecks["invalidPage"] := !oDataSet:OpenPage(cPageSql, 0, 1, "ID")
     jChecks["invalidPageCode"] := oDataSet:ErrorCode() == "INVALID_PAGE"
-    jChecks["invalidOrder"] := !oDataSet:OpenPage(cAliasProfile, cPageSql, 1, 1, "ID; SELECT 1") .and. ;
+    jChecks["invalidOrder"] := !oDataSet:OpenPage(cPageSql, 1, 1, "ID; SELECT 1") .and. ;
         oDataSet:ErrorCode() == "INVALID_PAGE"
     oDataSet:Close()
     jChecks["pageClose"] := oDataSet:PageNumber() == 0 .and. oDataSet:PageSize() == 0 .and. !oDataSet:HasNextPage()
@@ -160,7 +164,8 @@ static procedure HBBridgeQueryTest(cAliasProfile, cHost, nPort, nTimeout)
         jPage["number"] := 1
         jPage["size"] := 5
         jPage["orderBy"] := "X5_FILIAL,X5_TABELA"
-        if (oDataSet:OpenSQL(cAliasProfile, cSql,jPage))
+        oDataSet:SetAliasProfile(cAliasProfile)
+        if (oDataSet:OpenSQL(cSql,jPage))
             ConOut("hbBridge RPCRDD.Query jPage: " + jPage:ToJSON())
             nPages:=1
             jHeader:=oDataSet:Header()
@@ -206,7 +211,7 @@ static procedure HBBridgeQueryTest(cAliasProfile, cHost, nPort, nTimeout)
         jPage["number"] := 1
         jPage["size"] := 5
         jPage["orderBy"] := "RA_FILIAL,RA_MAT"
-        if (oDataSet:OpenSQL(cAliasProfile, cSql,jPage))
+        if (oDataSet:OpenSQL(cSql,jPage))
             ConOut("hbBridge RPCRDD.Query jPage: " + jPage:ToJSON())
             nPages:=1
             jHeader:=oDataSet:Header()
@@ -261,8 +266,7 @@ return
 static function MyGetX3Picture(cField,oDataSet) as character
     local cSql:="SELECT X3_PICTURE FROM SX3990 WHERE X3_CAMPO='"+cField+"'" as character
     local cPicture:="" as character
-    local cAliasProfile:=oDataSet:GetAliasProfile()
-    if (oDataSet:OpenSQL(cAliasProfile,cSql))
+    if (oDataSet:OpenSQL(cSql))
         cPicture:=AllTrim(oDataSet:FieldGet("X3_PICTURE"))
     endif
 return(cPicture)

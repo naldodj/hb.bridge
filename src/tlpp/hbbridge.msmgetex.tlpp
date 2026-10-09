@@ -1,0 +1,273 @@
+/*
+
+ _      _      _            _      _                                                          _
+| |__  | |__  | |__   _ __ (_)  __| |  __ _   ___     _ __ ___   ___  _ __ ___    __ _   ___ | |_   ___ __  __
+| '_ \ | '_ \ | '_ \ | '__|| | / _` | / _` | / _ \   | '_ ` _ \ / __|| '_ ` _ \  / _` | / _ \| __| / _ \\ \/ /
+| | | || |_) || |_) || |   | || (_| || (_| ||  __/ _ | | | | | |\__ \| | | | | || (_| ||  __/| |_ |  __/ >  <
+|_| |_||_.__/ |_.__/ |_|   |_| \__,_| \__, | \___|(_)|_| |_| |_||___/|_| |_| |_| \__, | \___| \__| \___|/_/\_\
+                                      |___/                                      |___/
+
+    The source code `hbbridge.MsMGetEx.tlpp` is based on a more detailed and feature-rich
+    source code, `dna.tech.MsMGetEx.tlpp`, `sqltools.advpl.model.prw` and `dna.tech.sxb.conpad1.tlpp`, and implements part of the functionalities
+    present in the latter.
+
+Implementa Visualizacao do Tipo MsMGet
+
+Released to Public Domain.
+--------------------------------------------------------------------------------------
+*/
+
+#include "totvs.ch"
+#include "dbinfo.ch"
+#include "dbstruct.ch"
+#include "parmtype.ch"
+
+namespace HBBridge.Client
+
+class HBBridgeMsMGetEx
+    static method ViewData(cAlias as character,nRecNo as numeric,cTitle as character,aButtons as array,aAcho as array) as variant
+end class
+
+static method ViewData(cAlias,nRecNo,cTitle,aButtons,aAcho) class HBBridgeMsMGetEx
+
+    local aFields as array
+    local aButtons as array
+    local aMsMGetPos as array
+    local aFieldsNoSX3 as array
+
+    local bMsMGet as codeblock
+    local bErrorBlock as codeblock
+
+    local cVar as character
+    local cField as character
+    local cTable as character
+    local cDlgTitle as character
+
+    local cFil as character
+    local cSVFilAnt as character
+    local cFieldFil as character
+
+    local lAcho as logical
+    local lMsMGet as logical
+    local lProperty:=.T. as logical
+
+    local lMVCOMBOBOX as logical
+    local l__MVCOMBOBOX as logical
+
+    local nField
+    local nFields
+
+    local nTop as numeric
+    local nLeft as numeric
+    local nBottom as numeric
+    local nRight as numeric
+
+    local oDlg as object
+    local oMsMGet as object
+    local oFWDefSize as object
+
+    local xRet as variant
+    local xValue as variant
+
+    paramtype 1 var cAlias as character
+    paramtype 2 var nRecNo as numeric
+    paramtype 3 var cTitle as character
+    paramtype 4 var aButtons as array optional
+    paramtype 5 var aAcho as array optional
+
+    lAcho:=(!Empty(aAcho))
+
+    l__MVCOMBOBOX:=(type("__MVCOMBOBOX")=="L")
+    if (l__MVCOMBOBOX)
+        lMVCOMBOBOX:=&("__MVCOMBOBOX")
+    endif
+
+    (cAlias)->(MsGoTo(nRecNo))
+
+    cFieldFil:=PrefixoCpo(cAlias)
+    cFieldFil+="_FILIAL"
+    nFieldFil:=(cAlias)->(FieldPos(cFieldFil))
+
+    private cCadastro:=cTitle as character
+
+    //Visualizando o registro
+    cTable:=(cAlias)->(dbInfo(DBI_FULLPATH))
+    if (FwSX2Util():SeekX2File(cTable).and.(nFieldFil>0))
+
+        //AxVisual
+
+        cSVFilAnt:=&("cFilAnt")
+        cFil:=(cAlias)->(FieldGet(nFieldFil))
+
+        if (cSVFilAnt!=cFil)
+            RPCSetEmpFil(cEmpAnt,cFil)
+        endif
+
+        xRet:=AxVisual(cAlias,nRecNo,2,aAcho,nil,nil,nil,aButtons)
+
+        RPCSetEmpFil(cEmpAnt,cSVFilAnt)
+
+    else
+
+        //MsMGet
+
+        aFields:=array(0)
+        aFieldsNoSX3:=array(0)
+        adbStruct:=(cAlias)->(dbStruct())
+        nFields:=len(adbStruct)
+        for nField:=1 to nFields
+            cField:=adbStruct[nField][DBS_NAME]
+            if (lAcho)
+                if (aScan(aAcho,cField)==0)
+                    loop
+                endif
+            endif
+            aAdd(aFields,cField)
+            cVar:=("M->"+cField)
+            xValue:=(cAlias)->(FieldGet(nField))
+            if (empty(xValue).and.!Empty(getSX3Cache(cField,"X3_RELACAO")))
+                bErrorBlock:=ErrorBlock({|e|Break(e)})
+                begin sequence
+                    xValue:=&(getSX3Cache(cField,"X3_RELACAO"))
+                end sequence
+                ErrorBlock(bErrorBlock)
+            endif
+            private &(cVar):=xValue as variant
+            aAdd(aFieldsNoSX3,Array(18))
+            aFieldsNoSX3[nField][1]:=getSX3Cache(cField,"X3_TITULO")//-> titulo
+            DEFAULT aFieldsNoSX3[nField][1]:=cField
+            aFieldsNoSX3[nField][2]:=cField//-> campo
+            aFieldsNoSX3[nField][3]:=getSX3Cache(cField,"X3_TIPO")//-> tipo
+            DEFAULT aFieldsNoSX3[nField][3]:=adbStruct[nField][DBS_TYPE]
+            if (aFieldsNoSX3[nField][3]<>adbStruct[nField][DBS_TYPE])
+                aFieldsNoSX3[nField][3]:=adbStruct[nField][DBS_TYPE]
+            endif
+            aFieldsNoSX3[nField][4]:=getSX3Cache(cField,"X3_TAMANHO")//-> tamanho
+            DEFAULT aFieldsNoSX3[nField][4]:=adbStruct[nField][DBS_LEN]
+            if (aFieldsNoSX3[nField][4]<>adbStruct[nField][DBS_LEN])
+                aFieldsNoSX3[nField][4]:=adbStruct[nField][DBS_LEN]
+            endif
+            aFieldsNoSX3[nField][5]:=getSX3Cache(cField,"X3_DECIMAL")//-> decimal
+            DEFAULT aFieldsNoSX3[nField][5]:=adbStruct[nField][DBS_DEC]
+            aFieldsNoSX3[nField][6]:=getSX3Cache(cField,"X3_PICTURE")//-> picture
+            DEFAULT aFieldsNoSX3[nField][6]:=""
+            aFieldsNoSX3[nField][7]:=getSX3Cache(cField,"X3_VALID")//-> valid
+            DEFAULT aFieldsNoSX3[nField][7]:="allWaysTrue()"
+            aFieldsNoSX3[nField][8]:=.F.//-> obrigat
+            aFieldsNoSX3[nField][9]:=getSX3Cache(cField,"X3_NIVEL")//-> nivel
+            DEFAULT aFieldsNoSX3[nField][9]:=0
+            aFieldsNoSX3[nField][10]:=getSX3Cache(cField,"X3_RELACAO")//-> inicializador padrao
+            DEFAULT aFieldsNoSX3[nField][10]:=getValType(adbStruct[nField][DBS_TYPE])
+            aFieldsNoSX3[nField][11]:=getSX3Cache(cField,"X3_F3")//-> F3
+            DEFAULT aFieldsNoSX3[nField][11]:=")
+            aFieldsNoSX3[nField][12]:=getSX3Cache(cField,"X3_WHEN")//-> when
+            DEFAULT aFieldsNoSX3[nField][12]:=""
+            aFieldsNoSX3[nField][13]:=.T.//-> visual
+            aFieldsNoSX3[nField][14]:=.F.//-> chave
+            aFieldsNoSX3[nField][15]:=getSX3Cache(cField,"X3_CBOX") //-> box
+            DEFAULT aFieldsNoSX3[nField][15]:=""
+            aFieldsNoSX3[nField][16]:=getSX3Cache(cField,"X3_FOLDER")//-> folder
+            DEFAULT aFieldsNoSX3[nField][16]:=""
+            aFieldsNoSX3[nField][17]:=.T.//-> nao alteravel
+            aFieldsNoSX3[nField][18]:=getSX3Cache(cField,"X3_PICTVAR")//-> pictvar
+            DEFAULT aFieldsNoSX3[nField][18]:=""
+        next nField
+
+        oFWDefSize:=FWDefSize():New(.T.,.T.)//Com enchoicebar
+        oFWDefSize:lLateral:=.F.//Calculo vertical
+        oFWDefSize:AddObject("ENCHOICE",100,60,.T.,.T.)//Adiciona enchoice
+
+        oFWDefSize:Process()
+
+        nTop:=oFWDefSize:aWindSize[1]
+        nLeft:=oFWDefSize:aWindSize[2]
+        nBottom:=oFWDefSize:aWindSize[3]
+        nRight:=oFWDefSize:aWindSize[4]
+
+        private aTela:=array(0) as array
+        private aGets:=array(0) as array
+        if (Type("lObfuscate")!="L")
+            private lObfuscate:=.F. as logical
+        endif
+
+        cDlgTitle:=cTitle+" :: Visualizar"
+        DEFINE MSDIALOG oDlg TITLE cTitle FROM nTop,nLeft TO nBottom,nRight PIXEL OF getWNDDefault()
+
+            aMsMGetPos:={;
+                        oFWDefSize:GetDimension("ENCHOICE","LININI"),;
+                        oFWDefSize:GetDimension("ENCHOICE","COLINI"),;
+                        oFWDefSize:GetDimension("ENCHOICE","LINEND"),;
+                        oFWDefSize:GetDimension("ENCHOICE","COLEND");
+            }
+
+            if (Type("aRotina")=="A")
+                if (2>len(aRotina))
+                    lProperty:=.T.
+                endif
+            endif
+
+            bMsMGet:={||oMsMGet:=MsMGet():New(cAlias,nRecNo,2,aFields,nil,nil,nil,aMsMGetPos,nil,nil,nil,nil,nil,nil,nil,.F.,nil,nil,nil,lProperty,aFieldsNoSX3,nil,nil,nil,nil)}
+
+            //Pode ocorrer Erro na Cria"+chr(135)+""+chr(198)+"o da MsMGet se o conteudo atribuido a um campo
+            //com X3_CBOX for diferente do conteudo esperado...
+            bErrorBlock:=ErrorBlock({|e|Break(e)})
+            begin sequence
+                Eval(bMsMGet)
+                lMsMGet:=.T.
+            recover
+                lMsMGet:=.F.
+            end sequence
+            ErrorBlock(bErrorBlock)
+            if (!lMsMGet)
+                //Neste caso,
+                //Se ocorrer erro de inicializa"+chr(135)+""+chr(198)+"o por causa do X3_CBOX,
+                //Desabilitar a variavel abaixo.
+                if (l__MVCOMBOBOX)
+                    &("__MVCOMBOBOX"):=.F.
+                    //Recriar MsMGet sem o conteudo do X3_CBOX
+                    bErrorBlock:=ErrorBlock({|e|Break(e)})
+                    begin sequence
+                        Eval(bMsMGet)
+                        lMsMGet:=.T.
+                    recover
+                        lMsMGet:=.F.
+                    end sequence
+                    ErrorBlock(bErrorBlock)
+                endif
+            endif
+
+            lMsMGet:=(((lMsMGet).and.(valType(oMsMGet)=="O")))
+
+            if (lMsMGet)
+                oMsMGet:oBox:align:=CONTROL_ALIGN_ALLCLIENT
+            else
+                oDlg:Hide()
+            endif
+
+        if (lMsMGet)
+            ACTIVATE MSDIALOG oDlg ON INIT EnchoiceBar(oDlg,{||oDlg:End()},{||oDlg:End()},nil,aButtons)
+        else
+            oDlg:End()
+            MsAguarde({||Sleep(500)},cTitle,"Visualizacao nao disponivel")
+        endif
+
+        xRet:=lMsMGet
+
+    endif
+
+    if (l__MVCOMBOBOX)
+        __MVCOMBOBOX:=lMVCOMBOBOX
+    endif
+
+    FreeObj(@oDlg)
+    FreeObj(@oMsMGet)
+    FreeObj(@oFWDefSize)
+
+    FWFreeArray(@aFields)
+    FWFreeArray(@aButtons)
+    FWFreeArray(@aMsMGetPos)
+    FWFreeArray(@aFieldsNoSX3)
+
+    DelClassIntF()
+
+return(xRet)

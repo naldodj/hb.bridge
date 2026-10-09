@@ -39,7 +39,7 @@ try {
 
     $testTarget = Join-Path $runRoot 'hbbridgeservertest'
     $testExecutable = $testTarget + $toolchain.ExecutableExtension
-    & $toolchain.Hbmk2 "-comp=$($toolchain.Compiler)" tests/integration/harbour/hbbridgeservertest.hbp `
+    & $toolchain.Hbmk2 "-comp=$($toolchain.Compiler)" tests/integration/harbour/hbbridge.server.test.hbp `
         "-o$testTarget" "-workdir=$buildRoot"
     if ($LASTEXITCODE -ne 0) { throw 'The Harbour test executable build failed.' }
 
