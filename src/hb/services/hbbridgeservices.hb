@@ -59,28 +59,28 @@ FUNCTION HBBridgeServiceAddon( hParams, hContext )
     LOCAL cJson, hResult, cModule, cPart
 
     IF ! hb_HHasKey( hParams, "module" ) .OR. ! hb_HHasKey( hParams, "params" )
-        RETURN HBBridgeError( "INVALID_PARAMS", "Modulo e parametros obrigatorios" )
+        RETURN HBBridgeError( "INVALID_PARAMS", "Module and parameters are required" )
     ENDIF
     cModule := hParams[ "module" ]
     IF ! HB_ISSTRING( cModule ) .OR. Empty( cModule )
-        RETURN HBBridgeError( "INVALID_MODULE", "Modulo invalido" )
+        RETURN HBBridgeError( "INVALID_MODULE", "Invalid module" )
     ENDIF
     cModule := StrTran( cModule, "\", "/" )
     IF Left( cModule, 1 ) == "/" .OR. ":" $ cModule .OR. Chr( 0 ) $ cModule
-        RETURN HBBridgeError( "INVALID_MODULE", "Modulo deve ser relativo a addonRoot" )
+        RETURN HBBridgeError( "INVALID_MODULE", "Module must be relative to addonRoot" )
     ENDIF
     FOR EACH cPart IN hb_ATokens( cModule, "/" )
         IF cPart == ".." .OR. Empty( cPart )
-            RETURN HBBridgeError( "INVALID_MODULE", "Caminho de modulo invalido" )
+            RETURN HBBridgeError( "INVALID_MODULE", "Invalid module path" )
         ENDIF
     NEXT
     /* Existing addons take/return JSON. Keep their ABI explicit here. */
     cJson := ExecuteAddonHRB( cModule, hParams[ "params" ], hContext[ "addonRoot" ] )
     IF ! HB_ISSTRING( cJson ) .OR. Empty( cJson )
-        RETURN HBBridgeError( "ADDON_RESULT", "Addon ausente ou sem resposta" )
+        RETURN HBBridgeError( "ADDON_RESULT", "Addon is missing or returned no response" )
     ENDIF
     IF hb_jsonDecode( cJson, @hResult ) == 0 .OR. ! HB_ISHASH( hResult )
-        RETURN HBBridgeError( "ADDON_RESULT", "Resposta JSON invalida do addon" )
+        RETURN HBBridgeError( "ADDON_RESULT", "Invalid addon JSON response" )
     ENDIF
 RETURN hResult
 

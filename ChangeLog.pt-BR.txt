@@ -5,6 +5,15 @@
    Caminhos antigos descrevem os arquivos existentes na época.
  */
 
+2026-10-09 01:05 UTC naldodj (Melhorar o tratamento de erros, paginação SQL e mensagens)
+  Traduzir strings voltadas ao usuário para o inglês;
+  incluir error.ch e mudar para __BreakBlock/RECOVER USING para uma propagação de erros mais detalhada.
+  HBBridgeError agora anexa uma mensagem explicativa construída por HBBridgeErrorMessage.
+  Paginação SQL reescrita: SQLPagePlan retorna sqlpage, SQLQueryLocked usa aliases temporários, fecha o leitor antes da contagem e adiciona SQLTotalRows para calcular totais com segurança.
+  Limpeza de recursos e áreas reforçada.
+  TLPP: adicionar métodos acessores TotalRows/TotalPages e atualizar testes/logs.
+  Correções diversas na redação de mensagens e logs nos transportes e no código do host.
+
 2026-10-08 19:34 UTC naldodj (Ampliar navegação do dataset e analisar integridade)
   * HBBridgeRPCDataSet e guias dataset, SQL, homologação e testes EN/PT
     + MoreToRead busca próxima página no EOF; Eof/Skip locais preservados.

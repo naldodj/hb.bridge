@@ -24,6 +24,8 @@ class HBBridgeRPCDataSet
     public method HasNextPage() as logical
     public method PageNumber() as numeric
     public method PageSize() as numeric
+    public method TotalRows() as numeric
+    public method TotalPages() as numeric
     public method MoreToRead() as logical
     public method Header() as json
     public method FieldInfo(cFieldName as character) as json
@@ -285,12 +287,32 @@ return(0)
 method PageSize() class HBBridgeRPCDataSet
 
     if ValType(self:jResult) $ "JO"
-        if self:jResult:HasProperty("page")
+        if self:jResult:HasProperty("page").and.self:jResult["page"]:HasProperty("size")
             return(self:jResult["page"]["size"])
         endif
     endif
 
 return(0)
+
+method TotalRows() as numeric class HBBridgeRPCDataSet
+
+    if ValType(self:jResult) $ "JO"
+        if self:jResult:HasProperty("totalRows")
+            return(self:jResult["totalRows"])
+        endif
+    endif
+
+return(self:nTotalRows)
+
+method TotalPages() as numeric class HBBridgeRPCDataSet
+
+    if ValType(self:jResult) $ "JO"
+        if self:jResult:HasProperty("totalPages")
+            return(self:jResult["totalPages"])
+        endif
+    endif
+
+return(if(self:nTotalRows>0,1,0))
 
 method MoreToRead() class HBBridgeRPCDataSet
 

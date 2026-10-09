@@ -89,9 +89,9 @@ RETURN lStopped
 
 STATIC PROCEDURE HBBridgeAcceptLoop( hServer, hListenSocket )
 
-    LOCAL hClientSocket := NIL, hWorker, aWorkers := {}, nWorker, nError
+    LOCAL hClientSocket := NIL, hWorker, aWorkers := {}, nWorker, nError,oError
 
-    BEGIN SEQUENCE WITH {| oError | Break( oError ) }
+    BEGIN SEQUENCE WITH __BreakBlock()
         DO WHILE HBBridgeServerRunning( hServer )
             /* Reap finished threads while serving, so handles do not accumulate. */
             FOR nWorker := Len( aWorkers ) TO 1 STEP -1
@@ -106,7 +106,7 @@ STATIC PROCEDURE HBBridgeAcceptLoop( hServer, hListenSocket )
                 nError := hb_socketGetError()
                 IF nError != HB_SOCKET_ERR_TIMEOUT .AND. nError != HB_SOCKET_ERR_AGAIN .AND. ;
                     nError != HB_SOCKET_ERR_INTERRUPT
-                    HBBridgeServerLog( hServer, "Falha no accept: " + hb_ntos( nError ) )
+                    HBBridgeServerLog( hServer, "Accept failed: " + hb_ntos( nError ) )
                     EXIT
                 ENDIF
                 LOOP
@@ -120,7 +120,7 @@ STATIC PROCEDURE HBBridgeAcceptLoop( hServer, hListenSocket )
                     hClientSocket := NIL  /* Ownership transferred to the worker. */
                 ELSE
                     hb_mutexEval( hServer[ "mutex" ], {|| hServer[ "active" ]-- } )
-                    HBBridgeServerLog( hServer, "Nao foi possivel iniciar a thread da conexao" )
+                    HBBridgeServerLog( hServer, "Unable to start the connection thread" )
                 ENDIF
             ENDIF
             IF ! Empty( hClientSocket )
@@ -129,8 +129,8 @@ STATIC PROCEDURE HBBridgeAcceptLoop( hServer, hListenSocket )
                 hClientSocket := NIL
             ENDIF
         ENDDO
-    RECOVER
-        HBBridgeServerLog( hServer, "Falha no listener; encerrando servidor" )
+    RECOVER USING oError
+        HBBridgeServerLog( hServer, "Listener failure; shutting down the server; "+HBBridgeErrorMessage( oError ) )
     ALWAYS
         hb_mutexEval( hServer[ "mutex" ], {|| hServer[ "stopping" ] := .T. } )
         hb_socketClose( hListenSocket )
@@ -156,25 +156,25 @@ RETURN .T.
 
 STATIC PROCEDURE HBBridgeClientWorker( hServer, hClientSocket )
 
-    LOCAL cRequest, cResponse
+    LOCAL cRequest, cResponse,oError
 
-    BEGIN SEQUENCE WITH {| oError | Break( oError ) }
+    BEGIN SEQUENCE WITH __BreakBlock()
         IF ReceiveRequest( hClientSocket, @cRequest, hServer[ "ioPolicy" ] )
             /* An application error becomes a reply on this connection only. */
-            BEGIN SEQUENCE WITH {| oError | Break( oError ) }
+            BEGIN SEQUENCE WITH __BreakBlock()
                 cResponse := DispatcherRequest( cRequest, hServer[ "registry" ], hServer[ "context" ] )
-            RECOVER
-                cResponse := '{"success": false, "error": "Falha ao executar servico"}'
-                HBBridgeServerLog( hServer, "Erro no servico da thread " + hb_ntos( hb_threadID() ) )
+            RECOVER USING oError
+                cResponse := '{"success": false, "error": ' + HBBridgeErrorMessage( oError ) + '}'
+                HBBridgeServerLog( hServer, "Service error in thread " + hb_ntos( hb_threadID() ) )
             END SEQUENCE
             IF ! SendResponse( hClientSocket, cResponse, hServer[ "ioPolicy" ] )
-                HBBridgeServerLog( hServer, "Falha ao enviar resposta" )
+                HBBridgeServerLog( hServer, "Unable to send the response" )
             ENDIF
         ELSE
-            HBBridgeServerLog( hServer, "Requisicao invalida ou incompleta" )
+            HBBridgeServerLog( hServer, "Invalid or incomplete request" )
         ENDIF
-    RECOVER
-        HBBridgeServerLog( hServer, "Falha na conexao da thread " + hb_ntos( hb_threadID() ) )
+    RECOVER USING oError
+        HBBridgeServerLog( hServer, "Connection failure in thread " + hb_ntos( hb_threadID() ) + ";" +  HBBridgeErrorMessage( oError ))
     ALWAYS
         hb_socketClose( hClientSocket )
         hb_mutexEval( hServer[ "mutex" ], {|| hServer[ "active" ]-- } )

@@ -124,7 +124,7 @@ STATIC PROCEDURE NetioAcceptLoop( hServer, pListen, hFilter, cPassword )
             ENDIF
         ENDDO
     RECOVER
-        OutErr( "[NETIO] Falha no listener" + hb_eol() )
+        OutErr( "[NETIO] Listener failure" + hb_eol() )
     ALWAYS
         hb_mutexEval( hServer[ "mutex" ], {|| NetioSignalStop( hServer ) } )
         netio_ServerStop( pListen )
@@ -159,7 +159,7 @@ STATIC PROCEDURE NetioWorker( hServer, pConnection )
     BEGIN SEQUENCE WITH {| oError | Break( oError ) }
         netio_Server( pConnection )
     RECOVER
-        OutErr( "[NETIO] Falha na conexao" + hb_eol() )
+        OutErr( "[NETIO] Connection failure" + hb_eol() )
     ALWAYS
         netio_ServerStop( pConnection )
         hb_mutexEval( hServer[ "mutex" ], {|| NetioRelease( hServer, pConnection ) } )

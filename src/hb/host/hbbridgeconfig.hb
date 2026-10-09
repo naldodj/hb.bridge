@@ -65,7 +65,7 @@ FUNCTION HBBridgeConfig( aArgs, cError )
         aArgs := {}
     ENDIF
     IF ! HB_ISARRAY( aArgs )
-        cError := "Argumentos devem ser um array"
+        cError := "Arguments must be an array"
         RETURN NIL
     ENDIF
     FOR EACH cKey IN { "netioRoot", "addonRoot" }
@@ -73,22 +73,22 @@ FUNCTION HBBridgeConfig( aArgs, cError )
     NEXT
     FOR EACH cArg IN aArgs
         IF ! HB_ISSTRING( cArg )
-            cError := "Argumento deve ser texto"
+            cError := "Argument must be text"
             RETURN NIL
         ENDIF
         IF Chr( 0 ) $ cArg
-            cError := "Argumento contem NUL"
+            cError := "Argument contains NUL"
             RETURN NIL
         ENDIF
         IF Left( cArg, 8 ) == "-config="
             IF lExplicitConfig .OR. Empty( SubStr( cArg, 9 ) )
-                cError := "Informe um unico -config=<arquivo.ini|arquivo.json>"
+                cError := "Specify a single -config=<file.ini|file.json>"
                 RETURN NIL
             ENDIF
             lExplicitConfig := .T.
             cFile := HBBridgeAbsolutePath( SubStr( cArg, 9 ), hb_cwd() )
             IF Empty( cFile )
-                cError := "Caminho de configuracao invalido"
+                cError := "Invalid configuration path"
                 RETURN NIL
             ENDIF
         ENDIF
@@ -101,7 +101,7 @@ FUNCTION HBBridgeConfig( aArgs, cError )
     ENDIF
     IF ! Empty( cFile )
         IF ! hb_FileExists( cFile )
-            cError := "Arquivo de configuracao nao encontrado"
+            cError := "Configuration file not found"
             RETURN NIL
         ENDIF
         cContents := hb_MemoRead( cFile )
@@ -114,7 +114,7 @@ FUNCTION HBBridgeConfig( aArgs, cError )
             nRead := hb_jsonDecode( cContents, @hFile )
             IF nRead == 0 .OR. ! HB_ISHASH( hFile ) .OR. ;
                 ! Empty( AllTrim( SubStr( cContents, nRead + 1 ) ) )
-                cError := "Configuracao JSON invalida"
+                cError := "Invalid JSON configuration"
                 RETURN NIL
             ENDIF
         ENDIF
@@ -124,11 +124,11 @@ FUNCTION HBBridgeConfig( aArgs, cError )
         FOR EACH xValue IN hFile
             cKey := xValue:__enumKey()
             IF ! hb_HHasKey( hConfig, cKey )
-                cError := "Chave desconhecida na configuracao: " + cKey
+                cError := "Unknown configuration key: " + cKey
                 RETURN NIL
             ENDIF
             IF ValType( xValue ) != ValType( hConfig[ cKey ] )
-                cError := "Tipo invalido na configuracao: " + cKey
+                cError := "Invalid configuration type: " + cKey
                 RETURN NIL
             ENDIF
             hConfig[ cKey ] := xValue
@@ -138,7 +138,7 @@ FUNCTION HBBridgeConfig( aArgs, cError )
                 ENDIF
             ELSEIF cKey == "netioRoot" .OR. cKey == "addonRoot"
                 IF Empty( hConfig[ cKey ] ) .OR. Chr( 0 ) $ hConfig[ cKey ]
-                    cError := "Diretorio vazio ou com NUL: " + cKey
+                    cError := "Directory is empty or contains NUL: " + cKey
                     RETURN NIL
                 ENDIF
                 hConfig[ cKey ] := HBBridgeAbsolutePath( hConfig[ cKey ], hb_FNameDir( cFile ) )
@@ -157,18 +157,18 @@ FUNCTION HBBridgeConfig( aArgs, cError )
         nEqual := At( "=", cArg )
         cName := SubStr( cArg, 2, Max( 0, nEqual - 2 ) )
         IF Left( cArg, 1 ) != "-" .OR. nEqual < 3 .OR. ! hb_HHasKey( hOptions, cName )
-            cError := "Opcao desconhecida; consulte --help"
+            cError := "Unknown option; see --help"
             RETURN NIL
         ENDIF
         cKey := hOptions[ cName ]
         cValue := SubStr( cArg, nEqual + 1 )
         IF Empty( cValue )
-            cError := "Valor vazio: " + cName
+            cError := "Empty value: " + cName
             RETURN NIL
         ENDIF
         IF HB_ISNUMERIC( hConfig[ cKey ] )
             IF ! ( cValue == hb_ntos( Val( cValue ) ) )
-                cError := "Numero invalido: " + cName
+                cError := "Invalid number: " + cName
                 RETURN NIL
             ENDIF
             hConfig[ cKey ] := Val( cValue )
@@ -203,7 +203,7 @@ FUNCTION HBBridgeConfigValid( hConfig, cError )
 
     cError := ""
     IF ! HB_ISHASH( hConfig )
-        cError := "Configuracao deve ser um hash"
+        cError := "Configuration must be a hash"
         RETURN .F.
     ENDIF
     FOR EACH cKey IN {;
@@ -232,7 +232,7 @@ FUNCTION HBBridgeConfigValid( hConfig, cError )
         ,"netioTimeout";
         ,"sqlProfiles" }
         IF ! hb_HHasKey( hConfig, cKey )
-            cError := "Chave ausente: " + cKey
+            cError := "Missing key: " + cKey
             RETURN .F.
         ENDIF
     NEXT
@@ -243,22 +243,22 @@ FUNCTION HBBridgeConfigValid( hConfig, cError )
     FOR EACH cKey IN { "protheusMaxPayloadBytes", "protheusMaxWireBytes", "protheusTimeoutMs" }
         nValue := hConfig[ cKey ]
         IF ! HB_ISNUMERIC( nValue )
-            cError := "Numero invalido: " + cKey
+            cError := "Invalid number: " + cKey
             RETURN .F.
         ENDIF
         IF ! HBBridgeIntegerValid( nValue, hRuntimeLimits[ "stringBytesMax" ] )
-            cError := "Valor fora da faixa do runtime: " + cKey
+            cError := "Value outside the runtime range: " + cKey
             RETURN .F.
         ENDIF
     NEXT
     nValue := hConfig[ "protheusReadChunkBytes" ]
     IF ! HB_ISNUMERIC( nValue )
-        cError := "Numero invalido: protheusReadChunkBytes"
+        cError := "Invalid number: protheusReadChunkBytes"
         RETURN .F.
     ENDIF
     IF ! HBBridgeIntegerValid( nValue, Min( hRuntimeLimits[ "socketChunkBytesMax" ], ;
         hRuntimeLimits[ "zlibChunkBytesMax" ] ) ) .OR. nValue == 0
-        cError := "Valor fora da faixa do runtime: protheusReadChunkBytes"
+        cError := "Value outside the runtime range: protheusReadChunkBytes"
         RETURN .F.
     ENDIF
     FOR EACH cKey IN {;
@@ -270,36 +270,36 @@ FUNCTION HBBridgeConfigValid( hConfig, cError )
         ,"netioTimeout" }
         nValue := hConfig[ cKey ]
         IF ! HB_ISNUMERIC( nValue )
-            cError := "Numero invalido: " + cKey
+            cError := "Invalid number: " + cKey
             RETURN .F.
         ENDIF
         IF nValue != Int( nValue ) .OR. nValue < iif( cKey == "protheusPort" .OR. cKey == "netioTimeout", 0, 1 ) .OR. ;
             ( Right( cKey, 4 ) == "Port" .AND. nValue > 65535 ) .OR. ;
             ( cKey == "netioTimeout" .AND. nValue > hRuntimeLimits[ "netioTimeoutMsMax" ] )
-            cError := "Valor fora da faixa: " + cKey
+            cError := "Value outside the allowed range: " + cKey
             RETURN .F.
         ENDIF
     NEXT
     FOR EACH cKey IN { "protheusHost", "netioHost", "adminHost", "httpHost" }
         IF ! ValidIPv4( hConfig[ cKey ] )
-            cError := "Endereco IPv4 invalido: " + cKey
+            cError := "Invalid IPv4 address: " + cKey
             RETURN .F.
         ENDIF
     NEXT
     FOR EACH cKey IN { "netioPassword", "adminPassword" }
         IF ! HB_ISSTRING( hConfig[ cKey ] )
-            cError := "Credencial invalida: " + cKey
+            cError := "Invalid credential: " + cKey
             RETURN .F.
         ENDIF
         /* NETIO truncates passwords at 64 bytes; fail instead of silently altering. */
         IF Len( hConfig[ cKey ] ) > 64 .OR. Chr( 0 ) $ hConfig[ cKey ]
-            cError := "Credencial deve ter ate 64 bytes e nao conter NUL: " + cKey
+            cError := "Credential must not exceed 64 bytes or contain NUL: " + cKey
             RETURN .F.
         ENDIF
     NEXT
     FOR EACH cKey IN { "netioRoot", "addonRoot" }
         IF ! HB_ISSTRING( hConfig[ cKey ] ) .OR. Empty( hConfig[ cKey ] ) .OR. Chr( 0 ) $ hConfig[ cKey ]
-            cError := "Diretorio invalido: " + cKey
+            cError := "Invalid directory: " + cKey
             RETURN .F.
         ENDIF
     NEXT
@@ -346,7 +346,7 @@ FUNCTION HBBridgeConfigValid( hConfig, cError )
             IF hConfig[ cLeft + "Port" ] == hConfig[ cRight + "Port" ] .AND. ;
                 ( hConfig[ cLeft + "Host" ] == hConfig[ cRight + "Host" ] .OR. ;
                     hConfig[ cLeft + "Host" ] == "0.0.0.0" .OR. hConfig[ cRight + "Host" ] == "0.0.0.0" )
-                cError := "Conflito entre endpoints: " + cLeft + "/" + cRight
+                cError := "Endpoint conflict: " + cLeft + "/" + cRight
                 RETURN .F.
             ENDIF
         NEXT

@@ -14,6 +14,8 @@ Released to Public Domain.
 REQUEST __HB_EXTERN__
 #endif
 
+#include "error.ch"
+
 FUNCTION HBBridgeRegistry()
 RETURN { "services" => {=>}, "sealed" => .F. }
 
@@ -64,52 +66,88 @@ RETURN { "transport" => cTransport, "addonRoot" => cAddonRoot, "state" => hState
 
 FUNCTION HBBridgeDispatch( hRegistry, cService, xParams, hContext, nVersion )
 
-    LOCAL cKey, hEntry, hCall, xResult, cType
+    LOCAL cKey, hEntry, hCall, xResult, cType,oError
 
     IF nVersion == NIL
         nVersion := 1
     ENDIF
     IF ! HB_ISSTRING( cService ) .OR. Empty( cService )
-        RETURN HBBridgeError( "INVALID_SERVICE", "Servico invalido" )
+        RETURN HBBridgeError( "INVALID_SERVICE", "Invalid service" )
     ENDIF
     IF ! HB_ISNUMERIC( nVersion )
-        RETURN HBBridgeError( "INVALID_VERSION", "Versao invalida" )
+        RETURN HBBridgeError( "INVALID_VERSION", "Invalid version" )
     ENDIF
     IF nVersion < 1 .OR. nVersion != Int( nVersion )
-        RETURN HBBridgeError( "INVALID_VERSION", "Versao invalida" )
+        RETURN HBBridgeError( "INVALID_VERSION", "Invalid version" )
     ENDIF
     cKey := cService + "/" + hb_ntos( nVersion )
     IF ! hb_HHasKey( hRegistry[ "services" ], cKey )
-        RETURN HBBridgeError( "SERVICE_NOT_FOUND", "Servico nao suportado" )
+        RETURN HBBridgeError( "SERVICE_NOT_FOUND", "Unsupported service" )
     ENDIF
     hEntry := hRegistry[ "services" ][ cKey ]
     IF ! HBBridgePermitted( hEntry[ "spec" ], hContext )
-        RETURN HBBridgeError( "FORBIDDEN", "Servico nao autorizado neste canal" )
+        RETURN HBBridgeError( "FORBIDDEN", "Service is not authorized on this channel" )
     ENDIF
     cType := hEntry[ "spec" ][ "params" ]
     IF ! HBBridgeValueAllowed( xParams ) .OR. ;
         ( cType != "any" .AND. cType != ValType( xParams ) )
-        RETURN HBBridgeError( "INVALID_PARAMS", "Tipo de parametro nao suportado" )
+        RETURN HBBridgeError( "INVALID_PARAMS", "Unsupported parameter type" )
     ENDIF
     /* Arguments and context belong to this call; no shared mutable executor. */
     hCall := { "transport" => hContext[ "transport" ], "addonRoot" => hContext[ "addonRoot" ], ;
         "state" => hContext[ "state" ], "permissions" => AClone( hContext[ "permissions" ] ), ;
         "registry" => hRegistry, "service" => cService, "version" => nVersion }
-    BEGIN SEQUENCE WITH {| oError | Break( oError ) }
+    BEGIN SEQUENCE WITH __BreakBlock()
         xResult := Eval( hEntry[ "handler" ], xParams, hCall )
         cType := hEntry[ "spec" ][ "result" ]
         IF ! HBBridgeValueAllowed( xResult ) .OR. ;
             ( cType != "any" .AND. cType != ValType( xResult ) )
-            xResult := HBBridgeError( "INVALID_RESULT", "Tipo de resultado nao suportado" )
+            xResult := HBBridgeError( "INVALID_RESULT", "Unsupported result type" )
         ENDIF
-    RECOVER
-        xResult := HBBridgeError( "SERVICE_ERROR", "Falha ao executar servico" )
+    RECOVER USING oError
+        xResult := HBBridgeError( "SERVICE_ERROR", "Service execution failed" , oError )
     END SEQUENCE
 
 RETURN xResult
 
-FUNCTION HBBridgeError( cCode, cMessage )
-RETURN { "success" => .F., "error" => cMessage, "code" => cCode }
+FUNCTION HBBridgeError( cCode, cError , oError )
+    LOCAL cMessage:=HBBridgeErrorMessage( oError )
+RETURN { "success" => .F., "error" => cError, "code" => cCode , "message" => cMessage }
+
+FUNCTION HBBridgeErrorMessage( oError )
+    LOCAL cMessage
+
+    if (ValType(oError)=="O")
+
+        /* start error message */
+        cMessage := iif( oError:severity > ES_WARNING, "Error", "Warning" ) + " "
+
+        /* add subsystem name if available */
+        cMessage += iif( HB_ISSTRING( oError:subsystem ), oError:subsystem(), "???" )
+
+        /* add subsystem's error code if available */
+        cMessage += "/" + iif( HB_ISNUMERIC( oError:subCode ), hb_ntos( oError:subCode ), "???" )
+
+        /* add error description if available */
+        IF HB_ISSTRING( oError:description )
+            cMessage += "  " + oError:description
+        ENDIF
+
+        /* add either filename or operation */
+        DO CASE
+        CASE ! Empty( oError:filename )
+            cMessage += ": " + oError:filename
+        CASE ! Empty( oError:operation )
+            cMessage += ": " + oError:operation
+        ENDCASE
+
+    else
+
+        cMessage:=""
+
+    endif
+
+RETURN cMessage
 
 FUNCTION HBBridgeCatalog( hRegistry, hContext )
 

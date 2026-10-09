@@ -16,12 +16,12 @@ FUNCTION HBBridgeHostStart( hConfig, cError )
     cError := ""
     IF ! hb_mtvm() .OR. ! HBBridgeConfigValid( hConfig, @cError )
         IF Empty( cError )
-            cError := "hbBridge requer Harbour multithread (-mt)"
+            cError := "hbBridge requires multithreaded Harbour (-mt)"
         ENDIF
         RETURN NIL
     ENDIF
     IF ! hb_DirExists( hConfig[ "netioRoot" ] ) .AND. ! hb_DirBuild( hConfig[ "netioRoot" ] )
-        cError := "Nao foi possivel preparar netioRoot"
+        cError := "Unable to prepare netioRoot"
         RETURN NIL
     ENDIF
     hRegistry := HBBridgeBuiltinRegistry( hConfig[ "sqlProfiles" ] )
@@ -29,14 +29,14 @@ FUNCTION HBBridgeHostStart( hConfig, cError )
         "stopping" => .F., "started" => HBBridgeMonotonicMs(), "listeners" => {=>} }
     hListener := HBBridgeNetioStart( hConfig, hRegistry, hHost )
     IF Empty( hListener )
-        cError := "Falha ao iniciar endpoint NETIO"
+        cError := "Unable to start the NETIO endpoint"
         RETURN NIL
     ENDIF
     hb_mutexEval( hHost[ "mutex" ], {|| hHost[ "listeners" ][ "netio" ] := hListener } )
     IF ! Empty( hConfig[ "adminPassword" ] )
         hListener := HBBridgeNetioStart( hConfig, hRegistry, hHost, .T. )
         IF Empty( hListener )
-            cError := "Falha ao iniciar endpoint de administracao"
+            cError := "Unable to start the administration endpoint"
             HBBridgeHostStop( hHost )
             RETURN NIL
         ENDIF
@@ -45,7 +45,7 @@ FUNCTION HBBridgeHostStart( hConfig, cError )
     hListener := HBBridgeServerStart( hConfig[ "protheusPort" ], hConfig[ "maxWorkers" ], ;
         hConfig[ "protheusHost" ], hRegistry, HBBridgeContext( "protheus", hConfig[ "addonRoot" ], hHost ), hConfig )
     IF Empty( hListener )
-        cError := "Falha ao iniciar endpoint Protheus"
+        cError := "Unable to start the Protheus endpoint"
         HBBridgeHostStop( hHost )
         RETURN NIL
     ENDIF
@@ -96,7 +96,7 @@ RETURN lOK
 
 FUNCTION HBBridgeHostStatus( hHost )
     IF ! HB_ISHASH( hHost )
-        RETURN HBBridgeError( "HOST_UNAVAILABLE", "Estado do host indisponivel" )
+        RETURN HBBridgeError( "HOST_UNAVAILABLE", "Host state is unavailable" )
     ENDIF
 RETURN hb_mutexEval( hHost[ "mutex" ], {|| HostStatusLocked( hHost ) } )
 

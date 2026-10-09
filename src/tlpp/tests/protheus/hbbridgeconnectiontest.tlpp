@@ -48,7 +48,7 @@ procedure U_HBBridgeConnectionTest(cHost, nPort, nTimeout, nLargePayloadBytes)
     jResponse := oClient:CallService("Health", jParams)
 
     if !ResponseSucceeded(jResponse)
-        ConOut("hbBridge Health falhou: " + Left(jResponse:ToJSON(), 1024))
+        ConOut("hbBridge Health FAILED: " + Left(jResponse:ToJSON(), 1024))
         lOk := .F.
     else
         ConOut("hbBridge Health Protheus OK: " + Left(jResponse:ToJSON(), 1024))
@@ -62,7 +62,7 @@ procedure U_HBBridgeConnectionTest(cHost, nPort, nTimeout, nLargePayloadBytes)
         jResponse := oClient:CallService("ADDON.Execute", jAddonParams)
         FreeObj(@jAddonParams)
         if !ResponseSucceeded(jResponse)
-            ConOut("hbBridge ADDON.Execute falhou: " + Left(jResponse:ToJSON(), 1024))
+            ConOut("hbBridge ADDON.Execute FAILED: " + Left(jResponse:ToJSON(), 1024))
             lOk := .F.
         else
             ConOut("hbBridge ADDON.Execute Protheus OK: " + Left(jResponse:ToJSON(), 1024))
@@ -72,7 +72,7 @@ procedure U_HBBridgeConnectionTest(cHost, nPort, nTimeout, nLargePayloadBytes)
 
     jResponse := oClient:CallService("Echo", jParams)
     if !EchoMatches(jResponse, jParams)
-        ConOut("hbBridge Echo falhou na comparacao exata: " + Left(jResponse:ToJSON(), 1024))
+        ConOut("hbBridge Echo exact comparison FAILED: " + Left(jResponse:ToJSON(), 1024))
         lOk := .F.
     else
         ConOut("hbBridge Echo Protheus OK: 200000 bytes, conteudo identico.")
@@ -92,12 +92,12 @@ procedure U_HBBridgeConnectionTest(cHost, nPort, nTimeout, nLargePayloadBytes)
     cCompressed := ""
 
     if !lCompressed .or. nCompressed <= HBBRIDGE_IO_CHUNK_DEFAULT_BYTES
-        ConOut("hbBridge Echo fragmented fixture falhou: gzip deve ultrapassar o buffer de recepcao.")
+        ConOut("hbBridge Echo fragmented fixture FAILED: gzip must exceed the receive buffer size.")
         lOk := .F.
     else
         jResponse := oClient:CallService("Echo", jParams)
         if !EchoMatches(jResponse, jParams)
-            ConOut("hbBridge Echo fragmented falhou: " + Left(jResponse:ToJSON(), 1024))
+            ConOut("hbBridge Echo fragmented FAILED: " + Left(jResponse:ToJSON(), 1024))
             lOk := .F.
         else
             ConOut("hbBridge Echo fragmented Protheus OK: 200000 bytes, conteudo identico; gzip request=" + AllTrim(Str(nCompressed)) + " bytes.")
@@ -111,7 +111,7 @@ procedure U_HBBridgeConnectionTest(cHost, nPort, nTimeout, nLargePayloadBytes)
         jParams["largePayload"] := Replicate("X", nLargePayloadBytes)
         jResponse := oClient:CallService("Echo", jParams)
         if !EchoMatches(jResponse, jParams)
-            ConOut("hbBridge Echo configured size falhou: " + Left(jResponse:ToJSON(), 1024))
+            ConOut("hbBridge Echo configured size FAILED: " + Left(jResponse:ToJSON(), 1024))
             lOk := .F.
         else
             ConOut("hbBridge Echo configured size Protheus OK: " + tlpp.ToStr(nLargePayloadBytes) + " bytes, conteudo identico.")

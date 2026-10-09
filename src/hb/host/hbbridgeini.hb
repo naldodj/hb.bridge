@@ -42,7 +42,7 @@ FUNCTION HBBridgeConfigINI( cContents, hDefaults, cError )
         IF Empty( cLine ) .OR. Left( cLine, 1 ) $ ";#"
             LOOP
         ENDIF
-        cError := "Configuracao INI invalida na linha " + hb_ntos( nLine ) + "."
+        cError := "Invalid INI configuration at line " + hb_ntos( nLine ) + "."
         IF Chr( 0 ) $ cLine .OR. Chr( 13 ) $ cLine
             RETURN NIL
         ENDIF
@@ -64,13 +64,13 @@ FUNCTION HBBridgeConfigINI( cContents, hDefaults, cError )
             ELSE
                 cSection := Upper( cSection )
                 IF ! hb_HHasKey( hSections, cSection )
-                    cError := "Secao INI desconhecida na linha " + hb_ntos( nLine ) + "."
+                    cError := "Unknown INI section at line " + hb_ntos( nLine ) + "."
                     RETURN NIL
                 ENDIF
                 cSectionID := cSection
             ENDIF
             IF hb_HHasKey( hSeenSections, cSectionID )
-                cError := "Secao INI repetida na linha " + hb_ntos( nLine ) + "."
+                cError := "Duplicate INI section at line " + hb_ntos( nLine ) + "."
                 RETURN NIL
             ENDIF
             hSeenSections[ cSectionID ] := .T.
@@ -91,13 +91,13 @@ FUNCTION HBBridgeConfigINI( cContents, hDefaults, cError )
         cKey := Upper( INITrim( Left( cLine, nEqual - 1 ) ) )
         cValue := INITrim( SubStr( cLine, nEqual + 1 ) )
         IF hb_HHasKey( hSeenKeys, cKey )
-            cError := "Chave INI repetida na linha " + hb_ntos( nLine ) + "."
+            cError := "Duplicate INI key at line " + hb_ntos( nLine ) + "."
             RETURN NIL
         ENDIF
         hSeenKeys[ cKey ] := .T.
         IF ! Empty( cProfile )
             IF ! hb_HHasKey( hProfileKeys, cKey )
-                cError := "Chave de perfil SQL INI desconhecida na linha " + hb_ntos( nLine ) + "."
+                cError := "Unknown SQL profile INI key at line " + hb_ntos( nLine ) + "."
                 RETURN NIL
             ENDIF
             cTarget := hProfileKeys[ cKey ]
@@ -114,7 +114,7 @@ FUNCTION HBBridgeConfigINI( cContents, hDefaults, cError )
             ENDIF
         ELSE
             IF ! hb_HHasKey( hSections[ cSection ], cKey )
-                cError := "Chave INI desconhecida na linha " + hb_ntos( nLine ) + "."
+                cError := "Unknown INI key at line " + hb_ntos( nLine ) + "."
                 RETURN NIL
             ENDIF
             cTarget := hSections[ cSection ][ cKey ]
@@ -126,7 +126,7 @@ FUNCTION HBBridgeConfigINI( cContents, hDefaults, cError )
                 hFile[ cTarget ] := Lower( cValue ) == "true"
             ELSEIF HB_ISNUMERIC( hDefaults[ cTarget ] )
                 IF Empty( cValue ) .OR. ! ( cValue == hb_ntos( Val( cValue ) ) )
-                    cError := "Numero INI invalido na linha " + hb_ntos( nLine ) + "."
+                    cError := "Invalid INI number at line " + hb_ntos( nLine ) + "."
                     RETURN NIL
                 ENDIF
                 hFile[ cTarget ] := Val( cValue )
@@ -136,7 +136,7 @@ FUNCTION HBBridgeConfigINI( cContents, hDefaults, cError )
         ENDIF
     ENDDO
     IF ! lHasSection
-        cError := "Configuracao INI sem secoes."
+        cError := "INI configuration has no sections."
         RETURN NIL
     ENDIF
     cError := ""
