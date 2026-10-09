@@ -45,6 +45,7 @@ static procedure HBBridgeQueryTest(cAliasProfile, cHost, nPort, nTimeout)
     local nFields := 0 as numeric
     local nPages as numeric
     local nRecNos as numeric
+    local cRA_SALARIOPicture
 
     if ValType(cAliasProfile) != "U"
         jOverrides["sqlProfile"] := cAliasProfile
@@ -197,6 +198,8 @@ static procedure HBBridgeQueryTest(cAliasProfile, cHost, nPort, nTimeout)
             ConOut("hbBridge RPCRDD.Query ErrorMessage: " + oDataSet:ErrorMessage())
         endif
         //-------------------------------------------------------------------------------------------
+        oDataSet:SetAliasProfile(cAliasProfile)
+        cRA_SALARIOPicture:=MyGetX3Picture("RA_SALARIO",oDataSet)
         cSQL:="SELECT TOP 10 RA_FILIAL,RA_MAT,RA_NOME,CAST(RA_SALARIO AS DECIMAL(12,2)) AS RA_SALARIO,CAST(RA_ADMISSA AS DATE) RA_ADMISSA,R_E_C_N_O_ FROM SRA990 WHERE D_E_L_E_T_=' '"
         ConOut("hbBridge RPCRDD.Query SQL: " + cSQL)
         jPage:=JSONObject():New()
@@ -216,7 +219,11 @@ static procedure HBBridgeQueryTest(cAliasProfile, cHost, nPort, nTimeout)
                 for nField:=1 to nFields
                     cField:=aHeader[nField]
                     if (jHeader[cField]["type"]=="N:N")
-                        ConOut("hbBridge RPCRDD.Query Field["+cField+"] : "+tlpp.ToStr(oDataSet:FieldGet(cField)))
+                        if (cField=="RA_SALARIO")
+                            ConOut("hbBridge RPCRDD.Query Field["+cField+"] : "+Transform(oDataSet:FieldGet(cField),cRA_SALARIOPicture))
+                        else
+                            ConOut("hbBridge RPCRDD.Query Field["+cField+"] : "+tlpp.ToStr(oDataSet:FieldGet(cField)))
+                        endif
                     elseif (jHeader[cField]["type"]=="D:N")
                         ConOut("hbBridge RPCRDD.Query Field["+cField+"] : "+DToC(SToD(oDataSet:FieldGet(cField))))
                     elseif (jHeader[cField]["type"]!="C")
@@ -250,3 +257,12 @@ static procedure HBBridgeQueryTest(cAliasProfile, cHost, nPort, nTimeout)
     FreeObj(@jChecks)
 
 return
+
+static function MyGetX3Picture(cField,oDataSet) as character
+    local cSql:="SELECT X3_PICTURE FROM SX3990 WHERE X3_CAMPO='"+cField+"'" as character
+    local cPicture:="" as character
+    local cAliasProfile:=oDataSet:GetAliasProfile()
+    if (oDataSet:OpenSQL(cAliasProfile,cSql))
+        cPicture:=AllTrim(oDataSet:FieldGet("X3_PICTURE"))
+    endif
+return(cPicture)

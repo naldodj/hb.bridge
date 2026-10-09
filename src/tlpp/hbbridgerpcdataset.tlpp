@@ -39,6 +39,8 @@ class HBBridgeRPCDataSet
     public method RowCount() as numeric
     public method ErrorCode() as character
     public method ErrorMessage() as character
+    public method GetAliasProfile() as character
+    public method SetAliasProfile(cAliasProfile) as character
 
 endclass
 
@@ -432,3 +434,11 @@ return(self:cErrorCode)
 
 method ErrorMessage() class HBBridgeRPCDataSet
 return(self:cErrorMessage)
+
+method GetAliasProfile() class HBBridgeRPCDataSet
+return(self:cAliasProfile)
+
+method SetAliasProfile(cAliasProfile) class HBBridgeRPCDataSet
+    local cLastAliasProfile:=self:cAliasProfile as character
+    self:cAliasProfile:=cAliasProfile
+return(cLastAliasProfile)
