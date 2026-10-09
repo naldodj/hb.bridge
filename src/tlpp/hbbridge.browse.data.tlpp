@@ -224,7 +224,7 @@ static function Browse(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as charact
             MsgRun(;
                 cTitle,;
                 "Atualizando. Aguarde...",;
-                {||BrowseNavigate(oFWBrowse,@aFWBrwData,oHBBridgeDataSet,cHBBridgeDataSetSQL,jHBBridgeDataSetPage,"all",cFilterExpr)};
+                {||BrowseCallBack(oFWBrowse,@aFWBrwData,oHBBridgeDataSet,cHBBridgeDataSetSQL,jHBBridgeDataSetPage,"all",cFilterExpr)};
             );
         }
 
@@ -267,7 +267,7 @@ static function Browse(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as charact
                 MsgRun(;
                     cTitle,;
                     "Atualizando. Aguarde...",;
-                    {||BrowseNavigate(oFWBrowse,aFWBrwData,oHBBridgeDataSet,cHBBridgeDataSetSQL,jHBBridgeDataSetPage,"first",cFilterExpr)};
+                    {||BrowseCallBack(oFWBrowse,aFWBrwData,oHBBridgeDataSet,cHBBridgeDataSetSQL,jHBBridgeDataSetPage,"first",cFilterExpr)};
                 );
             }
 
@@ -285,7 +285,7 @@ static function Browse(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as charact
                 MsgRun(;
                     cTitle,;
                     "Atualizando. Aguarde...",;
-                    {||BrowseNavigate(oFWBrowse,aFWBrwData,oHBBridgeDataSet,cHBBridgeDataSetSQL,jHBBridgeDataSetPage,"previus",cFilterExpr)};
+                    {||BrowseCallBack(oFWBrowse,aFWBrwData,oHBBridgeDataSet,cHBBridgeDataSetSQL,jHBBridgeDataSetPage,"previus",cFilterExpr)};
                 );
             }
 
@@ -303,7 +303,7 @@ static function Browse(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as charact
                 MsgRun(;
                     cTitle,;
                     "Atualizando. Aguarde...",;
-                    {||BrowseNavigate(oFWBrowse,aFWBrwData,oHBBridgeDataSet,cHBBridgeDataSetSQL,jHBBridgeDataSetPage,"next",cFilterExpr)};
+                    {||BrowseCallBack(oFWBrowse,aFWBrwData,oHBBridgeDataSet,cHBBridgeDataSetSQL,jHBBridgeDataSetPage,"next",cFilterExpr)};
                 );
             }
 
@@ -321,7 +321,7 @@ static function Browse(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as charact
                 MsgRun(;
                     cTitle,;
                     "Atualizando. Aguarde...",;
-                    {||BrowseNavigate(oFWBrowse,aFWBrwData,oHBBridgeDataSet,cHBBridgeDataSetSQL,jHBBridgeDataSetPage,"last",cFilterExpr)};
+                    {||BrowseCallBack(oFWBrowse,aFWBrwData,oHBBridgeDataSet,cHBBridgeDataSetSQL,jHBBridgeDataSetPage,"last",cFilterExpr)};
                 );
             }
 
@@ -416,6 +416,8 @@ static function BuildCustomFilder(oHBBridgeDataSet as object,cHBBridgeDataSetSQL
 
     local oFWTemporaryTable as object
 
+    cFilterExpr:=""
+
     jF3:=JSONObject():New()
     jHeader:=oHBBridgeDataSet:Header()
     aHeader:=jHeader:GetNames()
@@ -459,15 +461,19 @@ static function BuildCustomFilder(oHBBridgeDataSet as object,cHBBridgeDataSetSQL
     aCustomFilter:=HBBridge.Client.HBBridgeTOTVSFilter():BuildCustomFilder(jCustomFilter)
     FreeObj(@jCustomFilter)
 
-    cAliasTmp:=GetNextAlias()
-    oFWTemporaryTable:=FWTemporaryTable():New(@cAliasTmp,@aFields)
-    oFWTemporaryTable:Create()
-    FWFreeArray(@aFields)
+    if (!Empty(aFields))
 
-    cFilterExpr:=HBBridge.Client.HBBridgeTOTVSFilter():BuildExpr(cAliasTmp,1,.T.,@jF3,aCustomFilter,1)
+        cAliasTmp:=GetNextAlias()
+        oFWTemporaryTable:=FWTemporaryTable():New(@cAliasTmp,@aFields)
+        oFWTemporaryTable:Create()
+        FWFreeArray(@aFields)
 
-    oFWTemporaryTable:Delete()
-    FreeObj(@oFWTemporaryTable)
+        cFilterExpr:=HBBridge.Client.HBBridgeTOTVSFilter():BuildExpr(cAliasTmp,1,.T.,@jF3,aCustomFilter,1)
+
+        oFWTemporaryTable:Delete()
+        FreeObj(@oFWTemporaryTable)
+
+    endif
 
     FWFreeArray(@aCustomFilter)
 
@@ -485,20 +491,27 @@ return(aFWBrwData)
 static function GetStrRealValueFilter(cField,xValue,cFieldType)
     local cStrRealValueFilter as character
     if (cFieldType=="N:N")
+        DEFAULT xValue:=0
         cStrRealValueFilter:=tlpp.ToStr(xValue)
     elseif (cFieldType=="D:N")
-        cStrRealValueFilter:=DToC(SToD(xValue))
+        DEFAULT xValue:=""
+        cStrRealValueFilter:=xValue
     elseif (cFieldType=="C")
+        DEFAULT xValue:=""
         cStrRealValueFilter:=xValue
     else
+        if (cFieldType=="L")
+            DEFAULT xValue:=".F."
+        endif
         cStrRealValueFilter:=AllToChar(xValue)
     endif
 return(cStrRealValueFilter)
 
 static function ConvType(cFieldType)
+    cFieldType:=StrTran(cFieldType,"I","N")
 return(Left(cFieldType,1))
 
-static Procedure BrowseNavigate(oFWBrowse,aFWBrwData,oHBBridgeDataSet,cHBBridgeDataSetSQL,jHBBridgeDataSetPage,cOption,cFilterExpr)
+static Procedure BrowseCallBack(oFWBrowse,aFWBrwData,oHBBridgeDataSet,cHBBridgeDataSetSQL,jHBBridgeDataSetPage,cOption,cFilterExpr)
 
     local lNavigate as logical
 
