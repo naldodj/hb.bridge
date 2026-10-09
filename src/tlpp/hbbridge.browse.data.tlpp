@@ -167,7 +167,6 @@ static function Browse(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as charact
         oFWBrowse:SetDataArray()
         oFWBrowse:SetArray(aFWBrwData)
         oFWBrowse:SetColumns(aFWBrwColumn)
-*       oFWBrowse:SetSeek({||.T.},aFWBrowseSeek)
         oFWBrowse:DisableFilter()
 
         if (valtype(bLDblClick)!="B")
@@ -194,9 +193,7 @@ static function Browse(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as charact
 
         FWMsgRun(;
             nil,;
-            {||;
-                oFWBrowse:Activate();
-            },;
+            {||oFWBrowse:Activate()},;
             cTitle,;
             "Ativando o Browse...";
         )
@@ -212,9 +209,7 @@ static function Browse(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as charact
             [n][5] lShowBar Indica que o botao estara visivel na barra
             [n][6] lConfig Indica se botao estara visivel na configuracao
             [n][7] ?
-
         */
-
         oFWDialogModal:AddButton(;
             "&Sair",;//[n][1] cTitle Titulo do Botao
             {|oBrwButton|oFWDialogModal:DeActivate(.T./*lFreeChildren*/)},;//[n][2] bBloco Bloco de codigo que sera executado
@@ -229,12 +224,7 @@ static function Browse(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as charact
             MsgRun(;
                 cTitle,;
                 "Atualizando. Aguarde...",;
-                {||;
-                    FWFreeArray(@aFWBrwData),;
-                    aFWBrwData:=BrowseGetData(oHBBridgeDataSet,cHBBridgeDataSetSQL,jHBBridgeDataSetPage,"all",cFilterExpr),;
-                    oFWBrowse:SetArray(aFWBrwData),;
-                    oFWBrowse:Refresh(.F.);
-                };
+                {||BrowseNavigate(oFWBrowse,@aFWBrwData,oHBBridgeDataSet,cHBBridgeDataSetSQL,jHBBridgeDataSetPage,"all",cFilterExpr)};
             );
         }
 
@@ -277,12 +267,7 @@ static function Browse(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as charact
                 MsgRun(;
                     cTitle,;
                     "Atualizando. Aguarde...",;
-                    {||;
-                        FWFreeArray(@aFWBrwData),;
-                        aFWBrwData:=BrowseGetData(oHBBridgeDataSet,cHBBridgeDataSetSQL,jHBBridgeDataSetPage,"first",cFilterExpr),;
-                        oFWBrowse:SetArray(aFWBrwData),;
-                        oFWBrowse:Refresh(.F.);
-                    };
+                    {||BrowseNavigate(oFWBrowse,aFWBrwData,oHBBridgeDataSet,cHBBridgeDataSetSQL,jHBBridgeDataSetPage,"first",cFilterExpr)};
                 );
             }
 
@@ -300,12 +285,7 @@ static function Browse(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as charact
                 MsgRun(;
                     cTitle,;
                     "Atualizando. Aguarde...",;
-                    {||;
-                        FWFreeArray(@aFWBrwData),;
-                        aFWBrwData:=BrowseGetData(oHBBridgeDataSet,cHBBridgeDataSetSQL,jHBBridgeDataSetPage,"previus",cFilterExpr),;
-                        oFWBrowse:SetArray(aFWBrwData),;
-                        oFWBrowse:Refresh(.F.);
-                    };
+                    {||BrowseNavigate(oFWBrowse,aFWBrwData,oHBBridgeDataSet,cHBBridgeDataSetSQL,jHBBridgeDataSetPage,"previus",cFilterExpr)};
                 );
             }
 
@@ -323,12 +303,7 @@ static function Browse(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as charact
                 MsgRun(;
                     cTitle,;
                     "Atualizando. Aguarde...",;
-                    {||;
-                        FWFreeArray(@aFWBrwData),;
-                        aFWBrwData:=BrowseGetData(oHBBridgeDataSet,cHBBridgeDataSetSQL,jHBBridgeDataSetPage,"next",cFilterExpr),;
-                        oFWBrowse:SetArray(aFWBrwData),;
-                        oFWBrowse:Refresh(.F.);
-                    };
+                    {||BrowseNavigate(oFWBrowse,aFWBrwData,oHBBridgeDataSet,cHBBridgeDataSetSQL,jHBBridgeDataSetPage,"next",cFilterExpr)};
                 );
             }
 
@@ -346,12 +321,7 @@ static function Browse(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as charact
                 MsgRun(;
                     cTitle,;
                     "Atualizando. Aguarde...",;
-                    {||;
-                        FWFreeArray(@aFWBrwData),;
-                        aFWBrwData:=BrowseGetData(oHBBridgeDataSet,cHBBridgeDataSetSQL,jHBBridgeDataSetPage,"last",cFilterExpr),;
-                        oFWBrowse:SetArray(aFWBrwData),;
-                        oFWBrowse:Refresh(.F.);
-                    };
+                    {||BrowseNavigate(oFWBrowse,aFWBrwData,oHBBridgeDataSet,cHBBridgeDataSetSQL,jHBBridgeDataSetPage,"last",cFilterExpr)};
                 );
             }
 
@@ -369,7 +339,7 @@ static function Browse(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as charact
 
         nButtons:=Len(aCustomButtons)
         for nButton:=1 to nButtons
-            if (len(aCustomButtons[nButton])>=7)
+            if (Len(aCustomButtons[nButton])>=7)
                 oFWDialogModal:AddButton(;
                     aCustomButtons[nButton][1],;//[n][1] cTitle Titulo do Botao
                     aCustomButtons[nButton][2],;//[n][2] bBloco Bloco de codigo que sera executado
@@ -521,3 +491,30 @@ return(cStrRealValueFilter)
 
 static function ConvType(cFieldType)
 return(Left(cFieldType,1))
+
+static Procedure BrowseNavigate(oFWBrowse,aFWBrwData,oHBBridgeDataSet,cHBBridgeDataSetSQL,jHBBridgeDataSetPage,cOption,cFilterExpr)
+
+    local lNavigate as logical
+
+    lNavigate:=(cOption=="all")
+    if (!lNavigate)
+        lNavigate:=((cOption=="previus").and.(oHBBridgeDataSet:HasPreviousPage()))
+        if (!lNavigate)
+            lNavigate:=((cOption=="next").and.(oHBBridgeDataSet:HasNextPage()))
+            if (!lNavigate)
+                lNavigate:=(cOption=="first")
+                if (!lNavigate)
+                    lNavigate:=(cOption=="last")
+                endif
+            endif
+        endif
+    endif
+
+    if (lNavigate)
+        FWFreeArray(@aFWBrwData)
+        aFWBrwData:=BrowseGetData(oHBBridgeDataSet,cHBBridgeDataSetSQL,jHBBridgeDataSetPage,cOption,cFilterExpr)
+        oFWBrowse:SetArray(aFWBrwData)
+        oFWBrowse:Refresh(.F.)
+    endif
+
+return
