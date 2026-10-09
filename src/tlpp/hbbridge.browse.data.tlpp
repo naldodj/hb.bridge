@@ -455,16 +455,22 @@ static function BuildCustomFilder(oHBBridgeDataSet as object,cHBBridgeDataSetSQL
         jCustomFilter[nFilter]["__REAL_VALUE__"]:=oHBBridgeDataSet:FieldGet(cField)
         jCustomFilter[nFilter]["__VALUE__"]:="'"+GetStrRealValueFilter(cField,jCustomFilter[nFilter]["__REAL_VALUE__"],jHeader[cField]["type"])+"'"
     next nFilter
+
     aCustomFilter:=HBBridge.Client.HBBridgeTOTVSFilter():BuildCustomFilder(jCustomFilter)
     FreeObj(@jCustomFilter)
+
     cAliasTmp:=GetNextAlias()
     oFWTemporaryTable:=FWTemporaryTable():New(@cAliasTmp,@aFields)
     oFWTemporaryTable:Create()
     FWFreeArray(@aFields)
+
     cFilterExpr:=HBBridge.Client.HBBridgeTOTVSFilter():BuildExpr(cAliasTmp,1,.T.,@jF3,aCustomFilter,1)
+
     oFWTemporaryTable:Delete()
-    FreeObj(oFWTemporaryTable)
+    FreeObj(@oFWTemporaryTable)
+
     FWFreeArray(@aCustomFilter)
+
     aEval(jF3:GetNames(),{|cName|jF3:DelName(cName)})
     FreeObj(@jF3)
 
