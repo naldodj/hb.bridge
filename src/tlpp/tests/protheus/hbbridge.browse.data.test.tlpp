@@ -122,10 +122,11 @@ static procedure __Execute()
         FWFreeArray(@aFWBrwData)
         FWFreeArray(@aCustomButtons)
 
+        FreeObj(@oClient)
         FreeObj(@oDataSet)
         FreeObj(@oFWBrowse)
-        FreeObj(@jHBBridgeDataSetPage)
 
+        FreeObj(@jHBBridgeDataSetPage)
 
     RPCClearEnv()
 
