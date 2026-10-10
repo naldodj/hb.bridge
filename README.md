@@ -2,6 +2,11 @@
 
 [Português (Brasil)](README.pt-BR.md)
 
+## ⭐ Support the project
+
+[![Stars](https://img.shields.io/github/stars/naldodj/hb.bridge?style=social)](https://github.com/naldodj/hb.bridge)
+![Clones](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/naldodj/hb.bridge/refs/heads/main/clone-badge.json)
+
 The [active work package](WIP.md) defines the next tasks, recorded decisions
 and completion criteria. Package 001 covers real MSSQL acceptance;
 [TODO](TODO.md) retains the full roadmap. WIP is renewed after package closure.
