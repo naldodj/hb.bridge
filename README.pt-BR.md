@@ -1,5 +1,10 @@
 # hbBridge
 
+## ⭐ Ajude o projeto
+
+[![Stars](https://img.shields.io/github/stars/naldodj/hb.bridge?style=social)](https://github.com/naldodj/hb.bridge)
+![Clones](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/naldodj/hb.bridge/refs/heads/main/clone-badge.json)
+
 [English](README.md)
 
 O [pacote ativo](WIP.pt-BR.md) define próximas tarefas, decisões registradas e
