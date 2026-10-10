@@ -24,20 +24,25 @@ return
 
 static procedure __Execute()
 
+    local aAcho as array
+    local aFWBrwData as array
+    local aCustomButtons as array
+
     local cSQL as character
     local cHost as character
+    local cAliasTmp as character
+    local cAliasProfile as character
+
+    local bLDblClick as codeblock
+
+    local jHBBridgeDataSetPage as json
+
     local nPort as numeric
     local nTimeout as numeric
+
     local oClient as object
     local oDataSet as object
-    local cAliasProfile as character
-    local jHBBridgeDataSetPage as json
-    local cAliasTmp as character
-    local aFWBrwData as array
     local oFWBrowse as object
-    local aAcho as array
-    local bLDblClick as codeblock
-    local aCustomButtons as array
 
     FWMsgRun(nil,{||RPCSetEnv("99","01")},"Wait...")
 
@@ -69,8 +74,8 @@ static procedure __Execute()
         nPort:=1512
         nTimeout:=30000
 
-        oClient := HBBridge.Client.HBBridgeClient():New(cHost, nPort, nTimeout)
-        oDataSet := HBBridge.RDD.HBBridgeRPCDataSet():New(oClient)
+        oClient:=HBBridge.Client.HBBridgeClient():New(cHost, nPort, nTimeout)
+        oDataSet:=HBBridge.RDD.HBBridgeRPCDataSet():New(oClient)
 
         cAliasProfile:="mssql/pData"
         oDataSet:SetAliasProfile(cAliasProfile)
@@ -80,7 +85,22 @@ static procedure __Execute()
         jHBBridgeDataSetPage["size"]:=18
         jHBBridgeDataSetPage["orderBy"]:="RA_FILIAL,RA_MAT"
 
-        bLDblClick:={||HBBridge.Client.HBBridgeMsMGetEx():ViewData(cAliasTmp,aFWBrwData[oFWBrowse:AT()]["R_E_C_N_O_"],"HBBridge.Client.HBBridgeBrowseData",nil,aAcho)}
+        bLDblClick:={||;
+            aAcho:=if(;
+                MsgYesNo("Consultar todos os campos","HBBridge.Client.HBBridgeBrowseData");
+                ,nil;
+                ,{;
+                    "RA_FILIAL";
+                    ,"RA_MAT";
+                    ,"RA_NOME";
+                    ,"RA_SALARIO";
+                    ,"RA_ADMISSA";
+                    ,"RA_CC";
+                    ,"CTT_DESC01";
+                };
+            );
+            ,HBBridge.Client.HBBridgeMsMGetEx():ViewData(cAliasTmp,aFWBrwData[oFWBrowse:AT()]["R_E_C_N_O_"],"HBBridge.Client.HBBridgeBrowseData",nil,aAcho);
+        }
 
         aCustomButtons:=Array(1,7)
         aCustomButtons[1][1]:="&Visualizar"
@@ -94,10 +114,18 @@ static procedure __Execute()
         private lObfuscate:=.T. as logical
         private __lRedefineBottom:=.T. as logical
 
-        aAcho:=if(MsgYesNo("Consultar todos os campos","HBBridge.Client.HBBridgeBrowseData"),nil,{"RA_FILIAL","RA_MAT","RA_NOME","RA_SALARIO","RA_ADMISSA","RA_CC","CTT_DESC01"})
-        HBBridge.Client.HBBridgeBrowseData():Browse(oDataSet,cSQL,jHBBridgeDataSetPage,@oFWBrowse,@aFWBrwData,"HBBridge.Client.HBBridgeBrowseData",bLDblClick,,aCustomButtons)
+        HBBridge.Client.HBBridgeBrowseData():Browse(oDataSet,cSQL,jHBBridgeDataSetPage,@oFWBrowse,@aFWBrwData,"HBBridge.Client.HBBridgeBrowseData",bLDblClick,nil,aCustomButtons)
 
         (cAliasTmp)->(dbCloseArea())
+
+        FWFreeArray(@aAcho)
+        FWFreeArray(@aFWBrwData)
+        FWFreeArray(@aCustomButtons)
+
+        FreeObj(@oDataSet)
+        FreeObj(@oFWBrowse)
+        FreeObj(@jHBBridgeDataSetPage)
+
 
     RPCClearEnv()
 
