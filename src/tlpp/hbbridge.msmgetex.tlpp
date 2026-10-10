@@ -54,8 +54,9 @@ static method ViewData(cAlias,nRecNo,cTitle,aButtons,aAcho) class HBBridgeMsMGet
     local lMVCOMBOBOX as logical
     local l__MVCOMBOBOX as logical
 
-    local nField
-    local nFields
+    local nField as numeric
+    local nFields as numeric
+    local nATField as numeric
 
     local nTop as numeric
     local nLeft as numeric
@@ -123,54 +124,55 @@ static method ViewData(cAlias,nRecNo,cTitle,aButtons,aAcho) class HBBridgeMsMGet
                 endif
             endif
             aAdd(aFields,cField)
+            nATField:=Len(aFields)
             cVar:=("M->"+cField)
             xValue:=(cAlias)->(FieldGet(nField))
-            if (empty(xValue).and.!Empty(getSX3Cache(cField,"X3_RELACAO")))
+            if (empty(xValue).and.!Empty(GetSX3Cache(cField,"X3_RELACAO")))
                 bErrorBlock:=ErrorBlock({|e|Break(e)})
                 begin sequence
-                    xValue:=&(getSX3Cache(cField,"X3_RELACAO"))
+                    xValue:=&(GetSX3Cache(cField,"X3_RELACAO"))
                 end sequence
                 ErrorBlock(bErrorBlock)
             endif
             private &(cVar):=xValue as variant
             aAdd(aFieldsNoSX3,Array(18))
-            aFieldsNoSX3[nField][1]:=getSX3Cache(cField,"X3_TITULO")//-> titulo
-            DEFAULT aFieldsNoSX3[nField][1]:=cField
-            aFieldsNoSX3[nField][2]:=cField//-> campo
-            aFieldsNoSX3[nField][3]:=getSX3Cache(cField,"X3_TIPO")//-> tipo
-            DEFAULT aFieldsNoSX3[nField][3]:=adbStruct[nField][DBS_TYPE]
-            if (aFieldsNoSX3[nField][3]<>adbStruct[nField][DBS_TYPE])
-                aFieldsNoSX3[nField][3]:=adbStruct[nField][DBS_TYPE]
+            aFieldsNoSX3[nATField][1]:=GetSX3Cache(cField,"X3_TITULO")//-> titulo
+            DEFAULT aFieldsNoSX3[nATField][1]:=cField
+            aFieldsNoSX3[nATField][2]:=cField//-> campo
+            aFieldsNoSX3[nATField][3]:=GetSX3Cache(cField,"X3_TIPO")//-> tipo
+            DEFAULT aFieldsNoSX3[nATField][3]:=adbStruct[nField][DBS_TYPE]
+            if (aFieldsNoSX3[nATField][3]<>adbStruct[nField][DBS_TYPE])
+                aFieldsNoSX3[nATField][3]:=adbStruct[nField][DBS_TYPE]
             endif
-            aFieldsNoSX3[nField][4]:=getSX3Cache(cField,"X3_TAMANHO")//-> tamanho
-            DEFAULT aFieldsNoSX3[nField][4]:=adbStruct[nField][DBS_LEN]
-            if (aFieldsNoSX3[nField][4]<>adbStruct[nField][DBS_LEN])
-                aFieldsNoSX3[nField][4]:=adbStruct[nField][DBS_LEN]
+            aFieldsNoSX3[nATField][4]:=GetSX3Cache(cField,"X3_TAMANHO")//-> tamanho
+            DEFAULT aFieldsNoSX3[nATField][4]:=adbStruct[nField][DBS_LEN]
+            if (aFieldsNoSX3[nATField][4]<>adbStruct[nField][DBS_LEN])
+                aFieldsNoSX3[nATField][4]:=adbStruct[nField][DBS_LEN]
             endif
-            aFieldsNoSX3[nField][5]:=getSX3Cache(cField,"X3_DECIMAL")//-> decimal
-            DEFAULT aFieldsNoSX3[nField][5]:=adbStruct[nField][DBS_DEC]
-            aFieldsNoSX3[nField][6]:=getSX3Cache(cField,"X3_PICTURE")//-> picture
-            DEFAULT aFieldsNoSX3[nField][6]:=""
-            aFieldsNoSX3[nField][7]:=getSX3Cache(cField,"X3_VALID")//-> valid
-            DEFAULT aFieldsNoSX3[nField][7]:="allWaysTrue()"
-            aFieldsNoSX3[nField][8]:=.F.//-> obrigat
-            aFieldsNoSX3[nField][9]:=getSX3Cache(cField,"X3_NIVEL")//-> nivel
-            DEFAULT aFieldsNoSX3[nField][9]:=0
-            aFieldsNoSX3[nField][10]:=getSX3Cache(cField,"X3_RELACAO")//-> inicializador padrao
-            DEFAULT aFieldsNoSX3[nField][10]:=getValType(adbStruct[nField][DBS_TYPE])
-            aFieldsNoSX3[nField][11]:=getSX3Cache(cField,"X3_F3")//-> F3
-            DEFAULT aFieldsNoSX3[nField][11]:=")
-            aFieldsNoSX3[nField][12]:=getSX3Cache(cField,"X3_WHEN")//-> when
-            DEFAULT aFieldsNoSX3[nField][12]:=""
-            aFieldsNoSX3[nField][13]:=.T.//-> visual
-            aFieldsNoSX3[nField][14]:=.F.//-> chave
-            aFieldsNoSX3[nField][15]:=getSX3Cache(cField,"X3_CBOX") //-> box
-            DEFAULT aFieldsNoSX3[nField][15]:=""
-            aFieldsNoSX3[nField][16]:=getSX3Cache(cField,"X3_FOLDER")//-> folder
-            DEFAULT aFieldsNoSX3[nField][16]:=""
-            aFieldsNoSX3[nField][17]:=.T.//-> nao alteravel
-            aFieldsNoSX3[nField][18]:=getSX3Cache(cField,"X3_PICTVAR")//-> pictvar
-            DEFAULT aFieldsNoSX3[nField][18]:=""
+            aFieldsNoSX3[nATField][5]:=GetSX3Cache(cField,"X3_DECIMAL")//-> decimal
+            DEFAULT aFieldsNoSX3[nATField][5]:=adbStruct[nField][DBS_DEC]
+            aFieldsNoSX3[nATField][6]:=GetSX3Cache(cField,"X3_PICTURE")//-> picture
+            DEFAULT aFieldsNoSX3[nATField][6]:=""
+            aFieldsNoSX3[nATField][7]:=GetSX3Cache(cField,"X3_VALID")//-> valid
+            DEFAULT aFieldsNoSX3[nATField][7]:="allWaysTrue()"
+            aFieldsNoSX3[nATField][8]:=.F.//-> obrigat
+            aFieldsNoSX3[nATField][9]:=GetSX3Cache(cField,"X3_NIVEL")//-> nivel
+            DEFAULT aFieldsNoSX3[nATField][9]:=0
+            aFieldsNoSX3[nATField][10]:=GetSX3Cache(cField,"X3_RELACAO")//-> inicializador padrao
+            DEFAULT aFieldsNoSX3[nATField][10]:=getValType(adbStruct[nField][DBS_TYPE])
+            aFieldsNoSX3[nATField][11]:=GetSX3Cache(cField,"X3_F3")//-> F3
+            DEFAULT aFieldsNoSX3[nATField][11]:=")
+            aFieldsNoSX3[nATField][12]:=GetSX3Cache(cField,"X3_WHEN")//-> when
+            DEFAULT aFieldsNoSX3[nATField][12]:=""
+            aFieldsNoSX3[nATField][13]:=.T.//-> visual
+            aFieldsNoSX3[nATField][14]:=.F.//-> chave
+            aFieldsNoSX3[nATField][15]:=GetSX3Cache(cField,"X3_CBOX") //-> box
+            DEFAULT aFieldsNoSX3[nATField][15]:=""
+            aFieldsNoSX3[nATField][16]:=GetSX3Cache(cField,"X3_FOLDER")//-> folder
+            DEFAULT aFieldsNoSX3[nATField][16]:=""
+            aFieldsNoSX3[nATField][17]:=.T.//-> nao alteravel
+            aFieldsNoSX3[nATField][18]:=GetSX3Cache(cField,"X3_PICTVAR")//-> pictvar
+            DEFAULT aFieldsNoSX3[nATField][18]:=""
         next nField
 
         oFWDefSize:=FWDefSize():New(.T.,.T.)//Com enchoicebar

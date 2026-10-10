@@ -48,6 +48,7 @@ static method BuildExpr(cAlias,nActivateType,lSQLFilter,jF3,aFilters,nFilterAndO
     local nFieldDec as numeric
 
     local cFWFilter:="" as character
+    local cFWGetFilter as character
 
     local ljF3 as logical
     local lFilter as logical
@@ -182,24 +183,44 @@ static method BuildExpr(cAlias,nActivateType,lSQLFilter,jF3,aFilters,nFilterAndO
                                     if (!Empty(cFWFilter))
                                         cFWFilter+=if((nFilterAndOR==1)," AND "," OR ")
                                     endif
-                                    cFWFilter+=oFWFilter:GetFilterSQL(nFilter)
+                                    cFWGetFilter:=oFWFilter:GetFilterSQL(nFilter)
+                                    if (Left(cFWGetFilter,1)=="#")
+                                        cFWGetFilter:=StrTran(cFWGetFilter,"#","")
+                                        cFWGetFilter:=&(cFWGetFilter)
+                                    endif
+                                    cFWFilter+=cFWGetFilter
                                 else
                                     if (!Empty(cFWFilter))
                                         cFWFilter+=if((nFilterAndOR==1)," .AND. "," .OR. ")
                                     endif
-                                    cFWFilter+=oFWFilter:GetFilterAdvpl(nFilter)
+                                    cFWGetFilter+=oFWFilter:GetFilterAdvpl(nFilter)
+                                    if (Left(cFWGetFilter,1)=="#")
+                                        cFWGetFilter:=StrTran(cFWGetFilter,"#","")
+                                        cFWGetFilter:=&(cFWGetFilter)
+                                    endif
+                                    cFWFilter+=cFWGetFilter
                                 endif
                             else
                                 if (lSQLFilter)
-                                    cFWFilter:=oFWFilter:GetFilterSQL(nFilter)
+                                    cFWGetFilter:=oFWFilter:GetFilterSQL(nFilter)
+                                    if (Left(cFWGetFilter,1)=="#")
+                                        cFWGetFilter:=StrTran(cFWGetFilter,"#","")
+                                        cFWGetFilter:=&(cFWGetFilter)
+                                    endif
+                                    cFWFilter+=cFWGetFilter
                                 else
-                                    cFWFilter:=oFWFilter:GetFilterAdvpl(nFilter)
+                                    cFWGetFilter+=oFWFilter:GetFilterAdvpl(nFilter)
+                                    if (Left(cFWGetFilter,1)=="#")
+                                        cFWGetFilter:=StrTran(cFWGetFilter,"#","")
+                                        cFWGetFilter:=&(cFWGetFilter)
+                                    endif
+                                    cFWFilter+=cFWGetFilter
                                 endif
                             endif
                         endif
                     next nFilter
                 recover
-                    cFWFilter:=""
+                    cFWFilter:="(1=1)"
                     if (ValType(oError)=="O")
                         FreeObj(@oError)
                     endif
@@ -213,12 +234,22 @@ static method BuildExpr(cAlias,nActivateType,lSQLFilter,jF3,aFilters,nFilterAndO
             bErrorBlock:=ErrorBlock({|o|oError:=o,__Break(o)})
             begin sequence
                 if (lSQLFilter)
-                    cFWFilter:=oFWFilter:GetFilterSQL(Len(oFWFilter:aCheckFil))
+                    cFWGetFilter:=oFWFilter:GetFilterSQL(Len(oFWFilter:aCheckFil))
+                    if (Left(cFWGetFilter,1)=="#")
+                        cFWGetFilter:=StrTran(cFWGetFilter,"#","")
+                        cFWGetFilter:=&(cFWGetFilter)
+                    endif
+                    cFWFilter:=cFWGetFilter
                 else
-                    cFWFilter:=oFWFilter:GetFilterAdvpl(Len(oFWFilter:aCheckFil))
+                    cFWGetFilter:=oFWFilter:GetFilterAdvpl(Len(oFWFilter:aCheckFil))
+                    if (Left(cFWGetFilter,1)=="#")
+                        cFWGetFilter:=StrTran(cFWGetFilter,"#","")
+                        cFWGetFilter:=&(cFWGetFilter)
+                    endif
+                    cFWFilter:=cFWGetFilter
                 endif
             recover
-                cFWFilter:=""
+                cFWFilter:="(1=1)"
                 if (ValType(oError)=="O")
                     FreeObj(@oError)
                 endif
