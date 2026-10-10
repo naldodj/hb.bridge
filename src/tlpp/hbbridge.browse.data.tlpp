@@ -454,8 +454,8 @@ static function BuildCustomFilder(oHBBridgeDataSet as object,cHBBridgeDataSetSQL
         jCustomFilter[nFilter]["__FIELD_NAME__"]:=cField
         jCustomFilter[nFilter]["__OP_ADVPL____"]:="=="
         jCustomFilter[nFilter]["__OP_SQL__"]:="="
-        jCustomFilter[nFilter]["__REAL_VALUE__"]:=oHBBridgeDataSet:FieldGet(cField)
-        jCustomFilter[nFilter]["__VALUE__"]:="'"+GetStrRealValueFilter(cField,jCustomFilter[nFilter]["__REAL_VALUE__"],jHeader[cField]["type"])+"'"
+        jCustomFilter[nFilter]["__REAL_VALUE__"]:=FilterGetRealValue(oHBBridgeDataSet:FieldGet(cField),jHeader[cField]["type"])
+        jCustomFilter[nFilter]["__VALUE__"]:="'"+FilterRealValue2Str(jCustomFilter[nFilter]["__REAL_VALUE__"],jHeader[cField]["type"])+"'"
     next nFilter
 
     aCustomFilter:=HBBridge.Client.HBBridgeTOTVSFilter():BuildCustomFilder(jCustomFilter)
@@ -488,14 +488,27 @@ static function BuildCustomFilder(oHBBridgeDataSet as object,cHBBridgeDataSetSQL
 
 return(aFWBrwData)
 
-static function GetStrRealValueFilter(cField,xValue,cFieldType)
+static function FilterGetRealValue(xValue,cFieldType)
+    if (cFieldType=="D:N")
+        DEFAULT xValue:=""
+        xValue:=SToD(xValue)
+    endif
+return(xValue)
+
+static function FilterRealValue2Str(xValue,cFieldType)
+    local cType as character
     local cStrRealValueFilter as character
     if (cFieldType=="N:N")
         DEFAULT xValue:=0
         cStrRealValueFilter:=tlpp.ToStr(xValue)
     elseif (cFieldType=="D:N")
         DEFAULT xValue:=""
-        cStrRealValueFilter:=xValue
+        cType:=ValType(xValue)
+        if (cType=="D")
+            cStrRealValueFilter:=DToS(xValue)
+        elseif (cType!="C")
+            cStrRealValueFilter:=AllToChar(xValue)
+        endif
     elseif (cFieldType=="C")
         DEFAULT xValue:=""
         cStrRealValueFilter:=xValue
