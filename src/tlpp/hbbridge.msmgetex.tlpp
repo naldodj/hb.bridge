@@ -210,7 +210,7 @@ static method ViewData(cAlias,nRecNo,cTitle,aButtons,aAcho) class HBBridgeMsMGet
 
             bMsMGet:={||oMsMGet:=MsMGet():New(cAlias,nRecNo,2,aFields,nil,nil,nil,aMsMGetPos,nil,nil,nil,nil,nil,nil,nil,.F.,nil,nil,nil,lProperty,aFieldsNoSX3,nil,nil,nil,nil)}
 
-            //Pode ocorrer Erro na Cria"+chr(135)+""+chr(198)+"o da MsMGet se o conteudo atribuido a um campo
+            //Pode ocorrer Erro na Criacao da MsMGet se o conteudo atribuido a um campo
             //com X3_CBOX for diferente do conteudo esperado...
             bErrorBlock:=ErrorBlock({|e|Break(e)})
             begin sequence
