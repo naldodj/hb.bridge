@@ -1,0 +1,102 @@
+#include "totvs.ch"
+#include "tbiconn.ch"
+
+procedure U_HBBridgeBrowseDataTest()
+
+    HBBridgeBrowseDataTest()
+
+return
+
+static procedure HBBridgeBrowseDataTest()
+
+    local cTitle:="HBBridgeBrowseDataTest"
+
+    private oMainWnd as object
+    DEFINE WINDOW oMainWnd FROM 00,00 TO 1024,768 TITLE OemToAnsi(cTitle)
+        oMainWnd:oMsgBar:=TMsgBar():New(oMainWnd,Space(2)+OemToAnsi(GetVersao()),.F.,.F.,.F.,.F.,RGB(116,116,116),,,.F.,"fw_rodape_logo")
+    ACTIVATE WINDOW oMainWnd MAXIMIZED ON INIT (__Execute(),oMainWnd:End())
+
+    FreeObj(@oMainWnd)
+
+    DelClassIntF()
+
+return
+
+static procedure __Execute()
+
+    local cSQL as character
+    local cHost as character
+    local nPort as numeric
+    local nTimeout as numeric
+    local oClient as object
+    local oDataSet as object
+    local cAliasProfile as character
+    local jHBBridgeDataSetPage as json
+    local cAliasTmp as character
+    local aFWBrwData as array
+    local oFWBrowse as object
+    local aAcho as array
+    local bLDblClick as codeblock
+    local aCustomButtons as array
+
+    beginContent var cSQL
+        SELECT RA_FILIAL
+            ,RA_MAT
+            ,RA_NOME
+            ,CAST(RA_SALARIO AS DECIMAL(12,2)) AS RA_SALARIO
+            ,CAST(RA_ADMISSA AS DATE) RA_ADMISSA
+            ,RA_CC,CTT.CTT_DESC01
+            ,SRA.R_E_C_N_O_
+        FROM SRA990 SRA
+        LEFT JOIN CTT990 CTT
+        ON CTT.CTT_FILIAL=SRA.RA_FILIAL
+        AND CTT.CTT_CUSTO=SRA.RA_CC
+        WHERE SRA.D_E_L_E_T_=' '
+        AND CTT.D_E_L_E_T_=' '
+    endContent
+
+    cHost:="127.0.0.1"
+    nPort:=1512
+    nTimeout:=30000
+
+    oClient := HBBridge.Client.HBBridgeClient():New(cHost, nPort, nTimeout)
+    oDataSet := HBBridge.RDD.HBBridgeRPCDataSet():New(oClient)
+
+    cAliasProfile:="mssql/pData"
+    oDataSet:SetAliasProfile(cAliasProfile)
+
+    jHBBridgeDataSetPage:=JSONObject():New()
+    jHBBridgeDataSetPage["number"]:=1
+    jHBBridgeDataSetPage["size"]:=18
+    jHBBridgeDataSetPage["orderBy"]:="RA_FILIAL,RA_MAT"
+
+    aAcho:=if(MsgYesNo("Consultar todos os campos","HBBridge.Client.HBBridgeBrowseData"),nil,{"RA_FILIAL","RA_MAT","RA_NOME","RA_SALARIO","RA_ADMISSA","RA_CC","CTT_DESC01"})
+
+    bLDblClick:={||HBBridge.Client.HBBridgeMsMGetEx():ViewData(cAliasTmp,aFWBrwData[oFWBrowse:AT()]["R_E_C_N_O_"],"HBBridge.Client.HBBridgeBrowseData",nil,aAcho)}
+
+    aCustomButtons:=Array(1,7)
+    aCustomButtons[1][1]:="&Visualizar"
+    aCustomButtons[1][2]:=bLDblClick
+    aCustomButtons[1][3]:="Visualizar"
+    aCustomButtons[1][4]:=nil
+    aCustomButtons[1][5]:=.T.
+    aCustomButtons[1][6]:=.F.
+    aCustomButtons[1][7]:=.T.
+
+    FWMsgRun(nil,{||RPCSetEnv("99","01")},"Wait...")
+
+        ChkFile("CTT")
+
+        cAliasTmp:=GetNextAlias()
+        ChkFile("SRA",.F.,cAliasTmp)
+
+        private lObfuscate:=.T. as logical
+        private __lRedefineBottom:=.T. as logical
+
+        HBBridge.Client.HBBridgeBrowseData():Browse(oDataSet,cSQL,jHBBridgeDataSetPage,@oFWBrowse,@aFWBrwData,"HBBridge.Client.HBBridgeBrowseData",bLDblClick,,aCustomButtons)
+
+        (cAliasTmp)->(dbCloseArea())
+
+    RPCClearEnv()
+
+return
