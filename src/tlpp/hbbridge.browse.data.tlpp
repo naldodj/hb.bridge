@@ -570,8 +570,12 @@ static function __FWBrowseSeek(oSeek as object,oBrowse as object,oHBBridgeDataSe
                         if (ValType(cType)=="U")
                             cType:=ValType(Eval(oBrowse:aColumns[nATCol]:GetData()))
                         endif
-                        cbAScan+="x['"+oHBBridgeDataSet:FieldName(nATCol)+"']+"
-                    Else
+                        if (cType=="D")
+                            cbAScan+="x['"+oHBBridgeDataSet:FieldName(nATCol)+"']+"
+                        else
+                            cbAScan+="x['"+oHBBridgeDataSet:FieldName(nATCol)+"']+"
+                        endif
+                    else
                         cbAScan:=""
                         exit
                     endif
@@ -580,7 +584,13 @@ static function __FWBrowseSeek(oSeek as object,oBrowse as object,oHBBridgeDataSe
                     cbAScan:=SubStr(cbAScan,1,Len(cbAScan)-1)+"="
                     if (cType=="C")
                         cbAScan+="'"+Trim(cSeek)+"'"
-                    Else
+                    elseif (cType=="D")
+                        if ("/"$cSeek)
+                            cbAScan+="DToS(CToD('"+Trim(cSeek)+"'))"
+                        else
+                            cbAScan+="'"+Trim(cSeek)+"'"
+                        endif
+                    else
                         cbAScan+=Trim(cSeek)
                     endif
                     cbAScan+=")})}"
