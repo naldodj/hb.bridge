@@ -17,7 +17,7 @@ regras ERP. Veja [arquitetura](docs/architecture.pt-BR.md).
 
 SQLProfile é opcional e agora tem padrão vazio na biblioteca e no template.
 sqlite_demo pertence apenas ao exemplo SQLite. Cada `OpenSQL`/`OpenPage` escolhe
-um alias, como mssql/pData; barra e maiúsculas são preservadas sem dedução de
+um alias, como MSSQL/pData; barra e maiúsculas são preservadas sem dedução de
 driver, empresa ou filial. O teste sem alias/SQLProfile retorna PROFILE_REQUIRED
 antes da rede. Drivers atuais: sqlite e mssql; Oracle exige conector e aceite
 próprios. A configuração revisada e as classes renomeadas foram homologadas
@@ -533,9 +533,9 @@ testado; somente versões e capacidades efetivamente implementadas são anunciad
   SQL Server 16.0.1200.5, banco/DSN pData, ODBC Driver 18.6.2.1 x64,
   autenticação SQL; textos/binários longos, vazio/nulo, Unicode e liberação.
 - [x] Homologação Protheus TCP MSSQL e SQLite pelo operador: 29 checks cada,
-  2026-10-08, perfis `mssql/pData` e `sqlite_demo`.
+  2026-10-08, perfis `MSSQL/pData` e `sqlite_demo`.
 - [x] Homologação HTTP Protheus MSSQL/SQLite explícita pelo operador: 13 checks
-  cada, 2026-10-08, wrappers `mssql/pData`/`sqlite_demo`, threads 25976/9916.
+  cada, 2026-10-08, wrappers `MSSQL/pData`/`sqlite_demo`, threads 25976/9916.
 - [ ] Casos restantes de falha/timeout, isolamento e baseline de transporte/
   memória do [WIP](WIP.pt-BR.md).
 - [ ] Avaliar `hbodbc`/`hbsqlit3` quando a operação exigir a API direta.

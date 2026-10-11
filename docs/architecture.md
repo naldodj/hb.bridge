@@ -38,10 +38,10 @@ Direct ODBC queries do not automatically execute DBAccess/business workflows.
 ## Multiple database profiles
 
 Profiles are an arbitrary keyed map, not a single fixed database. Alias names
-are opaque and case-sensitive, including `sqlite_demo`, `mssql/pData` or
+are opaque and case-sensitive, including `sqlite_demo`, `MSSQL/pData` or
 `oracle/alias`. A slash in the name is not a filesystem path or routing rule;
 the separate `driver` field selects a supported connector. In INI, a profile
-such as `mssql/pData` lives in `[SQL/mssql/pData]`.
+such as `MSSQL/pData` lives in `[SQL/MSSQL/pData]`.
 
 The TLPP library has **no `sqlite_demo` default**. `SQLProfile` in the AppServer
 INI is optional, installation-specific and can be empty. The query test uses an
@@ -52,7 +52,7 @@ profiles on the same client. Server profiles and credentials remain server-side.
 
 ```advpl
 oSQLite:OpenSQL("sqlite_demo", cSQLiteSql)
-oMssql:OpenSQL("mssql/pData", cResolvedProtheusSql)
+oMssql:OpenSQL("MSSQL/pData", cResolvedProtheusSql)
 ```
 
 Use [databases.ini](../config/examples/databases.ini) as a multiple-profile

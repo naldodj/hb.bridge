@@ -22,11 +22,11 @@ procedure U_HBBridgeConfigTest()
     jValues["port"] := "1712"
     jValues["timeoutMs"] := "45000"
     jValues["readChunkBytes"] := "8192"
-    jValues["sqlProfile"] := "mssql/pData"
+    jValues["sqlProfile"] := "MSSQL/pData"
     jConfig := HBBridge.Client.HBBridgeConfig():Resolve(jValues, jOverrides)
     jChecks["iniValues"] := jConfig["success"] .and. jConfig["host"] == "bridge.example.local" .and. ;
         jConfig["port"] == 1712 .and. jConfig["timeoutMs"] == 45000 .and. ;
-        jConfig["readChunkBytes"] == 8192 .and. jConfig["sqlProfile"] == "mssql/pData"
+        jConfig["readChunkBytes"] == 8192 .and. jConfig["sqlProfile"] == "MSSQL/pData"
     lOk := lOk .and. jChecks["iniValues"]
     FreeObj(@jConfig)
 
@@ -45,7 +45,7 @@ procedure U_HBBridgeConfigTest()
     jChecks["invalidProfile"] := !jConfig["success"]
     lOk := lOk .and. jChecks["invalidProfile"]
     FreeObj(@jConfig)
-    jOverrides["sqlProfile"] := "mssql/pData"
+    jOverrides["sqlProfile"] := "MSSQL/pData"
 
     jOverrides["host"] := "0.0.0.0"
     jConfig := HBBridge.Client.HBBridgeConfig():Resolve(jValues, jOverrides)

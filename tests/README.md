@@ -67,7 +67,7 @@ Prepare a private profile using the [credential keys](../docs/configuration.md),
 then run:
 
 ```powershell
-./scripts/test-hbbridge-mssql.ps1 -Config C:/tmp/hbBridge.ini -Profile mssql/pData
+./scripts/test-hbbridge-mssql.ps1 -Config C:/tmp/hbBridge.ini -Profile MSSQL/pData
 ```
 
 The [MSSQL target](integration/harbour/hbbridgemssqltest.hbp) uses the shared
@@ -88,7 +88,7 @@ MSSQL values nor AppServer/HTTP execution.
 
 Execution on 2026-10-08 passed **92 checks, zero failures and no skips** against
 SQL Server `16.0.1200.5`, database `pData`, ODBC Driver `18.6.2.1`, Windows x64
-and Harbour `UTF8EX`, with SQL authentication and alias `mssql/pData`. Log:
+and Harbour `UTF8EX`, with SQL authentication and alias `MSSQL/pData`. Log:
 `tmp/mssql-tests-b3d676f0daaf470a97af605a98a9681c/results.log`.
 The staged [SDDODBC patch](../config/patches/sddodbc.patch) covers incremental
 `SQL_NO_TOTAL` reads, the binary field flag and UTF-16 surrogate pairs in UTF-8.
@@ -150,7 +150,7 @@ the separate Protheus call:
 
 ```advpl
 U_HBBridgeQueryTest("sqlite_demo", "127.0.0.1", 1512, 30000)
-U_HBBridgeQueryTest("mssql/pData", "127.0.0.1", 1512, 30000)
+U_HBBridgeQueryTest("MSSQL/pData", "127.0.0.1", 1512, 30000)
 ```
 
 Use the [WebApp entry](https://localhost:4321/webapp/?p=U_HBBridgeQueryTest&e=PROTHEUS)
@@ -235,7 +235,7 @@ The operator then passed **13 HTTP checks for each backend** on 2026-10-08:
 10:33:33–10:33:34 (one second); `U_HBBridgeHTTPTestSQLite`, thread 9916,
 program start 10:34:06, test 10:34:07 (zero displayed seconds). São Paulo
 times. Both include the shared dataset's first/next pages and values; the
-entrypoint defaults select `mssql/pData` and `sqlite_demo`. These are operator
+entrypoint defaults select `MSSQL/pData` and `sqlite_demo`. These are operator
 AppServer runs, separate from native automation. Transcript:
 `tmp/protheus-http-mssql-sqlite-operator-20261008.log`.
 See [acceptance](../docs/acceptance.md). The owner's new dataset request and

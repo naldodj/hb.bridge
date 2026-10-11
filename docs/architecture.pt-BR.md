@@ -38,9 +38,9 @@ fluxos DBAccess ou regras de negócio.
 ## Múltiplos perfis de banco
 
 Perfis são um mapa por chave, sem banco único fixo. Nomes são opacos e
-sensíveis a maiúsculas, incluindo `sqlite_demo`, `mssql/pData` e `oracle/alias`.
+sensíveis a maiúsculas, incluindo `sqlite_demo`, `MSSQL/pData` e `oracle/alias`.
 Barra no alias não é caminho nem regra de roteamento; o campo separado `driver`
-seleciona um conector suportado. No INI, `mssql/pData` usa `[SQL/mssql/pData]`.
+seleciona um conector suportado. No INI, `MSSQL/pData` usa `[SQL/MSSQL/pData]`.
 
 A biblioteca TLPP **não tem padrão `sqlite_demo`**. `SQLProfile` no INI do
 AppServer é opcional, da instalação, e pode estar vazio. O teste prioriza
@@ -51,7 +51,7 @@ usar perfis diferentes. Credenciais e definições de perfil ficam no servidor.
 
 ```advpl
 oSQLite:OpenSQL("sqlite_demo", cSQLiteSql)
-oMssql:OpenSQL("mssql/pData", cResolvedProtheusSql)
+oMssql:OpenSQL("MSSQL/pData", cResolvedProtheusSql)
 ```
 
 [databases.ini](../config/examples/databases.ini) exemplifica múltiplos perfis.

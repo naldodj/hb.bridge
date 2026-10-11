@@ -11,7 +11,7 @@ INIT PROCEDURE HBBridgeSQLInit()
 RETURN
 
 /* Generic executor: callers resolve ERP table/branch/company/tenant rules.
- * Profile aliases are opaque keys, including names such as mssql/pData.
+ * Profile aliases are opaque keys, including names such as MSSQL/pData.
  * RDDSQL's connection table is process-global; the active connection is
  * thread-local. Keep shared table access and the complete
  * connect/open/fetch/close/disconnect lifecycle under one mutex.

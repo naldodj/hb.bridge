@@ -25,7 +25,7 @@ acceptance records verified results; ChangeLog and Git preserve history.
 - Protheus resolves tenant/company/branch/xFilial, table names and business
   rules. hbBridge executes explicit SQL/parameters. Begin with constant SELECTs
   and an isolated read fixture; leave production ERP tables unchanged.
-- Profiles remain opaque aliases selected explicitly per call. `mssql/pData`
+- Profiles remain opaque aliases selected explicitly per call. `MSSQL/pData`
   is an example, not a mandatory profile or business-context resolver.
 - Use a private complete ODBC string or the structured MSSQL configuration
   keys, with explicit SQL/integrated authentication. Portable encrypted credentials/CLI remain a later package;
@@ -164,7 +164,7 @@ Microsoft ODBC Driver 18 for SQL Server is installed, product version
 
 The operator selected a private INI to fill, rather than a ready connection.
 `C:/tmp/hbBridge.ini` initially contained only `sqlite_demo` as an SQL profile.
-On 2026-10-08 a commented `mssql/pData` template was appended with a private
+On 2026-10-08 a commented `MSSQL/pData` template was appended with a private
 backup and byte-for-byte preservation of existing settings. It uses the
 installed `pData` DSN, explicit `Authentication=sql` and empty `Username`/
 `Password` fields for the operator to fill locally and uncomment. Its explicit
@@ -181,7 +181,7 @@ M01 is complete. No credential was changed or copied into the repository.
 The dedicated native route compiled. Four controlled missing-argument/config/
 profile/wrong-backend cases all returned prerequisite exit 2, without opening
 a SQL connection. M02 is complete. The opt-in route is
-`scripts/test-hbbridge-mssql.ps1 -Config C:/tmp/hbBridge.ini -Profile mssql/pData`;
+`scripts/test-hbbridge-mssql.ps1 -Config C:/tmp/hbBridge.ini -Profile MSSQL/pData`;
 it builds shared components independently of the installed host and reports
 missing prerequisites with exit 2. Its first real native connection returned
 `CONNECTION_FAILED`: a comparison probe reproduced Driver Manager `IM002`
@@ -206,7 +206,7 @@ The default regression passed **566 checks, zero failures/no skips**:
 `tmp/tests-f84004277a8d4cc2905131f706a1e181/results.log`.
 
 The operator supplied TCP runs on 2026-10-08, São Paulo time:
-`U_HBBridgeQueryTestMSSQL`, 10:06:10, thread 660, profile `mssql/pData`, and
+`U_HBBridgeQueryTestMSSQL`, 10:06:10, thread 660, profile `MSSQL/pData`, and
 `U_HBBridgeQueryTestSQLite`, 10:06:43, thread 3192, profile `sqlite_demo`.
 Both reports contain all 29 checks true. The operator added those wrappers
 to the existing TLPP test; their defaults remain test-only, without changing
@@ -218,7 +218,7 @@ The operator also supplied HTTP runs on 2026-10-08, São Paulo time:
 `U_HBBridgeHTTPTestMSSQL`, program 10:33:32, thread 25976, body 10:33:33–34,
 and `U_HBBridgeHTTPTestSQLite`, program 10:34:06, thread 9916, body 10:34:07.
 Both contain all 13 checks true/PASS and Health HTTP 200. The inspected
-operator-added wrappers default explicitly to `mssql/pData` and `sqlite_demo`,
+operator-added wrappers default explicitly to `MSSQL/pData` and `sqlite_demo`,
 respectively, and forward to the common HTTP test; library defaults are unchanged.
 Evidence: `tmp/protheus-http-mssql-sqlite-operator-20261008.log`.
 M05 is accepted for those cases. Reported elapsed 1 s/0 s has whole-second

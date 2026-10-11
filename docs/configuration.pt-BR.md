@@ -104,7 +104,7 @@ fora do Git. O exemplo usa DSN com banco explícito; substitua os dois
 placeholders de credenciais antes de ativar o perfil:
 
 ```ini
-[SQL/mssql/pData]
+[SQL/MSSQL/pData]
 Driver=mssql
 DSN=pData
 Database=pData
@@ -156,7 +156,7 @@ Mantenha comentado um template de autenticação SQL ainda incompleto:
 preencher e ativar o perfil, execute explicitamente o aceite nativo dedicado:
 
 ```powershell
-./scripts/test-hbbridge-mssql.ps1 -Config C:/tmp/hbBridge.ini -Profile mssql/pData
+./scripts/test-hbbridge-mssql.ps1 -Config C:/tmp/hbBridge.ini -Profile MSSQL/pData
 ```
 
 O runner compila em diretório temporário isolado e usa o núcleo compartilhado
@@ -166,11 +166,11 @@ perfil incorreto ou conexão indisponível retornam status de pré-requisito
 
 Em 2026-10-08, a rota nativa passou em **92 checks, zero falhas e nenhum skip**
 com SQL Server `16.0.1200.5`, banco `pData`, ODBC Driver `18.6.2.1`, Windows x64
-e Harbour `UTF8EX`, usando o perfil privado `mssql/pData` com autenticação SQL.
+e Harbour `UTF8EX`, usando o perfil privado `MSSQL/pData` com autenticação SQL.
 Separadamente, o operador passou nos **29 checks TCP de cada backend**,
 MSSQL e SQLite. Mais tarde no mesmo dia, `U_HBBridgeHTTPTestMSSQL()` e
 `U_HBBridgeHTTPTestSQLite()` passaram nos **13 checks HTTP cada**, threads
-25976 e 9916. Seus padrões de conveniência selecionam `mssql/pData` e
+25976 e 9916. Seus padrões de conveniência selecionam `MSSQL/pData` e
 `sqlite_demo` sem alterar os padrões do cliente genérico. Identidades
 integrada/de serviço, HTTPS, Linux e cenários ampliados de falha/tipos
 permanecem pendentes; veja [homologação](acceptance.pt-BR.md).
@@ -266,7 +266,7 @@ ou DNS; `0.0.0.0` serve ao bind do servidor, não é destino do cliente.
 `SQLProfile` seleciona um alias declarado no INI/JSON do hbBridge; a conexão
 ODBC e as credenciais do banco permanecem naquele servidor.
 É opcional e vazio por padrão. Cada consulta/dataset pode informar outro
-alias, como `mssql/pData`; `sqlite_demo` pertence somente ao exemplo SQLite.
+alias, como `MSSQL/pData`; `sqlite_demo` pertence somente ao exemplo SQLite.
 Sem perfil explícito nem configuração, o teste retorna `PROFILE_REQUIRED`
 antes do acesso à rede. Aliases são opacos e preservam maiúsculas/minúsculas;
 não resolvem tenant, empresa, filial/xFilial ou tabelas físicas do Protheus.

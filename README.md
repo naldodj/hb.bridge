@@ -20,7 +20,7 @@ hbBridge is a **generic executor and extender**. Protheus resolves its business
 rules, tenant ID, company/branch, `xFilial` and physical table names, then sends
 prepared queries and explicit parameters. Addons may implement application
 processing using those parameters; the core does not infer ERP context.
-Profiles are arbitrary aliases selected per call, such as `mssql/pData`.
+Profiles are arbitrary aliases selected per call, such as `MSSQL/pData`.
 The client library has no fixed demo database. See
 [architecture and multiple profiles](docs/architecture.md).
 
@@ -100,8 +100,8 @@ programming.
 | Addons | In-memory `.prg`/`.hb` compilation and `.hrb` execution through `ADDON.Execute`, receiving `module`/`params`. |
 | NETIO | Embedded native listener `0.0.0.0:2941`, filtered RPC and Harbour serialization. `HB_EXTERN` enabled; registered services only. |
 | HTTP/REST | Embedded `hbhttpd`, optional and disabled by default. JSON service calls and authenticated web status share the core; service/admin credentials are separate. Direct HTTPS requires an OpenSSL-enabled build and its own acceptance. |
-| Protheus HTTP client | `HBBridgeHTTPClient` uses native FWRest, bearer authentication and the shared JSON contract. Operator accepted 13 checks each for MSSQL and SQLite on 2026-10-08, including SQL pagination; wrappers select `mssql/pData` and `sqlite_demo`. |
-| SQL | SQLMIX with SQLite/MSSQL-ODBC, named results and database-side pages. On 2026-10-08: 92 native MSSQL checks passed; operator accepted 29 Protheus TCP and 13 HTTP checks each for `mssql/pData` and `sqlite_demo`. Wider failure/type/platform acceptance remains. |
+| Protheus HTTP client | `HBBridgeHTTPClient` uses native FWRest, bearer authentication and the shared JSON contract. Operator accepted 13 checks each for MSSQL and SQLite on 2026-10-08, including SQL pagination; wrappers select `MSSQL/pData` and `sqlite_demo`. |
+| SQL | SQLMIX with SQLite/MSSQL-ODBC, named results and database-side pages. On 2026-10-08: 92 native MSSQL checks passed; operator accepted 29 Protheus TCP and 13 HTTP checks each for `MSSQL/pData` and `sqlite_demo`. Wider failure/type/platform acceptance remains. |
 | DBF | Native RDD access over NETIO planned; not integrated yet. |
 | VF IO | Harbour `hb_vf*` with NETIO has binary read/write tests; TLPP facade pending. |
 | C/Zig | C API/ABI bridge in Health; Zig library and toolchain required. |
@@ -132,7 +132,7 @@ Windows regression; no compilation log, call arguments, effective destination
 or artifact hashes were supplied for that report. On 2026-10-08, native MSSQL
 acceptance passed 92 checks against SQL Server `16.0.1200.5`, database `pData`,
 ODBC Driver `18.6.2.1` x64 and SQL authentication. The operator also accepted
-29 TCP and 13 HTTP checks each for `mssql/pData` and `sqlite_demo`; HTTP
+29 TCP and 13 HTTP checks each for `MSSQL/pData` and `sqlite_demo`; HTTP
 threads 25976/9916 used the backend-specific wrappers. Nondefault destinations,
 HTTPS, broader failure/type cases and Linux require their own acceptance.
 
@@ -262,7 +262,7 @@ all 13 checks: thread 27296 at 16:10:44–16:10:45 and thread 25456 at
 16:15:03–16:15:04 (São Paulo), each in one second. Their HTTP SQL backend
 was not identified; the separate TCP Query run explicitly used SQLite.
 On 2026-10-08, `U_HBBridgeHTTPTestMSSQL()` and `U_HBBridgeHTTPTestSQLite()`
-each passed all 13 checks, with explicit default SQL aliases `mssql/pData`
+each passed all 13 checks, with explicit default SQL aliases `MSSQL/pData`
 and `sqlite_demo`. Their transport arguments still use the active INI.
 See [the dated acceptance](docs/acceptance.md#protheus-http-mssql-and-sqlite-operator-acceptance-on-2026-10-08).
 

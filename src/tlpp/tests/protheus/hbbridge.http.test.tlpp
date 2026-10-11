@@ -3,7 +3,7 @@
 #include "tlpp-core.th"
 
 procedure U_HBBridgeHTTPTestMSSQL(cURL, cToken, nTimeoutSeconds, cSQLProfile, cAddonModule)
-    DEFAULT cSQLProfile:="mssql/pData"
+    DEFAULT cSQLProfile:="MSSQL/pData"
     U_HBBridgeHTTPTest(cURL, cToken, nTimeoutSeconds, cSQLProfile, cAddonModule)
 return
 

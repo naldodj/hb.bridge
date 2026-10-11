@@ -53,6 +53,8 @@ static function Browse(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as charact
 
     local cFilterExpr:="1=1" as character
 
+    local jHeader as json
+
     local lRedefineBottom:=(((Type("__lRedefineBottom")=="L").and.(__lRedefineBottom)).or.FWIsInCallStack("UF.EXECUTE").or.FwIsInCallStack("DNA.TECH.EXECUTE")) as logical
     local lHBBridgeDataSetPage:=(ValType(jHBBridgeDataSetPage)=="J")
 
@@ -332,8 +334,10 @@ static function Browse(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as charact
     FWFreeArray(@aFWBrwSeek)
     FWFreeArray(@aFWBrwData)
     FWFreeArray(@aFWBrwModel)
-    aEval(aFWBrwColumn,{|o|FreeObj(o)})
-    FWFreeArray(@aFWBrwColumn)
+    if (valType(aFWBrwColumn)=="A")
+        aEval(aFWBrwColumn,{|o|FreeObj(o)})
+        FWFreeArray(@aFWBrwColumn)
+    endif
     FWFreeArray(@aFWBrowseSeek)
     FWFreeArray(@aFWGetDialogSizeCoors)
 

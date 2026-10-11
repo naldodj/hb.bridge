@@ -347,7 +347,7 @@ SHA256 `D9E891155C7F36723F7E480E543F2FE0502D83DA9BFC22CC347CDC0C18C090EF`.
 Build log: `tmp/http-product-build-20261007.log`; configuration checks:
 `tmp/http-product-config-20261007.log`. The executable preserved default HTTP
 disabled/empty SQL profiles, explicit wildcard bind/port overrides, aliases
-`sqlite_demo` and `mssql/pData`, and sanitized secrets/connection strings.
+`sqlite_demo` and `MSSQL/pData`, and sanitized secrets/connection strings.
 Metadata inspection did not start listeners or query either database.
 
 The final commit gate passed for **135 files**, including `check.hb`,
@@ -489,7 +489,7 @@ Times below are São Paulo on 2026-10-08; the log identifies `marin` on
 
 | Program | Reported start / thread | Result |
 | --- | --- | --- |
-| `U_HBBridgeQueryTestMSSQL` | 10:06:10 / 660 | All 29 checks true; `Protheus OK; profile=mssql/pData`. |
+| `U_HBBridgeQueryTestMSSQL` | 10:06:10 / 660 | All 29 checks true; `Protheus OK; profile=MSSQL/pData`. |
 | `U_HBBridgeQueryTestSQLite` | 10:06:43 / 3192 | All 29 checks true; `Protheus OK; profile=sqlite_demo`. |
 
 The checks cover named fields and decimals, missing fields, EOF/close, empty
@@ -515,7 +515,7 @@ no skips** against the real SQL Server database. Evidence:
 | Component | Exercised value |
 | --- | --- |
 | Platform | Windows x64. |
-| SQL alias / database | `mssql/pData` / `pData`. |
+| SQL alias / database | `MSSQL/pData` / `pData`. |
 | SQL Server | `16.0.1200.5`. |
 | ODBC driver | Microsoft ODBC Driver 18, `18.6.2.1`, x64. |
 | Authentication | SQL login from the private server configuration; no credentials in the evidence. |
@@ -580,7 +580,7 @@ stack. Times below are São Paulo on 2026-10-08.
 
 | Program / default SQL profile | Reported execution | Result |
 | --- | --- | --- |
-| `U_HBBridgeHTTPTestMSSQL` / `mssql/pData` | Program 10:33:32, thread 25976; test 10:33:33–10:33:34 | All 13 checks true/PASS, Health HTTP 200; elapsed 00:00:01. |
+| `U_HBBridgeHTTPTestMSSQL` / `MSSQL/pData` | Program 10:33:32, thread 25976; test 10:33:33–10:33:34 | All 13 checks true/PASS, Health HTTP 200; elapsed 00:00:01. |
 | `U_HBBridgeHTTPTestSQLite` / `sqlite_demo` | Program 10:34:06, thread 9916; test 10:34:07–10:34:07 | All 13 checks true/PASS, Health HTTP 200; elapsed 00:00:00. |
 
 The operator's [HTTP wrappers](../src/tlpp/tests/protheus/hbbridgehttptest.tlpp)
@@ -589,7 +589,7 @@ the existing URL/token/timeout resolution for omitted transport arguments.
 Both runs passed `healthGet`, `healthPost`, `servicesGet`, `echo`, `addon`,
 `unknownService`, `adminForbidden`, `unauthorized`, `afterFailure`,
 `queryFirstPage`, `queryFirstValue`, `queryNextPage` and `queryLastValue`.
-This accepts M05 for those 13 exercised cases with `mssql/pData`, including
+This accepts M05 for those 13 exercised cases with `MSSQL/pData`, including
 the common dataset's HTTP page values, and repeats the SQLite HTTP regression.
 
 These are operator AppServer executions, without a supplied compiler-success

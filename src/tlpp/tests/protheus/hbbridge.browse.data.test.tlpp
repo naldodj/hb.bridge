@@ -1,41 +1,55 @@
 #include "totvs.ch"
 #include "tbiconn.ch"
 
-procedure U_HBBridgeBrowseDataTest()
-
-    HBBridgeBrowseDataTest()
-
+procedure U_HBBridgeBrowseDataTest(jParameters as json)
+    if ((ValType(jParameters)=="J").and.(!Empty(jParameters:GetNames())))
+        HBBridgeBrowseDataTest(jParameters)
+    endif
 return
 
-static procedure HBBridgeBrowseDataTest()
+static procedure HBBridgeBrowseDataTest(jParameters as json)
 
-    local cTitle:="HBBridgeBrowseDataTest"
+    local bExecute:={|jParameters as json|__Execute(jParameters)} as codeblock
 
-    private oMainWnd as object
-    DEFINE WINDOW oMainWnd FROM 00,00 TO 1024,768 TITLE OemToAnsi(cTitle)
-        oMainWnd:oMsgBar:=TMsgBar():New(oMainWnd,Space(2)+OemToAnsi(GetVersao()),.F.,.F.,.F.,.F.,RGB(116,116,116),,,.F.,"fw_rodape_logo")
-    ACTIVATE WINDOW oMainWnd MAXIMIZED ON INIT (__Execute(),oMainWnd:End())
+    local cTitle as character
 
-    FreeObj(@oMainWnd)
+    if (Type("oMainWnd")!="O")
+        cTitle:="HBBridgeBrowseDataTest"
+        private oMainWnd as object
+        DEFINE WINDOW oMainWnd FROM 00,00 TO 1024,768 TITLE OemToAnsi(cTitle)
+            oMainWnd:oMsgBar:=TMsgBar():New(oMainWnd,Space(2)+OemToAnsi(GetVersao()),.F.,.F.,.F.,.F.,RGB(116,116,116),,,.F.,"fw_rodape_logo")
+        ACTIVATE WINDOW oMainWnd MAXIMIZED ON INIT (Eval(bExecute,jParameters),oMainWnd:End())
+        FreeObj(@oMainWnd)
+    else
+        Eval(bExecute,jParameters)
+    endif
 
     DelClassIntF()
 
 return
 
-static procedure __Execute()
+static procedure __Execute(jParameters as json)
 
     local aAcho as array
     local aFWBrwData as array
+    local aFWGetTopInfo as array
     local aCustomButtons as array
+
+    local cEmp as character
+    local cFil as character
 
     local cSQL as character
     local cHost as character
-    local cAliasTmp as character
+    local cAlias as character
+    local cIniFile as character
     local cAliasProfile as character
 
     local bLDblClick as codeblock
 
     local jHBBridgeDataSetPage as json
+
+    local lAcho as logical
+    local lRPCSetEnv:=(Select("SM0")==0) as logical
 
     local nPort as numeric
     local nTimeout as numeric
@@ -44,90 +58,91 @@ static procedure __Execute()
     local oDataSet as object
     local oFWBrowse as object
 
-    FWMsgRun(nil,{||RPCSetEnv("99","01")},"Wait...")
+    if (lRPCSetEnv)
+        cEmp:=if(jParameters:HasProperty("cEmp"),jParameters["cEmp"],"99")
+        cFil:=if(jParameters:HasProperty("cFil"),jParameters["cFil"],"01")
+        FWMsgRun(nil,{||RPCSetEnv(cEmp,cFil)},"Wait...")
+    endif
 
         __SetCentury("ON")
         Set(4,"DD/MM/YYYY")
 
-        ChkFile("CTT")
+        begin sequence
 
-        cAliasTmp:=GetNextAlias()
-        ChkFile("SRA",.F.,cAliasTmp)
+            if (jParameters:HasProperty("cSQL").and.(!Empty(jParameters["cSQL"])))
+                cSQL:=jParameters["cSQL"]
+            else
+                break
+            endif
 
-        beginContent var cSQL
-            SELECT RA_FILIAL
-                ,RA_MAT
-                ,RA_NOME
-                ,CAST(RA_SALARIO AS DECIMAL(12,2)) AS RA_SALARIO
-                ,CAST(RA_ADMISSA AS DATE) RA_ADMISSA
-                ,RA_CC,CTT.CTT_DESC01
-                ,SRA.R_E_C_N_O_
-            FROM SRA990 SRA
-            LEFT JOIN CTT990 CTT
-            ON CTT.CTT_FILIAL=SRA.RA_FILIAL
-            AND CTT.CTT_CUSTO=SRA.RA_CC
-            WHERE SRA.D_E_L_E_T_=' '
-            AND CTT.D_E_L_E_T_=' '
-        endContent
+            if (jParameters:HasProperty("bOpenTables"))
+                cAlias:=Eval(jParameters["bOpenTables"])
+                if ((Empty(cAlias)).or.(Select(cAlias)==0))
+                    break
+                endif
+            else
+                break
+            endif
 
-        cHost:="127.0.0.1"
-        nPort:=1512
-        nTimeout:=30000
+            cIniFile:=GetSrvIniName()
+            cHost:=GetPvProfString("hbBridge","Host","127.0.0.1",cIniFile)
+            nPort:=Val(GetPvProfString("hbBridge","Port","1512",cIniFile))
+            nTimeout:=30000
 
-        oClient:=HBBridge.Client.HBBridgeClient():New(cHost, nPort, nTimeout)
-        oDataSet:=HBBridge.RDD.HBBridgeRPCDataSet():New(oClient)
+            oClient:=HBBridge.Client.HBBridgeClient():New(cHost,nPort,nTimeout)
+            oDataSet:=HBBridge.RDD.HBBridgeRPCDataSet():New(oClient)
 
-        cAliasProfile:="mssql/pData"
-        oDataSet:SetAliasProfile(cAliasProfile)
+            aFWGetTopInfo:=FWGetTopInfo()
+            cAliasProfile:=(aFWGetTopInfo[4]+"/"+aFWGetTopInfo[5])
+            FWFreeArray(@aFWGetTopInfo)
+            oDataSet:SetAliasProfile(cAliasProfile)
 
-        jHBBridgeDataSetPage:=JSONObject():New()
-        jHBBridgeDataSetPage["number"]:=1
-        jHBBridgeDataSetPage["size"]:=18
-        jHBBridgeDataSetPage["orderBy"]:="RA_FILIAL,RA_MAT"
+            if (jParameters:HasProperty("jHBBridgeDataSetPage"))
+                jHBBridgeDataSetPage:=jParameters["jHBBridgeDataSetPage"]
+            endif
+            lAcho:=jParameters:HasProperty("aAcho")
+            bLDblClick:={||;
+                if(lAcho;
+                    ,(;
+                        aAcho:=if(;
+                            MsgYesNo("Consultar todos os campos","HBBridge.Client.HBBridgeBrowseData");
+                            ,nil;
+                            ,jParameters["aAcho"];
+                        );
+                    );
+                    ,nil;
+                );
+                ,HBBridge.Client.HBBridgeMsMGetEx():ViewData(cAlias,aFWBrwData[oFWBrowse:AT()]["R_E_C_N_O_"],"HBBridge.Client.HBBridgeBrowseData",nil,aAcho);
+            }
 
-        bLDblClick:={||;
-            aAcho:=if(;
-                MsgYesNo("Consultar todos os campos","HBBridge.Client.HBBridgeBrowseData");
-                ,nil;
-                ,{;
-                    "RA_FILIAL";
-                    ,"RA_MAT";
-                    ,"RA_NOME";
-                    ,"RA_SALARIO";
-                    ,"RA_ADMISSA";
-                    ,"RA_CC";
-                    ,"CTT_DESC01";
-                };
-            );
-            ,HBBridge.Client.HBBridgeMsMGetEx():ViewData(cAliasTmp,aFWBrwData[oFWBrowse:AT()]["R_E_C_N_O_"],"HBBridge.Client.HBBridgeBrowseData",nil,aAcho);
-        }
+            aCustomButtons:=Array(1,7)
+            aCustomButtons[1][1]:="&Visualizar"
+            aCustomButtons[1][2]:=bLDblClick
+            aCustomButtons[1][3]:="Visualizar"
+            aCustomButtons[1][4]:=nil
+            aCustomButtons[1][5]:=.T.
+            aCustomButtons[1][6]:=.F.
+            aCustomButtons[1][7]:=.T.
 
-        aCustomButtons:=Array(1,7)
-        aCustomButtons[1][1]:="&Visualizar"
-        aCustomButtons[1][2]:=bLDblClick
-        aCustomButtons[1][3]:="Visualizar"
-        aCustomButtons[1][4]:=nil
-        aCustomButtons[1][5]:=.T.
-        aCustomButtons[1][6]:=.F.
-        aCustomButtons[1][7]:=.T.
+            private lObfuscate:=.T. as logical
+            private __lRedefineBottom:=.T. as logical
 
-        private lObfuscate:=.T. as logical
-        private __lRedefineBottom:=.T. as logical
+            HBBridge.Client.HBBridgeBrowseData():Browse(oDataSet,cSQL,jHBBridgeDataSetPage,@oFWBrowse,@aFWBrwData,"HBBridge.Client.HBBridgeBrowseData",bLDblClick,nil,aCustomButtons)
 
-        HBBridge.Client.HBBridgeBrowseData():Browse(oDataSet,cSQL,jHBBridgeDataSetPage,@oFWBrowse,@aFWBrwData,"HBBridge.Client.HBBridgeBrowseData",bLDblClick,nil,aCustomButtons)
+            FWFreeArray(@aAcho)
+            FWFreeArray(@aFWBrwData)
+            FWFreeArray(@aCustomButtons)
 
-        (cAliasTmp)->(dbCloseArea())
+            FreeObj(@oClient)
+            FreeObj(@oDataSet)
+            FreeObj(@oFWBrowse)
 
-        FWFreeArray(@aAcho)
-        FWFreeArray(@aFWBrwData)
-        FWFreeArray(@aCustomButtons)
+            FreeObj(@jHBBridgeDataSetPage)
 
-        FreeObj(@oClient)
-        FreeObj(@oDataSet)
-        FreeObj(@oFWBrowse)
+    end sequence
 
-        FreeObj(@jHBBridgeDataSetPage)
-
-    RPCClearEnv()
+    if (lRPCSetEnv)
+        RPCClearEnv()
+    endif
 
 return

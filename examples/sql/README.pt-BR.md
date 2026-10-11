@@ -64,7 +64,7 @@ ajuste o [arquivo de exemplo](../../config/examples/mssql.json) e execute:
 ```powershell
 .\examples\sql\run.ps1 -Config config/examples/mssql.json -Profile mssql_demo
 .\examples\sql\run.ps1 -Config config/examples/mssql.ini -Profile mssql_demo
-./examples/sql/run.ps1 -Config config/examples/databases.ini -Profile mssql/pData
+./examples/sql/run.ps1 -Config config/examples/databases.ini -Profile MSSQL/pData
 ```
 
 Os exemplos públicos [INI](../../config/examples/mssql.ini) e
@@ -79,7 +79,7 @@ No Protheus, informe explicitamente o perfil:
 
 ```advpl
 U_HBBridgeQueryTest("mssql_demo", "127.0.0.1", 1512, 30000)
-U_HBBridgeQueryTest("mssql/pData", "127.0.0.1", 1512, 30000)
+U_HBBridgeQueryTest("MSSQL/pData", "127.0.0.1", 1512, 30000)
 ```
 
 Para MSSQL, outro perfil ou outra porta, alinhe `[hbBridge]` no AppServer ou
@@ -104,7 +104,7 @@ O contrato, a paginação e os pontos ainda pendentes de homologação estão no
 ## Configuração MSSQL privada e aceite nativo
 
 Para login SQL, preencha usuário e senha existentes no template
-`[SQL/mssql/pData]` preparado em `C:/tmp/hbBridge.ini`. Mantenha todo o template
+`[SQL/MSSQL/pData]` preparado em `C:/tmp/hbBridge.ini`. Mantenha todo o template
 comentado até completar os campos; depois descomente suas linhas. Ele usa
 `Driver=mssql`, `DSN=pData`, `Database=pData`, `Authentication=sql`, `Username`
 e `Password`; a [referência de campos](../../docs/configuration.pt-BR.md#perfis-mssql)
@@ -126,7 +126,7 @@ Recompile o produto e valide o arquivo preenchido sem abrir banco:
 Execute o aceite nativo MSSQL dedicado depois de preparar o perfil:
 
 ```powershell
-./scripts/test-hbbridge-mssql.ps1 -Config C:/tmp/hbBridge.ini -Profile mssql/pData
+./scripts/test-hbbridge-mssql.ps1 -Config C:/tmp/hbBridge.ini -Profile MSSQL/pData
 ```
 
 Os dois argumentos são obrigatórios. O runner compila o núcleo compartilhado
@@ -148,10 +148,10 @@ executa o teste separado do dataset Protheus TCP com 29 checks nem o teste HTTP.
 Para o aceite Protheus, inicie o produto com o mesmo perfil privado:
 
 ```powershell
-./examples/sql/run.ps1 -Config C:/tmp/hbBridge.ini -Profile mssql/pData
+./examples/sql/run.ps1 -Config C:/tmp/hbBridge.ini -Profile MSSQL/pData
 ```
 
-Depois execute `U_HBBridgeQueryTest("mssql/pData", "127.0.0.1", 1512, 30000)`
+Depois execute `U_HBBridgeQueryTest("MSSQL/pData", "127.0.0.1", 1512, 30000)`
 com o destino real do cliente. Use o mesmo alias explícito no
 [aceite HTTP](../http/README.pt-BR.md). As entradas de conveniência
 `U_HBBridgeQueryTestMSSQL()` e `U_HBBridgeQueryTestSQLite()` fornecem os aliases

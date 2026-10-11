@@ -60,7 +60,7 @@ The timeout configures the native HTTP operation; it is not a monotonic
 deadline for the entire call, JSON serialization and local processing.
 
 `SQLProfile=sqlite_demo` selects only this example's profile. You can pass
-another opaque alias, such as `mssql/pData`, when it is configured on the
+another opaque alias, such as `MSSQL/pData`, when it is configured on the
 server. The library has no mandatory SQL profile. Protheus supplies SQL,
 physical table names, tenant, company and branch rules explicitly.
 
@@ -89,7 +89,7 @@ The convenience entries select local fixture aliases and reuse the common
 test, reading the omitted URL/token/timeout from the active AppServer INI:
 
 ```advpl
-U_HBBridgeHTTPTestMSSQL()  // SQL profile mssql/pData
+U_HBBridgeHTTPTestMSSQL()  // SQL profile MSSQL/pData
 U_HBBridgeHTTPTestSQLite() // SQL profile sqlite_demo
 ```
 
@@ -202,7 +202,7 @@ SQLite: thread **9916**, program start **10:34:06**, test **10:34:07**,
 displayed duration zero seconds. Times are São Paulo local time. Both routes
 passed Health, discovery, Echo/accent, addon, failure/recovery and the
 shared dataset's first/next pages and values. Entrypoint defaults identify
-`mssql/pData` and `sqlite_demo`; the generic client still has no forced alias.
+`MSSQL/pData` and `sqlite_demo`; the generic client still has no forced alias.
 
 These are operator AppServer runs, separate from the **92 native MSSQL** and
 **566 default Harbour regression** checks already recorded. Transcript:

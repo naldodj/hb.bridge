@@ -257,7 +257,7 @@ identidade do processo hbBridge; Linux exige credenciais Kerberos do serviço.
 Veja o [guia Microsoft de autenticação integrada](https://learn.microsoft.com/en-us/sql/connect/odbc/linux-mac/using-integrated-authentication?view=sql-server-ver17).
 
 Para o caminho local com login SQL, edite `C:/tmp/hbBridge.ini` fora do Git.
-Preencha `Username` e `Password` no template `[SQL/mssql/pData]` preparado,
+Preencha `Username` e `Password` no template `[SQL/MSSQL/pData]` preparado,
 usando o login SQL existente. Mantenha as linhas comentadas até preencher
 todos os valores obrigatórios; depois descomente a seção inteira.
 `DSN=pData` seleciona a fonte ODBC; `Database=pData` escolhe explicitamente
@@ -282,7 +282,7 @@ Recompile o produto para os campos estruturados e valide sem conectar:
 Depois de preencher e ativar o perfil privado, execute o aceite nativo:
 
 ```powershell
-./scripts/test-hbbridge-mssql.ps1 -Config C:/tmp/hbBridge.ini -Profile mssql/pData
+./scripts/test-hbbridge-mssql.ps1 -Config C:/tmp/hbBridge.ini -Profile MSSQL/pData
 ```
 
 Ele usa o núcleo compartilhado de consultas sem listeners e começa por uma
@@ -295,11 +295,11 @@ testes Protheus.
 Inicie o produto separadamente para esses testes:
 
 ```powershell
-./examples/sql/run.ps1 -Config C:/tmp/hbBridge.ini -Profile mssql/pData
+./examples/sql/run.ps1 -Config C:/tmp/hbBridge.ini -Profile MSSQL/pData
 ```
 
 No Protheus, com as classes TLPP atuais, execute
-`U_HBBridgeQueryTest("mssql/pData", "127.0.0.1", 1512, 30000)`. As entradas de
+`U_HBBridgeQueryTest("MSSQL/pData", "127.0.0.1", 1512, 30000)`. As entradas de
 conveniência `U_HBBridgeQueryTestMSSQL()` e `U_HBBridgeQueryTestSQLite()`
 fornecem os aliases locais de exemplo; não alteram os padrões do cliente
 genérico. Mudar somente o perfil do servidor não exige novo build TLPP. O teste usa

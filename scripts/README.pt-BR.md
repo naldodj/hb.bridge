@@ -100,7 +100,7 @@ define o diretório de trabalho dos addons. Somente argumentos `-Port` e
 ./examples/mvp/run.ps1
 ./examples/sql/run.ps1 -Config config/examples/sqlite.ini
 ./examples/sql/run.ps1 -Config config/examples/mssql.ini -Profile mssql_demo
-./examples/sql/run.ps1 -Config config/examples/databases.ini -Profile mssql/pData
+./examples/sql/run.ps1 -Config config/examples/databases.ini -Profile MSSQL/pData
 ```
 
 Encerre a instância anterior com Ctrl+Q antes de reutilizar suas portas.
@@ -123,7 +123,7 @@ e caminhos. Alinhe separadamente o
 [template AppServer](../config/examples/protheus-appserver.ini), ou informe
 argumentos explícitos. **SQLProfile é opcional e vazio por padrão**.
 `sqlite_demo` é exclusivo do exemplo; cada consulta/dataset escolhe seu
-alias, como `mssql/pData`. Sem alias, o teste informa PROFILE_REQUIRED.
+alias, como `MSSQL/pData`. Sem alias, o teste informa PROFILE_REQUIRED.
 
 | Configuração | CLI | Padrão / significado |
 | --- | --- | --- |

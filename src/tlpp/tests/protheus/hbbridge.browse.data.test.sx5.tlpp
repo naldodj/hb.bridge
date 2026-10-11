@@ -1,0 +1,31 @@
+#include "totvs.ch"
+#include "tbiconn.ch"
+
+procedure U_HBBridgeBrowseDataTestSX5()
+    local cAlias:="SX5" as character
+    local jParameters:=JSONObject():New() as json
+    jParameters["cEmp"]:="99"
+    jParameters["cFil"]:="01"
+    beginContent var jParameters["cSQL"]
+        SELECT * FROM SX5990 WHERE D_E_L_E_T_=' '
+    endContent
+    jParameters["bOpenTables"]:={||;
+        ,ChkFile(cAlias);
+        ,cAlias;
+    }
+    jParameters["jHBBridgeDataSetPage"]:=JSONObject():New()
+    jParameters["jHBBridgeDataSetPage"]["number"]:=1
+    jParameters["jHBBridgeDataSetPage"]["size"]:=18
+    jParameters["jHBBridgeDataSetPage"]["orderBy"]:="X5_FILIAL,X5_TABELA,X5_CHAVE"
+    jParameters["aAcho"]:={;
+        "X5_FILIAL";
+        ,"X5_TABELA";
+        ,"X5_CHAVE";
+        ,"X5_DESCRI";
+    }
+    U_HBBridgeBrowseDataTest(jParameters)
+    if (Select(cAlias)>0)
+        (cAlias)->(dbCloseArea())
+    endif
+    FreeObj(@jParameters)
+return

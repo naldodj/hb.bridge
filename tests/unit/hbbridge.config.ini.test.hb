@@ -52,16 +52,16 @@ PROCEDURE M1INIConfigTests( nFailures, nChecks )
 
     hb_MemoWrit( "config-test/multiple.ini", ;
         "[SQL/sqlite_demo]" + hb_eol() + "Driver=sqlite" + hb_eol() + "Database=:memory:" + hb_eol() + ;
-        "[SQL/mssql/pData]" + hb_eol() + "Driver=mssql" + hb_eol() + ;
+        "[SQL/MSSQL/pData]" + hb_eol() + "Driver=mssql" + hb_eol() + ;
         "ConnectionString=DSN=pData;Trusted_Connection=Yes;" + hb_eol() )
     hINI := HBBridgeConfig( { "-config=config-test/multiple.ini" }, @cError )
     M1Assert( hINI != NIL .AND. Len( hINI[ "sqlProfiles" ] ) == 2 .AND. ;
-        hb_HHasKey( hINI[ "sqlProfiles" ], "mssql/pData" ) .AND. ;
-        ! hb_HHasKey( hINI[ "sqlProfiles" ], "mssql/pdata" ), ;
+        hb_HHasKey( hINI[ "sqlProfiles" ], "MSSQL/pData" ) .AND. ;
+        ! hb_HHasKey( hINI[ "sqlProfiles" ], "MSSQL/pData" ), ;
         "multiple INI profiles preserve slash and case in opaque aliases", @nFailures, @nChecks )
     hInfo := HBBridgeConfigInfo( hINI )
     M1Assert( Len( hInfo[ "sqlProfiles" ] ) == 2 .AND. ;
-        hInfo[ "sqlProfiles" ][ "mssql/pData" ][ "driver" ] == "mssql" .AND. ;
+        hInfo[ "sqlProfiles" ][ "MSSQL/pData" ][ "driver" ] == "mssql" .AND. ;
         ! ( "DSN=" $ hb_jsonEncode( hInfo ) ), ;
         "multiple profile metadata remains sanitized", @nFailures, @nChecks )
     FOR EACH cBad IN { ;
@@ -145,18 +145,18 @@ STATIC PROCEDURE M1StructuredSQLConfigTests( nFailures, nChecks )
         cINI := StructuredSQLTestINI( hProfile )
         hb_MemoWrit( "config-test/structured.ini", cINI )
         hb_MemoWrit( "config-test/structured.json", ;
-            hb_jsonEncode( { "sqlProfiles" => { "mssql/pData" => hProfile } } ) )
+            hb_jsonEncode( { "sqlProfiles" => { "MSSQL/pData" => hProfile } } ) )
         hINI := HBBridgeConfig( { "-config=config-test/structured.ini" }, @cError )
         hJSON := HBBridgeConfig( { "-config=config-test/structured.json" }, @cError )
         M1Assert( hINI != NIL .AND. hJSON != NIL .AND. hb_jsonEncode( hINI ) == hb_jsonEncode( hJSON ), ;
             "structured MSSQL INI/JSON parity: " + cCase, @nFailures, @nChecks )
         IF hINI != NIL
-            hNormalized := hINI[ "sqlProfiles" ][ "mssql/pData" ]
+            hNormalized := hINI[ "sqlProfiles" ][ "MSSQL/pData" ]
             M1Assert( Len( hNormalized ) == 2 .AND. hNormalized[ "driver" ] == "mssql" .AND. ;
                 hNormalized[ "connectionString" ] == hExpected[ cCase ], ;
                 "structured MSSQL attributes normalize exactly: " + cCase, @nFailures, @nChecks )
             hInfo := HBBridgeConfigInfo( hINI )
-            M1Assert( Len( hInfo[ "sqlProfiles" ][ "mssql/pData" ] ) == 1 .AND. ;
+            M1Assert( Len( hInfo[ "sqlProfiles" ][ "MSSQL/pData" ] ) == 1 .AND. ;
                 ! ( "PWD=" $ hb_jsonEncode( hInfo ) ) .AND. ! ( "DSN=" $ hb_jsonEncode( hInfo ) ) .AND. ;
                 ! ( cPassword $ hb_jsonEncode( hInfo ) ), ;
                 "structured MSSQL metadata contains only its driver: " + cCase, @nFailures, @nChecks )
@@ -170,7 +170,7 @@ STATIC PROCEDURE M1StructuredSQLConfigTests( nFailures, nChecks )
     hb_MemoWrit( "config-test/structured.ini", StructuredSQLTestINI( hProfile ) )
     hINI := HBBridgeConfig( { "-config=config-test/structured.ini" }, @cError )
     hNormalized := HBBridgeSQLProfiles( { "test" => hProfile }, hb_cwd(), @cError )
-    M1Assert( hINI != NIL .AND. hINI[ "sqlProfiles" ][ "mssql/pData" ][ "connectionString" ] == ;
+    M1Assert( hINI != NIL .AND. hINI[ "sqlProfiles" ][ "MSSQL/pData" ][ "connectionString" ] == ;
         "DSN=fixture;Trusted_Connection=No;UID={reader};PWD={fixture};" .AND. ;
         hNormalized != NIL .AND. hNormalized[ "test" ][ "connectionString" ] == ;
         "DSN=fixture;Trusted_Connection=No;UID={reader};PWD={ " + Chr( 9 ) + "fixture " + Chr( 9 ) + "};", ;
@@ -186,7 +186,7 @@ STATIC PROCEDURE M1StructuredSQLConfigTests( nFailures, nChecks )
     hProfile[ "password" ] := '"fixture"'
     hb_MemoWrit( "config-test/structured.ini", StructuredSQLTestINI( hProfile ) )
     hINI := HBBridgeConfig( { "-config=config-test/structured.ini" }, @cError )
-    M1Assert( hINI != NIL .AND. hINI[ "sqlProfiles" ][ "mssql/pData" ][ "connectionString" ] == ;
+    M1Assert( hINI != NIL .AND. hINI[ "sqlProfiles" ][ "MSSQL/pData" ][ "connectionString" ] == ;
         'DSN=fixture;Trusted_Connection=No;UID={reader};PWD={"fixture"};', ;
         "INI password quotes are literal characters", @nFailures, @nChecks )
 
@@ -281,7 +281,7 @@ STATIC PROCEDURE M1StructuredSQLConfigTests( nFailures, nChecks )
 RETURN
 
 STATIC FUNCTION StructuredSQLTestINI( hProfile )
-    LOCAL cINI := "[SQL/mssql/pData]" + hb_eol(), cKey, xValue
+    LOCAL cINI := "[SQL/MSSQL/pData]" + hb_eol(), cKey, xValue
     FOR EACH xValue IN hProfile
         cKey := xValue:__enumKey()
         cINI += Upper( cKey ) + "="

@@ -98,7 +98,7 @@ file outside Git. This example uses a DSN with an explicit database override;
 replace both credential placeholders before enabling the profile:
 
 ~~~ini
-[SQL/mssql/pData]
+[SQL/MSSQL/pData]
 Driver=mssql
 DSN=pData
 Database=pData
@@ -148,7 +148,7 @@ Keep an unfinished SQL-authentication template commented out: blank
 Once filled and enabled, run the dedicated native acceptance explicitly:
 
 ~~~powershell
-./scripts/test-hbbridge-mssql.ps1 -Config C:/tmp/hbBridge.ini -Profile mssql/pData
+./scripts/test-hbbridge-mssql.ps1 -Config C:/tmp/hbBridge.ini -Profile MSSQL/pData
 ~~~
 
 The runner builds in an isolated temporary directory and uses the shared
@@ -159,10 +159,10 @@ wrong profile type or unavailable connection exits with prerequisite status
 On 2026-10-08, the native route passed **92 checks, zero failures and no skips**
 against SQL Server `16.0.1200.5`, database `pData`, ODBC Driver `18.6.2.1`,
 Windows x64 and Harbour `UTF8EX`, using the private SQL-authentication profile
-`mssql/pData`. The operator separately passed **29 TCP checks per backend**
+`MSSQL/pData`. The operator separately passed **29 TCP checks per backend**
 for MSSQL and SQLite. Later that day, `U_HBBridgeHTTPTestMSSQL()` and
 `U_HBBridgeHTTPTestSQLite()` passed **13 HTTP checks each**, threads 25976 and
-9916. Their convenience defaults select `mssql/pData` and `sqlite_demo` without
+9916. Their convenience defaults select `MSSQL/pData` and `sqlite_demo` without
 changing generic client defaults. Integrated/service identities, HTTPS, Linux
 and broader failure/type cases remain pending; see [acceptance](acceptance.md).
 
@@ -275,8 +275,8 @@ A valid explicit argument can replace the same invalid INI value.
 SQLProfile is optional and defaults to empty. The explicit Query alias wins;
 otherwise the query test can use this installation default. With neither, it
 reports PROFILE_REQUIRED before connecting. Each dataset opens any configured
-alias, including `mssql/pData`, without changing a global database. INI profile
-`[SQL/mssql/pData]` preserves slash and case; `driver` is separate. SQLite and
+alias, including `MSSQL/pData`, without changing a global database. INI profile
+`[SQL/MSSQL/pData]` preserves slash and case; `driver` is separate. SQLite and
 MSSQL are implemented; Oracle requires a future connector and acceptance.
 See [architecture](architecture.md) and [multiple profiles](../config/examples/databases.ini).
 

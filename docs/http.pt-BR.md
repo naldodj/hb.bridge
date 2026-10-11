@@ -79,7 +79,7 @@ adaptadores TCP. Surrogates órfãos ou invertidos retornam
 {
     "service": "RPCRDD.Query",
     "params": {
-        "alias": "mssql/pData",
+        "alias": "MSSQL/pData",
         "sql": "SELECT 1 AS CALLER_VALUE"
     }
 }
@@ -114,7 +114,7 @@ a mesma árvore `src/tlpp/`. FWRest faz GET/POST com bearer do serviço, e
 O operador homologou 13 checks em 2026-10-07 sem identificar aquele backend
 SQL. Em 2026-10-08, `U_HBBridgeHTTPTestMSSQL()` e
 `U_HBBridgeHTTPTestSQLite()` passaram separadamente nos **13 checks cada**,
-com os padrões de fixture `mssql/pData` e `sqlite_demo`. MSSQL executou na
+com os padrões de fixture `MSSQL/pData` e `sqlite_demo`. MSSQL executou na
 thread 25976 às 10:33:33–10:33:34; SQLite, na thread 9916 às 10:34:07,
 horários de São Paulo. Ambos incluem páginas/valores SQL pelo dataset comum;
 veja [homologação](acceptance.pt-BR.md). Essas entradas de conveniência não

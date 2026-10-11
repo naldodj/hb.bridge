@@ -78,7 +78,7 @@ the TCP adapters. Orphan or reversed surrogate escapes return
 {
     "service": "RPCRDD.Query",
     "params": {
-        "alias": "mssql/pData",
+        "alias": "MSSQL/pData",
         "sql": "SELECT 1 AS CALLER_VALUE"
     }
 }
@@ -112,7 +112,7 @@ same `src/tlpp/` tree. FWRest issues GET/POST with the service bearer, while
 The operator accepted 13 checks on 2026-10-07 without identifying that SQL
 backend. On 2026-10-08, `U_HBBridgeHTTPTestMSSQL()` and
 `U_HBBridgeHTTPTestSQLite()` separately passed **13 checks each**, using
-fixture defaults `mssql/pData` and `sqlite_demo`. MSSQL ran on thread 25976
+fixture defaults `MSSQL/pData` and `sqlite_demo`. MSSQL ran on thread 25976
 at 10:33:33–10:33:34; SQLite ran on thread 9916 at 10:34:07, São Paulo time.
 Both include SQL pages/values through the common dataset; see
 [acceptance](acceptance.md). These convenience entries do not force a profile

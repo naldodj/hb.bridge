@@ -26,7 +26,7 @@ registra resultados verificados; ChangeLog e Git preservam o histórico.
   negócio. hbBridge executa SQL/parâmetros explícitos. Começar por SELECTs de
   constantes e fixture isolada de leitura; preservar tabelas ERP de produção.
 - Perfis continuam aliases opacos selecionados explicitamente por chamada.
-  `mssql/pData` é exemplo, sem perfil obrigatório nem resolução de contexto.
+  `MSSQL/pData` é exemplo, sem perfil obrigatório nem resolução de contexto.
 - Usar string ODBC completa privada ou chaves MSSQL estruturadas, com
   autenticação SQL/integrada explícita. Credenciais
   cifradas/CLI portáveis ficam para pacote posterior; sua implementação não é
@@ -164,7 +164,7 @@ do produto **18.6.2.1**, x64; Driver 17 também disponível. Identidade do conso
 
 O operador escolheu preencher um INI privado, sem conexão pronta.
 `C:/tmp/hbBridge.ini` continha inicialmente apenas o perfil SQL `sqlite_demo`.
-Em 2026-10-08 foi acrescentado um modelo comentado `mssql/pData`, com backup
+Em 2026-10-08 foi acrescentado um modelo comentado `MSSQL/pData`, com backup
 privado e preservação byte a byte das configurações existentes. Ele usa DSN
 `pData` instalado, `Authentication=sql` explícita e campos `Username`/`Password`
 vazios para preenchimento local e remoção dos comentários pelo operador. A
@@ -181,7 +181,7 @@ M01 está concluída. Nenhuma credencial foi alterada ou copiada ao repositório
 A rota nativa dedicada compilou. Quatro casos controlados de argumento/
 configuração/perfil ausente ou backend incorreto retornaram saída 2, sem abrir
 conexão SQL. M02 está concluída. A rota opt-in é
-`scripts/test-hbbridge-mssql.ps1 -Config C:/tmp/hbBridge.ini -Profile mssql/pData`;
+`scripts/test-hbbridge-mssql.ps1 -Config C:/tmp/hbBridge.ini -Profile MSSQL/pData`;
 compila componentes compartilhados independentemente do host instalado e
 informa falta de pré-requisito com saída 2. Sua primeira conexão nativa real
 retornou `CONNECTION_FAILED`: uma comparação reproduziu Driver Manager `IM002`
@@ -207,7 +207,7 @@ M08 ainda exige TCP/HTTP e memória. A regressão padrão passou em **566 checks
 zero falhas/sem skips**: `tmp/tests-f84004277a8d4cc2905131f706a1e181/results.log`.
 
 O operador forneceu execuções TCP em 2026-10-08, horário de São Paulo:
-`U_HBBridgeQueryTestMSSQL`, 10:06:10, thread 660, perfil `mssql/pData`, e
+`U_HBBridgeQueryTestMSSQL`, 10:06:10, thread 660, perfil `MSSQL/pData`, e
 `U_HBBridgeQueryTestSQLite`, 10:06:43, thread 3192, perfil `sqlite_demo`.
 Ambos os relatos contêm os 29 checks verdadeiros. O operador acrescentou esses
 wrappers ao teste TLPP existente; seus padrões continuam somente nos testes,
@@ -219,7 +219,7 @@ O operador também forneceu execuções HTTP em 2026-10-08, horário de São Pau
 `U_HBBridgeHTTPTestMSSQL`, programa 10:33:32, thread 25976, corpo 10:33:33–34,
 e `U_HBBridgeHTTPTestSQLite`, programa 10:34:06, thread 9916, corpo 10:34:07.
 Ambas contêm os 13 checks true/PASS e Health HTTP 200. Os wrappers acrescentados
-pelo operador e conferidos no fonte definem `mssql/pData` e `sqlite_demo`,
+pelo operador e conferidos no fonte definem `MSSQL/pData` e `sqlite_demo`,
 respectivamente, encaminhando ao teste HTTP comum; padrões da biblioteca preservados.
 Evidência: `tmp/protheus-http-mssql-sqlite-operator-20261008.log`.
 M05 homologada nesses casos. A duração informada de 1 s/0 s tem resolução de

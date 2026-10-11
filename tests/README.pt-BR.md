@@ -99,7 +99,7 @@ teste retorna `PROFILE_REQUIRED` antes do acesso à rede. `sqlite_demo` é
 somente o perfil do exemplo. Alinhe a seção para
 outros perfis/portas ou use a chamada explícita mostrada pelo launcher.
 Alterar apenas o perfil no host não exige recompilar o TLPP já atualizado.
-Cada consulta/dataset escolhe um alias opaco, como `mssql/pData`, sem inferir
+Cada consulta/dataset escolhe um alias opaco, como `MSSQL/pData`, sem inferir
 tenant, empresa, filial/xFilial ou tabelas; essas regras pertencem ao Protheus.
 Um nome `oracle/alias` não habilita um conector Oracle, ainda futuro.
 INI e JSON são aceitos; para INI, recompile o produto que fornece
@@ -175,7 +175,7 @@ Depois, o operador passou nos **13 checks HTTP de cada backend**, em 2026-10-08:
 10:33:33–10:33:34 (um segundo); `U_HBBridgeHTTPTestSQLite`, thread 9916,
 início do programa 10:34:06, teste 10:34:07 (zero segundos exibidos). Horários
 de São Paulo. Ambos incluem primeira/próxima página e valores do dataset
-comum; os padrões das entradas selecionam `mssql/pData` e `sqlite_demo`.
+comum; os padrões das entradas selecionam `MSSQL/pData` e `sqlite_demo`.
 São execuções AppServer do operador, separadas da automação nativa. Transcrição:
 `tmp/protheus-http-mssql-sqlite-operator-20261008.log`.
 Veja [homologação](../docs/acceptance.pt-BR.md). A nova solicitação de dataset e
@@ -280,7 +280,7 @@ Prepare um perfil privado com as [chaves de credenciais](../docs/configuration.p
 e execute:
 
 ```powershell
-./scripts/test-hbbridge-mssql.ps1 -Config C:/tmp/hbBridge.ini -Profile mssql/pData
+./scripts/test-hbbridge-mssql.ps1 -Config C:/tmp/hbBridge.ini -Profile MSSQL/pData
 ```
 
 O [alvo MSSQL](integration/harbour/hbbridgemssqltest.hbp) usa os componentes
@@ -302,7 +302,7 @@ MSSQL nem execução AppServer/HTTP.
 
 A execução de 2026-10-08 passou em **92 checks, zero falhas e nenhum skip**
 com SQL Server `16.0.1200.5`, banco `pData`, ODBC Driver `18.6.2.1`, Windows x64
-e Harbour `UTF8EX`, autenticação SQL e alias `mssql/pData`. Log:
+e Harbour `UTF8EX`, autenticação SQL e alias `MSSQL/pData`. Log:
 `tmp/mssql-tests-b3d676f0daaf470a97af605a98a9681c/results.log`.
 O [patch SDDODBC](../config/patches/sddodbc.patch) preparado pelo build cobre
 leitura incremental de `SQL_NO_TOTAL`, flag de campo binário e pares

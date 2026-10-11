@@ -21,7 +21,7 @@ regras ERP. Veja [arquitetura](docs/architecture.pt-BR.md).
 
 SQLProfile é opcional e agora tem padrão vazio na biblioteca e no template.
 sqlite_demo pertence apenas ao exemplo SQLite. Cada `OpenSQL`/`OpenPage` escolhe
-um alias, como mssql/pData; barra e maiúsculas são preservadas sem dedução de
+um alias, como MSSQL/pData; barra e maiúsculas são preservadas sem dedução de
 driver, empresa ou filial. O teste sem alias/SQLProfile retorna PROFILE_REQUIRED
 antes da rede. Drivers atuais: sqlite e mssql; Oracle exige conector e aceite
 próprios. A configuração revisada e as classes renomeadas foram homologadas
@@ -150,8 +150,8 @@ Harbour, preservando a programação xBase na camada de serviços.
 | Módulos Harbour | Compilação em memória de `.prg`/`.hb` e carregamento de `.hrb` pelo serviço `ADDON.Execute`, com `module` e `params`. |
 | hbnetio | Listener nativo incorporado em `0.0.0.0:2941`, RPC filtrado e serialização Harbour. `HB_EXTERN` habilitado; gateway usa somente serviços registrados. |
 | HTTP/REST | `hbhttpd` incorporado, opcional e desativado por padrão. Chamadas JSON e status web autenticado usam o núcleo comum; credenciais de serviço/administração separadas. HTTPS direto exige build com OpenSSL e homologação própria. |
-| Cliente HTTP Protheus | `HBBridgeHTTPClient` usa FWRest nativo, bearer e contrato JSON compartilhado. Operador homologou 13 checks em cada banco MSSQL e SQLite em 2026-10-08, incluindo paginação SQL; wrappers selecionam `mssql/pData` e `sqlite_demo`. |
-| Dados SQL | `RPCRDD.Query` usa SQLMIX com SQLite e MSSQL/ODBC; suporta páginas no SGBD e resultados por chave. Em 2026-10-08 passaram 92 checks MSSQL nativos; operador homologou 29 checks Protheus TCP e 13 HTTP em cada perfil, `mssql/pData` e `sqlite_demo`. Falhas/tipos/plataformas ampliados mantêm seus aceites. |
+| Cliente HTTP Protheus | `HBBridgeHTTPClient` usa FWRest nativo, bearer e contrato JSON compartilhado. Operador homologou 13 checks em cada banco MSSQL e SQLite em 2026-10-08, incluindo paginação SQL; wrappers selecionam `MSSQL/pData` e `sqlite_demo`. |
+| Dados SQL | `RPCRDD.Query` usa SQLMIX com SQLite e MSSQL/ODBC; suporta páginas no SGBD e resultados por chave. Em 2026-10-08 passaram 92 checks MSSQL nativos; operador homologou 29 checks Protheus TCP e 13 HTTP em cada perfil, `MSSQL/pData` e `sqlite_demo`. Falhas/tipos/plataformas ampliados mantêm seus aceites. |
 | Dados DBF | Acesso por RDDs nativos via NETIO previsto; ainda não integrado ao hbBridge. |
 | VF IO | Cliente Harbour usa `hb_vf*` com provedor NETIO; leitura/escrita binária testadas. Fachada de arquivos para TLPP permanece pendente. |
 | C e Zig | Ponte pela API C do Harbour e ABI C do Zig integrada ao `Health`; biblioteca Zig e toolchain exigidos pelo build atual. |
@@ -180,7 +180,7 @@ essa regressão Windows; não foram fornecidos log de compilação, argumentos,
 destino efetivo nem hashes dos artefatos. O backend SQL HTTP não foi identificado.
 Em 2026-10-08 passaram 92 checks MSSQL nativos em SQL Server `16.0.1200.5`,
 banco `pData`, ODBC Driver `18.6.2.1` x64 e autenticação SQL. O operador também
-homologou 29 checks TCP e 13 HTTP em cada perfil, `mssql/pData` e `sqlite_demo`;
+homologou 29 checks TCP e 13 HTTP em cada perfil, `MSSQL/pData` e `sqlite_demo`;
 threads HTTP 25976/9916 usaram os wrappers específicos por backend.
 Destino alternativo, HTTPS, falhas/tipos ampliados e Linux exigem homologação própria.
 
@@ -363,7 +363,7 @@ thread 25456 às 16:15:03–16:15:04 (São Paulo), cada uma em um segundo.
 O backend SQL HTTP não foi identificado; a rodada TCP Query separada
 informou explicitamente SQLite.
 Em 2026-10-08, `U_HBBridgeHTTPTestMSSQL()` e `U_HBBridgeHTTPTestSQLite()`
-passaram nos 13 checks cada, com aliases SQL padrão explícitos `mssql/pData`
+passaram nos 13 checks cada, com aliases SQL padrão explícitos `MSSQL/pData`
 e `sqlite_demo`. Os argumentos de transporte continuam usando o INI ativo.
 Veja [o aceite datado](docs/acceptance.pt-BR.md#homologação-http-protheus-mssql-e-sqlite-pelo-operador-em-2026-10-08).
 

@@ -41,7 +41,7 @@ only a server profile needs no TLPP recompile.
 
 ```powershell
 ./examples/sql/run.ps1 -Config config/examples/mssql.ini -Profile mssql_demo
-./examples/sql/run.ps1 -Config config/examples/databases.ini -Profile mssql/pData
+./examples/sql/run.ps1 -Config config/examples/databases.ini -Profile MSSQL/pData
 ```
 
 Configure an ODBC driver/DSN for the hbBridge process architecture. The
@@ -54,7 +54,7 @@ process identity; Linux requires Kerberos. The
 [configuration guide](../../docs/configuration.md#mssql-profiles) covers
 SQL-login credentials, DSN-less destinations, JSON keys and encryption options.
 The [multiple-profile example](../../config/examples/databases.ini)
-contains SQLite and `mssql/pData`. Aliases are opaque, case-sensitive keys;
+contains SQLite and `MSSQL/pData`. Aliases are opaque, case-sensitive keys;
 each call/dataset may select another alias. Their names do not resolve tenant,
 company, branch, physical tables or ERP rules; Protheus prepares those inputs.
 Oracle is a future connector, not implied support from an `oracle/alias` name.
@@ -62,7 +62,7 @@ See [architecture](../../docs/architecture.md) and
 [credential design](../../docs/credentials.md).
 
 ```advpl
-U_HBBridgeQueryTest("mssql/pData", "127.0.0.1", 1512, 30000)
+U_HBBridgeQueryTest("MSSQL/pData", "127.0.0.1", 1512, 30000)
 ```
 
 The launcher shows a usable local destination for wildcard bind; remote
@@ -82,7 +82,7 @@ See [milestone 3](../../docs/milestone3-sql.md),
 ## Private MSSQL configuration and native acceptance
 
 For a SQL login, fill the existing username and password in the prepared
-`[SQL/mssql/pData]` template in `C:/tmp/hbBridge.ini`. Keep the whole template
+`[SQL/MSSQL/pData]` template in `C:/tmp/hbBridge.ini`. Keep the whole template
 commented until it is complete, then uncomment its lines. It uses `Driver=mssql`,
 `DSN=pData`, `Database=pData`, `Authentication=sql`, `Username` and `Password`;
 the [field reference](../../docs/configuration.md#mssql-profiles) includes a
@@ -104,7 +104,7 @@ Rebuild the product and validate the completed file without opening a database:
 Run the dedicated native MSSQL acceptance only after the profile is ready:
 
 ```powershell
-./scripts/test-hbbridge-mssql.ps1 -Config C:/tmp/hbBridge.ini -Profile mssql/pData
+./scripts/test-hbbridge-mssql.ps1 -Config C:/tmp/hbBridge.ini -Profile MSSQL/pData
 ```
 
 Both arguments are required. This runner builds the current shared product
@@ -126,10 +126,10 @@ never successful MSSQL tests. This command does not execute the separate
 For Protheus acceptance, start the product with the same private profile:
 
 ```powershell
-./examples/sql/run.ps1 -Config C:/tmp/hbBridge.ini -Profile mssql/pData
+./examples/sql/run.ps1 -Config C:/tmp/hbBridge.ini -Profile MSSQL/pData
 ```
 
-Then run `U_HBBridgeQueryTest("mssql/pData", "127.0.0.1", 1512, 30000)` with
+Then run `U_HBBridgeQueryTest("MSSQL/pData", "127.0.0.1", 1512, 30000)` with
 the actual client destination. Use the same explicit alias for
 [HTTP acceptance](../http/README.md). The convenience entries
 `U_HBBridgeQueryTestMSSQL()` and `U_HBBridgeQueryTestSQLite()` provide the

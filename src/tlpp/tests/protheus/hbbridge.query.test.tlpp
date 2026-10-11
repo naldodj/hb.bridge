@@ -2,7 +2,7 @@
 #include "protheus.ch"
 
 procedure U_HBBridgeQueryTestMSSQL(cAliasProfile, cHost, nPort, nTimeout)
-    DEFAULT cAliasProfile:="mssql/pData"
+    DEFAULT cAliasProfile:="MSSQL/pData"
     DEFAULT cHost:="127.0.0.1"
     DEFAULT nPort:=1512
     DEFAULT nTimeout:=30000
@@ -75,7 +75,7 @@ static procedure HBBridgeQueryTest(cAliasProfile, cHost, nPort, nTimeout)
 
     if Empty(cAliasProfile)
         ConOut("hbBridge RPCRDD.Query FAILED: PROFILE_REQUIRED; supply a profile alias or configure SQLProfile.")
-        ConOut('SQLite example: U_HBBridgeQueryTest("sqlite_demo"). MSSQL example: U_HBBridgeQueryTest("mssql/pData").')
+        ConOut('SQLite example: U_HBBridgeQueryTest("sqlite_demo"). MSSQL example: U_HBBridgeQueryTest("MSSQL/pData").')
         FreeObj(@jChecks)
         return
     endif
@@ -156,7 +156,7 @@ static procedure HBBridgeQueryTest(cAliasProfile, cHost, nPort, nTimeout)
     ConOut("hbBridge RPCRDD.Query checks: " + jChecks:ToJSON())
     ConOut("hbBridge RPCRDD.Query Protheus " + IIf(lOk, "OK", "FAILED") + "; profile=" + cAliasProfile)
 
-    if (cAliasProfile=="mssql/pData")
+    if (cAliasProfile=="MSSQL/pData")
         //resolver Code Pages and Collations
         cSQL:="SELECT TOP 10 * FROM SX5990 WHERE D_E_L_E_T_=' '"
         ConOut("hbBridge RPCRDD.Query SQL: " + cSQL)

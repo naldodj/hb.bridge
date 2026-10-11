@@ -428,7 +428,7 @@ O build isolado passou em `tmp/http-product-20261007/hbbridge.exe`, SHA256
 Log de build: `tmp/http-product-build-20261007.log`; configuração:
 `tmp/http-product-config-20261007.log`. O executável preservou HTTP desativado/
 perfis vazios por padrão, overrides de bind wildcard/porta, aliases
-`sqlite_demo`/`mssql/pData` e saída sem segredos/strings de conexão.
+`sqlite_demo`/`MSSQL/pData` e saída sem segredos/strings de conexão.
 A inspeção de metadados não iniciou listeners nem consultou os bancos.
 
 O crivo final passou para **135 arquivos**, incluindo `check.hb`, `commit.hb`,
@@ -568,7 +568,7 @@ em `DNA-TECH-01` e a pilha `tttm120.rpo`, `tlpp.rpo`, `custom.rpo`.
 
 | Programa | Início informado / thread | Resultado |
 | --- | --- | --- |
-| `U_HBBridgeQueryTestMSSQL` | 10:06:10 / 660 | Todos os 29 checks true; `Protheus OK; profile=mssql/pData`. |
+| `U_HBBridgeQueryTestMSSQL` | 10:06:10 / 660 | Todos os 29 checks true; `Protheus OK; profile=MSSQL/pData`. |
 | `U_HBBridgeQueryTestSQLite` | 10:06:43 / 3192 | Todos os 29 checks true; `Protheus OK; profile=sqlite_demo`. |
 
 Os checks cobrem campos nomeados e decimais, campos ausentes, EOF/close,
@@ -595,7 +595,7 @@ falhas e nenhum skip** no banco SQL Server real. Evidências:
 | Componente | Valor exercitado |
 | --- | --- |
 | Plataforma | Windows x64. |
-| Alias SQL / banco | `mssql/pData` / `pData`. |
+| Alias SQL / banco | `MSSQL/pData` / `pData`. |
 | SQL Server | `16.0.1200.5`. |
 | Driver ODBC | Microsoft ODBC Driver 18, `18.6.2.1`, x64. |
 | Autenticação | Login SQL da configuração privada do servidor; sem credenciais nas evidências. |
@@ -660,7 +660,7 @@ identifica `marin` em `DNA-TECH-01` e a mesma pilha `tttm120.rpo`, `tlpp.rpo`,
 
 | Programa / perfil SQL padrão | Execução informada | Resultado |
 | --- | --- | --- |
-| `U_HBBridgeHTTPTestMSSQL` / `mssql/pData` | Programa 10:33:32, thread 25976; teste 10:33:33–10:33:34 | Todos os 13 checks true/PASS, Health HTTP 200; duração 00:00:01. |
+| `U_HBBridgeHTTPTestMSSQL` / `MSSQL/pData` | Programa 10:33:32, thread 25976; teste 10:33:33–10:33:34 | Todos os 13 checks true/PASS, Health HTTP 200; duração 00:00:01. |
 | `U_HBBridgeHTTPTestSQLite` / `sqlite_demo` | Programa 10:34:06, thread 9916; teste 10:34:07–10:34:07 | Todos os 13 checks true/PASS, Health HTTP 200; duração 00:00:00. |
 
 Os [wrappers HTTP do operador](../src/tlpp/tests/protheus/hbbridgehttptest.tlpp)
@@ -670,7 +670,7 @@ transporte são omitidos. Ambos passaram em `healthGet`, `healthPost`,
 `servicesGet`, `echo`, `addon`, `unknownService`, `adminForbidden`,
 `unauthorized`, `afterFailure`, `queryFirstPage`, `queryFirstValue`,
 `queryNextPage` e `queryLastValue`. Isso homologa M05 nos 13 casos exercitados
-com `mssql/pData`, incluindo os valores das páginas HTTP do dataset comum,
+com `MSSQL/pData`, incluindo os valores das páginas HTTP do dataset comum,
 e repete a regressão HTTP SQLite.
 
 São execuções AppServer do operador, sem log de sucesso do compilador nem

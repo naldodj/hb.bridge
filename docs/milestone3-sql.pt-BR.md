@@ -15,7 +15,7 @@ Windows alvo; não demonstrava MSSQL nem destinos não padrão.
 Em 2026-10-08, a rota nativa MSSQL passou em **92 checks, zero falhas e nenhum
 skip** com SQL Server `16.0.1200.5`, banco `pData`, ODBC Driver `18.6.2.1`,
 Windows x64 e Harbour `UTF8EX`. Separadamente, o operador passou nos
-**29 checks TCP e 13 HTTP de cada backend**, MSSQL (`mssql/pData`) e SQLite
+**29 checks TCP e 13 HTTP de cada backend**, MSSQL (`MSSQL/pData`) e SQLite
 (`sqlite_demo`). São resultados delimitados nativos e do operador; cenários
 ampliados de falha/tipos/recursos/desempenho, HTTPS, identidades de serviço e
 Linux continuam previstos. A nova solicitação de dataset e os problemas
@@ -234,7 +234,7 @@ servidor, sem alterar o INI do AppServer. Para MSSQL ou outra porta, alinhe a
 seção cliente ou use a chamada explícita mostrada pelo launcher.
 O teste de conexão já homologado permanece em `U_HBBridgeConnectionTest`.
 
-Cada consulta/dataset pode escolher seu alias, como `mssql/pData`, no mesmo
+Cada consulta/dataset pode escolher seu alias, como `MSSQL/pData`, no mesmo
 cliente. Os aliases são opacos e distinguem maiúsculas/minúsculas; um nome
 `oracle/alias` não implementa um driver Oracle. A validação atual admite
 somente `sqlite` e `mssql`. O Protheus resolve tenant, empresa, filial/xFilial

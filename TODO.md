@@ -346,7 +346,7 @@ per-value limits; tested slow-consumer/invalid-decode/disconnect behavior.
   Compiling this route does not certify a database connection.
 - [x] HBBridgeRPCDataSet with JSONObject, U_HBBridgeQueryTest, explicit pages,
   errors/EOF/close, common SQL/minimal launchers and alternate profile/config.
-- [x] SQL aliases are opaque/case-sensitive, including mssql/pData; multiple
+- [x] SQL aliases are opaque/case-sensitive, including MSSQL/pData; multiple
   profiles coexist. Optional client default is empty; explicit call wins.
 - [x] SQLite file/concurrency/NETIO-vs-TCP regressions; operator 29-check dataset/
   pagination acceptance 2026-10-04 00:40:06 and later reconfirmations,
@@ -355,9 +355,9 @@ per-value limits; tested slow-consumer/invalid-decode/disconnect behavior.
   SQL Server 16.0.1200.5, database/DSN pData, ODBC Driver 18.6.2.1 x64,
   SQL authentication; long text/binary, null/empty, Unicode and cleanup.
 - [x] Operator Protheus TCP MSSQL and SQLite acceptance: all 29 checks each,
-  2026-10-08, profiles `mssql/pData` and `sqlite_demo`.
+  2026-10-08, profiles `MSSQL/pData` and `sqlite_demo`.
 - [x] Operator explicit MSSQL/SQLite Protheus HTTP acceptance: 13 checks each,
-  2026-10-08, wrappers select `mssql/pData`/`sqlite_demo`, threads 25976/9916.
+  2026-10-08, wrappers select `MSSQL/pData`/`sqlite_demo`, threads 25976/9916.
 - [ ] Remaining package 001 failure/timeout, isolation and transport/memory
   baseline cases in [WIP](WIP.md).
 - [ ] Unavailable connector, broader type/null coverage and real volume in
