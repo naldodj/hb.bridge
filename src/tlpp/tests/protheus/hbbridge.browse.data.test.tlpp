@@ -41,6 +41,7 @@ static procedure __Execute(jParameters as json)
     local cSQL as character
     local cHost as character
     local cAlias as character
+    local cATRecNoMsMGet as character
     local cIniFile as character
     local cAliasProfile as character
 
@@ -84,6 +85,12 @@ static procedure __Execute(jParameters as json)
                 break
             endif
 
+            if (jParameters:HasProperty("cATRecNoMsMGet"))
+                cATRecNoMsMGet:=jParameters["cATRecNoMsMGet"]
+            else
+                cATRecNoMsMGet:="R_E_C_N_O_"
+            endif
+
             cIniFile:=GetSrvIniName()
             cHost:=GetPvProfString("hbBridge","Host","127.0.0.1",cIniFile)
             nPort:=Val(GetPvProfString("hbBridge","Port","1512",cIniFile))
@@ -112,7 +119,7 @@ static procedure __Execute(jParameters as json)
                     );
                     ,nil;
                 );
-                ,HBBridge.Client.HBBridgeMsMGetEx():ViewData(cAlias,aFWBrwData[oFWBrowse:AT()]["R_E_C_N_O_"],"HBBridge.Client.HBBridgeBrowseData",nil,aAcho);
+                ,if(oDataSet:FieldExist(cATRecNoMsMGet),HBBridge.Client.HBBridgeMsMGetEx():ViewData(cAlias,aFWBrwData[oFWBrowse:AT()][cATRecNoMsMGet],"HBBridge.Client.HBBridgeBrowseData",nil,aAcho),nil);
             }
 
             aCustomButtons:=Array(1,7)

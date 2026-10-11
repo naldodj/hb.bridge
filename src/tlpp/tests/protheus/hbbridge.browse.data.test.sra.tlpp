@@ -40,6 +40,7 @@ procedure U_HBBridgeBrowseDataTestSRA()
         ,"RA_CC";
         ,"CTT_DESC01";
     }
+    jParameters["cATRecNoMsMGet"]:="R_E_C_N_O_"
     U_HBBridgeBrowseDataTest(jParameters)
     if (Select(cAliasTmp)>0)
         (cAliasTmp)->(dbCloseArea())

@@ -2,19 +2,31 @@
 #include "protheus.ch"
 
 procedure U_HBBridgeQueryTestMSSQL(cAliasProfile, cHost, nPort, nTimeout)
-    DEFAULT cAliasProfile:="MSSQL/pData"
-    DEFAULT cHost:="127.0.0.1"
-    DEFAULT nPort:=1512
+
+    local aFWGetTopInfo:=FWGetTopInfo() as array
+    local cIniFile:=GetSrvIniName() as character
+
+    DEFAULT cAliasProfile:=(aFWGetTopInfo[4]+"/"+aFWGetTopInfo[5])
+    FWFreeArray(@aFWGetTopInfo)
+    DEFAULT cHost:=GetPvProfString("hbBridge","Host","127.0.0.1",cIniFile)
+    DEFAULT nPort:=Val(GetPvProfString("hbBridge","Port","1512",cIniFile))
     DEFAULT nTimeout:=30000
+
     U_HBBridgeQueryTest(cAliasProfile, cHost, nPort, nTimeout)
+
 return
 
 procedure U_HBBridgeQueryTestSQLite(cAliasProfile, cHost, nPort, nTimeout)
+
+    local cIniFile:=GetSrvIniName() as character
+
     DEFAULT cAliasProfile:="sqlite_demo"
-    DEFAULT cHost:="127.0.0.1"
-    DEFAULT nPort:=1512
+    DEFAULT cHost:=GetPvProfString("hbBridge","Host","127.0.0.1",cIniFile)
+    DEFAULT nPort:=Val(GetPvProfString("hbBridge","Port","1512",cIniFile))
     DEFAULT nTimeout:=30000
+
     U_HBBridgeQueryTest(cAliasProfile, cHost, nPort, nTimeout)
+
 return
 
 procedure U_HBBridgeQueryTest(cAliasProfile, cHost, nPort, nTimeout)

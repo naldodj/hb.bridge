@@ -23,6 +23,7 @@ procedure U_HBBridgeBrowseDataTestSX5()
         ,"X5_CHAVE";
         ,"X5_DESCRI";
     }
+    jParameters["cATRecNoMsMGet"]:="R_E_C_N_O_"
     U_HBBridgeBrowseDataTest(jParameters)
     if (Select(cAlias)>0)
         (cAlias)->(dbCloseArea())

@@ -3,34 +3,38 @@
 | |__  | |__  | |__   _ __ (_)  __| |  __ _   ___     _ __  _ __    ___      __| |  __ _ | |_   __ _  ___   ___ | |_
 | '_ \ | '_ \ | '_ \ | '__|| | / _` | / _` | / _ \   | '__|| '_ \  / __|    / _` | / _` || __| / _` |/ __| / _ \| __|
 | | | || |_) || |_) || |   | || (_| || (_| ||  __/ _ | |   | |_) || (__  _ | (_| || (_| || |_ | (_| |\__ \|  __/| |_
-|_| |_||_.__/ |_.__/ |_|   |_| \__,_| \__, | \___|(_)|_|   | .__/  \___|(_) \__,_| \__,_| \__| \__,_||___/ \___| \__|
+|_| |_||_.__/ |_.__/ |_|   |_| \__,_| \__,| \___|(_)|_|   | .__/  \___|(_) \__,_| \__,_| \__| \__,_||___/ \___| \__|
                                       |___/                |_|
 
 Released to Public Domain.
 --------------------------------------------------------------------------------------
 */
 
+#include "parmtype.ch"
 #include "tlpp-core.th"
 
 namespace HBBridge.RDD
 
 class HBBridgeRPCDataSet
 
-    private data oClient as object
-    private data jResult as json
-    private data jFieldNames as json
-    private data nRowIndex as numeric
-    private data nTotalRows as numeric
-    private data nTotalFields as numeric
+    private data cSql as character
+    private data cOrderBy as character
     private data cErrorCode as character
     private data cErrorMessage as character
     private data cAliasProfile as character
-    private data cSql as character
-    private data cOrderBy as character
+
+    private data jResult as json
+    private data jFieldNames as json
+
+    private data oClient as object
+
+    private data nRowIndex as numeric
+    private data nTotalRows as numeric
+    private data nTotalFields as numeric
 
     public method New(oClient as object) as object
-    public method OpenSQL(cSql as character, jPage as json) as logical
-    public method OpenPage(cSql as character, nPage as numeric, nSize as numeric, cOrderBy as character) as logical
+    public method OpenSQL(cSql as character,jPage as json) as logical
+    public method OpenPage(cSql as character,nPage as numeric,nSize as numeric,cOrderBy as character) as logical
     public method PreviousPage() as logical
     public method HasPreviousPage() as logical
     public method NextPage() as logical
@@ -41,6 +45,7 @@ class HBBridgeRPCDataSet
     public method TotalPages() as numeric
     public method MoreToRead() as logical
     public method Header() as json
+    public method FieldExist(cFieldName) as logical
     public method FieldInfo(cFieldName as character) as json
     public method FieldCount() as numeric
     public method FieldName(nPosition as numeric) as character
@@ -61,179 +66,207 @@ endclass
 
 method New(oClient) class HBBridgeRPCDataSet
 
-    self:oClient := oClient
-    if ValType(self:oClient) == "U"
-        self:oClient := HBBridge.Client.HBBridgeClient():New()
+    self:oClient:=oClient
+    if (ValType(self:oClient)=="U")
+        self:oClient:=HBBridge.Client.HBBridgeClient():New()
     endif
-    self:jResult := Nil
-    self:jFieldNames := Nil
-    self:nRowIndex := 0
-    self:nTotalRows := 0
-    self:nTotalFields := 0
-    self:cErrorCode := ""
-    self:cErrorMessage := ""
-    self:cAliasProfile := ""
-    self:cSql := ""
-    self:cOrderBy := ""
+    self:jResult:=nil
+    self:jFieldNames:=nil
+    self:nRowIndex:=0
+    self:nTotalRows:=0
+    self:nTotalFields:=0
+    self:cErrorCode:=""
+    self:cErrorMessage:=""
+    self:cAliasProfile:=""
+    self:cSql:=""
+    self:cOrderBy:=""
 
 return(self)
 
-method OpenSQL(cSql, jPage) class HBBridgeRPCDataSet
+method OpenSQL(cSql,jPage) class HBBridgeRPCDataSet
 
-    local jParams := JSONObject():New() as json
+    local aNames as array
+
+    local cRowKey:="" as character
+    local cPosition:="" as character
+    local cFieldName:="" as character
+    local cAliasProfile:=self:cAliasProfile as character
+
+    local jParams:=JSONObject():New() as json
     local jResponse as json
     local jFieldNames as json
-    local aNames as array
-    local cFieldName := "" as character
-    local cAliasProfile:=self:cAliasProfile as character
-    local cPosition := "" as character
-    local cRowKey := "" as character
-    local nField := 0 as numeric
-    local nFields := 0 as numeric
-    local nPosition := 0 as numeric
-    local nRow := 0 as numeric
-    local lValid := .F. as logical
+
+    local lValid:=.F. as logical
+
+    local nRow:=0 as numeric
+    local nField:=0 as numeric
+    local nFields:=0 as numeric
+    local nPosition:=0 as numeric
+
+    paramtype 1 var cSql as character
+    paramtype 2 var jPage as json optional
 
     self:Close()
     self:cAliasProfile:=cAliasProfile
-    jParams["alias"] := self:cAliasProfile
-    jParams["sql"] := cSql
-    if ValType(jPage) $ "JO"
-        jParams["page"] := jPage
+    jParams["alias"]:=self:cAliasProfile
+    jParams["sql"]:=cSql
+    if (ValType(jPage)=="J")
+        jParams["page"]:=jPage
     endif
-    jResponse := self:oClient:CallService("RPCRDD.Query", jParams)
+    jResponse:=self:oClient:CallService("RPCRDD.Query",jParams)
     FreeObj(@jParams)
 
-    if !(ValType(jResponse) $ "JO")
-        self:cErrorCode := "INVALID_RESULT"
-        self:cErrorMessage := "SQL query result does not match the keyed dataset contract."
+    if (ValType(jResponse)!="J")
+        self:cErrorCode:="INVALID_RESULT"
+        self:cErrorMessage:="SQL query result does not match the keyed dataset contract."
         return(.F.)
     endif
 
-    if jResponse:HasProperty("success")
-        if ValType(jResponse["success"]) == "L"
-            lValid := jResponse["success"]
+    if (jResponse:HasProperty("success"))
+        if (ValType(jResponse["success"])=="L")
+            lValid:=jResponse["success"]
         endif
     endif
-    if !lValid
-        self:cErrorCode := "QUERY_FAILED"
-        self:cErrorMessage := "SQL query failed."
-        if jResponse:HasProperty("code")
-            if ValType(jResponse["code"]) == "C"
-                self:cErrorCode := jResponse["code"]
+
+    if (!lValid)
+        self:cErrorCode:="QUERY_FAILED"
+        self:cErrorMessage:="SQL query failed."
+        if (jResponse:HasProperty("code"))
+            if (ValType(jResponse["code"])=="C")
+                self:cErrorCode:=jResponse["code"]
             endif
         endif
-        if jResponse:HasProperty("error")
-            if ValType(jResponse["error"]) == "C"
-                self:cErrorMessage := jResponse["error"]
+        if (jResponse:HasProperty("error"))
+            if (ValType(jResponse["error"])=="C")
+                self:cErrorMessage:=jResponse["error"]
             endif
         endif
         FreeObj(@jResponse)
         return(.F.)
     endif
 
-    lValid := jResponse:HasProperty("header") .and. jResponse:HasProperty("rows") .and. ;
-        jResponse:HasProperty("rowCount") .and. jResponse:HasProperty("resultVersion")
-    if lValid
-        lValid := ValType(jResponse["header"]) $ "JO" .and. ;
-            ValType(jResponse["rows"]) $ "JO" .and. ;
-            ValType(jResponse["rowCount"]) == "N" .and. ;
-            ValType(jResponse["resultVersion"]) == "N"
+    lValid:=(;
+        jResponse:HasProperty("header");
+        .and. jResponse:HasProperty("rows");
+        .and. jResponse:HasProperty("rowCount");
+        .and. jResponse:HasProperty("resultVersion");
+    )
+
+    if (lValid)
+        lValid:=(;
+            (ValType(jResponse["header"])=="J");
+            .and. (ValType(jResponse["rows"])=="J");
+            .and. (ValType(jResponse["rowCount"])=="N");
+            .and. (ValType(jResponse["resultVersion"])=="N");
+        )
     endif
-    if lValid
-        lValid := jResponse["resultVersion"] == 1 .and. jResponse["rowCount"] >= 0 .and. ;
-            jResponse["rowCount"] == Int(jResponse["rowCount"])
+    if (lValid)
+        lValid:=(;
+            (jResponse["resultVersion"]==1);
+            .and. (jResponse["rowCount"]>=0);
+            .and. (jResponse["rowCount"]==Int(jResponse["rowCount"]));
+        )
     endif
-    if lValid
-        if ValType(jPage) $ "JO"
-            lValid := jResponse:HasProperty("page")
-            if lValid
-                lValid := ValType(jResponse["page"]) $ "JO"
+    if (lValid)
+        if (ValType(jPage)=="J")
+            lValid:=jResponse:HasProperty("page")
+            if (lValid)
+                lValid:=(ValType(jResponse["page"])=="J")
             endif
-            if lValid
-                lValid := jResponse["page"]:HasProperty("number") .and. ;
-                    jResponse["page"]:HasProperty("size") .and. ;
-                    jResponse["page"]:HasProperty("hasNext") .and. ;
-                    jResponse["page"]:HasProperty("firstRow") .and. ;
-                    jResponse["page"]:HasProperty("lastRow")
+            if (lValid)
+                lValid:=(;
+                    jResponse["page"]:HasProperty("number");
+                    .and. jResponse["page"]:HasProperty("size");
+                    .and. jResponse["page"]:HasProperty("hasNext");
+                    .and. jResponse["page"]:HasProperty("firstRow");
+                    .and. jResponse["page"]:HasProperty("lastRow");
+                )
             endif
-            if lValid
-                lValid := ValType(jResponse["page"]["number"]) == "N" .and. ;
-                    ValType(jResponse["page"]["size"]) == "N" .and. ;
-                    ValType(jResponse["page"]["hasNext"]) == "L" .and. ;
-                    ValType(jResponse["page"]["firstRow"]) == "N" .and. ;
-                    ValType(jResponse["page"]["lastRow"]) == "N"
+            if (lValid)
+                lValid:=(;
+                    (ValType(jResponse["page"]["number"])=="N");
+                    .and. (ValType(jResponse["page"]["size"])=="N");
+                    .and. (ValType(jResponse["page"]["hasNext"])=="L");
+                    .and. (ValType(jResponse["page"]["firstRow"])=="N");
+                    .and. (ValType(jResponse["page"]["lastRow"])=="N");
+                )
             endif
-            if lValid
-                lValid := jResponse["page"]["number"] == jPage["number"] .and. ;
-                    jResponse["page"]["size"] == jPage["size"] .and. ;
-                    jResponse["rowCount"] <= jPage["size"]
+            if (lValid)
+                lValid:=(;
+                    (jResponse["page"]["number"]==jPage["number"]);
+                    .and. (jResponse["page"]["size"]==jPage["size"]);
+                    .and. (jResponse["rowCount"]<=jPage["size"]);
+                )
             endif
-            if lValid
-                lValid := !jResponse["page"]["hasNext"] .or. jResponse["rowCount"] == jPage["size"]
-                if jResponse["rowCount"] == 0
-                    lValid := lValid .and. jResponse["page"]["firstRow"] == 0 .and. ;
-                        jResponse["page"]["lastRow"] == 0
+            if (lValid)
+                lValid:=((!jResponse["page"]["hasNext"]) .or. (jResponse["rowCount"]==jPage["size"]))
+                if (jResponse["rowCount"]==0)
+                    lValid:=(;
+                        (lValid);
+                        .and. (jResponse["page"]["firstRow"]==0);
+                        .and. (jResponse["page"]["lastRow"]==0);
+                    )
                 else
-                    lValid := lValid .and. jResponse["page"]["firstRow"] == ;
-                        (jPage["number"] - 1) * jPage["size"] + 1 .and. ;
-                        jResponse["page"]["lastRow"] == ;
-                        jResponse["page"]["firstRow"] + jResponse["rowCount"] - 1
+                    lValid:=(;
+                        (lValid);
+                        .and. (jResponse["page"]["firstRow"]==(jPage["number"]-1)*jPage["size"]+1);
+                        .and. (jResponse["page"]["lastRow"]==jResponse["page"]["firstRow"]+jResponse["rowCount"]-1);
+                    )
                 endif
             endif
         endif
     endif
-    if lValid
-        for nRow := 1 to jResponse["rowCount"]
-            cRowKey := tlpp.ToStr(nRow)
-            if !jResponse["rows"]:HasProperty(cRowKey)
-                lValid := .F.
+    if (lValid)
+        for nRow:=1 to jResponse["rowCount"]
+            cRowKey:=tlpp.ToStr(nRow)
+            if (!jResponse["rows"]:HasProperty(cRowKey))
+                lValid:=.F.
                 exit
             endif
-            if !(ValType(jResponse["rows"][cRowKey]) $ "JO")
-                lValid := .F.
+            if (ValType(jResponse["rows"][cRowKey])!="J")
+                lValid:=.F.
                 exit
             endif
         next
     endif
-    if lValid
-        jFieldNames := JSONObject():New()
-        // GetNames() requires an array. Allocate it once per open, then cache
-        // ordinal keys in JSON to avoid repeated copies, sorting or searches.
-        aNames := jResponse["header"]:GetNames()
-        nFields := Len(aNames)
-        for nField := 1 to nFields
-            cFieldName := aNames[nField]
-            if !(ValType(jResponse["header"][cFieldName]) $ "JO")
-                lValid := .F.
+    if (lValid)
+        jFieldNames:=JSONObject():New()
+        // GetNames() requires an array. Allocate it once per open,then cache
+        // ordinal keys in JSON to avoid repeated copies,sorting or searches.
+        aNames:=jResponse["header"]:GetNames()
+        nFields:=Len(aNames)
+        for nField:=1 to nFields
+            cFieldName:=aNames[nField]
+            if (ValType(jResponse["header"][cFieldName])!="J")
+                lValid:=.F.
                 exit
             endif
-            if !jResponse["header"][cFieldName]:HasProperty("position")
-                lValid := .F.
+            if (!jResponse["header"][cFieldName]:HasProperty("position"))
+                lValid:=.F.
                 exit
             endif
-            if ValType(jResponse["header"][cFieldName]["position"]) != "N"
-                lValid := .F.
+            if (ValType(jResponse["header"][cFieldName]["position"])!="N")
+                lValid:=.F.
                 exit
             endif
-            nPosition := jResponse["header"][cFieldName]["position"]
-            if nPosition < 1 .or. nPosition > nFields .or. nPosition != Int(nPosition)
-                lValid := .F.
+            nPosition:=jResponse["header"][cFieldName]["position"]
+            if ((nPosition<1).or.(nPosition>nFields).or.(nPosition!=Int(nPosition)))
+                lValid:=.F.
                 exit
             endif
-            cPosition := tlpp.ToStr(nPosition)
-            if jFieldNames:HasProperty(cPosition)
-                lValid := .F.
+            cPosition:=tlpp.ToStr(nPosition)
+            if (jFieldNames:HasProperty(cPosition))
+                lValid:=.F.
                 exit
             endif
-            jFieldNames[cPosition] := cFieldName
+            jFieldNames[cPosition]:=cFieldName
         next
-        aNames := Nil
+        aNames:=nil
     endif
-    if !lValid
-        self:cErrorCode := "INVALID_RESULT"
-        self:cErrorMessage := "SQL query result does not match the keyed dataset contract."
-        if ValType(jFieldNames) $ "JO"
+    if (!lValid)
+        self:cErrorCode:="INVALID_RESULT"
+        self:cErrorMessage:="SQL query result does not match the keyed dataset contract."
+        if (ValType(jFieldNames)=="J")
             FreeObj(@jFieldNames)
         endif
         FreeObj(@jResponse)
@@ -241,28 +274,36 @@ method OpenSQL(cSql, jPage) class HBBridgeRPCDataSet
     endif
 
     // Own the complete response so nested JSON objects retain their lifetime.
-    self:jResult := jResponse
-    self:jFieldNames := jFieldNames
-    self:nTotalRows := jResponse["rowCount"]
-    self:nTotalFields := nFields
-    self:nRowIndex := IIf(self:nTotalRows > 0, 1, 0)
-    self:cAliasProfile := cAliasProfile
-    self:cSql := cSql
-    if ValType(jPage) $ "JO"
-        self:cOrderBy := jPage["orderBy"]
+    self:jResult:=jResponse
+    self:jFieldNames:=jFieldNames
+    self:nTotalRows:=jResponse["rowCount"]
+    self:nTotalFields:=nFields
+    self:nRowIndex:=IIf(self:nTotalRows>0,1,0)
+    self:cAliasProfile:=cAliasProfile
+    self:cSql:=cSql
+    if (ValType(jPage)=="J")
+        self:cOrderBy:=jPage["orderBy"]
     endif
 
 return(.T.)
 
-method OpenPage(cSql, nPage, nSize, cOrderBy) class HBBridgeRPCDataSet
+method OpenPage(cSql,nPage,nSize,cOrderBy) class HBBridgeRPCDataSet
 
-    local jPage := JSONObject():New() as json
-    local lOpened := .F. as logical
+    local jPage as json
+    local lOpened:=.F. as logical
 
-    jPage["number"] := nPage
-    jPage["size"] := nSize
-    jPage["orderBy"] := cOrderBy
-    lOpened := self:OpenSQL(cSql, jPage)
+    paramtype 1 var cSql as character
+    paramtype 2 var nPage as numeric
+    paramtype 3 var nSize as numeric
+    paramtype 4 var cOrderBy as character
+
+    jPage:=JSONObject():New()
+    jPage["number"]:=nPage
+    jPage["size"]:=nSize
+    jPage["orderBy"]:=cOrderBy
+
+    lOpened:=self:OpenSQL(cSql,jPage)
+
     FreeObj(@jPage)
 
 return(lOpened)
@@ -274,21 +315,21 @@ method PreviousPage() class HBBridgeRPCDataSet
     local nPage as numeric
     local nSize as numeric
 
-    if !self:HasPreviousPage()
+    if (!self:HasPreviousPage())
         return(.F.)
     endif
 
-    cSql := self:cSql
-    cOrderBy := self:cOrderBy
-    nPage := self:PageNumber() - 1
-    nSize := self:PageSize()
+    cSql:=self:cSql
+    cOrderBy:=self:cOrderBy
+    nPage:=(self:PageNumber()-1)
+    nSize:=self:PageSize()
 
-return(self:OpenPage(cSql, nPage, nSize, cOrderBy))
+return(self:OpenPage(cSql,nPage,nSize,cOrderBy))
 
 method HasPreviousPage() class HBBridgeRPCDataSet
 
-    if ValType(self:jResult) $ "JO"
-        if ((self:jResult:HasProperty("page")).and.(self:jResult["page"]:HasProperty("number")))
+    if (ValType(self:jResult)=="J").and.(self:jResult:HasProperty("page"))
+        if (self:jResult["page"]:HasProperty("number"))
             return(self:jResult["page"]["number"]!=1)
         endif
     endif
@@ -302,21 +343,21 @@ method NextPage() class HBBridgeRPCDataSet
     local nPage as numeric
     local nSize as numeric
 
-    if !self:HasNextPage()
+    if (!self:HasNextPage())
         return(.F.)
     endif
 
-    cSql := self:cSql
-    cOrderBy := self:cOrderBy
-    nPage := self:PageNumber() + 1
-    nSize := self:PageSize()
+    cSql:=self:cSql
+    cOrderBy:=self:cOrderBy
+    nPage:=(self:PageNumber()+1)
+    nSize:=self:PageSize()
 
-return(self:OpenPage(cSql, nPage, nSize, cOrderBy))
+return(self:OpenPage(cSql,nPage,nSize,cOrderBy))
 
 method HasNextPage() class HBBridgeRPCDataSet
 
-    if ValType(self:jResult) $ "JO"
-        if ((self:jResult:HasProperty("page")).and.(self:jResult["page"]:HasProperty("hasNext")))
+    if ((ValType(self:jResult)=="J").and.(self:jResult:HasProperty("page")))
+        if (self:jResult["page"]:HasProperty("hasNext"))
             return(self:jResult["page"]["hasNext"])
         endif
     endif
@@ -325,8 +366,8 @@ return(.F.)
 
 method PageNumber() class HBBridgeRPCDataSet
 
-    if ValType(self:jResult) $ "JO"
-        if ((self:jResult:HasProperty("page")).and.(self:jResult["page"]:HasProperty("number")))
+    if ((ValType(self:jResult)=="J").and.(self:jResult:HasProperty("page")))
+        if (self:jResult["page"]:HasProperty("number"))
             return(self:jResult["page"]["number"])
         endif
     endif
@@ -335,8 +376,8 @@ return(0)
 
 method PageSize() class HBBridgeRPCDataSet
 
-    if ValType(self:jResult) $ "JO"
-        if self:jResult:HasProperty("page").and.self:jResult["page"]:HasProperty("size")
+    if ((ValType(self:jResult)=="J").and.(self:jResult:HasProperty("page")))
+        if self:jResult["page"]:HasProperty("size")
             return(self:jResult["page"]["size"])
         endif
     endif
@@ -345,7 +386,7 @@ return(0)
 
 method TotalRows() as numeric class HBBridgeRPCDataSet
 
-    if ValType(self:jResult) $ "JO"
+    if (ValType(self:jResult)=="J")
         if self:jResult:HasProperty("totalRows")
             return(self:jResult["totalRows"])
         endif
@@ -355,7 +396,7 @@ return(self:nTotalRows)
 
 method TotalPages() as numeric class HBBridgeRPCDataSet
 
-    if ValType(self:jResult) $ "JO"
+    if (ValType(self:jResult)=="J")
         if self:jResult:HasProperty("totalPages")
             return(self:jResult["totalPages"])
         endif
@@ -368,11 +409,11 @@ method MoreToRead() class HBBridgeRPCDataSet
     // Repeated calls keep the current record. Only an exhausted page can
     // fetch its successor; failures retain ErrorCode()/ErrorMessage().
     // False can mean end or failure: inspect ErrorCode() after the loop.
-    if self:Eof()
-        if !self:HasNextPage()
+    if (self:Eof())
+        if (!self:HasNextPage())
             return(.F.)
         endif
-        if !self:NextPage()
+        if (!self:NextPage())
             return(.F.)
         endif
     endif
@@ -381,22 +422,40 @@ return(!self:Eof())
 
 method Header() class HBBridgeRPCDataSet
 
-    local jHeader := JSONObject():New() as json
+    local jHeader:=JSONObject():New() as json
 
     // The caller owns this deep snapshot and releases it with FreeObj().
-    if ValType(self:jResult) $ "JO"
+    if (ValType(self:jResult)=="J")
         jHeader:FromJSON(self:jResult["header"]:ToJSON())
     endif
 
 return(jHeader)
 
+method FieldExist(cFieldName) class HBBridgeRPCDataSet
+
+    local cKey as character
+
+    paramtype 1 var cFieldName as character
+    cKey:=Upper(AllTrim(cFieldName))
+
+    if ((ValType(self:jResult)=="J").and.(self:jResult:HasProperty("header")))
+        return(self:jResult["header"]:HasProperty(cKey))
+    endif
+
+return(.F.)
+
 method FieldInfo(cFieldName) class HBBridgeRPCDataSet
 
-    local jField := JSONObject():New() as json
-    local cKey := Upper(AllTrim(cFieldName)) as character
+    local cKey as character
 
-    if ValType(self:jResult) $ "JO"
-        if self:jResult["header"]:HasProperty(cKey)
+    local jField:=JSONObject():New() as json
+
+    paramtype 1 var cFieldName as character
+    cKey:=Upper(AllTrim(cFieldName))
+
+    jField:=JSONObject():New()
+    if ((ValType(self:jResult)=="J").and.(self:jResult:HasProperty("header")))
+        if (self:jResult["header"]:HasProperty(cKey))
             jField:FromJSON(self:jResult["header"][cKey]:ToJSON())
         endif
     endif
@@ -408,7 +467,9 @@ return(self:nTotalFields)
 
 method FieldName(nPosition) class HBBridgeRPCDataSet
 
-    if nPosition >= 1 .and. nPosition <= self:nTotalFields .and. nPosition == Int(nPosition)
+    paramtype 1 var nPosition as numeric
+
+    if ((nPosition>=1).and.(nPosition<=self:nTotalFields).and.(nPosition==Int(nPosition)))
         return(self:jFieldNames[tlpp.ToStr(nPosition)])
     endif
 
@@ -416,16 +477,16 @@ return("")
 
 method GetRow() class HBBridgeRPCDataSet
 
-    local jRow := JSONObject():New() as json
+    local jRow:=JSONObject():New() as json
 
-    if !self:Eof()
+    if (!self:Eof())
         jRow:FromJSON(self:jResult["rows"][tlpp.ToStr(self:nRowIndex)]:ToJSON())
     endif
 
 return(jRow)
 
 method GetRows() class HBBridgeRPCDataSet
-    local jRows := JSONObject():New() as json
+    local jRows:=JSONObject():New() as json
     if ((ValType(self:jResult)=="J").and.(self:jResult:HasProperty("rows")))
         jRows:FromJSON(self:jResult["rows"]:ToJSON())
     endif
@@ -436,50 +497,59 @@ return(self:cOrderBy)
 
 method FieldGet(cFieldName) class HBBridgeRPCDataSet
 
-    local cKey := Upper(AllTrim(cFieldName)) as character
-    local cRowKey := tlpp.ToStr(self:nRowIndex) as character
+    local cKey as character
+    local cRowKey as character
 
-    if self:Eof()
-        return Nil
+    if (self:Eof())
+        return(nil)
     endif
-    if self:jResult["header"]:HasProperty(cKey)
-        if self:jResult["rows"][cRowKey]:HasProperty(cKey)
-            return(self:jResult["rows"][cRowKey][cKey])
+
+    paramtype 1 var cFieldName as character
+
+    cKey:=Upper(AllTrim(cFieldName))
+    if (self:jResult["header"]:HasProperty(cKey))
+        if (self:jResult:HasProperty("rows"))
+            cRowKey:=tlpp.ToStr(self:nRowIndex)
+            if ((self:jResult["rows"]:HasProperty(cRowKey)).and.(self:jResult["rows"][cRowKey]:HasProperty(cKey)))
+                return(self:jResult["rows"][cRowKey][cKey])
+            endif
         endif
     endif
 
-return Nil
+return(nil)
 
 method Skip() class HBBridgeRPCDataSet
 
-    if !self:Eof()
+    if (!self:Eof())
         self:nRowIndex++
     endif
 
 return
 
 method Eof() as logical class HBBridgeRPCDataSet
-return(self:nRowIndex == 0 .or. self:nRowIndex > self:nTotalRows)
+return((self:nRowIndex==0).or.(self:nRowIndex>self:nTotalRows))
 
 method Close() class HBBridgeRPCDataSet
 
-    local jResponse := self:jResult as json
-    local jFieldNames := self:jFieldNames as json
+    local jResponse:=self:jResult as json
+    local jFieldNames:=self:jFieldNames as json
 
-    self:jResult := Nil
-    self:jFieldNames := Nil
-    self:nRowIndex := 0
-    self:nTotalRows := 0
-    self:nTotalFields := 0
-    self:cAliasProfile := ""
-    self:cSql := ""
-    self:cOrderBy := ""
-    self:cErrorCode := ""
-    self:cErrorMessage := ""
-    if ValType(jResponse) $ "JO"
+    self:jResult:=nil
+    self:jFieldNames:=nil
+    self:nRowIndex:=0
+    self:nTotalRows:=0
+    self:nTotalFields:=0
+    self:cAliasProfile:=""
+    self:cSql:=""
+    self:cOrderBy:=""
+    self:cErrorCode:=""
+    self:cErrorMessage:=""
+
+    if (ValType(jResponse)=="J")
         FreeObj(@jResponse)
     endif
-    if ValType(jFieldNames) $ "JO"
+
+    if (ValType(jFieldNames)=="J")
         FreeObj(@jFieldNames)
     endif
 
