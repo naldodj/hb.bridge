@@ -4,7 +4,7 @@
 | |__  | |__  | |__   _ __ (_)  __| |  __ _   ___    | |__   _ __   ___  __      __ ___   ___      __| |  __ _ | |_   __ _
 | '_ \ | '_ \ | '_ \ | '__|| | / _` | / _` | / _ \   | '_ \ | '__| / _ \ \ \ /\ / // __| / _ \    / _` | / _` || __| / _` |
 | | | || |_) || |_) || |   | || (_| || (_| ||  __/ _ | |_) || |   | (_) | \ V  V / \__ \|  __/ _ | (_| || (_| || |_ | (_| |
-|_| |_||_.__/ |_.__/ |_|   |_| \__,_| \__, | \___|(_)|_.__/ |_|    \___/   \_/\_/  |___/ \___|(_) \__,_| \__,_| \__| \__,_|
+|_| |_||_.__/ |_.__/ |_|   |_| \__,_| \__,| \___|(_)|_.__/ |_|    \___/   \_/\_/  |___/ \___|(_) \__,_| \__,_| \__| \__,_|
 
 
 Released to Public Domain.
@@ -45,13 +45,13 @@ static function Browse(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as charact
     local aFWGetDialogSizeCoors as array
 
     local bNext as codeblock
-    local bFirst as codeblock
-    local bPrevius as codeblock
     local bLast as codeblock
+    local bFirst as codeblock
     local bFilter as codeblock
+    local bPrevius as codeblock
     local bUpdateData as codeblock
 
-    local cFilterExpr:="1=1" as character
+    local cFilterExpr:="(1=1)" as character
 
     local jHeader as json
 
@@ -75,7 +75,6 @@ static function Browse(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as charact
             break
         endif
 
-        aFWBrwSeek:=array(0)
         aFWBrwModel:=array(0)
         aFWBrwColumn:=array(0)
         aFWBrowseSeek:=array(0)
@@ -95,52 +94,60 @@ static function Browse(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as charact
             nFieldLen:=GetSX3Cache(cField,"X3_TAMANHO")
             nFieldDec:=GetSX3Cache(cField,"X3_DECIMAL")
             cFieldType:=GetSX3Cache(cField,"X3_TIPO")
+            if (Empty(cFieldType))
+                cFieldType:=__GetFieldType(jHeader[cField]["type"])
+            endif
             aAdd(aFWBrwModel,{cFieldTitle,cFieldPicture,nFieldLen,nFieldDec,1,cFieldType})
         next nField
 
         nFields:=Len(aFWBrwModel)
-        For nField:=1 To nFields
+        for nField:=1 to nFields
 
             aAdd(aFWBrwColumn,FWBrwColumn():New())
 
             cField:=aHeader[nField]
-            if (jHeader[cField]["type"]=="D:N")
+            if (aFWBrwModel[nField][6]=="D")
                 aFWBrwColumn[nField]:SetData(&('{|oSelf|SToD(aFWBrwData[oFWBrowse:nAT]["'+cField+'"])}'))
+            elseif (aFWBrwModel[nField][6]=="C")//TODO: resolver Code Pages and Collations
+                aFWBrwColumn[nField]:SetData(&('{|oSelf|OemToAnsi(aFWBrwData[oFWBrowse:nAT]["'+cField+'"])}'))
             else
                 aFWBrwColumn[nField]:SetData(&('{|oSelf|aFWBrwData[oFWBrowse:nAT]["'+cField+'"]}'))
             endif
             aFWBrwColumn[nField]:SetTitle(aFWBrwModel[nField][1])
+            aFWBrwColumn[nField]:SetType(aFWBrwModel[nField][6])
             aFWBrwColumn[nField]:SetPicture(aFWBrwModel[nField][2])
             aFWBrwColumn[nField]:SetSize(aFWBrwModel[nField][3])
             aFWBrwColumn[nField]:SetDecimal(aFWBrwModel[nField][4])
             aFWBrwColumn[nField]:SetAlign(aFWBrwModel[nField][5])
 
-            aAdd(aFWBrwSeek,;
-                {;
-                    aFWBrwModel[nField][1],;//[n,1] Titulo da pesquisa
+            aFWBrwSeek:={;
+                aFWBrwModel[nField][1];//[n,1] Titulo da pesquisa
+                ,{;
                     {;
-                        {;
-                            "",;//[n,2,n,1] LookUp (F3)
-                            aFWBrwModel[nField][6],;//[n,2,n,2] Tipo de dados
-                            aFWBrwModel[nField][3],;//[n,2,n,3] Tamanho
-                            aFWBrwModel[nField][4],;//[n,2,n,4] Decimal
-                            aFWBrwModel[nField][1],;//[n,2,n,5] Titulo do campo
-                            aFWBrwModel[nField][2];//[n,2,n,6] Mascara
-                        };
+                        GetSX3Cache(cField,"X3_F3");//[n,2,n,1] LookUp (F3)
+                        ,aFWBrwModel[nField][6];//[n,2,n,2] Tipo de dados
+                        ,aFWBrwModel[nField][3];//[n,2,n,3] Tamanho
+                        ,aFWBrwModel[nField][4];//[n,2,n,4] Decimal
+                        ,aFWBrwModel[nField][1];//[n,2,n,5] Titulo do campo
+                        ,aFWBrwModel[nField][2];//[n,2,n,6] Mascara
+                        ,cField;//[n,2,n,7] Nome Fisico do campo
                     };
                 };
-            )
+                ,nField;//Ordem da pesquisa
+                ,.T.;
+            }
 
             aAdd(aFWBrowseSeek,aClone(aFWBrwSeek))
-            aSize(aFWBrwSeek,0)
+            FWFReeArray(@aFWBrwSeek)
 
-        Next nField
+        next nField
 
         oFWBrowse:=FWBrowse():New()
 
         oFWBrowse:SetDataArray()
         oFWBrowse:SetArray(aFWBrwData)
         oFWBrowse:SetColumns(aFWBrwColumn)
+        oFWBrowse:SetSeek({|oSelf,oBrowse|__FWBrowseSeek(oSelf,oBrowse,oHBBridgeDataSet)},aFWBrowseSeek)
         oFWBrowse:DisableFilter()
 
         if (valtype(bLDblClick)!="B")
@@ -406,7 +413,7 @@ static function BuildCustomFilder(oHBBridgeDataSet as object,cHBBridgeDataSetSQL
         if (cField=="R_E_C_N_O_")
             loop
         endif
-        aAdd(aFields,{cField,ConvType(jHeader[cField]["type"]),jHeader[cField]["length"],jHeader[cField]["decimals"]})
+        aAdd(aFields,{cField,__GetFieldType(jHeader[cField]["type"]),jHeader[cField]["length"],jHeader[cField]["decimals"]})
         cF3:=GetSX3Cache(cField,"X3_F3")
         if (!Empty(cF3))
             jF3[cField]:=cF3//Adicione + Field:F3 se necessario. Ex.: {"B1_COD":"SB1","B1_GRUPO":"SBM","B1_CODGRU":"SZ4Pro"}
@@ -460,7 +467,7 @@ static function BuildCustomFilder(oHBBridgeDataSet as object,cHBBridgeDataSetSQL
     FWFreeArray(@aFields)
 
     if (empty(cFilterExpr))
-        cFilterExpr:="1=1"
+        cFilterExpr:="(1=1)"
     endif
 
     aFWBrwData:=BrowseGetData(oHBBridgeDataSet,cHBBridgeDataSetSQL,jHBBridgeDataSetPage,"all",cFilterExpr)
@@ -499,7 +506,7 @@ static function FilterRealValue2Str(xValue,cFieldType)
     endif
 return(cStrRealValueFilter)
 
-static function ConvType(cFieldType)
+static function __GetFieldType(cFieldType)
     cFieldType:=StrTran(cFieldType,"I","N")
 return(Left(cFieldType,1))
 
@@ -529,3 +536,62 @@ static Procedure BrowseCallBack(oFWBrowse,aFWBrwData,oHBBridgeDataSet,cHBBridgeD
     endif
 
 return
+
+static function __FWBrowseSeek(oSeek as object,oBrowse as object,oHBBridgeDataSet as object)
+
+    local aColumns:={} as array
+
+    local cType:="" as character
+    local cSeek:="" as character
+    local cbAScan:="" as character
+
+    local lFound:=.F. as logical
+
+    local nOrder:=0 as numeric
+    local nATCol:=0 as numeric
+    local nATRow:=1 as numeric
+    local nColumn:=0 as numeric
+
+    local oBrwData as object
+
+    //TODO: Revisar e permitir a pesquisa em pagina ainda nao carregada
+    if (ValType(oSeek)=="O")
+        oBrwData:=oBrowse:oData
+        cSeek:=oSeek:GetSeek()
+        if (!Empty(cSeek))
+            nOrder:=oSeek:GetOrder()
+            aColumns:=StrTokArr2(oSeek:aOrder[nOrder],"+")
+            if (!Empty(aColumns))
+                cbAScan:="{||aScan(oBrwData:aArray,{|x|("
+                for nColumn:=1 to Len(aColumns)
+                    nATCol:=aScan(oBrowse:aColumns,{ |x|(x:GetTitle()==aColumns[nColumn])})
+                    if (nATCol>0)
+                        cType:=oBrowse:aColumns[nATCol]:GetType()
+                        if (ValType(cType)=="U")
+                            cType:=ValType(Eval(oBrowse:aColumns[nATCol]:GetData()))
+                        endif
+                        cbAScan+="x['"+oHBBridgeDataSet:FieldName(nATCol)+"']+"
+                    Else
+                        cbAScan:=""
+                        exit
+                    endif
+                next nColumn
+                if (!Empty(cbAScan))
+                    cbAScan:=SubStr(cbAScan,1,Len(cbAScan)-1)+"="
+                    if (cType=="C")
+                        cbAScan+="'"+Trim(cSeek)+"'"
+                    Else
+                        cbAScan+=Trim(cSeek)
+                    endif
+                    cbAScan+=")})}"
+                    nATRow:=Eval(&(cbAScan))
+                    lFound:=(nATRow>0)
+                endif
+            endif
+            if (!lFound)
+                nATRow:=1
+            endif
+        endif
+    endif
+
+return(nATRow)

@@ -169,7 +169,7 @@ static procedure HBBridgeQueryTest(cAliasProfile, cHost, nPort, nTimeout)
     ConOut("hbBridge RPCRDD.Query Protheus " + IIf(lOk, "OK", "FAILED") + "; profile=" + cAliasProfile)
 
     if (cAliasProfile=="MSSQL/pData")
-        //resolver Code Pages and Collations
+        //TODO: resolver Code Pages and Collations
         cSQL:="SELECT TOP 10 * FROM SX5990 WHERE D_E_L_E_T_=' '"
         ConOut("hbBridge RPCRDD.Query SQL: " + cSQL)
         jPage:=JSONObject():New()
