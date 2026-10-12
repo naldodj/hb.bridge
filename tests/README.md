@@ -16,30 +16,30 @@ the runner prepares both. See [dependencies](../docs/dependencies.md).
 
 ## Automated Harbour coverage
 
-- [Configuration](unit/hbbridgeconfigtest.hb): defaults, precedence, paths,
+- [Configuration](unit/hbbridge.config.test.hb): defaults, precedence, paths,
   invalid values and endpoint conflicts.
-- [INI](unit/hbbridgeconfiginitest.hb): JSON equivalence, autoload, BOM/CRLF,
+- [INI](unit/hbbridge.config.ini.test.hb): JSON equivalence, autoload, BOM/CRLF,
   strict numbers, punctuation/paths/errors, multiple profiles and alias case.
-- [Clock](unit/hbbridgetimetest.hb): monotonic waits/concurrent advancement.
-- [Contract](contract/hbbridgeservicestest.hb): registration/versions/channel
+- [Clock](unit/hbbridge.time.test.hb): monotonic waits/concurrent advancement.
+- [Contract](contract/hbbridge.services.test.hb): registration/versions/channel
   permissions, types, independent metadata, handlers and JSON adaptation.
-- [NETIO](integration/harbour/hbbridgenetiotest.hb): native arguments,
+- [NETIO](integration/harbour/hbbridge.netio.test.hb): native arguments,
   core/discovery/addons, binary VF IO, separate admin, filters/credentials and
   stop/restart/rollback. Listeners choose free ports rather than installed ports.
-- [HTTP](integration/harbour/hbbridgehttptest.hb): native hbhttpd routes,
+- [HTTP](integration/harbour/hbbridge.http.test.hb): native hbhttpd routes,
   bearer/admin separation, shared Health/Echo/addon/SQL, NETIO equivalence,
   raw JSON body/errors, concurrent contexts, sanitized web status and
   shutdown/restart/startup rollback. HTTP acceptance is recorded separately;
   historical counts below predate this adapter.
-- [Framing](integration/harbour/hbbridgeframingtest.hb): fragmented gzip,
+- [Framing](integration/harbour/hbbridge.framing.test.hb): fragmented gzip,
   canonical lengths, CRC/truncation, optional budgets, deadlines, incremental
   codecs, exact 24-million-byte Echo and JSON/gzip beyond 16 MiB.
-- [SQL](integration/harbour/hbbridgequerytest.hb): persistent SQLite, profiles,
+- [SQL](integration/harbour/hbbridge.query.test.hb): persistent SQLite, profiles,
   values/metadata, workarea/default-connection restoration, sanitized errors,
   16 concurrent calls, SQL pages/order/gaps/sentinel/full/partial/empty pages,
   representable ordinals, duplicate/reserved aliases, equivalent NETIO/TCP
   results and explicit case-sensitive slash profile selection.
-- [MT](integration/harbour/hbbridgeservertest.hb): parallel/idle clients,
+- [MT](integration/harbour/hbbridge.server.test.hb): parallel/idle clients,
   invalid requests, worker settings, graceful shutdown, addon failure/isolation.
   The addon fixture holds 12 FORCELOCAL HRBs active behind a barrier and
   verifies owner/id plus counterBefore+1. Sequential reload may recycle
@@ -70,7 +70,7 @@ then run:
 ./scripts/test-hbbridge-mssql.ps1 -Config C:/tmp/hbBridge.ini -Profile MSSQL/pData
 ```
 
-The [MSSQL target](integration/harbour/hbbridgemssqltest.hbp) uses the shared
+The [MSSQL target](integration/harbour/hbbridge.mssql.test.hbp) uses the shared
 product components and an explicit alias. It opens no host listeners and does
 not replace the running executable. Read-only constant fixtures cover named
 results, native types/nulls/Unicode, pagination, recovery, caller workarea and
@@ -100,6 +100,12 @@ See [acceptance](../docs/acceptance.md) for precise scope and remaining cases.
 
 ## Protheus compilation and calls
 
+The [consumer catalog](../examples/protheus/README.md) covers the reorganized
+groups, including `hbbridge.helper.test/U_HBBridgeHelperTest` (12 expected
+pure checks), the 67-check dataset mock and the interactive SRA/SX5 browses.
+`build-totvs.cmd` now supplies an explicit recursive file list so dotted
+directories do not omit their children.
+
 Compile all src/tlpp, including tests/protheus. Public product APIs are
 namespaced classes: HBBridgeClient, HBBridgeConfig, HBBridgeTime and
 HBBridgeRPCDataSet. Existing procedure U_ entry points are retained; the
@@ -109,6 +115,22 @@ on 2026-10-07 after reported recompilation following the `.hb` migration.
 No compiler log or artifact hashes were supplied. The configurable
 [build utility](../scripts/build-totvs.cmd) requires the licensed SDK.
 
+Protheus sources remain under `src/tlpp` and the tests are now grouped in
+subdirectories under [tests/protheus](../src/tlpp/tests/protheus):
+
+| Directory | Entry points or support |
+| --- | --- |
+| `hbbridge.connection.test/` | `U_HBBridgeConnectionTest`. |
+| `hbbridge.config.test/` | `U_HBBridgeConfigTest`. |
+| `hbbridge.dataset.test/` | `U_HBBridgeDataSetTest` and its mock client. |
+| `hbbridge.http.test/` | Shared HTTP test and explicit MSSQL/SQLite wrappers. |
+| `hbbridge.query.test/` | Shared Query test, SQLite wrapper and caller-side `FWGetTopInfo()` wrapper. |
+| `hbbridge.browse.data.test/` | Generic browse example and caller-prepared SX5/SRA examples. |
+
+Compile the nested sources with their product classes and includes. Moving a
+source does not change its published `U_` entry point or constitute acceptance
+of the new examples.
+
 [Client INI template](../config/examples/protheus-appserver.ini): host/port/
 timeout/budgets/chunk and optional SQLProfile. Omitted transport arguments
 fall back to 127.0.0.1:1512, 30000 ms; 0.0.0.0 is not a client destination.
@@ -117,7 +139,7 @@ the query test reports PROFILE_REQUIRED before I/O if none is supplied or
 configured. sqlite_demo is only an example. Aliases do not resolve company,
 tenant, xFilial or physical table names; the caller prepares business inputs.
 
-[U_HBBridgeConfigTest](../src/tlpp/tests/protheus/hbbridgeconfigtest.tlpp)
+[U_HBBridgeConfigTest](../src/tlpp/tests/protheus/hbbridge.config.test/hbbridge.config.test.tlpp)
 checks defaults/INI/overrides, destination/numbers, zero/negative/fractional
 budgets, native chunk capacity, active INI and now explicit/empty/invalid
 profile selection. The 2026-10-04 acceptance covered 13 checks; the revised
@@ -126,7 +148,7 @@ profile selection. The 2026-10-04 acceptance covered 13 checks; the revised
 Complement with no-argument Health/Query
 against a configured nondefault destination.
 
-[U_HBBridgeConnectionTest](../src/tlpp/tests/protheus/hbbridgeconnectiontest.tlpp)
+[U_HBBridgeConnectionTest](../src/tlpp/tests/protheus/hbbridge.connection.test/hbbridge.connection.test.tlpp)
 checks TimeCounter after Sleep(1000), normalized units, nonregression and
 deadline arithmetic. The reproduced Linux scale needs seconds × 1000
 ([issue 12](https://github.com/naldodj/totvs-protheus-open-issues/issues/12));
@@ -142,7 +164,7 @@ compressed but declared length counts uncompressed JSON. Constants live in
 [hbbridge.h](../includes/hbbridge.h). Different signatures, unframed JSON and
 non-gzip wrappers are rejected.
 
-[U_HBBridgeQueryTest](../src/tlpp/tests/protheus/hbbridgequerytest.tlpp)
+[U_HBBridgeQueryTest](../src/tlpp/tests/protheus/hbbridge.query.test/hbbridge.query.test.tlpp)
 checks named fields/decimal/EOF/close, empty/invalid SQL, unknown profiles,
 recovery and first/next/last/empty pages, hidden ordinals, gaps and invalid
 order/page parameters. Run the [SQL example](../examples/sql/README.md), then
@@ -152,6 +174,19 @@ the separate Protheus call:
 U_HBBridgeQueryTest("sqlite_demo", "127.0.0.1", 1512, 30000)
 U_HBBridgeQueryTest("MSSQL/pData", "127.0.0.1", 1512, 30000)
 ```
+
+These four-argument calls run the constant SELECT fixture. The final optional
+argument `lRunERPExamples` defaults to false. Passing true explicitly enables
+the local SX5/SRA/SX3 examples for `MSSQL/pData` after the fixture:
+
+```advpl
+U_HBBridgeQueryTest("MSSQL/pData", "127.0.0.1", 1512, 30000, .T.)
+```
+
+Those examples use installation-specific physical table names and print field
+values. Protheus prepares their SQL and dictionary formatting; this does not
+make the bridge a Protheus dictionary/business-rule resolver. The examples
+require separate operator acceptance and suitable caller-prepared inputs.
 
 Use the [WebApp entry](https://localhost:4321/webapp/?p=U_HBBridgeQueryTest&e=PROTHEUS)
 without arguments only with an appropriate optional SQLProfile configured.
@@ -164,28 +199,32 @@ the service exists but the requested alias does not.
 ## Isolated TLPP dataset checks
 
 Compile the whole `src/tlpp` tree, including the new
-[HBBridgeDataSetMockClient](../src/tlpp/tests/protheus/hbbridgedatasetmockclient.tlpp)
-and [U_HBBridgeDataSetTest](../src/tlpp/tests/protheus/hbbridgedatasettest.tlpp),
+[HBBridgeDataSetMockClient](../src/tlpp/tests/protheus/hbbridge.dataset.test/hbbridge.dataset.mock.client.tlpp)
+and [U_HBBridgeDataSetTest](../src/tlpp/tests/protheus/hbbridge.dataset.test/hbbridge.dataset.test.tlpp),
 then call `U_HBBridgeDataSetTest()` or its
 [WebApp entry](https://localhost:4321/webapp/?p=U_HBBridgeDataSetTest&e=PROTHEUS).
 It requires no hbBridge listener, SQL profile, credentials or ERP table.
 
-The expected successful result is **45 checks and 17 mock calls**. The test
+The revised expected result is **67 checks and 31 mock calls**, pending
+execution in the AppServer. The test
 covers `MoreToRead()` across pages; repeated checks without record consumption;
-preserved page-local `Eof()`/`Skip()`; `Header()`/`DSStruct()`/`FieldInfo()`
+preserved page-local `Eof()`/`Skip()`; `Header()`/`FieldInfo()`
 defensive copies; `FieldCount()`/`FieldName()` column order; `GetRow()` copies;
-empty/closed state, malformed metadata and page failure/recovery.
+empty/closed state, malformed metadata and page failure/recovery. It also
+covers selected-profile preservation/change, page snapshots, backward pages
+and validated, unknown, empty and malformed row/page totals.
 The agent's 2026-10-08 compile attempt returned exit 1,
 `COMPILEERROR-300 Failed to open repository`, because `custom.rpo` was in use;
 total/success/errors were `0/0/0`, without source compilation. Log:
-`tmp/totvs-compile.log`. The active AppServer was not stopped. These new
+`tmp/totvs-compile.log`. The active AppServer was not stopped. That attempt
+concerned the earlier 45-check/17-call version, not the revised source. These
 sources still require compilation and execution; expected counts are not
 accepted results.
 See [dataset API and integrity findings](../docs/dataset.md).
 
 ## Manual acceptance and remaining scenarios
 
-[U_HBBridgeHTTPTest](../src/tlpp/tests/protheus/hbbridgehttptest.tlpp) exercises
+[U_HBBridgeHTTPTest](../src/tlpp/tests/protheus/hbbridge.http.test/hbbridge.http.test.tlpp) exercises
 `HBBridgeHTTPClient` with GET Health/discovery, POST Health/Echo/addon,
 unknown/forbidden services, invalid bearer and recovery. It reuses the existing
 dataset for optional first/next/last SQL pages. See [HTTP setup and calls](../examples/http/README.md).

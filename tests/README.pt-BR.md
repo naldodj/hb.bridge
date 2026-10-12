@@ -2,7 +2,22 @@
 
 [English](README.md)
 
-[hbbridgeconnectiontest.tlpp](../src/tlpp/tests/protheus/hbbridgeconnectiontest.tlpp) é o teste de integração Protheus do produto. Com o
+Os fontes Protheus permanecem sob `src/tlpp`; agora os testes estão agrupados
+em subpastas de [tests/protheus](../src/tlpp/tests/protheus):
+
+| Pasta | Entradas ou suporte |
+| --- | --- |
+| `hbbridge.connection.test/` | `U_HBBridgeConnectionTest`. |
+| `hbbridge.config.test/` | `U_HBBridgeConfigTest`. |
+| `hbbridge.dataset.test/` | `U_HBBridgeDataSetTest` e seu cliente simulado. |
+| `hbbridge.http.test/` | Teste HTTP comum e wrappers explícitos MSSQL/SQLite. |
+| `hbbridge.query.test/` | Teste Query comum, wrapper SQLite e wrapper `FWGetTopInfo()` no chamador. |
+| `hbbridge.browse.data.test/` | Exemplo de browse genérico e exemplos SX5/SRA preparados pelo chamador. |
+
+Compile os fontes aninhados com suas classes de produto e includes. Mover um
+fonte não altera sua entrada `U_` publicada nem homologa os novos exemplos.
+
+[hbbridge.connection.test.tlpp](../src/tlpp/tests/protheus/hbbridge.connection.test/hbbridge.connection.test.tlpp) é o teste de integração Protheus do produto. Com o
 servidor escutando em `0.0.0.0:1512`, configure o cliente local para
 `127.0.0.1:1512`. Na nova revisão, argumentos omitidos vêm de `[hbBridge]`
 no INI selecionado pelo AppServer, com esses valores como fallback; o
@@ -24,7 +39,7 @@ descomprimido. O contrato ativo é único: `HBBRIDGE/1`, JSON e gzip, com
 constantes compartilhadas em [includes/hbbridge.h](../includes/hbbridge.h).
 
 Antes do RPC, verifica os métodos estáticos de `HBBridge.Client.HBBridgeTime`
-em [hbbridgetime.tlpp](../src/tlpp/hbbridgetime.tlpp): diferença
+em [hbbridge.time.tlpp](../src/tlpp/hbbridge.time.tlpp): diferença
 de `TimeCounter()` após `Sleep(1000)`, unidade normalizada, leituras sem regressão
 e aritmética do prazo. O fator Unix × 1000 trata a diferença reproduzida na
 [issue #12](https://github.com/naldodj/totvs-protheus-open-issues/issues/12).
@@ -57,7 +72,7 @@ execução não integra o runner Harbour.
 
 ## SQL e páginas
 
-O [teste HTTP TLPP](../src/tlpp/tests/protheus/hbbridgehttptest.tlpp),
+O [teste HTTP TLPP](../src/tlpp/tests/protheus/hbbridge.http.test/hbbridge.http.test.tlpp),
 `U_HBBridgeHTTPTest`, usa `HBBridgeHTTPClient` para GET Health/descoberta,
 POST Health/Echo/addon, serviços inexistentes/proibidos, bearer inválido e
 recuperação. Reaproveita o dataset para páginas SQL opcionais.
@@ -70,7 +85,7 @@ Essa prova AppServer é separada do runner Harbour. Os relatos HTTP de
 2026-10-07 não identificam perfil/backend SQL nem comprovam HTTPS/Unicode
 mais amplo; as rodadas identificadas de 2026-10-08 estão registradas abaixo.
 
-[hbbridgequerytest.tlpp](../src/tlpp/tests/protheus/hbbridgequerytest.tlpp)
+[hbbridge.query.test.tlpp](../src/tlpp/tests/protheus/hbbridge.query.test/hbbridge.query.test.tlpp)
 acrescenta `U_HBBridgeQueryTest`: campos por nome, decimal, EOF, fechamento,
 consulta vazia/inválida e recuperação, além de primeira/próxima/última página,
 IDs com lacunas e parâmetros de paginação inválidos. Compile toda a árvore
@@ -102,6 +117,19 @@ Alterar apenas o perfil no host não exige recompilar o TLPP já atualizado.
 Cada consulta/dataset escolhe um alias opaco, como `MSSQL/pData`, sem inferir
 tenant, empresa, filial/xFilial ou tabelas; essas regras pertencem ao Protheus.
 Um nome `oracle/alias` não habilita um conector Oracle, ainda futuro.
+Chamadas com os quatro argumentos existentes executam as consultas de
+constantes. O quinto argumento opcional `lRunERPExamples` tem padrão falso;
+informe verdadeiro para habilitar explicitamente os exemplos locais SX5/SRA/SX3
+no perfil `MSSQL/pData`, depois da fixture:
+
+```advpl
+U_HBBridgeQueryTest("MSSQL/pData", "127.0.0.1", 1512, 30000, .T.)
+```
+
+Esses exemplos usam nomes físicos da instalação e imprimem valores dos campos.
+Protheus prepara SQL e formatação do dicionário; a ponte não passa a resolver
+dicionário ou regras de negócio do Protheus. Os exemplos exigem homologação
+separada pelo operador e entradas preparadas para a instalação.
 INI e JSON são aceitos; para INI, recompile o produto que fornece
 `--config-info`, usado pelo launcher para validar metadados sem iniciar o host.
 
@@ -111,7 +139,7 @@ sem perfis no arquivo selecionado ou no `hbbridge.ini` junto ao binário,
 e confira a porta antes de repetir o teste. Um serviço já registrado com
 perfil desconhecido retorna `PROFILE_NOT_FOUND`.
 
-[hbbridgequerytest.hb](integration/harbour/hbbridgequerytest.hb) usa um SQLite
+[hbbridge.query.test.hb](integration/harbour/hbbridge.query.test.hb) usa um SQLite
 real em arquivo isolado, com perfis, valores, metadados, conexão/área restauradas,
 erros sanitizados e 16 chamadas concorrentes. Verifica páginas no SGBD,
 ordenação composta/descendente, lacunas, linha extra, página cheia/parcial/vazia,
@@ -135,7 +163,7 @@ zero falhas e nenhum skip**, com o Harbour/Zig do próprio projeto. Log:
 dois checks INI e dois de seleção explícita/case-sensitive de aliases SQL.
 Esse resultado precede os ajustes PascalCase/HTTP de 2026-10-06.
 
-[hbbridgeconfigtest.tlpp](../src/tlpp/tests/protheus/hbbridgeconfigtest.tlpp)
+[hbbridge.config.test.tlpp](../src/tlpp/tests/protheus/hbbridge.config.test/hbbridge.config.test.tlpp)
 oferece `U_HBBridgeConfigTest()` para defaults, INI, argumentos prioritários,
 destino inválido, números malformados, budgets zero/negativo/fracionário e
 capacidade nativa de chunk. A leitura do INI ativo também é verificada;
@@ -197,23 +225,33 @@ precisão/wrap, capacidades e tipos ampliados da [matriz](../docs/acceptance.pt-
 
 ## Checks TLPP isolados do dataset
 
+O [catálogo de consumidores](../examples/protheus/README.pt-BR.md) reúne os
+grupos reorganizados, incluindo `hbbridge.helper.test/U_HBBridgeHelperTest`
+(12 checks puros esperados), o mock dataset de 67 checks e browses SRA/SX5.
+`build-totvs.cmd` fornece lista recursiva explícita dos fontes, incluindo
+os filhos dos diretórios pontuados.
+
 Compile toda a árvore `src/tlpp`, incluindo os novos
-[HBBridgeDataSetMockClient](../src/tlpp/tests/protheus/hbbridgedatasetmockclient.tlpp)
-e [U_HBBridgeDataSetTest](../src/tlpp/tests/protheus/hbbridgedatasettest.tlpp),
+[HBBridgeDataSetMockClient](../src/tlpp/tests/protheus/hbbridge.dataset.test/hbbridge.dataset.mock.client.tlpp)
+e [U_HBBridgeDataSetTest](../src/tlpp/tests/protheus/hbbridge.dataset.test/hbbridge.dataset.test.tlpp),
 e execute `U_HBBridgeDataSetTest()` ou a
 [entrada WebApp](https://localhost:4321/webapp/?p=U_HBBridgeDataSetTest&e=PROTHEUS).
 Não requer listener hbBridge, perfil SQL, credenciais nem tabela ERP.
 
-O resultado esperado de sucesso tem **45 checks e 17 chamadas simuladas**.
+O resultado revisado esperado tem **67 checks e 31 chamadas simuladas**,
+com execução ainda pendente no AppServer.
 O teste cobre `MoreToRead()` entre páginas; verificações repetidas sem consumir
 linhas; `Eof()`/`Skip()` locais à página preservados; cópias independentes de
-`Header()`/`DSStruct()`/`FieldInfo()`; ordem de colunas com `FieldCount()`/
+`Header()`/`FieldInfo()`; ordem de colunas com `FieldCount()`/
 `FieldName()`; cópia em `GetRow()`; estado vazio/fechado, metadados inválidos
-e falha/recuperação de página. A tentativa de compilação do agente em
+e falha/recuperação de página. Também cobre preservação/troca do perfil,
+cópias da página, navegação para trás e totais de linhas/páginas validados,
+desconhecidos, vazios e inválidos. A tentativa de compilação do agente em
 2026-10-08 retornou exit 1, `COMPILEERROR-300 Failed to open repository`, pois
 `custom.rpo` estava em uso; total/sucessos/erros foram `0/0/0`, sem compilação dos
-fontes. Log: `tmp/totvs-compile.log`. O AppServer ativo não foi parado. Os
-novos fontes ainda requerem compilação e execução; contagens esperadas não
+fontes. Log: `tmp/totvs-compile.log`. O AppServer ativo não foi parado. Aquela
+tentativa se refere à versão anterior de 45 checks/17 chamadas, não ao fonte
+revisado. Os fontes ainda requerem compilação e execução; contagens esperadas não
 são resultados homologados. Veja [API do dataset e falhas de integridade](../docs/dataset.pt-BR.md).
 
 ## Regressoes Harbour existentes
@@ -225,7 +263,7 @@ A contraprova deliberada com um handle e 12 threads rejeitou 11 respostas.
 Addons inicializam estado por chamada explicitamente; veja
 [semântica HRB](../docs/milestone1.pt-BR.md#estado-hrb-e-propriedade-do-addon).
 
-[Os testes HTTP](integration/harbour/hbbridgehttptest.hb) usam hbhttpd nativo,
+[Os testes HTTP](integration/harbour/hbbridge.http.test.hb) usam hbhttpd nativo,
 rotas autenticadas, separação de bearer/admin, Health/Echo/addon/SQL do
 registro comum, equivalência NETIO, corpo JSON/erros, contextos concorrentes,
 status web sem segredos e parada/reinício/rollback. As contagens históricas
@@ -233,7 +271,7 @@ abaixo antecedem esse adaptador; seu aceite é registrado separadamente em
 [homologação](../docs/acceptance.pt-BR.md). Configuração e dependências estão
 no [guia HTTP](../docs/http.pt-BR.md).
 
-[integration/harbour/hbbridgeservertest.hb](integration/harbour/hbbridgeservertest.hb), com entrada `MTTests`, contem
+[integration/harbour/hbbridge.server.test.hb](integration/harbour/hbbridge.server.test.hb), com entrada `MTTests`, contem
 verificacoes automatizadas de concorrencia, clientes ociosos, erros, limite de
 workers e parada. Inclui `Echo` e resposta de erro com `HBBRIDGE/1`,
 conferindo o contrato do servidor real. Assinaturas diferentes, JSON sem
@@ -252,7 +290,7 @@ Na raiz do projeto, com PowerShell 7 e Git, resolva as dependências gerenciadas
 
 O [runner](../scripts/test-hbbridge.ps1) compila a biblioteca Zig, prepara as
 fixtures em uma pasta exclusiva sob `tmp/` e compila
-[hbbridgeservertest.hbp](integration/harbour/hbbridgeservertest.hbp). Esse projeto compartilha
+[hbbridge.server.test.hbp](integration/harbour/hbbridge.server.test.hbp). Esse projeto compartilha
 [hbbridge.hbm](../hbbridge.hbm) com o produto, sem copiar os fontes do servidor.
 O runner executa os testes com os addons isolados, registra `results.log` e
 devolve o codigo de saida da suite. Nao substitui nem encerra `out/hbbridge.exe`.
@@ -267,8 +305,8 @@ automatizada. Recompilacao e o teste do Marco 1 OK em 2026-10-03;
 os logs registram 3 fontes compilados sem erros, Health/ADDON/Echo
 com sucesso e retorno integral do Echo. Ver [matriz](../docs/acceptance.pt-BR.md).
 
-O runner tambem executa [configuracao](unit/hbbridgeconfigtest.hb),
-[contrato/registro](contract/hbbridgeservicestest.hb) e [NETIO nativo](integration/harbour/hbbridgenetiotest.hb),
+O runner tambem executa [configuracao](unit/hbbridge.config.test.hb),
+[contrato/registro](contract/hbbridge.services.test.hb) e [NETIO nativo](integration/harbour/hbbridge.netio.test.hb),
 usando o mesmo host/nucleo do produto. A integracao verifica argumentos/resultados
 nativos, core, descoberta, addons, VF IO binario, admin separado, filtros RPC,
 credenciais e parada/reinicio/rollback. As portas NETIO/admin dos testes sao
@@ -283,7 +321,7 @@ e execute:
 ./scripts/test-hbbridge-mssql.ps1 -Config C:/tmp/hbBridge.ini -Profile MSSQL/pData
 ```
 
-O [alvo MSSQL](integration/harbour/hbbridgemssqltest.hbp) usa os componentes
+O [alvo MSSQL](integration/harbour/hbbridge.mssql.test.hbp) usa os componentes
 compartilhados do produto e um alias explícito. Não abre listeners do host nem
 substitui o executável ativo. Fixtures de constantes somente de leitura cobrem
 resultados nomeados, tipos nativos/nulos/Unicode, páginas, recuperação,
@@ -348,7 +386,7 @@ substituem a verificacao de interoperabilidade com o Protheus.
 Validacao do Marco 1 em 2026-10-03: **159 verificacoes, zero falhas, sem skips**,
 com Harbour `3.2.1dev (r2608271822)` e Zig `0.16.0` no Windows x64.
 
-O [teste do contrato TCP](integration/harbour/hbbridgeframingtest.hb) amplia o
+O [teste do contrato TCP](integration/harbour/hbbridge.framing.test.hb) amplia o
 runner do Marco 2 com dados variados, gzip acima de 65.535 bytes nos dois
 sentidos, JSON maior que 16 MiB, fragmentação deliberada, políticas opcionais
 de tamanho, CRC inválido, truncamento, comprimento decimal canônico e cliente

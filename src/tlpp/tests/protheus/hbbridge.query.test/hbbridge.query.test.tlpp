@@ -1,15 +1,16 @@
 #include "totvs.ch"
 #include "hbbridge.h"
 
-procedure U_HBBridgeQueryTest(cAliasProfile, cHost, nPort, nTimeout)
+procedure U_HBBridgeQueryTest(cAliasProfile, cHost, nPort, nTimeout, lRunERPExamples)
     local cTimeStart,cTimeEnd as character
+    DEFAULT lRunERPExamples:=.F.
     ConOut("hbBridge U_HBBridgeQueryTest Start: "+DTos(Date())+"/"+(cTimeStart:=Time()))
-    HBBridgeQueryTest(cAliasProfile, cHost, nPort, nTimeout)
+    HBBridgeQueryTest(cAliasProfile, cHost, nPort, nTimeout, lRunERPExamples)
     ConOut("hbBridge U_HBBridgeQueryTest End: "+DTos(Date())+"/"+(cTimeEnd:=Time()))
     ConOut("hbBridge U_HBBridgeQueryTest Elapsed Time: "+ElapTime(cTimeStart,cTimeEnd))
 return
 
-static procedure HBBridgeQueryTest(cAliasProfile, cHost, nPort, nTimeout)
+static procedure HBBridgeQueryTest(cAliasProfile, cHost, nPort, nTimeout, lRunERPExamples)
 
     local oClient as object
     local oDataSet as object
@@ -30,6 +31,8 @@ static procedure HBBridgeQueryTest(cAliasProfile, cHost, nPort, nTimeout)
     local nPages as numeric
     local nRecNos as numeric
     local cRA_SALARIOPicture
+    local cDateFormat:=Set(4) as character
+    local lSetCentury as logical
 
     if ValType(cAliasProfile) != "U"
         jOverrides["sqlProfile"] := cAliasProfile
@@ -140,7 +143,9 @@ static procedure HBBridgeQueryTest(cAliasProfile, cHost, nPort, nTimeout)
     ConOut("hbBridge RPCRDD.Query checks: " + jChecks:ToJSON())
     ConOut("hbBridge RPCRDD.Query Protheus " + IIf(lOk, "OK", "FAILED") + "; profile=" + cAliasProfile)
 
-    if (cAliasProfile=="MSSQL/pData")
+    // The constant acceptance above never opens or logs ERP business rows.
+    // Local SX5/SRA demonstrations require an explicit operator opt-in.
+    if ((ValType(lRunERPExamples)=="L").and.(lRunERPExamples).and.(cAliasProfile=="MSSQL/pData"))
         //TODO: resolver Code Pages and Collations
         cSQL:="SELECT TOP 10 * FROM SX5990 WHERE D_E_L_E_T_=' '"
         ConOut("hbBridge RPCRDD.Query SQL: " + cSQL)
@@ -161,7 +166,9 @@ static procedure HBBridgeQueryTest(cAliasProfile, cHost, nPort, nTimeout)
                     if (!oDataSet:HasNextPage())
                         exit
                     else
-                        oDataSet:NextPage()
+                        if (!oDataSet:NextPage())
+                            exit
+                        endif
                         nPages++
                     endif
                 else
@@ -202,7 +209,7 @@ static procedure HBBridgeQueryTest(cAliasProfile, cHost, nPort, nTimeout)
             aHeader:=jHeader:GetNames()
             nFields:=Len(aHeader)
             nRecNos := 0
-            __SetCentury("ON")
+            lSetCentury:=__SetCentury("ON")
             Set(4,"DD/MM/YYYY")
             while (oDataSet:MoreToRead())
                 for nField:=1 to nFields
@@ -231,6 +238,8 @@ static procedure HBBridgeQueryTest(cAliasProfile, cHost, nPort, nTimeout)
             ConOut("hbBridge RPCRDD.Query TotalPages: " + tlpp.ToStr(oDataSet:TotalPages()))
             ConOut("hbBridge RPCRDD.Query ErrorCode: " + oDataSet:ErrorCode())
             ConOut("hbBridge RPCRDD.Query ErrorMessage: " + oDataSet:ErrorMessage())
+            __SetCentury(if(lSetCentury,"ON","OFF"))
+            Set(4,cDateFormat)
             FreeObj(@jPage)
             FreeObj(@jHeader)
             FWFReeArray(@aHeader)

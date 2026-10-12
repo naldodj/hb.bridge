@@ -57,7 +57,7 @@ PROCEDURE M1INIConfigTests( nFailures, nChecks )
     hINI := HBBridgeConfig( { "-config=config-test/multiple.ini" }, @cError )
     M1Assert( hINI != NIL .AND. Len( hINI[ "sqlProfiles" ] ) == 2 .AND. ;
         hb_HHasKey( hINI[ "sqlProfiles" ], "MSSQL/pData" ) .AND. ;
-        ! hb_HHasKey( hINI[ "sqlProfiles" ], "MSSQL/pData" ), ;
+        ! hb_HHasKey( hINI[ "sqlProfiles" ], "mssql/pdata" ), ;
         "multiple INI profiles preserve slash and case in opaque aliases", @nFailures, @nChecks )
     hInfo := HBBridgeConfigInfo( hINI )
     M1Assert( Len( hInfo[ "sqlProfiles" ] ) == 2 .AND. ;

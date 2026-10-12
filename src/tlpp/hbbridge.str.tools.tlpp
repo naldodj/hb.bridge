@@ -200,7 +200,7 @@ static method GetEmojiHtmlCode(cName) class HBBridgeStrTools
 
 return(cEmojiHtmlCode)
 
-method UpdEmojiHtmlCode(cString) class HBBridgeStrTools
+static method UpdEmojiHtmlCode(cString) class HBBridgeStrTools
     local aEmojis as array
     local jEmojis as json
     local i as numeric
@@ -218,7 +218,7 @@ method UpdEmojiHtmlCode(cString) class HBBridgeStrTools
     FreeObj(@jEmojis)
 return(cString)
 
-method StrReplace(cTemplate,vSubstitutions) class HBBridgeStrTools
+static method StrReplace(cTemplate,vSubstitutions) class HBBridgeStrTools
 
     local aNames as array
     local cName as character
@@ -313,9 +313,7 @@ static function ___HBBridgeStrTools____StrReplaceEx(cString as character,vSubsti
                         cStrReplace:=HBBridgeStrTools():StrReplaceEx(cStrReplace,{uStr[1][nToken],uStr[2][nToken]})
                     next nToken
                 elseif ((ValType(uStr[1])=="C").and.(ValType(uStr[2])=="C"))
-                    while ((uStr[1]$cStrReplace).and.(!(uStr[1]==uStr[2])))
-                        cStrReplace:=StrTran(cStrReplace,uStr[1],uStr[2])
-                    end while
+                    cStrReplace:=StrReplaceStable(cStrReplace,uStr[1],uStr[2])
                 endif
             elseif (cType=="J")
                 if (uStr:HasProperty("VARGS"))
@@ -325,7 +323,7 @@ static function ___HBBridgeStrTools____StrReplaceEx(cString as character,vSubsti
                             cType:=ValType(uStr["VARGS"][nVArg])
                             if ((cType=="A").and.(Len(uStr["VARGS"][nVArg])==2))
                                 if ((ValType(uStr["VARGS"][nVArg][1])=="A").and.(ValType(uStr["VARGS"][nVArg][2])=="C"))
-                                    for nToken:=1 to Len(uStr["VARGS"][nToken][1])
+                                    for nToken:=1 to Len(uStr["VARGS"][nVArg][1])
                                         cStrReplace:=HBBridgeStrTools():StrReplaceEx(cStrReplace,{uStr["VARGS"][nVArg][1][nToken],uStr["VARGS"][nVArg][2]})
                                     next nToken
                                 elseif ((ValType(uStr["VARGS"][nVArg][1])=="A").and.(ValType(uStr["VARGS"][nVArg][2])=="A"))
@@ -333,9 +331,7 @@ static function ___HBBridgeStrTools____StrReplaceEx(cString as character,vSubsti
                                         cStrReplace:=HBBridgeStrTools():StrReplaceEx(cStrReplace,{uStr["VARGS"][nVArg][1][nToken],uStr["VARGS"][nVArg][2][nToken]})
                                     next nToken
                                 elseif ((ValType(uStr["VARGS"][nVArg][1])=="C").and.(ValType(uStr["VARGS"][nVArg][2])=="C"))
-                                    while ((uStr["VARGS"][nVArg][1]$cStrReplace).and.(!(uStr["VARGS"][nVArg][1]==uStr["VARGS"][nVArg][2])))
-                                        cStrReplace:=StrTran(cStrReplace,uStr["VARGS"][nVArg][1],uStr["VARGS"][nVArg][2])
-                                    end while
+                                    cStrReplace:=StrReplaceStable(cStrReplace,uStr["VARGS"][nVArg][1],uStr["VARGS"][nVArg][2])
                                 endif
                             endif
                         next nVArg
@@ -345,9 +341,9 @@ static function ___HBBridgeStrTools____StrReplaceEx(cString as character,vSubsti
                     nNames:=Len(aNames)
                     for nName:=1 to nNames
                         cName:=aNames[nName]
-                        while ((cName$cStrReplace).and.(!(cName==uStr[cName])))
-                            cStrReplace:=StrTran(cStrReplace,cName,uStr[cName])
-                        end while
+                        if (ValType(uStr[cName])=="C")
+                            cStrReplace:=StrReplaceStable(cStrReplace,cName,uStr[cName])
+                        endif
                     next nName
                     FWFreeArray(@aNames)
                 endif
@@ -359,6 +355,19 @@ static function ___HBBridgeStrTools____StrReplaceEx(cString as character,vSubsti
     FWFreeArray(@aTokens)
 
 return(cStrReplace)
+
+static function StrReplaceStable(cTemplate as character,cNeedle as character,cReplacement as character) as character
+    if ((Len(cNeedle)==0).or.(cNeedle==cReplacement))
+        return(cTemplate)
+    endif
+    if (cNeedle$cReplacement)
+        // Expanding replacements must not loop forever ("a" -> "aa").
+        return(StrTran(cTemplate,cNeedle,cReplacement))
+    endif
+    while (cNeedle$cTemplate)
+        cTemplate:=StrTran(cTemplate,cNeedle,cReplacement)
+    enddo
+return(cTemplate)
 
 static method NoAccent(cStrAnsi) class HBBridgeStrTools
     paramtype cStrAnsi as character

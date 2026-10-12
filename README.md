@@ -46,9 +46,9 @@ routines; Protheus-specific APIs still require explicit adaptation.
 
 C connects Harbour to native extensions. Harbour's C API exposes functions to
 xBase, converts arguments and returns values. The C ABI also connects functions
-exported by Zig. The [C bridge](src/c/hbbridgezig.c) uses `HB_FUNC`,
+exported by Zig. The [C bridge](src/c/hbbridge.zig.c) uses `HB_FUNC`,
 `hb_parc` and `hb_retc` to call the
-[Zig library](src/zig/runtime/hbbridgeruntime.zig).
+[Zig library](src/zig/runtime/hbbridge.runtime.zig).
 The internal path is **Harbour ↔ C ↔ Zig**, within the server process.
 
 ### Zig: C interoperability and modern native development
@@ -330,7 +330,7 @@ See its [example](https://github.com/harbour/core/blob/master/contrib/hbnetio/ut
 
 hbBridge `ADDON.Execute` receives
 `{"module":"examples/hbbridgesampleaddon.hb","params":{...}}`.
-[The loader](src/hb/addons/hbbridgeaddon.hb) compiles in memory using
+[The loader](src/hb/addons/hbbridge.addon.hb) compiles in memory using
 `hb_compileBuf`; HRB uses `hb_hrbLoad`/`hb_hrbDo`/`hb_hrbUnload`,
 with symbols/statics isolated between simultaneously active HRBs. Harbour may
 retain STATIC values when reusing an unloaded module; initialize per-call state
@@ -359,7 +359,7 @@ INI/JSON examples exist. SQLite was the first real regression; MSSQL requires
 the actual driver's/DSN's acceptance. Only configured profiles advertise SQL.
 
 Results are named hashes for `header`/`rows`, with `rowCount`,
-`driver`/`resultVersion`. [HBBridgeRPCDataSet](src/tlpp/hbbridgerpcdataset.tlpp)
+`driver`/`resultVersion`. [HBBridgeRPCDataSet](src/tlpp/hbbridge.rpc.dataset.tlpp)
 uses `JSONObject`, named-field access, navigation, closure and identified errors.
 `U_HBBridgeQueryTest` passed at 00:40:06 on 2026-10-04 for `sqlite_demo`:
 29 checks including decimals, empty results, errors/recovery, pages, EOF/closure.
@@ -376,8 +376,10 @@ Optional `page = {number, size, orderBy}` uses `ROW_NUMBER()`/`BETWEEN`,
 following the reviewed REST example. The database returns up to `size+1`
 rows: the sentinel determines `hasNext`, and the response exposes at most
 `size`. TLPP methods include `OpenPage`, `NextPage`, `HasNextPage`,
+`PreviousPage`, `HasPreviousPage`, `HasTotals`, `TotalRows`, `TotalPages`,
 `PageNumber`, `PageSize`. Use a unique ordering tie-breaker. Each page is a
-new query, not a snapshot.
+new query, not a snapshot. Totals come from a separate count of the supplied
+query, adding database work; older paged replies may report unknown totals.
 
 No arbitrary row ceiling applies; ordinals must remain exact JSON/TLPP
 integers. Pagination limits bridge rows but deep pages may still sort/scan
@@ -451,10 +453,10 @@ or 128-byte-header ceiling.
 | Protheus → Harbour | TLPP `GzStrComp`. | Incremental C zlib. |
 | Harbour → Protheus | Incremental C gzip. | TLPP `GzStrDecomp`. |
 
-The [client](src/tlpp/hbbridgeclient.tlpp) and
-[framing](src/hb/transports/protheus/hbbridgeframing.hb) use memory buffers,
+The [client](src/tlpp/hbbridge.client.tlpp) and
+[framing](src/hb/transports/protheus/hbbridge.framing.hb) use memory buffers,
 without temporary files or `GzCompress`/`GzDecomp` file APIs.
-The decoder/[compressor](src/c/hbbridgecompressor.c) preserve zlib state across
+The decoder/[compressor](src/c/hbbridge.compressor.c) preserve zlib state across
 chunks, validate CRC/trailer and exact payload length. No fixed 16 MiB ceiling
 remains.
 
@@ -470,7 +472,7 @@ nReadChunkBytes)`. Arguments are optional; default positive client deadline:
 reads default 64 KiB.
 
 `HBBridge.Client.HBBridgeTime` in
-[hbbridgetime.tlpp](src/tlpp/hbbridgetime.tlpp) uses `TimeCounter()`,
+[hbbridge.time.tlpp](src/tlpp/hbbridge.time.tlpp) uses `TimeCounter()`,
 adapted from `dna.tech.StopWatch.__GetCurrentTimeStamp()`.
 It avoids `Date()`/`Seconds()` and an artificial one-day ceiling.
 [Issue #12](https://github.com/naldodj/totvs-protheus-open-issues/issues/12)
@@ -606,13 +608,19 @@ hb.bridge/
 |-- src/hb/addons/                     # Compilation/loading
 |-- src/hb/telemetry/                  # Existing Syslog
 |-- src/c/                            # Harbour API/gzip/C ABI
-|-- src/zig/runtime/hbbridgeruntime.zig
-|-- src/tlpp/hbbridgeclient.tlpp        # HBBridgeClient
-|-- src/tlpp/hbbridgehttpclient.tlpp    # HBBridgeHTTPClient
-|-- src/tlpp/hbbridgeconfig.tlpp        # HBBridgeConfig
-|-- src/tlpp/hbbridgetime.tlpp          # HBBridgeTime
-|-- src/tlpp/hbbridgerpcdataset.tlpp    # HBBridgeRPCDataSet
-|-- src/tlpp/tests/protheus/            # U_ test entry points
+|-- src/zig/runtime/hbbridge.runtime.zig
+|-- src/tlpp/hbbridge.client.tlpp        # HBBridgeClient
+|-- src/tlpp/hbbridge.http.client.tlpp    # HBBridgeHTTPClient
+|-- src/tlpp/hbbridge.config.tlpp        # HBBridgeConfig
+|-- src/tlpp/hbbridge.time.tlpp          # HBBridgeTime
+|-- src/tlpp/hbbridge.rpc.dataset.tlpp    # HBBridgeRPCDataSet
+|-- src/tlpp/tests/protheus/            # U_ entry points grouped by test
+|   |-- hbbridge.connection.test/
+|   |-- hbbridge.config.test/
+|   |-- hbbridge.dataset.test/
+|   |-- hbbridge.http.test/
+|   |-- hbbridge.query.test/
+|   `-- hbbridge.browse.data.test/
 |-- addons/examples/
 |-- config/dependencies.json           # Managed dependency manifest
 |-- config/patches/                    # Managed patches against pinned sources
@@ -630,10 +638,13 @@ hb.bridge/
 The test build reuses `hbbridge.hbm` with its own entry. Protheus tests remain
 under `src/tlpp/` for compilation together.
 
-Own source uses **four spaces**, English identifiers and lowercase filenames.
+Own source uses **four spaces**, English identifiers and lowercase filenames
+with dots separating words.
 **Functions, procedures, methods, namespaces and classes use PascalCase**,
 explicitly chosen by the project owner:
-`HBBridgeClient` ↔ `hbbridgeclient.tlpp`.
+`HBBridgeClient` ↔ `hbbridge.client.tlpp`. Removing dots from the basename
+produces the lowercase class name; dots separate file words and do not change
+namespace declarations.
 Project-owned Harbour sources use `.hb`, Protheus sources use `.tlpp`, and
 compiled Harbour addons use `.hrb`. Related Harbour/TLPP/C/Zig modules share
 the same basename convention; extensions identify the language.
@@ -721,13 +732,19 @@ See [test instructions](tests/README.md).
 
 ## Operation, licensing and contributions
 
+The [Protheus consumer guide](examples/protheus/README.md) maps the reorganized
+test groups, pure checks and interactive SRA/SX5 browse examples. SQL context
+and dictionary interpretation stay on Protheus.
+The [extension review](docs/extensions-review.md) evaluates SQLRDD, Duktape and
+CCHarbour as optional future work; no JavaScript/agent engine is installed.
+
 The [dataset review](docs/dataset.md) documents the new metadata/navigation
 API and the 2026-10-08 findings: TCP codepage inconsistency and fractional
 FLOAT loss in JSON. Earlier fixture acceptance remains valid for its exercised
 cases; these integrity corrections and AppServer acceptance of the extension
 are tracked in [WIP](WIP.md).
 
-[Syslog](src/hb/telemetry/hbbridgesyslog.hb) sends UDP to `127.0.0.1:514`
+[Syslog](src/hb/telemetry/hbbridge.syslog.hb) sends UDP to `127.0.0.1:514`
 but is not integrated into lifecycle/RPC yet.
 Broader identity/token policies, credential management, module trust and deployment policies
 remain work. The next SQL work corrects UTF-8/FLOAT integrity and accepts the

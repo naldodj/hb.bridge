@@ -263,7 +263,7 @@ Omitted constructor arguments read the active INI; explicit arguments win.
 Native HTTP timeout semantics differ from TCP `TimeoutMs`; no TCP framing,
 gzip or socket budgets are applied. See [the TLPP example](../examples/http/README.md).
 
-Static [HBBridgeConfig](../src/tlpp/hbbridgeconfig.tlpp), namespace
+Static [HBBridgeConfig](../src/tlpp/hbbridge.config.tlpp), namespace
 `HBBridge.Client`, uses `GetSrvIniName()` and `GetPvProfString()`.
 [GetSrvIniName](https://tdn.totvs.com/display/tec/GetSrvIniName) supports the
 AppServer's selected custom INI name.

@@ -96,6 +96,14 @@ esses dados e regras. Um nome `oracle/alias` não habilita um driver Oracle,
 cujo suporte permanece futuro. Veja [arquitetura](../../docs/architecture.pt-BR.md)
 e [credenciais](../../docs/credentials.pt-BR.md).
 
+O quinto argumento opcional do teste, `lRunERPExamples`, tem padrão falso.
+Verdadeiro explícito habilita consultas locais SX5/SRA/SX3 no perfil
+`MSSQL/pData`, depois da fixture de constantes. Esses exemplos usam SQL
+específico da instalação no chamador e imprimem valores dos campos; adapte
+nomes físicos e formatação no Protheus. Seu aceite é separado da regressão
+de constantes e não acrescenta regras ERP ao núcleo da ponte. Veja
+[chamadas de teste](../../tests/README.pt-BR.md).
+
 Para SQLite persistente, configure `database` com um arquivo existente.
 Caminhos relativos de bancos são resolvidos a partir da pasta do INI/JSON.
 O contrato, a paginação e os pontos ainda pendentes de homologação estão no
@@ -153,9 +161,10 @@ Para o aceite Protheus, inicie o produto com o mesmo perfil privado:
 
 Depois execute `U_HBBridgeQueryTest("MSSQL/pData", "127.0.0.1", 1512, 30000)`
 com o destino real do cliente. Use o mesmo alias explícito no
-[aceite HTTP](../http/README.pt-BR.md). As entradas de conveniência
-`U_HBBridgeQueryTestMSSQL()` e `U_HBBridgeQueryTestSQLite()` fornecem os aliases
-locais de exemplo sem alterar os padrões do cliente genérico.
+[aceite HTTP](../http/README.pt-BR.md). `U_HBBridgeQueryTestSQLite()` seleciona
+o alias do exemplo SQLite. `U_HBBridgeQueryTestTopInfo()` resolve um alias a
+partir da conexão DBAccess ativa no lado Protheus; esse alias exato deve existir
+na configuração do hbBridge. O cliente genérico continua sem perfil fixo.
 
 Em 2026-10-08, o perfil privado com login SQL passou em **92 checks nativos,
 zero falhas e nenhum skip** com SQL Server `16.0.1200.5`, banco `pData`, ODBC

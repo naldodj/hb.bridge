@@ -20,8 +20,8 @@ parâmetros. Autorização genérica pode validar contexto explícito, sem infer
 regras ERP. Veja [arquitetura](docs/architecture.pt-BR.md).
 
 SQLProfile é opcional e agora tem padrão vazio na biblioteca e no template.
-sqlite_demo pertence apenas ao exemplo SQLite. Cada `OpenSQL`/`OpenPage` escolhe
-um alias, como MSSQL/pData; barra e maiúsculas são preservadas sem dedução de
+sqlite_demo pertence apenas ao exemplo SQLite. Cada dataset seleciona com
+`SetAliasProfile()` o alias usado por `OpenSQL`/`OpenPage`, como MSSQL/pData; barra e maiúsculas são preservadas sem dedução de
 driver, empresa ou filial. O teste sem alias/SQLProfile retorna PROFILE_REQUIRED
 antes da rede. Drivers atuais: sqlite e mssql; Oracle exige conector e aceite
 próprios. A configuração revisada e as classes renomeadas foram homologadas
@@ -85,9 +85,9 @@ Harbour permite expor funções ao código xBase, converter parâmetros e
 devolver resultados. A ABI C, o contrato binário de chamada entre os
 componentes, também permite integrar funções exportadas por Zig.
 
-Essa ligação está em [hbbridgezig.c](src/c/hbbridgezig.c), extraída do loader:
+Essa ligação está em [hbbridge.zig.c](src/c/hbbridge.zig.c), extraída do loader:
 o adaptador C usa `HB_FUNC`, `hb_parc` e `hb_retc` para chamar a função
-`HBBridgeZigDispatch` exportada pela [biblioteca Zig](src/zig/runtime/hbbridgeruntime.zig).
+`HBBridgeZigDispatch` exportada pela [biblioteca Zig](src/zig/runtime/hbbridge.runtime.zig).
 O caminho interno é **Harbour ↔ C ↔ Zig**, dentro do servidor.
 
 ### Zig: interoperabilidade com C e modernização
@@ -489,7 +489,7 @@ Veja o [exemplo oficial](https://github.com/harbour/core/blob/master/contrib/hbn
 
 O serviço registrado `ADDON.Execute` recebe `params` com `module` e os
 parâmetros do módulo em `params`. O loader em
-[hbbridgeaddon.hb](src/hb/addons/hbbridgeaddon.hb), pela função `ExecuteAddonHRB`,
+[hbbridge.addon.hb](src/hb/addons/hbbridge.addon.hb), pela função `ExecuteAddonHRB`,
 compila fontes `.prg` e `.hb` em memória com
 `hb_compileBuf`; para `.hrb`, carrega o módulo compilado. A execução usa
 `hb_hrbLoad`/`hb_hrbDo`/`hb_hrbUnload`, com símbolos locais a cada HRB ativo.
@@ -530,9 +530,9 @@ para a primeira regressão real; o caminho MSSQL/ODBC requer homologação com
 o DSN e o banco do ambiente. O serviço é anunciado somente com perfis configurados.
 
 O resultado usa hashes para `header` e `rows`, com `rowCount`, `driver` e
-`resultVersion`. O cliente [HBBridgeRPCDataSet](src/tlpp/hbbridgerpcdataset.tlpp) usa
+`resultVersion`. O cliente [HBBridgeRPCDataSet](src/tlpp/hbbridge.rpc.dataset.tlpp) usa
 `JSONObject`, leitura por nome, navegação, fechamento e erros identificados.
-O novo [teste Protheus](src/tlpp/tests/protheus/hbbridgequerytest.tlpp),
+O novo [teste Protheus](src/tlpp/tests/protheus/hbbridge.query.test/hbbridge.query.test.tlpp),
 `U_HBBridgeQueryTest`, passou no AppServer em 2026-10-04 às 00:40:06,
 perfil `sqlite_demo`: os 29 checks foram verdadeiros, incluindo campos,
 decimal, vazio, erros, recuperação, páginas, EOF e fechamento.
@@ -546,7 +546,10 @@ O parâmetro opcional `page = {number, size, orderBy}` aplica `ROW_NUMBER()` e
 `BETWEEN` no SGBD, conforme o padrão do exemplo REST analisado. O banco devolve
 até `size + 1` linhas: a extra informa `hasNext`, e a resposta contém até
 `size`. `OpenPage`, `NextPage`, `HasNextPage`, `PageNumber` e `PageSize`
-expõem essa navegação no TLPP. A ordenação deve incluir desempate único;
+fazem a navegação explícita; `PreviousPage`/`HasPreviousPage` permitem voltar.
+`HasTotals`, `TotalRows` e `TotalPages` expõem os totais, com estado desconhecido
+explícito quando uma resposta paginada anterior não os fornece. A contagem
+separada acrescenta custo e não estabelece snapshot. A ordenação deve incluir desempate único;
 cada página executa nova consulta e não representa um snapshot.
 
 Não há teto arbitrário de linhas. Os ordinais precisam ser inteiros exatos
@@ -629,14 +632,14 @@ validá-lo antes de acumular o corpo.
 Esse caminho usa buffers em memória. Não depende de arquivos
 temporários nem das APIs de arquivo `GzCompress`/`GzDecomp`. O cliente atual
 envia JSON dentro do frame comprimido, e o servidor também comprime a resposta.
-Os detalhes estão em [hbbridgeclient.tlpp](src/tlpp/hbbridgeclient.tlpp) e
-[hbbridgeframing.hb](src/hb/transports/protheus/hbbridgeframing.hb).
+Os detalhes estão em [hbbridge.client.tlpp](src/tlpp/hbbridge.client.tlpp) e
+[hbbridge.framing.hb](src/hb/transports/protheus/hbbridge.framing.hb).
 
 O contrato não fixa um teto de 16 MiB. Por padrão, o aplicativo não acrescenta
 limites de payload ou bytes transmitidos. O servidor respeita as capacidades
 do runtime e as políticas opcionais configuradas, valida o trailer/CRC e
 exige corpo com o comprimento exato. O decoder e o
-[compressor C](src/c/hbbridgecompressor.c) reutilizam a zlib vinculada pelo
+[compressor C](src/c/hbbridge.compressor.c) reutilizam a zlib vinculada pelo
 Harbour para processar o formato gzip definido pelo contrato, preservando
 estado entre buffers de entrada/saída.
 As versões anteriores permanecem no histórico Git; o código ativo e os
@@ -655,7 +658,7 @@ opcionais; o prazo padrão é 30 segundos e deve ser positivo no cliente,
 pois o comportamento de espera infinita das APIs TOTVS ainda exige validação.
 Os tetos opcionais usam `0` por padrão e a leitura usa buffer de 64 KiB.
 O cálculo do prazo TLPP usa `TimeCounter()` por meio dos métodos estáticos da
-classe `HBBridge.Client.HBBridgeTime`, em [hbbridgetime.tlpp](src/tlpp/hbbridgetime.tlpp),
+classe `HBBridge.Client.HBBridgeTime`, em [hbbridge.time.tlpp](src/tlpp/hbbridge.time.tlpp),
 adaptados de `dna.tech.StopWatch.__GetCurrentTimeStamp()`,
 sem depender de `Date()`/`Seconds()` nem impor um teto artificial de um dia.
 O adapter normaliza para milissegundos a diferença reproduzida na
@@ -845,20 +848,27 @@ hb.bridge/
 |-- src/
 |   |-- hb/
 |   |   |-- host/                        # Entrada, configuracao e ciclo de vida
-|   |   |-- core/hbbridgedispatcher.hb           # Registro versionado e valores Harbour
+|   |   |-- core/hbbridge.dispatcher.hb           # Registro versionado e valores Harbour
 |   |   |-- transports/
-|   |   |   |-- netio/hbbridgenetio.hb         # RPC e arquivos nativos; threads do host
-|   |   |   |-- http/hbbridgehttp.hb          # HTTP/REST e status web com hbhttpd
+|   |   |   |-- netio/hbbridge.netio.hb         # RPC e arquivos nativos; threads do host
+|   |   |   |-- http/hbbridge.http.hb          # HTTP/REST e status web com hbhttpd
 |   |   |   `-- protheus/
-|   |   |       |-- hbbridgeserver.hb       # Listener e workers do produto
-|   |   |       |-- hbbridgeadapter.hb          # JSON para o nucleo de servicos
-|   |   |       `-- hbbridgeframing.hb          # Recepcao/envio HBBRIDGE/1 com gzip
-|   |   |-- services/hbbridgeservices.hb         # Servicos, descoberta e administracao
-|   |   |-- addons/hbbridgeaddon.hb      # Compilacao e carga de modulos
-|   |   `-- telemetry/hbbridgesyslog.hb         # Modulo Syslog existente
+|   |   |       |-- hbbridge.server.hb       # Listener e workers do produto
+|   |   |       |-- hbbridge.adapter.hb          # JSON para o nucleo de servicos
+|   |   |       `-- hbbridge.framing.hb          # Recepcao/envio HBBRIDGE/1 com gzip
+|   |   |-- services/hbbridge.services.hb         # Servicos, descoberta e administracao
+|   |   |-- addons/hbbridge.addon.hb      # Compilacao e carga de modulos
+|   |   `-- telemetry/hbbridge.syslog.hb         # Modulo Syslog existente
 |   |-- c/                              # API Harbour, gzip incremental e ABI C para Zig
-|   |-- zig/runtime/hbbridgeruntime.zig          # Biblioteca Zig demonstrativa
-|   `-- tlpp/                           # Clientes TCP/HTTP, HBBridgeRPCDataSet e tests/protheus
+|   |-- zig/runtime/hbbridge.runtime.zig          # Biblioteca Zig demonstrativa
+|   `-- tlpp/                           # Clientes, dataset e helpers Protheus
+|       `-- tests/protheus/              # Entradas U_ agrupadas por teste
+|           |-- hbbridge.connection.test/
+|           |-- hbbridge.config.test/
+|           |-- hbbridge.dataset.test/
+|           |-- hbbridge.http.test/
+|           |-- hbbridge.query.test/
+|           `-- hbbridge.browse.data.test/
 |-- addons/examples/                    # Addon compartilhado
 |-- examples/
 |   |-- mvp/                            # Launcher mínimo do mesmo produto
@@ -904,7 +914,7 @@ O perfil deverá compilar os fontes Harbour com informações de depuração (`-
 vincular o depurador e manter os fontes correspondentes acessíveis. Isso inclui
 os `.prg`/`.hb` compilados em memória pelo loader e os `.hrb` preparados fora
 do servidor. Hoje a composição [hbbridge.hbm](hbbridge.hbm) e a chamada a `hb_compileBuf` no
-[loader](src/hb/addons/hbbridgeaddon.hb) não habilitam `-b`; ter `hbdebug` no
+[loader](src/hb/addons/hbbridge.addon.hb) não habilitam `-b`; ter `hbdebug` no
 toolchain não significa que esse fluxo já esteja integrado e homologado.
 No `hbmk2`, `-debug` controla informações para o depurador nativo C; a opção
 Harbour `-b` tem outra função. Veja o [hbmk2](https://github.com/harbour/core/blob/master/utils/hbmk2/hbmk2.prg).
@@ -987,7 +997,7 @@ das extensões ocorrerá conforme os serviços forem consolidados.
 
 Para testar o produto, execute `out/hbbridge.exe` a partir da raiz do projeto,
 compile o cliente TLPP e rode `U_HBBridgeConnectionTest()` de
-[hbbridgeconnectiontest.tlpp](src/tlpp/tests/protheus/hbbridgeconnectiontest.tlpp) no
+[hbbridge.connection.test.tlpp](src/tlpp/tests/protheus/hbbridge.connection.test/hbbridge.connection.test.tlpp) no
 Protheus. O teste exercita `Health`, `Echo` e, com
 `__IS_THE_ADDONS_EXECUTION_ENABLED__` habilitado (padrão atual),
 `ADDON.Execute` com o módulo `examples/hbbridgesampleaddon.hb`. A execução a partir
@@ -999,7 +1009,13 @@ com `scripts/test-hbbridge.ps1`; instruções em [testes](tests/README.pt-BR.md)
 
 ## Operação e próximos passos
 
-O módulo [hbbridgesyslog.hb](src/hb/telemetry/hbbridgesyslog.hb) está disponível para enviar
+O [guia dos consumidores Protheus](examples/protheus/README.pt-BR.md) organiza
+grupos de testes, checks puros e browses SRA/SX5 interativos. Contexto SQL e
+interpretação do dicionário permanecem no Protheus.
+A [análise de extensões](docs/extensions-review.pt-BR.md) avalia SQLRDD, Duktape
+e CCHarbour como trabalho futuro opcional; não há motor JavaScript/agente instalado.
+
+O módulo [hbbridge.syslog.hb](src/hb/telemetry/hbbridge.syslog.hb) está disponível para enviar
 eventos UDP a `127.0.0.1:514`, mas sua ligação ao fluxo do servidor permanece
 pendente. Políticas mais amplas de identidade/tokens, configuração de acesso, gestão de credenciais e
 políticas de módulos também fazem parte da consolidação da ponte.
@@ -1026,9 +1042,11 @@ dependências e os critérios de aceite, preservando as premissas Harbour/C/Zig.
 
 Use **quatro espaços por nível de indentação** nos fontes próprios do projeto,
 incluindo Harbour e TLPP, e identificadores em inglês. Arquivos ficam em
-minúsculas; funções, procedures, métodos, namespaces e classes usam
-**PascalCase**. O nome do arquivo é o nome da classe em minúsculas:
-`HBBridgeClient` ↔ `hbbridgeclient.tlpp`. Veja os
+minúsculas, com palavras separadas por pontos; funções, procedures, métodos,
+namespaces e classes usam **PascalCase**. Remover os pontos do nome-base do
+arquivo produz o nome da classe em minúsculas:
+`HBBridgeClient` ↔ `hbbridge.client.tlpp`. Os pontos segmentam palavras do
+arquivo e não alteram a declaração de namespace. Veja os
 [padrões](docs/standards.pt-BR.md). O
 [.editorconfig](.editorconfig) registra esse padrão. Cabeçalhos de terceiros
 preservam a formatação e os avisos de seus autores.

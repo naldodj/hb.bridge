@@ -5,21 +5,35 @@
 ## Navigation and metadata
 
 `HBBridge.RDD.HBBridgeRPCDataSet` exposes named JSON records. `Header()` returns
-a defensive copy of the header; `DSStruct()` remains its compatibility alias.
+a defensive copy of the header.
 `FieldInfo(name)` returns one field's metadata. `FieldCount()` and
 `FieldName(position)` enumerate the original SQL column order, using the
 header's explicit `position`, without relying on JSON key enumeration order.
 `GetRow()` returns a defensive copy of the current row and does not advance.
-`Header()`/`DSStruct()` return `{}` when closed. `FieldInfo()` returns `{}`
+`Header()` returns `{}` when closed. `FieldInfo()` returns `{}`
 for an unknown field or closed dataset; `GetRow()` returns `{}` at EOF.
 `FieldName()` returns `""` outside the 1-based field range; `FieldGet()`
 returns `Nil` for a missing field or at EOF. These methods do not fetch pages.
 The caller owns the JSON snapshots and releases them with `FreeObj()`.
 
+Select the connection alias with `SetAliasProfile(alias)` before calling
+`OpenSQL(sql[, page])` or `OpenPage(sql, number, size, orderBy)`.
+`GetAliasProfile()` reads that selection; `SetAliasProfile()` returns its
+previous value. Changing the alias closes the current result so a later page
+cannot silently switch databases. `Close()` releases data and errors but
+retains the selected alias for another query. The library chooses no demo alias.
+
+`FieldExist(name)` checks the header even at EOF. `GetRows()` returns a defensive
+copy of the **current page only**; it does not fetch or concatenate other pages.
+`GetOrderBy()` returns the selected page order. `PreviousPage()` requests the
+preceding page when `HasPreviousPage()` is true, resetting the row position to
+the first record of the returned page. Page methods perform separate calls.
+
 Use `MoreToRead()` for sequential navigation across pages:
 
 ```advpl
-if oDataSet:OpenPage(cProfile, cSQL, 1, 10, cOrderBy)
+oDataSet:SetAliasProfile(cProfile)
+if oDataSet:OpenPage(cSQL, 1, 10, cOrderBy)
     while oDataSet:MoreToRead()
         xValue := oDataSet:FieldGet("NAME")
         oDataSet:Skip()
@@ -38,6 +52,34 @@ indefinitely. It therefore performs I/O at a page boundary. `Eof()` and
 `Skip()` retain their page-local behavior for existing manual navigation.
 `RowCount()` remains the current page count, not the complete query count.
 Repeated checks do not consume a record. `GetRow()` needs an explicit `Skip()`.
+
+## Total rows and pages
+
+The current paginated service returns top-level `totalRows` and `totalPages`
+for the caller's complete base query, separate from page-local `rowCount`.
+`TotalPages()` is the ceiling of total rows divided by page size; an empty
+result has zero pages. Totals count the supplied query, including any `TOP`,
+`LIMIT` or caller business predicates, rather than every row of a source table.
+
+Use `HasTotals()` before displaying totals:
+
+| Dataset state | `HasTotals()` | `TotalRows()` / `TotalPages()` |
+| --- | --- | --- |
+| Closed or failed open | false | `0` / `0`. |
+| Open unpaged result | true | Complete row count / `0` when empty, otherwise `1`. |
+| Open paged result with both totals | true | Validated server totals. |
+| Older paged response without either total | false | `-1` / `-1`, explicitly unknown. |
+
+The totals pair must contain non-negative exact integers within `2^53-1`,
+with pages consistent with rows and page size. A missing half, wrong type,
+fraction or inconsistent page count yields `INVALID_RESULT`. Unknown totals
+are not inferred from the current page or `hasNext`.
+
+Each paged call executes the page query and a separate `COUNT` on the same
+connection. This adds database work; neither the pair nor later pages form
+a snapshot. Concurrent changes may produce different page/count observations.
+Use suitable isolation or a future snapshot/cursor contract where consistency
+across requests is required.
 
 The local FileRead/FileNavigator references informed this interface. A second
 navigator class and whole-result index are unnecessary for this sequential

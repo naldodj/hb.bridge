@@ -34,20 +34,20 @@ there is no parallel MVP or compatibility layer.
 
 ## Implementation
 
-- [Harbour framing](../src/hb/transports/protheus/hbbridgeframing.hb) preserves
+- [Harbour framing](../src/hb/transports/protheus/hbbridge.framing.hb) preserves
   decoder state across reads, applies policies/runtime capacities and dispatches
   only after valid completion. Receive/send budgets default 30 seconds.
-- [C decoder](../src/c/hbbridgedecoder.c) uses linked zlib inflate, explicit
+- [C decoder](../src/c/hbbridge.decoder.c) uses linked zlib inflate, explicit
   release and a GC finalizer. 32 KiB output buffers respect capacity and optional
   expansion budgets before string allocation. Invalid CRC/trailer and extra
   compressed bytes in the same input block fail.
-- [C compressor](../src/c/hbbridgecompressor.c) creates gzip incrementally,
+- [C compressor](../src/c/hbbridge.compressor.c) creates gzip incrementally,
   with per-response state and explicit/GC cleanup; the server need not build
   one complete compressed response string.
-- [Monotonic clock](../src/c/hbbridgetime.c) uses GetTickCount64 on Windows and
+- [Monotonic clock](../src/c/hbbridge.time.c) uses GetTickCount64 on Windows and
   clock_gettime(CLOCK_MONOTONIC) on POSIX. It fails if unavailable, rather than
   substituting civil time.
-- [TLPP](../src/tlpp/hbbridgeclient.tlpp) accumulates gzip, checks compression/
+- [TLPP](../src/tlpp/hbbridge.client.tlpp) accumulates gzip, checks compression/
   decompression, exact framing/JSON, and identified success:false errors.
   Partial positive sends advance only by sent bytes, without retrying the
   application operation.
@@ -119,7 +119,7 @@ POSIX was compiled, not runtime accepted in this delivery.
 ## Validation history
 
 [The runner](../scripts/test-hbbridge.ps1) shares product components and executes
-[framing tests](../tests/integration/harbour/hbbridgeframingtest.hb).
+[framing tests](../tests/integration/harbour/hbbridge.framing.test.hb).
 It compares all bytes for gzip exceeding 65,535, fragments header/trailer,
 checks expansion policies, CRC/excess/truncation/strict parsing and recovery.
 A slow-client test uses an explicit positive total budget; a new fragment
@@ -140,12 +140,12 @@ passed. Clock tests added 29 checks: nonnegative integers, no regression, waits
 and eight concurrent threads, without changing OS time.
 These historical counts do not certify later source/build changes.
 
-[The Protheus test](../src/tlpp/tests/protheus/hbbridgeconnectiontest.tlpp)
+[The Protheus test](../src/tlpp/tests/protheus/hbbridge.connection.test/hbbridge.connection.test.tlpp)
 keeps Health/ADDON/Echo, compares all 200,000 bytes, and adds varied ASCII whose
 gzip must exceed 65,535. It logs counts/results, not the full payload.
 Optional fourth nLargePayloadBytes selects an additional Echo; zero skips it.
 Clock budget tests cover expiry, fractions, regression and >24-hour values.
-Compile hbbridgetime.tlpp with the entire TLPP tree.
+Compile hbbridge.time.tlpp with the entire TLPP tree.
 
 Operator confirmation on 2026-10-03: Health/ADDON and both 200,000-byte Echo
 passed, varied request gzip 152,964 bytes; clock values/artifact hash absent.

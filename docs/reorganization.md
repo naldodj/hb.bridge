@@ -11,20 +11,20 @@ milestones and the current naming/build reorganization.
 
 | Historical source | Current component | Responsibility |
 | --- | --- | --- |
-| `src/hb/server/server.prg` — Main | [host/hbbridgemain.hb](../src/hb/host/hbbridgemain.hb) | Entry, options, console lifecycle. |
-| Same file — receive/send | [Protheus framing](../src/hb/transports/protheus/hbbridgeframing.hb) | Framing/compression. |
-| `src/hb/server/mt_server.prg` | [Protheus server](../src/hb/transports/protheus/hbbridgeserver.hb) | Listener, workers, shutdown. |
-| `src/hb/dispatcher/dispatcher.prg` | [core dispatcher](../src/hb/core/hbbridgedispatcher.hb) | Registry/dispatch/validation; native values since Milestone 1. |
-| Service responses inside dispatcher | [builtin services](../src/hb/services/hbbridgeservices.hb) | Health/Echo/ADDON and discovery. |
-| C block inside addon loader | [C/Zig bridge](../src/c/hbbridgezig.c) | Harbour API and Zig ABI. |
-| `tests/harbour/` | [integration suite](../tests/integration/harbour/hbbridgeservertest.hb) | MT suite and fixtures. |
-| `tests/protheus/` | [TLPP tests](../src/tlpp/tests/protheus/hbbridgeconnectiontest.tlpp) | All Protheus sources beneath the compilable TLPP tree. |
+| `src/hb/server/server.prg` — Main | [host/hbbridge.main.hb](../src/hb/host/hbbridge.main.hb) | Entry, options, console lifecycle. |
+| Same file — receive/send | [Protheus framing](../src/hb/transports/protheus/hbbridge.framing.hb) | Framing/compression. |
+| `src/hb/server/mt_server.prg` | [Protheus server](../src/hb/transports/protheus/hbbridge.server.hb) | Listener, workers, shutdown. |
+| `src/hb/dispatcher/dispatcher.prg` | [core dispatcher](../src/hb/core/hbbridge.dispatcher.hb) | Registry/dispatch/validation; native values since Milestone 1. |
+| Service responses inside dispatcher | [builtin services](../src/hb/services/hbbridge.services.hb) | Health/Echo/ADDON and discovery. |
+| C block inside addon loader | [C/Zig bridge](../src/c/hbbridge.zig.c) | Harbour API and Zig ABI. |
+| `tests/harbour/` | [integration suite](../tests/integration/harbour/hbbridge.server.test.hb) | MT suite and fixtures. |
+| `tests/protheus/` | [TLPP tests](../src/tlpp/tests/protheus/hbbridge.connection.test/hbbridge.connection.test.tlpp) | All Protheus sources beneath the compilable TLPP tree. |
 
 Loader, telemetry, TLPP client, Zig library, sample addon and configuration
 remain in their own areas. No duplicate active server/MVP implementation exists.
 [hbbridge.hbm](../hbbridge.hbm) centralizes components/flags;
 [hbbridge.hbp](../hbbridge.hbp) adds the product entry, and
-[the test project](../tests/integration/harbour/hbbridgeservertest.hbp) its test entry.
+[the test project](../tests/integration/harbour/hbbridge.server.test.hbp) its test entry.
 [The minimal example](../examples/mvp/README.md) uses the product binary.
 
 ## Historical structural validation
@@ -52,12 +52,14 @@ Interactive debugging was not tested.
 
 ## Current naming and build organization
 
-Own sources use lowercase English filenames with the `hbbridge` prefix where
-they identify a product component. TLPP class/file pairs are:
-`HBBridgeClient`/`hbbridgeclient.tlpp`,
-`HBBridgeConfig`/`hbbridgeconfig.tlpp`,
-`HBBridgeTime`/`hbbridgetime.tlpp`,
-`HBBridgeRPCDataSet`/`hbbridgerpcdataset.tlpp`.
+Own sources use lowercase English filenames with dots separating words and
+the `hbbridge` prefix where they identify a product component. Removing dots
+from a class file basename produces the lowercase class identifier; namespace
+declarations remain independent. TLPP class/file pairs are:
+`HBBridgeClient`/`hbbridge.client.tlpp`,
+`HBBridgeConfig`/`hbbridge.config.tlpp`,
+`HBBridgeTime`/`hbbridge.time.tlpp`,
+`HBBridgeRPCDataSet`/`hbbridge.rpc.dataset.tlpp`.
 Functions, procedures, methods, namespaces and classes use PascalCase by the
 owner's explicit decision. Preserve required native/public API spellings; see
 [standards](standards.md).

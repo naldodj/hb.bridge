@@ -244,6 +244,98 @@ procedure U_HBBridgeDataSetTest()
     jChecks["moreToReadLoopStopsAtEnd"] := !oDataSet:MoreToRead() .and. ;
         !oDataSet:HasNextPage() .and. oClient:CallCount() == nCalls + 3
 
+    jChecks["legacyPageTotalsUnknown"] := !oDataSet:HasTotals() .and. ;
+        oDataSet:TotalRows() == -1 .and. oDataSet:TotalPages() == -1
+    QueueDataSetResult(oClient, DataSetResult(30, 1, 2, 2, .F., 3))
+    QueueDataSetResult(oClient, DataSetResult(10, 2, 1, 2, .T., 3))
+    lOpened := oDataSet:OpenPage(cSql, 2, 2, "ID ASC")
+    jChecks["partialTotals"] := lOpened .and. oDataSet:HasTotals() .and. ;
+        oDataSet:TotalRows() == 3 .and. oDataSet:TotalPages() == 2
+    jChecks["previousPage"] := oDataSet:HasPreviousPage() .and. oDataSet:PreviousPage() .and. ;
+        oDataSet:PageNumber() == 1 .and. oDataSet:FieldGet("ID") == 10
+    nCalls := oClient:CallCount()
+    jChecks["previousPageBoundary"] := !oDataSet:HasPreviousPage() .and. ;
+        !oDataSet:PreviousPage() .and. oClient:CallCount() == nCalls
+    jRow := oDataSet:GetRows()
+    jRow["1"]["ID"] := -1
+    jChecks["getRowsDefensiveCopy"] := oDataSet:FieldGet("ID") == 10 .and. ;
+        oDataSet:RowCount() == 2 .and. oClient:CallCount() == nCalls
+    FreeObj(@jRow)
+    jChecks["fieldExist"] := oDataSet:FieldExist(" id ") .and. !oDataSet:FieldExist("missing")
+    oDataSet:Close()
+    jChecks["closedTotalsAndProfile"] := !oDataSet:HasTotals() .and. ;
+        oDataSet:TotalRows() == 0 .and. oDataSet:TotalPages() == 0 .and. ;
+        oDataSet:GetAliasProfile() == "opaque/profile"
+
+    QueueDataSetResult(oClient, DataSetResult(0, 0, 1, 5, .F., 0))
+    lOpened := oDataSet:OpenPage(cSql, 1, 5, "ID ASC")
+    jChecks["emptyTotals"] := lOpened .and. oDataSet:HasTotals() .and. ;
+        oDataSet:TotalRows() == 0 .and. oDataSet:TotalPages() == 0
+    QueueDataSetResult(oClient, DataSetResult(110, 1, 3, 5, .F., 11))
+    lOpened := oDataSet:OpenPage(cSql, 3, 5, "ID ASC")
+    jChecks["elevenRowsThreePages"] := lOpened .and. ;
+        oDataSet:TotalRows() == 11 .and. oDataSet:TotalPages() == 3
+    QueueDataSetResult(oClient, DataSetResult(10, 2, 1, 2, .T., 4))
+    lOpened := oDataSet:OpenPage(cSql, 1, 2, "ID ASC")
+    jChecks["exactMultipleTotals"] := lOpened .and. ;
+        oDataSet:TotalRows() == 4 .and. oDataSet:TotalPages() == 2
+    QueueDataSetResult(oClient, DataSetResult(0, 0, 5, 5, .F., 11))
+    lOpened := oDataSet:OpenPage(cSql, 5, 5, "ID ASC")
+    jChecks["beyondLastTotals"] := lOpened .and. oDataSet:Eof() .and. ;
+        oDataSet:TotalRows() == 11 .and. oDataSet:TotalPages() == 3
+
+    jResponse := DataSetResult(10, 2, 1, 2, .T., 3)
+    jResponse["totalRows"] := "3"
+    QueueDataSetResult(oClient, jResponse)
+    lOpened := oDataSet:OpenPage(cSql, 1, 2, "ID ASC")
+    jChecks["textTotalsRejected"] := !lOpened .and. oDataSet:ErrorCode() == "INVALID_RESULT"
+    jResponse := DataSetResult(10, 2, 1, 2, .T., 3)
+    jResponse["totalRows"] := -1
+    QueueDataSetResult(oClient, jResponse)
+    lOpened := oDataSet:OpenPage(cSql, 1, 2, "ID ASC")
+    jChecks["negativeTotalsRejected"] := !lOpened .and. oDataSet:ErrorCode() == "INVALID_RESULT"
+    jResponse := DataSetResult(10, 2, 1, 2, .T., 3)
+    jResponse["totalPages"] := 1.5
+    QueueDataSetResult(oClient, jResponse)
+    lOpened := oDataSet:OpenPage(cSql, 1, 2, "ID ASC")
+    jChecks["fractionalTotalsRejected"] := !lOpened .and. oDataSet:ErrorCode() == "INVALID_RESULT"
+    jResponse := DataSetResult(10, 2, 1, 2, .T.)
+    jResponse["totalRows"] := 3
+    QueueDataSetResult(oClient, jResponse)
+    lOpened := oDataSet:OpenPage(cSql, 1, 2, "ID ASC")
+    jChecks["incompleteTotalsRejected"] := !lOpened .and. oDataSet:ErrorCode() == "INVALID_RESULT"
+    jResponse := DataSetResult(10, 2, 1, 2, .T., 3)
+    jResponse["totalPages"] := 3
+    QueueDataSetResult(oClient, jResponse)
+    lOpened := oDataSet:OpenPage(cSql, 1, 2, "ID ASC")
+    jChecks["inconsistentTotalsRejected"] := !lOpened .and. oDataSet:ErrorCode() == "INVALID_RESULT"
+    jResponse := DataSetResult(10, 2, 1, 2, .T., 3)
+    jResponse["totalRows"] := 9007199254740992
+    QueueDataSetResult(oClient, jResponse)
+    lOpened := oDataSet:OpenPage(cSql, 1, 2, "ID ASC")
+    jChecks["inexactTotalsRejected"] := !lOpened .and. oDataSet:ErrorCode() == "INVALID_RESULT"
+    QueueDataSetResult(oClient, DataSetResult(10, 1, 1, 2, .F., 1))
+    lOpened := oDataSet:OpenSQL(cSql)
+    jChecks["unexpectedPageRejected"] := !lOpened .and. oDataSet:ErrorCode() == "INVALID_RESULT"
+
+    nCalls := oClient:CallCount()
+    jResponse := JSONObject():New()
+    jResponse["size"] := 2
+    jResponse["orderBy"] := "ID ASC"
+    lOpened := oDataSet:OpenSQL(cSql, jResponse)
+    jChecks["incompletePageRejectedLocally"] := !lOpened .and. ;
+        oDataSet:ErrorCode() == "INVALID_PAGE" .and. oClient:CallCount() == nCalls
+    FreeObj(@jResponse)
+    lOpened := oDataSet:OpenPage(cSql, 1, 0, "ID ASC")
+    jChecks["zeroSizeRejectedLocally"] := !lOpened .and. ;
+        oDataSet:ErrorCode() == "INVALID_PAGE" .and. oClient:CallCount() == nCalls
+    QueueDataSetResult(oClient, DataSetResult(99, 1, 0, 0, .F.))
+    lOpened := oDataSet:OpenSQL(cSql)
+    jChecks["unpagedTotalsKnown"] := lOpened .and. oDataSet:HasTotals() .and. ;
+        oDataSet:TotalRows() == 1 .and. oDataSet:TotalPages() == 1
+    jChecks["changedProfileInvalidatesResult"] := oDataSet:SetAliasProfile("opaque/profile/other") == "opaque/profile" .and. ;
+        oDataSet:Eof() .and. oDataSet:FieldCount() == 0 .and. oDataSet:GetAliasProfile() == "opaque/profile/other"
+
     // GetNames() exposes a native array; enumerate once only for the report.
     aChecks := jChecks:GetNames()
     for nCheck := 1 to Len(aChecks)
@@ -270,7 +362,7 @@ static procedure QueueDataSetResult(oClient as object, jResponse as json)
 return
 
 static function DataSetResult(nFirstId as numeric, nRows as numeric, nPage as numeric, ;
-    nSize as numeric, lHasNext as logical) as json
+    nSize as numeric, lHasNext as logical, nTotalRows as numeric) as json
 
     local jResult := JSONObject():New() as json
     local jHeader := JSONObject():New() as json
@@ -318,6 +410,10 @@ static function DataSetResult(nFirstId as numeric, nRows as numeric, nPage as nu
         jPage["firstRow"] := IIf(nRows > 0, (nPage - 1) * nSize + 1, 0)
         jPage["lastRow"] := IIf(nRows > 0, (nPage - 1) * nSize + nRows, 0)
         jResult["page"] := jPage
+        if ValType(nTotalRows) == "N"
+            jResult["totalRows"] := nTotalRows
+            jResult["totalPages"] := Int(nTotalRows / nSize) + IIf(Mod(nTotalRows, nSize) == 0, 0, 1)
+        endif
     endif
 
 return(jResult)

@@ -81,6 +81,13 @@ operator-configured service scripts; no fixed installation or elevated-process
 stop is assumed. A failed configured stop aborts compilation. Startup is
 attempted after the compiler and preserves its failure status. The log is
 `tmp/totvs-compile.log`. Compile the entire `src/tlpp/` tree including tests.
+`prepare-totvs-sources.ps1` writes an explicit recursive list of regular
+`.tlpp` files. TOTVS requires a single semicolon-separated line with a trailing
+separator; supplying dotted test directories as sources caused seven errors
+and omitted their children in the 2026-10-12 review. The corrected list included
+all 24 sources. In the owner's local installation, use an elevated terminal
+and `C:\totvs\stop-totvs.bat` / `C:\totvs\start-totvs.bat`, ensuring startup
+after failures. Quote semicolon-separated include arguments in PowerShell.
 Renamed classes require a new compile; previous acceptance does not cover
 their newly published names.
 

@@ -5,7 +5,7 @@ PROCEDURE M3SQLTests( nFailures, nChecks )
     LOCAL cError, cDatabase := HBBridgeAbsolutePath( "sql-query.sqlite3", hb_cwd() )
     LOCAL hProfiles, hRegistry, hContext := HBBridgeContext( "test" ), hResult, hConfig, hHost := NIL
     LOCAL pConnection := NIL, nConnection, nPreviousArea := Select(), nPreviousConnection
-    LOCAL hThreads := {=>}, hThread, nIndex, cSql, hNative, hJSON, hBad, oError
+    LOCAL hThreads := {=>}, hThread, nIndex, cSql, hNative, hJSON, hBad, oError, nFreeArea, nAttempt
 
     hProfiles := HBBridgeSQLProfiles( { "sample" => { "driver" => "sqlite", "database" => "sql-query.sqlite3" }, ;
         "missing" => { "driver" => "sqlite", "database" => "sql-query-missing.sqlite3" }, ;
@@ -122,6 +122,28 @@ PROCEDURE M3SQLTests( nFailures, nChecks )
     M1Assert( hResult[ "success" ] .AND. Select() == nIndex .AND. FieldGet( 1 ) == 123 .AND. ;
         rddInfo( RDDI_CONNECTION, NIL, "SQLMIX" ) == nConnection, ;
         "query preserves an existing caller SQL area and default connection", @nFailures, @nChecks )
+    hResult := HBBridgeDispatch( hRegistry, "RPCRDD.Query", ;
+        { "alias" => "sample", "sql" => "SELECT id FROM samples", ;
+            "page" => { "number" => 1, "size" => 1, "orderBy" => "id" } }, hContext )
+    M1Assert( hResult[ "success" ] .AND. hResult[ "totalRows" ] == 2 .AND. ;
+        Select() == nIndex .AND. FieldGet( 1 ) == 123 .AND. ;
+        rddInfo( RDDI_CONNECTION, NIL, "SQLMIX" ) == nConnection, ;
+        "page reader and count preserve the caller workarea and connection", @nFailures, @nChecks )
+    dbSelectArea( 0 )
+    nFreeArea := Select()
+    dbSelectArea( nIndex )
+    FOR nAttempt := 1 TO 3
+        hResult := HBBridgeDispatch( hRegistry, "RPCRDD.Query", ;
+            { "alias" => "sample", "sql" => "SELECT * FROM missing_table" }, hContext )
+        M1Assert( ! hResult[ "success" ] .AND. hResult[ "code" ] == "QUERY_FAILED" .AND. ;
+            Select() == nIndex .AND. FieldGet( 1 ) == 123 .AND. ;
+            rddInfo( RDDI_CONNECTION, NIL, "SQLMIX" ) == nConnection, ;
+            "failed SQL OPEN preserves the caller area and connection", @nFailures, @nChecks )
+        dbSelectArea( 0 )
+        M1Assert( Select() == nFreeArea .AND. ! Used(), ;
+            "failed SQL OPEN does not consume a free workarea", @nFailures, @nChecks )
+        dbSelectArea( nIndex )
+    NEXT
     dbCloseArea()
     rddInfo( RDDI_DISCONNECT, NIL, "SQLMIX", nConnection )
     dbSelectArea( nPreviousArea )
@@ -205,6 +227,8 @@ STATIC PROCEDURE M3PageTests( hRegistry, hContext, nFailures, nChecks )
     M1Assert( hResult[ "rowCount" ] == 1 .AND. Len( hResult[ "rows" ] ) == 1 .AND. ;
         hResult[ "rows" ][ "1" ][ "ID" ] == 1 .AND. hResult[ "page" ][ "hasNext" ], ;
         "first page transfers only its row and detects the next one", @nFailures, @nChecks )
+    M1Assert( hResult[ "totalRows" ] == 2 .AND. hResult[ "totalPages" ] == 2, ;
+        "exact-multiple page totals describe the entire result", @nFailures, @nChecks )
     M1Assert( Len( hResult[ "header" ] ) == 3 .AND. hResult[ "header" ][ "ID" ][ "position" ] == 1 .AND. ;
         ! hb_HHasKey( hResult[ "rows" ][ "1" ], "__HBBRIDGE_ROWNO" ) .AND. ;
         hResult[ "page" ][ "number" ] == 1 .AND. hResult[ "page" ][ "size" ] == 1 .AND. ;
@@ -221,6 +245,8 @@ STATIC PROCEDURE M3PageTests( hRegistry, hContext, nFailures, nChecks )
         ! hResult[ "page" ][ "hasNext" ] .AND. hResult[ "page" ][ "firstRow" ] == 0 .AND. ;
         hResult[ "page" ][ "lastRow" ] == 0 .AND. Len( hResult[ "header" ] ) == 3, ;
         "page beyond the result is empty with metadata", @nFailures, @nChecks )
+    M1Assert( hResult[ "totalRows" ] == 2 .AND. hResult[ "totalPages" ] == 2, ;
+        "an out-of-range page retains full-query totals", @nFailures, @nChecks )
     hParams[ "page" ][ "number" ] := 1
     hParams[ "page" ][ "size" ] := 3
     hParams[ "page" ][ "orderBy" ] := "amount DESC, id ASC"
@@ -229,6 +255,15 @@ STATIC PROCEDURE M3PageTests( hRegistry, hContext, nFailures, nChecks )
     M1Assert( hResult[ "success" ] .AND. hResult[ "rowCount" ] == 2 .AND. ;
         ! hResult[ "page" ][ "hasNext" ] .AND. hResult[ "rows" ][ "1" ][ "ID" ] == 1, ;
         "partial page supports multiple order columns and final semicolon", @nFailures, @nChecks )
+    M1Assert( hResult[ "totalRows" ] == 2 .AND. hResult[ "totalPages" ] == 1, ;
+        "partial page totals never inflate the actual row count", @nFailures, @nChecks )
+    hResult := HBBridgeDispatch( hRegistry, "RPCRDD.Query", ;
+        { "alias" => "sample", "sql" => "SELECT id FROM samples WHERE id < 0", ;
+            "page" => { "number" => 1, "size" => 2, "orderBy" => "id" } }, hContext )
+    M1Assert( hResult[ "success" ] .AND. hResult[ "rowCount" ] == 0 .AND. ;
+        hResult[ "totalRows" ] == 0 .AND. hResult[ "totalPages" ] == 0 .AND. ;
+        ! hResult[ "page" ][ "hasNext" ], ;
+        "empty paged results expose zero rows and zero total pages", @nFailures, @nChecks )
     hParams[ "sql" ] := "SELECT 10 AS id, 'same' AS name UNION ALL SELECT 50, 'same' UNION ALL SELECT 90, 'same'"
     hParams[ "page" ] := { "number" => 2, "size" => 1, "orderBy" => "name, id DESC" }
     hResult := HBBridgeDispatch( hRegistry, "RPCRDD.Query", hParams, hContext )

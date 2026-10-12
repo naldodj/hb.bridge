@@ -86,6 +86,13 @@ acrescentados automaticamente. `HBBRIDGE_TOTVS_STOP_SCRIPT` e
 se presume instalação fixa nem parada de processos elevados. Falha de
 parada configurada interrompe a compilação. O reinício é tentado após o
 compilador, preservando seu resultado. O log fica em `tmp/totvs-compile.log`.
+`prepare-totvs-sources.ps1` gera lista recursiva dos arquivos `.tlpp` regulares.
+TOTVS exige uma linha separada e terminada por ponto e vírgula. Diretórios
+pontuados tratados como fontes causaram sete erros e omitiram seus filhos na
+análise de 2026-10-12; a lista corrigida incluiu os 24 fontes. Na instalação
+local do responsável, usar terminal administrativo e `C:\totvs\stop-totvs.bat`
+/ `C:\totvs\start-totvs.bat`, reiniciando também após falhas. Colocar argumentos
+de includes com ponto e vírgula entre aspas no PowerShell.
 Compile toda a árvore `src/tlpp/`, incluindo testes. Classes renomeadas
 exigem nova compilação; o aceite anterior não cobre os novos nomes.
 

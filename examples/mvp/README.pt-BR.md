@@ -29,8 +29,8 @@ Encerre com Ctrl+Q. O build recusa substituir uma saída em execução; use
 As dependências gerenciadas pertencem ao projeto, conforme
 [scripts](../../scripts/README.pt-BR.md).
 
-Compile o [cliente TLPP](../../src/tlpp/hbbridgeclient.tlpp) e o
-[teste Protheus](../../src/tlpp/tests/protheus/hbbridgeconnectiontest.tlpp)
+Compile o [cliente TLPP](../../src/tlpp/hbbridge.client.tlpp) e o
+[teste Protheus](../../src/tlpp/tests/protheus/hbbridge.connection.test/hbbridge.connection.test.tlpp)
 no AppServer e execute `U_HBBridgeConnectionTest()`. Na nova revisão, os
 argumentos omitidos vêm de `[hbBridge]` no INI usado pelo AppServer, com
 `127.0.0.1:1512` na ausência dessas chaves; informe outro destino com

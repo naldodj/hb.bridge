@@ -1,0 +1,57 @@
+/* Released to Public Domain. */
+#include "totvs.ch"
+#include "tlpp-core.th"
+
+// Pure helper checks: no connection, configuration or ERP table is read.
+procedure U_HBBridgeHelperTest()
+
+    local jChecks:=JSONObject():New() as json
+    local jFilters:=JSONObject():New() as json
+    local jFilter:=JSONObject():New() as json
+    local aFilters as array
+    local aNames as array
+    local nCheck as numeric
+    local lOk:=.T. as logical
+    local cSQL as character
+
+    jChecks["bareFields"]:=HBBridge.SQL.Tools.HBBridgeSqlTools():PrefixQryAlias("SRA","RA_MAT='123' AND R_E_C_N_O_=3")=="SRA.RA_MAT='123' AND SRA.R_E_C_N_O_=3"
+    jChecks["qualifiedFields"]:=HBBridge.SQL.Tools.HBBridgeSqlTools():PrefixQryAlias("SRA","SRA.RA_MAT=CTT.CTT_CUSTO")=="SRA.RA_MAT=CTT.CTT_CUSTO"
+    jChecks["literalUnderscores"]:=HBBridge.SQL.Tools.HBBridgeSqlTools():PrefixQryAlias("SRA","RA_NOME='NAME_WITH_UNDERSCORE'")=="SRA.RA_NOME='NAME_WITH_UNDERSCORE'"
+    jChecks["escapedQuote"]:=HBBridge.SQL.Tools.HBBridgeSqlTools():PrefixQryAlias("SRA","RA_NOME='O''BRIEN_SUFFIX'")=="SRA.RA_NOME='O''BRIEN_SUFFIX'"
+    cSQL:="RA_MAT='1' /* COMMENT_FIELD */ AND RA_NOME='2'"
+    jChecks["blockComment"]:=HBBridge.SQL.Tools.HBBridgeSqlTools():PrefixQryAlias("SRA",cSQL)=="SRA.RA_MAT='1' /* COMMENT_FIELD */ AND SRA.RA_NOME='2'"
+    cSQL:="RA_MAT='1' -- COMMENT_FIELD"+Chr(10)+"AND RA_NOME='2'"
+    jChecks["lineComment"]:=HBBridge.SQL.Tools.HBBridgeSqlTools():PrefixQryAlias("SRA",cSQL)=="SRA.RA_MAT='1' -- COMMENT_FIELD"+Chr(10)+"AND SRA.RA_NOME='2'"
+    jChecks["quotedIdentifier"]:=HBBridge.SQL.Tools.HBBridgeSqlTools():PrefixQryAlias("SRA","[RA_NOME]='x' AND RA_MAT='1'")=="[RA_NOME]='x' AND SRA.RA_MAT='1'"
+
+    jChecks["expandingReplacement"]:=HBBridge.Helper.HBBridgeStrTools():StrReplaceEx("a",{"a","aa"})=="aa"
+    jChecks["emptyReplacementKey"]:=HBBridge.Helper.HBBridgeStrTools():StrReplaceEx("text",{"","x"})=="text"
+    jChecks["collapsedWhitespace"]:=HBBridge.Helper.HBBridgeStrTools():StrReplaceEx("a    b",{"  "," "})=="a b"
+
+    // FWFilter's custom-filter interface requires a positional native array.
+    jFilters:Set(Array(1))
+    jFilter["__TITLE__"]:="Enabled"
+    jFilter["__FIELD_NAME__"]:="RA_ACTIVE"
+    jFilter["__OP_ADVPL__"]:="=="
+    jFilter["__OP_SQL__"]:="="
+    jFilter["__VALUE__"]:=".T."
+    jFilter["__SQL_VALUE__"]:="1"
+    jFilter["__REAL_VALUE__"]:=.T.
+    jFilters[1]:=jFilter
+    aFilters:=HBBridge.Client.HBBridgeTOTVSFilter():BuildCustomFilder(jFilters)
+    jChecks["typedFilterExpressions"]:=aFilters[1][2]=="RA_ACTIVE==.T." .and. aFilters[1][3]=="RA_ACTIVE=1"
+    jChecks["sqlFilterHasNoExtraQuote"]:=aFilters[1][4][1][5]=="RA_ACTIVE=1"
+    FWFreeArray(@aFilters)
+    FreeObj(@jFilters)
+
+    // GetNames() is used once only to print the keyed check report.
+    aNames:=jChecks:GetNames()
+    for nCheck:=1 to Len(aNames)
+        lOk:=jChecks[aNames[nCheck]].and.lOk
+    next nCheck
+    ConOut("hbBridge helper checks: "+jChecks:ToJSON())
+    ConOut("hbBridge helpers Protheus "+if(lOk,"OK","FAILED")+"; checks="+tlpp.ToStr(Len(aNames)))
+    FWFreeArray(@aNames)
+    FreeObj(@jChecks)
+
+return

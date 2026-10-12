@@ -5,6 +5,34 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Standardize hbBridge naming and paging)"
  */
 
+2026-10-12 19:49 UTC naldodj (Record future SQL connection reuse analysis)
+  + Add paired SQL connection analysis guides, linked from TODO, WIP and
+    the documentation index. Compare the current lifecycle, ODBC pooling
+    and reuse per profile through measurements and isolation/recovery checks.
+  ; Documentation only; implementation and active WIP criteria unchanged.
+
+2026-10-12 19:21 UTC naldodj (Review consumers, diagnostics and extension proposals)
+  ! Reserve the SQL area before opening; preserve caller areas on failure.
+    Keep exact totals and COUNT_BIG; return safe English error codes without
+    native SQL/credential/path text, and serialize the TCP error response.
+  * Validate dataset totals, preserve configured profiles across Close and
+    invalidate old results on profile changes. Extend pure TLPP checks.
+  ! Fix browse/helper literals, declarations, field order, row ownership,
+    callbacks and typed/escaped filters; preserve Protheus dictionary ownership.
+    Keep ERP query examples explicitly opt-in and retain the constant fixture.
+  ! Repair renamed Harbour fixture paths and contradictory INI case assertion.
+    Generate the recursive TOTVS .lst in its required semicolon format;
+    dotted test directories no longer hide their sources.
+  * Align paired documentation and standards with dotted filenames, current
+    APIs and test groups. Add Protheus consumer and SQLRDD/Duktape/CCHarbour
+    review guides; future engines remain uninstalled and WIP stays open.
+  ; Native regression: 583 checks, zero failures. TOTVS final report:
+    24 sources/successes, zero errors; RPO updated, services restarted.
+    Compiler shutdown still exits 0xC0000409; TLPP mock/UI execution pending.
+    UTF-8/FLOAT integrity and encrypted credential implementation remain work.
+  ; Three commit validators passed for 170 files; local links across 67
+    documents and whitespace passed. User index preserved; no publication.
+
 2026-10-09 20:04 UTC naldodj (Standardize hbBridge naming and paging)
   Standardize hbBridge naming and paging
   This patch renames source/test modules to the dotted hbBridge convention and updates build/config references to match.

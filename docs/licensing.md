@@ -44,7 +44,7 @@ conditions equivalent to MIT.
 ## Findings in current sources
 
 The `FileSig` helper in
-[the addon loader](../src/hb/addons/hbbridgeaddon.hb) matches the upstream
+[the addon loader](../src/hb/addons/hbbridge.addon.hb) matches the upstream
 `hbnetio.prg` helper after whitespace normalization; the load/compile flow
 also resembles it. The upstream utility header is GPL v2-or-later without
 the library linking exception. A local public-domain notice does not establish
@@ -53,7 +53,7 @@ or legal scope. MIT adoption requires clarifying origin and applying the
 relevant terms/permissions.
 [Compared upstream source, commit 8d94c31](https://github.com/harbour/core/blob/8d94c31367104a57eb9ae6fa248cca2abb8db309/contrib/hbnetio/utils/hbnetio/hbnetio.prg#L809-L829).
 
-[The TLPP clock](../src/tlpp/hbbridgetime.tlpp) records adaptation of
+[The TLPP clock](../src/tlpp/hbbridge.time.tlpp) records adaptation of
 `dna.tech.StopWatch.__GetCurrentTimeStamp()`. The local `naldodj-tlpp`
 checkout has LGPL 2.1 in LICENSE.txt. Confirm ownership and applicable
 adaptation terms before standardizing notices; a repository name is not

@@ -32,6 +32,9 @@ for %%D in ("%INCLUDES_DIR:;=" "%") do (
 )
 if "%MISSING_DIR%"=="1" exit /b 2
 if not exist "%PROJECT_ROOT%\tmp\" mkdir "%PROJECT_ROOT%\tmp"
+set "SOURCES_LIST=%PROJECT_ROOT%\tmp\totvs-sources.lst"
+pwsh -NoProfile -File "%~dp0prepare-totvs-sources.ps1" -ProjectRoot "%PROJECT_ROOT%" -OutputFile "%SOURCES_LIST%"
+if errorlevel 1 exit /b 2
 
 rem Lifecycle scripts are optional and explicitly configured by the operator.
 if not "%HBBRIDGE_TOTVS_STOP_SCRIPT%"=="" (
@@ -47,7 +50,7 @@ if not "%HBBRIDGE_TOTVS_STOP_SCRIPT%"=="" (
 )
 
 pushd "%APPSERVER_DIR%"
-appserver.exe -compile -files="%PROJECT_ROOT%\src\tlpp" -includes="%INCLUDES_DIR%" -env="%ENVIRONMENT%" -consolefile="%COMPILE_LOG%"
+appserver.exe -compile -files="%SOURCES_LIST%" -includes="%INCLUDES_DIR%" -env="%ENVIRONMENT%" -consolefile="%COMPILE_LOG%"
 set "COMPILE_EXIT=%ERRORLEVEL%"
 popd
 

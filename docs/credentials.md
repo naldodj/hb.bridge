@@ -28,12 +28,12 @@ no private configuration values were inspected for this review.
 | HBBRIDGE/1 TCP client | The current TLPP configuration has no authentication secret; the common TCP transport has no credential authentication/TLS layer. | Define authentication and protected transport separately; encrypted INI storage cannot add them to the wire protocol. |
 | HTTPS private key | `PrivateKey` identifies a server-side PEM file when the TLS build/configuration is available. | Protect that file and its backups separately; a certificate path is not a private-key encryption provider. |
 
-Implementation references: [host INI mapping](../src/hb/host/hbbridgeini.hb),
-[host validation](../src/hb/host/hbbridgeconfig.hb),
-[NETIO adapter](../src/hb/transports/netio/hbbridgenetio.hb),
-[HTTP authorization](../src/hb/transports/http/hbbridgehttp.hb),
-[TLPP HTTP client](../src/tlpp/hbbridgehttpclient.tlpp) and
-[TLPP TCP configuration](../src/tlpp/hbbridgeconfig.tlpp).
+Implementation references: [host INI mapping](../src/hb/host/hbbridge.ini.hb),
+[host validation](../src/hb/host/hbbridge.config.hb),
+[NETIO adapter](../src/hb/transports/netio/hbbridge.netio.hb),
+[HTTP authorization](../src/hb/transports/http/hbbridge.http.hb),
+[TLPP HTTP client](../src/tlpp/hbbridge.http.client.tlpp) and
+[TLPP TCP configuration](../src/tlpp/hbbridge.config.tlpp).
 
 The intended common contract is a credential reference resolved locally by
 the consumer, or a versioned authenticated ciphertext whose master key is

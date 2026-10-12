@@ -1,6 +1,6 @@
 # Marco 3 — primeira entrega de RPCRDD.Query
 
-O serviço [hbbridgequery.hb](../src/hb/services/hbbridgequery.hb) consulta bancos
+O serviço [hbbridge.query.hb](../src/hb/services/hbbridge.query.hb) consulta bancos
 pela implementação nativa `rddsql`/`SQLMIX` do Harbour. O produto vincula
 `sddsqlt3` para SQLite e `sddodbc` para MSSQL via ODBC. Não há um RDD próprio.
 SQLite e o cliente dataset/paginação foram homologados no AppServer pelo
@@ -106,6 +106,12 @@ O retorno acrescenta `page` com `number`, `size`, `hasNext`, `firstRow` e
 `lastRow`; `rowCount` conta apenas a página. `firstRow`/`lastRow` são zero
 quando ela está vazia. As chaves de `rows` recomeçam em `"1"` a cada página.
 O campo interno `__HBBRIDGE_ROWNO` não aparece no cabeçalho nem nas linhas.
+Resultados paginados também incluem `totalRows` e `totalPages` na raiz,
+obtidos por contagem separada da consulta base na mesma conexão. Resultado
+vazio tem zero páginas; o total não vazio é arredondado para cima pelo tamanho
+da página. A contagem acrescenta trabalho no banco e não estabelece snapshot
+com a consulta da página ou requisições posteriores. Mudanças concorrentes
+podem produzir observações diferentes.
 
 `orderBy` aceita nomes simples de colunas expostas pela consulta, separados
 por vírgula, com `ASC`/`DESC` opcionais. São permitidos letras ASCII, `_` e
@@ -150,22 +156,31 @@ explícita de nulos continuam na evolução do contrato.
 
 ## Cliente e teste Protheus
 
-[HBBridgeRPCDataSet](../src/tlpp/hbbridgerpcdataset.tlpp) usa `JSONObject` para o resultado,
+[HBBridgeRPCDataSet](../src/tlpp/hbbridge.rpc.dataset.tlpp) usa `JSONObject` para o resultado,
 com `OpenSQL`, `FieldGet`, `Skip`, `Eof`, `Close`, `RowCount`, `ErrorCode` e
-`ErrorMessage`. `OpenPage(profile, sql, number, size, orderBy)`, `NextPage`,
+`ErrorMessage`. `SetAliasProfile(profile)` seleciona o perfil para
+`OpenSQL(sql[, page])` e `OpenPage(sql, number, size, orderBy)`. `NextPage`,
 `HasNextPage`, `PageNumber` e `PageSize` fazem a navegação paginada explícita.
 `Skip` percorre apenas a página atual; `NextPage` realiza outra chamada.
 `New(oClient)` aceita um `HBBridgeClient` já configurado;
 `New()` cria o cliente usando os valores de `[hbBridge]` no INI do AppServer,
-com fallback local quando as chaves não existem. `Close` libera o resultado; os erros
-de abertura deixam o dataset vazio. A classe possui o objeto de resposta
+com fallback local quando as chaves não existem. Selecione primeiro o alias
+com `SetAliasProfile(profile)`; trocar esse valor fecha o resultado anterior.
+`Close` libera o resultado e mantém essa seleção; falha de abertura deixa o
+dataset vazio e preserva o erro/perfil selecionado. A classe possui o objeto de resposta
 completo para manter a validade dos objetos JSON internos.
 
-`Header()` retorna uma cópia JSON independente do cabeçalho; `DSStruct()` é
-seu alias de compatibilidade. `FieldInfo(name)` retorna uma cópia dos metadados
+`Header()` retorna uma cópia JSON independente do cabeçalho. `FieldInfo(name)` retorna uma cópia dos metadados
 de um campo. `FieldCount()` e `FieldName(position)` enumeram a ordem original
 das colunas SQL usando as posições explícitas do cabeçalho. `GetRow()` copia
 a linha atual sem avançar. Esses acessos não fazem requisições de página.
+`GetRows()` copia a página atual; `FieldExist()` consulta metadados mesmo no
+EOF. `PreviousPage()`/`HasPreviousPage()` permitem paginação explícita para
+trás. `HasTotals()` distingue totais recebidos de respostas paginadas anteriores
+com totais desconhecidos (`TotalRows()`/`TotalPages()` retornam `-1`). Fechado,
+os getters retornam zero; sem paginação, totais são a quantidade completa de
+linhas e zero/uma página. Veja validação e custos no
+[contrato do dataset](dataset.pt-BR.md#total-de-linhas-e-páginas).
 
 Use `while oDataSet:MoreToRead()` com `oDataSet:Skip()` explícito para percorrer
 todas as páginas sequencialmente. Ao atingir EOF da página, `MoreToRead()`
@@ -202,7 +217,7 @@ Para usar INI, informe `-Config config/examples/sqlite.ini`. O launcher consulta
 sem iniciar listeners; recompile o produto para essa opção. JSON continua aceito.
 
 Quando houver fontes novos, compile toda a árvore `src/tlpp/`, incluindo o novo
-[hbbridgequerytest.tlpp](../src/tlpp/tests/protheus/hbbridgequerytest.tlpp).
+[hbbridge.query.test.tlpp](../src/tlpp/tests/protheus/hbbridge.query.test/hbbridge.query.test.tlpp).
 O utilitário do projeto é `.\scripts\build-totvs.cmd`. Alterar somente o
 perfil SQL do host não exige recompilar o TLPP já atualizado.
 Na nova revisão, `HBBridge.Client.HBBridgeConfig():Read()` lê o INI selecionado
@@ -266,7 +281,7 @@ Não é necessário recompilar TLPP apenas para corrigir a configuração do hos
 
 ## Regressões e referências
 
-[hbbridgequerytest.hb](../tests/integration/harbour/hbbridgequerytest.hb) integra
+[hbbridge.query.test.hb](../tests/integration/harbour/hbbridge.query.test.hb) integra
 o runner Harbour. Cria um SQLite real em arquivo isolado, consulta dados
 persistidos, compara o serviço pelos transportes NETIO e TCP/JSON e exercita
 concorrência, resultados vazios, nulos em expressão, perfis e erros. Inclui

@@ -24,14 +24,14 @@ namespace HBBridge.Helper
 |_| |_||_.__/ |_.__/ |_|   |_| \__,_| \__, | \___||_| |_| \__,_||_| |_| |_||_.__/  \___||_|
                                       |___/
 */
-class HBBridgeNumber
+class HBBridgeNumberTools
 
     static method RetPictVal(nVal as numeric,lDecZero as logical,nInt as numeric,nDec as numeric,lPictSepMil as logical) as character
     static method RetPictLen(nVal as numeric,lDecZero as logical,nInt as numeric,nDec as numeric,lPictSepMil as logical) as numeric
 
 end class
 
-static method RetPictVal(nVal,lDecZero,nInt,nDec,lPictSepMil) class HBBridgeNumber
+static method RetPictVal(nVal,lDecZero,nInt,nDec,lPictSepMil) class HBBridgeNumberTools
 
     local cPictVal as character
 
@@ -53,7 +53,7 @@ static method RetPictVal(nVal,lDecZero,nInt,nDec,lPictSepMil) class HBBridgeNumb
 
 return(cPictVal)
 
-static method RetPictLen(nVal,lDecZero,nInt,nDec,lPictSepMil) class HBBridgeNumber
+static method RetPictLen(nVal,lDecZero,nInt,nDec,lPictSepMil) class HBBridgeNumberTools
 
     local cPictVal as character
 

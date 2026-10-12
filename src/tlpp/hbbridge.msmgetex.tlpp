@@ -30,7 +30,7 @@ end class
 static method ViewData(cAlias,nRecNo,cTitle,aButtons,aAcho) class HBBridgeMsMGetEx
 
     local aFields as array
-    local aButtons as array
+    local adbStruct as array
     local aMsMGetPos as array
     local aFieldsNoSX3 as array
 
@@ -56,6 +56,7 @@ static method ViewData(cAlias,nRecNo,cTitle,aButtons,aAcho) class HBBridgeMsMGet
     local nField as numeric
     local nFields as numeric
     local nATField as numeric
+    local nFieldFil as numeric
 
     local nTop as numeric
     local nLeft as numeric
@@ -160,7 +161,7 @@ static method ViewData(cAlias,nRecNo,cTitle,aButtons,aAcho) class HBBridgeMsMGet
             aFieldsNoSX3[nATField][10]:=GetSX3Cache(cField,"X3_RELACAO")//-> inicializador padrao
             DEFAULT aFieldsNoSX3[nATField][10]:=getValType(adbStruct[nField][DBS_TYPE])
             aFieldsNoSX3[nATField][11]:=GetSX3Cache(cField,"X3_F3")//-> F3
-            DEFAULT aFieldsNoSX3[nATField][11]:=")
+            DEFAULT aFieldsNoSX3[nATField][11]:=""
             aFieldsNoSX3[nATField][12]:=GetSX3Cache(cField,"X3_WHEN")//-> when
             DEFAULT aFieldsNoSX3[nATField][12]:=""
             aFieldsNoSX3[nATField][13]:=.T.//-> visual
@@ -191,7 +192,7 @@ static method ViewData(cAlias,nRecNo,cTitle,aButtons,aAcho) class HBBridgeMsMGet
             private lObfuscate:=.F. as logical
         endif
 
-        cDlgTitle:=cTitle+" :: Visualizar"
+        cDlgTitle:=cTitle+" :: View"
         DEFINE MSDIALOG oDlg TITLE cTitle FROM nTop,nLeft TO nBottom,nRight PIXEL OF getWNDDefault()
 
             aMsMGetPos:={;
@@ -249,7 +250,7 @@ static method ViewData(cAlias,nRecNo,cTitle,aButtons,aAcho) class HBBridgeMsMGet
             ACTIVATE MSDIALOG oDlg ON INIT EnchoiceBar(oDlg,{||oDlg:End()},{||oDlg:End()},nil,aButtons)
         else
             oDlg:End()
-            MsAguarde({||Sleep(500)},cTitle,"Visualizacao nao disponivel")
+            MsAguarde({||Sleep(500)},cTitle,"View is unavailable.")
         endif
 
         xRet:=lMsMGet
@@ -265,7 +266,7 @@ static method ViewData(cAlias,nRecNo,cTitle,aButtons,aAcho) class HBBridgeMsMGet
     FreeObj(@oFWDefSize)
 
     FWFreeArray(@aFields)
-    FWFreeArray(@aButtons)
+    FWFreeArray(@adbStruct)
     FWFreeArray(@aMsMGetPos)
     FWFreeArray(@aFieldsNoSX3)
 

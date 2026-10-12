@@ -29,6 +29,7 @@ static method BuildExpr(cAlias,nActivateType,lSQLFilter,jF3,aFilters,nFilterAndO
 
     local aFields:=Array(0) as array
     local adbStruct as array
+    local aX3Box as array
 
     local bErrorBlock as codeblock
 
@@ -189,7 +190,7 @@ static method BuildExpr(cAlias,nActivateType,lSQLFilter,jF3,aFilters,nFilterAndO
                                     if (!Empty(cFWFilter))
                                         cFWFilter+=if((nFilterAndOR==1)," .AND. "," .OR. ")
                                     endif
-                                    cFWGetFilter+=oFWFilter:GetFilterAdvpl(nFilter)
+                                    cFWGetFilter:=oFWFilter:GetFilterAdvpl(nFilter)
                                     if (Left(cFWGetFilter,1)=="#")
                                         cFWGetFilter:=StrTran(cFWGetFilter,"#","")
                                         cFWGetFilter:=&(cFWGetFilter)
@@ -205,7 +206,7 @@ static method BuildExpr(cAlias,nActivateType,lSQLFilter,jF3,aFilters,nFilterAndO
                                     endif
                                     cFWFilter+=cFWGetFilter
                                 else
-                                    cFWGetFilter+=oFWFilter:GetFilterAdvpl(nFilter)
+                                    cFWGetFilter:=oFWFilter:GetFilterAdvpl(nFilter)
                                     if (Left(cFWGetFilter,1)=="#")
                                         cFWGetFilter:=StrTran(cFWGetFilter,"#","")
                                         cFWGetFilter:=&(cFWGetFilter)
@@ -261,6 +262,7 @@ static method BuildExpr(cAlias,nActivateType,lSQLFilter,jF3,aFilters,nFilterAndO
 
     FWFreeArray(@aFields)
     FWFreeArray(@adbStruct)
+    FWFreeArray(@aX3Box)
 
     DelClassIntF()
 
@@ -286,7 +288,7 @@ static method BuildCustomFilder(jData) class HBBridgeTOTVSFilter
                 ,"FIELD"; //Type
                 ,"__TITLE__"; //Descricao do Filtro
                 ,"__FIELD_NAME____OP_ADVPL____VALUE__"; //Expressao AdvPL
-                ,"__FIELD_NAME____OP_SQL____VALUE__'"; //Expressao SQL
+                ,"__FIELD_NAME____OP_SQL____VALUE__"; //Expressao SQL
             };
             ,{;
                 "__OP_ADVPL__"; //Operador
@@ -322,7 +324,7 @@ static method BuildCustomFilder(jData) class HBBridgeTOTVSFilter
         aCustomFilter[nFilter][2]:=StrTran(aCustomFilter[nFilter][2],"__VALUE__",JSONGetValue(jData[nFilter],"__VALUE__","''"))
         aCustomFilter[nFilter][3]:=StrTran(aCustomFilter[nFilter][3],"__FIELD_NAME__",JSONGetValue(jData[nFilter],"__FIELD_NAME__",""))
         aCustomFilter[nFilter][3]:=StrTran(aCustomFilter[nFilter][3],"__OP_SQL__",JSONGetValue(jData[nFilter],"__OP_SQL__","="))
-        aCustomFilter[nFilter][3]:=StrTran(aCustomFilter[nFilter][3],"__VALUE__",JSONGetValue(jData[nFilter],"__VALUE__","''"))
+        aCustomFilter[nFilter][3]:=StrTran(aCustomFilter[nFilter][3],"__VALUE__",JSONGetValue(jData[nFilter],"__SQL_VALUE__",JSONGetValue(jData[nFilter],"__VALUE__","''")))
         aCustomFilter[nFilter][4][1][1]:=StrTran(aCustomFilter[nFilter][4][1][1],"__FIELD_NAME__",JSONGetValue(jData[nFilter],"__FIELD_NAME__",""))
         aCustomFilter[nFilter][4][1][3]:=StrTran(aCustomFilter[nFilter][4][1][3],"__TITLE__",JSONGetValue(jData[nFilter],"__TITLE__",""))
         aCustomFilter[nFilter][4][1][4]:=StrTran(aCustomFilter[nFilter][4][1][4],"__FIELD_NAME__",JSONGetValue(jData[nFilter],"__FIELD_NAME__",""))
@@ -330,7 +332,7 @@ static method BuildCustomFilder(jData) class HBBridgeTOTVSFilter
         aCustomFilter[nFilter][4][1][4]:=StrTran(aCustomFilter[nFilter][4][1][4],"__VALUE__",JSONGetValue(jData[nFilter],"__VALUE__","''"))
         aCustomFilter[nFilter][4][1][5]:=StrTran(aCustomFilter[nFilter][4][1][5],"__FIELD_NAME__",JSONGetValue(jData[nFilter],"__FIELD_NAME__",""))
         aCustomFilter[nFilter][4][1][5]:=StrTran(aCustomFilter[nFilter][4][1][5],"__OP_SQL__",JSONGetValue(jData[nFilter],"__OP_SQL__","="))
-        aCustomFilter[nFilter][4][1][5]:=StrTran(aCustomFilter[nFilter][4][1][5],"__VALUE__",JSONGetValue(jData[nFilter],"__VALUE__","''"))
+        aCustomFilter[nFilter][4][1][5]:=StrTran(aCustomFilter[nFilter][4][1][5],"__VALUE__",JSONGetValue(jData[nFilter],"__SQL_VALUE__",JSONGetValue(jData[nFilter],"__VALUE__","''")))
         aCustomFilter[nFilter][4][2][1]:=StrTran(aCustomFilter[nFilter][4][2][1],"__OP_ADVPL__",JSONGetValue(jData[nFilter],"__OP_ADVPL__","=="))
         aCustomFilter[nFilter][4][3][1]:=JSONGetValue(jData[nFilter],"__REAL_VALUE__",'')
     next nFilter

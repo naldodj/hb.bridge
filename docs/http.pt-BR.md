@@ -3,7 +3,7 @@
 [English](http.md)
 
 O hbBridge usa o **hbhttpd** do Harbour no mesmo executável do NETIO e do
-adaptador TCP Protheus. O [adaptador HTTP](../src/hb/transports/http/hbbridgehttp.hb)
+adaptador TCP Protheus. O [adaptador HTTP](../src/hb/transports/http/hbbridge.http.hb)
 autentica as requisições e chama o registro versionado existente. HTTP não
 duplica os executores de Health, addons ou SQL nem interpreta regras de
 tenant/empresa/filial/xFilial/tabelas Protheus; o chamador fornece parâmetros
@@ -176,7 +176,7 @@ TLS no HTTP não protege automaticamente NETIO ou o listener TCP Protheus.
 
 ## Validação e próximos passos
 
-[Os testes HTTP](../tests/integration/harbour/hbbridgehttptest.hb) cobrem
+[Os testes HTTP](../tests/integration/harbour/hbbridge.http.test.hb) cobrem
 autenticação/separação dos canais, Health/Echo/addon/SQL, equivalência NETIO,
 erros JSON/corpo, contextos concorrentes, status sem segredos, parada/reinício
 e rollback de início. Os resultados ficam em [homologação](acceptance.pt-BR.md);

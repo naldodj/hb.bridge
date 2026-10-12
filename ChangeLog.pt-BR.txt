@@ -5,6 +5,34 @@
    Caminhos antigos descrevem os arquivos existentes na época.
  */
 
+2026-10-12 19:49 UTC naldodj (Registrar análise futura de reuso de conexões SQL)
+  + Adicionar guias EN/PT de conexões SQL, vinculados ao TODO, WIP e índice.
+    Comparar ciclo atual, pooling ODBC e reuso por perfil através de medições
+    e verificações de isolamento/recuperação.
+  ; Apenas documentação; implementação e critérios do WIP preservados.
+
+2026-10-12 19:21 UTC naldodj (Revisar consumidores, diagnóstico e propostas de extensão)
+  ! Reservar área SQL antes da abertura, preservando áreas do chamador na falha.
+    Manter totais exatos/COUNT_BIG; detalhes em inglês sem SQL/credenciais/
+    caminhos nativos e resposta de erro TCP serializada corretamente.
+  * Validar totais do dataset, manter perfil no Close e invalidar resultado
+    anterior na troca de perfil. Ampliar checks TLPP puros.
+  ! Corrigir literais/declarações, ordem/cópias das linhas, callbacks e filtros
+    tipados/escapados dos helpers/browse. Dicionário permanece no Protheus.
+    Exemplos ERP query exigem opção explícita; fixture constante preservada.
+  ! Corrigir caminhos de fixtures Harbour e teste contraditório de case INI.
+    Gerar .lst TOTVS recursivo no formato com ponto e vírgula, incluindo os
+    filhos das pastas pontuadas de testes.
+  * Alinhar guias EN/PT e padrões aos nomes pontuados/APIs/grupos atuais.
+    Novos guias Protheus e análise SQLRDD/Duktape/CCHarbour; motores não
+    instalados, WIP permanece aberto.
+  ; Regressão nativa: 583 checks, zero falhas. Relatório TOTVS final:
+    24 fontes/sucessos, zero erros; RPO atualizado e serviços reiniciados.
+    Saída do compilador continua 0xC0000409; mocks/UI TLPP não executados.
+    Integridade UTF-8/FLOAT e implementação de credenciais cifradas pendentes.
+  ; Três validadores passaram em 170 arquivos; links locais em 67 documentos
+    e whitespace aprovados. Índice do usuário preservado; sem publicação.
+
 2026-10-09 20:04 UTC naldodj (Padronizar nomenclatura e paginação do hbBridge)
   Padronizar nomenclatura e paginação do hbBridge
   Este patch renomeia os módulos de código-fonte/testes para a convenção com ponto (dotted) hbBridge e atualiza as referências de compilação/configuração correspondentes.

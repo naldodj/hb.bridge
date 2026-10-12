@@ -2,6 +2,14 @@
 
 [English](README.md)
 
+[Conexões SQL](sql-connections.pt-BR.md) registra a análise futura de conexões
+persistentes/pooling ODBC, medições, estado de sessão e propriedade dos recursos.
+
+O [guia de consumidores Protheus](../examples/protheus/README.pt-BR.md) reúne
+testes reorganizados, checks puros e browses SRA/SX5. A
+[análise de extensões](extensions-review.pt-BR.md) trata SQLRDD, Duktape e
+CCHarbour como possibilidades futuras, sem novos motores implementados.
+
 O [pacote ativo](../WIP.pt-BR.md) registra escopo atual, próxima tarefa,
 decisões, evidências e renovação. O primeiro pacote é MSSQL real; TODO
 permanece o roadmap completo, sem copiar todas as pendências para o WIP.
@@ -81,7 +89,7 @@ com todos os 13 checks de configuração verdadeiros, incluindo
 O relato não informa argumentos das chamadas nem log de compilação; destinos
 diferentes dos padrões continuam pendentes, conforme a matriz de homologação.
 
-O cliente `src/tlpp/hbbridgeclient.tlpp` envia requisicoes JSON com `service`
+O cliente `src/tlpp/hbbridge.client.tlpp` envia requisicoes JSON com `service`
 e `params`. O servidor escuta em `0.0.0.0:1512` (cliente local: `127.0.0.1`) e usa dispatcher
 compartilhado com NETIO. `Health` responde pela biblioteca Zig; `Echo` devolve
 os parametros recebidos e `ADDON.Execute` compila/carrega e executa modulos
@@ -123,7 +131,7 @@ de strings, chunks de socket/zlib e timeout NETIO do build. O buffer cabe no
 menor limite entre socket e codec; não limita o total da mensagem.
 Os prazos e o uptime do servidor usam `HBBridgeMonotonicMs()`, sem relógio civil.
 O TLPP passou a usar `TimeCounter()` pelos métodos estáticos da classe
-`HBBridge.Client.HBBridgeTime`, em [hbbridgetime.tlpp](../src/tlpp/hbbridgetime.tlpp),
+`HBBridge.Client.HBBridgeTime`, em [hbbridge.time.tlpp](../src/tlpp/hbbridge.time.tlpp),
 com regressão expirando o orçamento e teste de escala/espera no AppServer.
 A normalização Unix × 1000 corrige a diferença de unidades reproduzida na
 [issue #12](https://github.com/naldodj/totvs-protheus-open-issues/issues/12).
@@ -168,7 +176,7 @@ e referências no [transporte incorporado](../src/hb/transports/netio/README.pt-
 
 ## Syslog
 
-O modulo `src/hb/telemetry/hbbridgesyslog.hb` implementa envio UDP para
+O modulo `src/hb/telemetry/hbbridge.syslog.hb` implementa envio UDP para
 `127.0.0.1:514` e esta incluido no build. O fluxo atual do servidor nao
 chama `SyslogOpen`, `SyslogWrite` ou `SyslogClose`; portanto, nao ha emissao
 Syslog integrada ao atendimento RPC. A conexao desse modulo ao ciclo de

@@ -11,6 +11,8 @@ code or specifically identified evidence, not unrestricted platform acceptance.
 prerequisites and evidence. Continue there instead of reanalyzing this entire
 roadmap. Reconcile completed items here when the package closes; intermediate
 commits/publication preserve its progress. Package 001 is real MSSQL acceptance.
+The [2026-10-12 extension review](docs/extensions-review.md) evaluates SQLRDD,
+Duktape and CCHarbour as future packages, without adding runtime dependencies.
 
 ## Principles to preserve
 
@@ -366,6 +368,13 @@ per-value limits; tested slow-consumer/invalid-decode/disconnect behavior.
 
 ### Data-access evolution
 
+- [ ] Analyze SQL connection reuse: measure connection/authentication apart
+  from query/count/fetch/encoding/transport; compare ODBC pooling, one reusable
+  connection per profile and a bounded host pool. Verify exclusive ownership,
+  session/transaction reset, recovery, resource limits and Windows/Linux/SQLite
+  behavior. Preserve the SQL mutex until concurrency is accepted. This is
+  independent of RPC transport persistence. [Observation](docs/sql-connections.md).
+
 - [ ] SQL bind values and size/precision/null type metadata; identifier resolution
   stays with the caller. Generic connector/dialect registry, including Oracle
   after real type/pagination acceptance; PostgreSQL sddpg/hbpgsql and MySQL sddmy.
@@ -373,8 +382,10 @@ per-value limits; tested slow-consumer/invalid-decode/disconnect behavior.
   CP437, and the 2026-10-08 constant probe lost a FLOAT fraction in JSON.
   Separate native SQL metadata, caller logical definitions and wire values;
   SX3/TOP_FIELD stay caller-resolved. [Analysis](docs/dataset.md).
-- [ ] AppServer acceptance of dataset Header/DSStruct, FieldInfo/FieldCount/
-  FieldName/GetRow and MoreToRead auto-page traversal, including fetch failures.
+- [ ] AppServer acceptance of Header, FieldInfo/FieldCount/FieldName,
+  FieldExist/GetRow/GetRows, totals and previous/next/MoreToRead traversal.
+  New mocks prepare 67 checks/31 calls; pure helpers prepare 12 checks.
+  Keep Protheus browse/ERP examples separate from constant fixtures.
 - [x] ROW_NUMBER/BETWEEN pages, sentinel hasNext, explicit order, OpenPage/
   NextPage; gaps in business IDs do not control ordinal pagination.
 - [ ] Keyset/cursors/snapshots/deadlines/expiry/large fields and write-stability
@@ -418,6 +429,17 @@ and Oracle require their own evidence.
   See [the result-table design](docs/evolution.md#tables-for-native-protheus-presentation).
 
 ### Module execution and native extensions
+
+- [ ] Evaluate xHarbour-SQLRDD catalog/index/type behavior as a reference;
+  source/license review before reuse, no implied DBAccess wire compatibility
+  or automatic SX3/TOP_FIELD lookup. Keep the accepted SQLMIX route.
+- [ ] Optional Duktape C addon: pinned distribution, configured modules,
+  explicit parameters/permissions, numeric representation, restricted bindings,
+  allocation/time/cancellation and worker isolation acceptance.
+- [ ] Optional CCHarbour adapter: explicit tools and job/status/cancel,
+  protected provider settings, local/remote model policy and measured resource
+  use. Do not promise a 2 MB hbBridge/model or privacy from Ollama selection alone.
+  See [review and delivery order](docs/extensions-review.md).
 
 - [x] Verify THREAD STATIC isolates per-thread state, including a shared HRB,
   while retained workers preserve values across calls/reloads. Keep request

@@ -287,7 +287,7 @@ Argumentos omitidos leem o INI ativo; argumentos explícitos prevalecem.
 O timeout HTTP nativo difere de `TimeoutMs` TCP; não aplica frame TCP, gzip
 nem budgets do socket. Veja o [exemplo TLPP](../examples/http/README.pt-BR.md).
 
-A classe estática [HBBridgeConfig](../src/tlpp/hbbridgeconfig.tlpp), no namespace
+A classe estática [HBBridgeConfig](../src/tlpp/hbbridge.config.tlpp), no namespace
 `HBBridge.Client`, usa `GetSrvIniName()` para selecionar inclusive um nome
 de INI customizado e `GetPvProfString()` para ler a seção. A seleção nativa
 do arquivo é descrita no [TDN](https://tdn.totvs.com/display/tec/GetSrvIniName).

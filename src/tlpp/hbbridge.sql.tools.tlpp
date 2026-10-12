@@ -28,14 +28,14 @@ using namespace HBBridge.Helper
 
 class HBBridgeSqlTools
 
-    static method GetNextRecNo(cAlias as character,nNextRecNo as numeric,nRecNo as numeric,nOrder as numeric) as logical
+    static method GetNextRecNo(cAlias as character,nNextRecNo as numeric,nOrder as numeric) as logical
     static method GoToNextRecNo(cAlias as character,nNextRecNo as numeric,nOrder as numeric) as logical
 
     static method SQLRecCount(cTable as character, cWhere as character,cSQLCount as character,lChangeQuery as logical) as numeric
     static method GetMinMaxRecNo(cAlias as character,cTable as character,cWhere as character,nMinRecNo as numeric,nMaxRecNo as numeric) as logical
 
-    static method SQLDelete(cTable as character,cWhere as character) as numeric
-    static method SQLSetDeleted(cTable as character,cWhere as character) as numeric
+    static method SQLDelete(cTable as character,cWhere as character,cTCSQLError as character) as numeric
+    static method SQLSetDeleted(cTable as character,cWhere as character,cTCSQLError as character) as numeric
 
     static method GetAliasTableName(cAlias as character) as character
     static method GetTmpRealNameByAlias(cAlias as character) as character
@@ -90,13 +90,13 @@ static method SQLRecCount(cTable,cWhere,cSQLCount,lChangeQuery) class HBBridgeSq
     paramtype cWhere as character optional default "(1=1)"
     paramtype cSQLCount as character optional
     paramtype lChangeQuery as logical optional default .F.
-return(SQLRecCount(@cTable,@cWhere,@cSQLCount))
+return(SQLRecCount(@cTable,@cWhere,@cSQLCount,lChangeQuery))
 
 static function SQLRecCount(cTable as character, cWhere as character,cSQLCount as character,lChangeQuery as logical) as numeric
 
     local aArea:=FWGetArea() as array
 
-    local cAlias:=getNextAlias() as numeric
+    local cAlias:=getNextAlias() as character
     local cQuery as character
 
     local nRecCount:=0 as numeric
@@ -219,7 +219,7 @@ static method SQLDelete(cTable,cWhere,cTCSQLError) class HBBridgeSqlTools
     local nDeletedRecNos as numeric
 
     paramtype cTable as character
-    paramtype cWhere as character default "D_E_L_E_T_='*'
+    paramtype cWhere as character optional default "D_E_L_E_T_='*'"
 
     nDeletedRecNos:=HBBridgeSqlTools():SQLRecCount(cTable,cWhere)
     if (nDeletedRecNos>0)
@@ -314,17 +314,62 @@ static method PrefixQryAlias(cAlias,cSQL) class HBBridgeSqlTools
     local cOut:="" as character
     local cChar as character
     local cToken:="" as character
+    local cQuote:="" as character
+    local cPrevious:="" as character
+    local lLineComment:=.F. as logical
+    local lBlockComment:=.F. as logical
 
     local n:=1 as numeric
 
     paramtype 1 var cAlias as character
     paramtype 2 var cSQL as character optional default ""
 
+    // This helper qualifies bare Protheus field tokens. Literal contents,
+    // quoted identifiers and comments must remain byte-for-byte unchanged.
+
     while (n<=Len(cSQL))
 
         cChar:=SubStr(cSQL,n,1)
 
-        if (IsAlpha(cChar))
+        if (lLineComment)
+            cOut+=cChar
+            if ((cChar==Chr(10)).or.(cChar==Chr(13)))
+                lLineComment:=.F.
+            endif
+            n++
+        elseif (lBlockComment)
+            if (SubStr(cSQL,n,2)=="*/")
+                cOut+="*/"
+                n+=2
+                lBlockComment:=.F.
+            else
+                cOut+=cChar
+                n++
+            endif
+        elseif (!Empty(cQuote))
+            cOut+=cChar
+            n++
+            if (cChar==cQuote)
+                if (SubStr(cSQL,n,1)==cQuote)
+                    cOut+=cQuote
+                    n++
+                else
+                    cQuote:=""
+                endif
+            endif
+        elseif (SubStr(cSQL,n,2)=="--")
+            cOut+="--"
+            n+=2
+            lLineComment:=.T.
+        elseif (SubStr(cSQL,n,2)=="/*")
+            cOut+="/*"
+            n+=2
+            lBlockComment:=.T.
+        elseif ((cChar=="'").or.(cChar=='"').or.(cChar=="["))
+            cQuote:=if(cChar=="[","]",cChar)
+            cOut+=cChar
+            n++
+        elseif ((IsAlpha(cChar)).or.(cChar=="_"))
 
             cToken:=""
 
@@ -342,7 +387,8 @@ static method PrefixQryAlias(cAlias,cSQL) class HBBridgeSqlTools
             end while
 
             if ("_"$cToken)
-                if (!(SubStr(cSQL,n-Len(cToken)-1,1)=="."))
+                cPrevious:=Right(AllTrim(cOut),1)
+                if (cPrevious!=".")
                     cOut+=cAlias+"."+cToken
                 else
                     cOut+=cToken
@@ -370,6 +416,7 @@ static method GetNextFieldNum(cAlias,cField,nOrder,cMyIUseCode,lUseFilial,lIgnor
     local cFieldFil as character
     local cSQLTable as character
     local cSQLAlias as character
+    local cSQLField as character
     local cAliasFilial as character
     paramtype 1 var cAlias as character
     paramtype 2 var cField as character

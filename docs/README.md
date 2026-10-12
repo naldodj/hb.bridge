@@ -14,9 +14,12 @@ the intended architecture; [TODO](../TODO.md) tracks delivery and acceptance.
 | [Milestone 2](milestone2-framing.md) | HBBRIDGE/1, incremental server gzip, complete TLPP reads and runtime capacities. |
 | [Milestone 3](milestone3-sql.md) | SQLMIX, SQLite/MSSQL profiles, named dataset and database-side pages. |
 | [Dataset](dataset.md) | Field/header access, automatic sequential paging and pending UTF-8/FLOAT integrity corrections. |
+| [SQL connections](sql-connections.md) | Future evaluation of persistent connections/ODBC pooling, measurements, state and ownership. |
 | [Configuration](configuration.md) | Server INI/JSON/CLI, AppServer client section and sanitized metadata. |
 | [HTTP and web administration](http.md) | Native hbhttpd, shared HTTP/JSON services, authenticated status panel and optional TLS. |
 | [TLPP HTTP example](../examples/http/README.md) | FWRest client, AppServer settings, bearer, generic RPC and paginated SQL dataset. |
+| [Protheus consumers](../examples/protheus/README.md) | Reorganized tests, pure dataset/helper checks and interactive SRA/SX5 examples. |
+| [Extension review](extensions-review.md) | SQLRDD reference, optional Duktape modules and CCHarbour agents; implementation pending. |
 | [Acceptance](acceptance.md) | Operator/environment evidence, historical builds and pending scenarios. |
 | [VF IO/TRPC](harbour-vfio-trpc.md) | Native file API and selective upstream design reuse. |
 | [Transports/sessions/security](transports-sessions-security.md) | Persistence/context, TLS/JWT, gRPC restrictions and optional AMQP. |
@@ -31,7 +34,7 @@ Every guide has an English canonical file and a Portuguese `.pt-BR` counterpart.
 
 ## Implemented product contract
 
-[HBBridgeClient](../src/tlpp/hbbridgeclient.tlpp) sends JSON `service`/`params`
+[HBBridgeClient](../src/tlpp/hbbridge.client.tlpp) sends JSON `service`/`params`
 to the Protheus endpoint, default bind `0.0.0.0:1512` (loopback client:
 `127.0.0.1`). NETIO shares the same dispatcher.
 Health uses the Zig library, Echo returns parameters, ADDON.Execute compiles/
@@ -91,7 +94,7 @@ compilation. The [acceptance record](acceptance.md) includes the later
 
 ## Syslog and further documentation
 
-[The Syslog module](../src/hb/telemetry/hbbridgesyslog.hb) is linked and can send
+[The Syslog module](../src/hb/telemetry/hbbridge.syslog.hb) is linked and can send
 UDP to 127.0.0.1:514; active host/RPC flow does not call its open/write/close
 functions. Integration and collector acceptance remain work.
 Protocol, addon API and deployment guides will expand as behavior stabilizes.

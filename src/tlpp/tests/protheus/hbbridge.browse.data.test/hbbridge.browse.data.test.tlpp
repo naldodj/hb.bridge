@@ -44,6 +44,7 @@ static procedure __Execute(jParameters as json)
     local cATRecNoMsMGet as character
     local cIniFile as character
     local cAliasProfile as character
+    local cDateFormat:=Set(4) as character
 
     local bLDblClick as codeblock
 
@@ -51,6 +52,7 @@ static procedure __Execute(jParameters as json)
 
     local lAcho as logical
     local lRPCSetEnv:=(Select("SM0")==0) as logical
+    local lSetCentury as logical
 
     local nPort as numeric
     local nTimeout as numeric
@@ -65,7 +67,7 @@ static procedure __Execute(jParameters as json)
         FWMsgRun(nil,{||RPCSetEnv(cEmp,cFil)},"Wait...")
     endif
 
-        __SetCentury("ON")
+        lSetCentury:=__SetCentury("ON")
         Set(4,"DD/MM/YYYY")
 
         begin sequence
@@ -105,16 +107,17 @@ static procedure __Execute(jParameters as json)
             oDataSet:SetAliasProfile(cAliasProfile)
 
             if (jParameters:HasProperty("jHBBridgeDataSetPage"))
-                jHBBridgeDataSetPage:=jParameters["jHBBridgeDataSetPage"]
+                jHBBridgeDataSetPage:=JSONObject():New()
+                jHBBridgeDataSetPage:FromJSON(jParameters["jHBBridgeDataSetPage"]:ToJSON())
             endif
             lAcho:=jParameters:HasProperty("aAcho")
             bLDblClick:={||;
                 if(lAcho;
                     ,(;
                         aAcho:=if(;
-                            MsgYesNo("Consultar todos os campos","HBBridge.Client.HBBridgeBrowseData");
+                            MsgYesNo("View all fields?","HBBridge.Client.HBBridgeBrowseData");
                             ,nil;
-                            ,jParameters["aAcho"];
+                            ,aClone(jParameters["aAcho"]);
                         );
                     );
                     ,nil;
@@ -123,9 +126,9 @@ static procedure __Execute(jParameters as json)
             }
 
             aCustomButtons:=Array(1,7)
-            aCustomButtons[1][1]:="&Visualizar"
+            aCustomButtons[1][1]:="&View"
             aCustomButtons[1][2]:=bLDblClick
-            aCustomButtons[1][3]:="Visualizar"
+            aCustomButtons[1][3]:="View"
             aCustomButtons[1][4]:=nil
             aCustomButtons[1][5]:=.T.
             aCustomButtons[1][6]:=.F.
@@ -140,6 +143,7 @@ static procedure __Execute(jParameters as json)
             FWFreeArray(@aFWBrwData)
             FWFreeArray(@aCustomButtons)
 
+            oDataSet:Close()
             FreeObj(@oClient)
             FreeObj(@oDataSet)
             FreeObj(@oFWBrowse)
@@ -147,6 +151,9 @@ static procedure __Execute(jParameters as json)
             FreeObj(@jHBBridgeDataSetPage)
 
     end sequence
+
+    __SetCentury(if(lSetCentury,"ON","OFF"))
+    Set(4,cDateFormat)
 
     if (lRPCSetEnv)
         RPCClearEnv()

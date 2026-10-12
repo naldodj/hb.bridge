@@ -47,7 +47,7 @@ as condições de distribuição são diferentes.
 
 ## Pontos encontrados no código atual
 
-O helper `FileSig` de [hbbridgeaddon.hb](../src/hb/addons/hbbridgeaddon.hb)
+O helper `FileSig` de [hbbridge.addon.hb](../src/hb/addons/hbbridge.addon.hb)
 coincide com o helper homônimo do utilitário `hbnetio.prg` após normalizar
 espaços. O fluxo de compilação/carregamento também apresenta semelhanças.
 O utilitário upstream tem GPL v2 ou posterior sem exceção de vinculação em
@@ -57,7 +57,7 @@ o alcance jurídico da coincidência. A adoção global de MIT depende de
 esclarecer a origem e aplicar os termos ou permissões correspondentes.
 [Fonte comparado, commit 8d94c31](https://github.com/harbour/core/blob/8d94c31367104a57eb9ae6fa248cca2abb8db309/contrib/hbnetio/utils/hbnetio/hbnetio.prg#L809-L829).
 
-[hbbridgetime.tlpp](../src/tlpp/hbbridgetime.tlpp) registra adaptação de
+[hbbridge.time.tlpp](../src/tlpp/hbbridge.time.tlpp) registra adaptação de
 `dna.tech.StopWatch.__GetCurrentTimeStamp()`. O checkout local
 `naldodj-tlpp` contém `LICENSE.txt` com LGPL 2.1. Também é necessário
 confirmar a titularidade e os termos aplicáveis à adaptação antes de

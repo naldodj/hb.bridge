@@ -37,10 +37,10 @@ brainstorming review; historical validation does not certify it.
 
 The current server binds 0.0.0.0, default port 1512; local client uses 127.0.0.1.
 The Protheus signature is HBBRIDGE/1. Brainstorming refers to older behavior.
-See [entry](../src/hb/host/hbbridgemain.hb) and
-[listener](../src/hb/transports/protheus/hbbridgeserver.hb).
+See [entry](../src/hb/host/hbbridge.main.hb) and
+[listener](../src/hb/transports/protheus/hbbridge.server.hb).
 
-[The client](../src/tlpp/hbbridgeclient.tlpp) creates/closes its socket inside
+[The client](../src/tlpp/hbbridge.client.tlpp) creates/closes its socket inside
 CallService; each worker serves one request then closes.
 A socket class does not automatically implement reuse.
 Persistence first needs stream framing, partial reads/writes and preservation

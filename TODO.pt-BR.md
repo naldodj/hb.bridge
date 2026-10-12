@@ -6,6 +6,8 @@
 decisões, pré-requisitos e evidências. Continue por ele, sem reanalisar todo
 este roadmap. Concilie itens concluídos aqui ao encerrar o pacote;
 commits/publicações intermediários preservam seu progresso. Pacote 001: MSSQL real.
+A [análise de extensões de 2026-10-12](docs/extensions-review.pt-BR.md) avalia
+SQLRDD, Duktape e CCHarbour para pacotes futuros, sem novas dependências runtime.
 
 ## Alinhamento atual: executor, perfis e compilação
 
@@ -16,8 +18,9 @@ parâmetros. Autorização genérica pode validar contexto explícito, sem infer
 regras ERP. Veja [arquitetura](docs/architecture.pt-BR.md).
 
 SQLProfile é opcional e agora tem padrão vazio na biblioteca e no template.
-sqlite_demo pertence apenas ao exemplo SQLite. Cada `OpenSQL`/`OpenPage` escolhe
-um alias, como MSSQL/pData; barra e maiúsculas são preservadas sem dedução de
+sqlite_demo pertence apenas ao exemplo SQLite. `SetAliasProfile()` configura
+o alias do dataset antes de `OpenSQL`/`OpenPage`, como MSSQL/pData;
+barra e maiúsculas são preservadas sem dedução de
 driver, empresa ou filial. O teste sem alias/SQLProfile retorna PROFILE_REQUIRED
 antes da rede. Drivers atuais: sqlite e mssql; Oracle exige conector e aceite
 próprios. A configuração revisada e as classes renomeadas foram homologadas
@@ -569,11 +572,18 @@ testado; somente versões e capacidades efetivamente implementadas são anunciad
 
 ### Evolução do acesso a dados
 
+- [ ] Analisar reuso de conexões SQL: medir conexão/autenticação separadas de
+  query/contagem/leitura/codificação/transporte; comparar pooling ODBC, conexão
+  reutilizável por perfil e pool limitado do host. Homologar propriedade
+  exclusiva, reset de sessão/transação, recuperação, recursos e comportamento
+  Windows/Linux/SQLite. Preservar mutex até aceitar concorrência. Independente
+  da persistência RPC. [Observação](docs/sql-connections.pt-BR.md).
+
 - [ ] Correção de integridade UTF-8/FLOAT identificada no aceite: TCP atual pode
   usar CP437 Harbour e a prova de 2026-10-08 perdeu fração FLOAT no JSON.
   Separar metadados SQL nativos, definições lógicas do chamador e valores no
   transporte; SX3/TOP_FIELD resolvidos no Protheus. [Análise](docs/dataset.pt-BR.md).
-- [ ] Homologação AppServer de Header/DSStruct, FieldInfo/FieldCount/FieldName/
+- [ ] Homologação AppServer de Header, FieldInfo/FieldCount/FieldName/
   GetRow e varredura MoreToRead entre páginas, incluindo falhas na busca.
 
 - [ ] Adicionar parâmetros SQL e metadados de tipo, tamanho, precisão e nulos,
@@ -644,6 +654,17 @@ locais/remotos em blocos, com integridade binária, erros e liberação verifica
   Veja o [desenho de resultados](docs/evolution.pt-BR.md#tabelas-para-apresentação-nativa-no-protheus).
 
 ### Execução de módulos e extensões nativas
+
+- [ ] Avaliar catálogo/índices/tipos xHarbour-SQLRDD como referência; conferir
+  fonte/licença antes de reutilizar, sem deduzir compatibilidade do protocolo
+  DBAccess nem consultar SX3/TOP_FIELD automaticamente. Manter SQLMIX homologado.
+- [ ] Addon C Duktape opcional: distribuição fixada, módulos configurados,
+  parâmetros/permissões explícitos, números, bindings restritos, orçamentos de
+  alocação/tempo/cancelamento e aceite de isolamento dos workers.
+- [ ] Adaptador CCHarbour opcional: ferramentas e job/status/cancel explícitos,
+  configuração protegida do provedor, política local/remota e recursos medidos.
+  Não prometer hbBridge/modelo de 2 MB nem privacidade apenas por escolher Ollama.
+  Veja [análise e ordem de entrega](docs/extensions-review.pt-BR.md).
 
 - [x] Verificar isolamento THREAD STATIC por thread, inclusive com HRB
   compartilhado, e conservação de valores em chamadas/recargas no mesmo

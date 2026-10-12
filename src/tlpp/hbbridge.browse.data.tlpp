@@ -52,6 +52,10 @@ static function Browse(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as charact
     local bUpdateData as codeblock
 
     local cFilterExpr:="(1=1)" as character
+    local cField as character
+    local cFieldTitle as character
+    local cFieldPicture as character
+    local cFieldType as character
 
     local jHeader as json
 
@@ -60,17 +64,20 @@ static function Browse(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as charact
 
     local nField,nFields as numeric
     local nButton,nButtons as numeric
+    local nFieldLen,nFieldDec as numeric
 
     local oPanelMain as object
     local oFWDialogModal as object
 
     begin sequence
 
-        if (!oHBBridgeDataSet:OpenSQL(cHBBridgeDataSetSQL,jHBBridgeDataSetPage))
+        // The native browse requires an array. It contains independent JSON
+        // row snapshots for the current page only, not another query cache.
+        aFWBrwData:=BrowseGetData(oHBBridgeDataSet,cHBBridgeDataSetSQL,jHBBridgeDataSetPage,"all",cFilterExpr)
+        if (ValType(aFWBrwData)!="A")
+            BrowseQueryError(oHBBridgeDataSet)
             break
         endif
-
-        aFWBrwData:=BrowseGetData(oHBBridgeDataSet,cHBBridgeDataSetSQL,jHBBridgeDataSetPage,"all",cFilterExpr)
         if (Empty(aFWBrwData))
             break
         endif
@@ -82,10 +89,14 @@ static function Browse(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as charact
         aFWGetDialogSizeCoors:=FWGetDialogSize()
 
         jHeader:=oHBBridgeDataSet:Header()
-        aHeader:=jHeader:GetNames()
-        nFields:=Len(aHeader)
+        nFields:=oHBBridgeDataSet:FieldCount()
+        aHeader:=Array(nFields)
+        for nField:=1 to nFields
+            aHeader[nField]:=oHBBridgeDataSet:FieldName(nField)
+        next nField
         for nField:=1 to nFields
             cField:=aHeader[nField]
+            // SX3 is resolved by this Protheus presentation adapter only.
             cFieldTitle:=GetSX3Cache(cField,"X3_TITULO")
             if (Empty(cFieldTitle))
                 cFieldTitle:=cField
@@ -93,7 +104,7 @@ static function Browse(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as charact
             cFieldPicture:=GetSX3Cache(cField,"X3_PICTURE")
             nFieldLen:=GetSX3Cache(cField,"X3_TAMANHO")
             if (Empty(nFieldLen))
-                nFieldLen:=16
+                nFieldLen:=jHeader[cField]["length"]
             endif
             nFieldDec:=GetSX3Cache(cField,"X3_DECIMAL")
             if (Empty(nFieldDec))
@@ -104,7 +115,12 @@ static function Browse(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as charact
                 cFieldType:=__GetFieldType(jHeader[cField]["type"])
             endif
             if ((Empty(cFieldPicture)).and.(cFieldType=="N"))
-                cFieldPicture:=HBBridge.Helper.HBBridgeNumber():RetPictVal(Val(Replicate("9",nFieldLen)+"."+Replicate("9",nFieldDec)),.F.,@nFieldLen,@nFieldDec,.F.)
+                // Build the picture from logical metadata, not a synthetic
+                // large floating-point value that can round its decimals.
+                cFieldPicture:=Replicate("9",Max(1,nFieldLen-if(nFieldDec>0,nFieldDec+1,0)))
+                if (nFieldDec>0)
+                    cFieldPicture+="."+Replicate("9",nFieldDec)
+                endif
             endif
             aAdd(aFWBrwModel,{cFieldTitle,cFieldPicture,nFieldLen,nFieldDec,1,cFieldType})
         next nField
@@ -185,7 +201,7 @@ static function Browse(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as charact
             nil,;
             {||oFWBrowse:Activate()},;
             cTitle,;
-            "Ativando o Browse...";
+            "Opening the browse...";
         )
 
         /*
@@ -201,9 +217,9 @@ static function Browse(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as charact
             [n][7] ?
         */
         oFWDialogModal:AddButton(;
-            "&Sair",;//[n][1] cTitle Titulo do Botao
+            "&Close",;//[n][1] cTitle Titulo do Botao
             {|oBrwButton|oFWDialogModal:DeActivate(.T./*lFreeChildren*/)},;//[n][2] bBloco Bloco de codigo que sera executado
-            "Sair",;//[n][3] cToolTip Comentario do botao
+            "Close",;//[n][3] cToolTip Comentario do botao
             nil,;//[n][4] nShortCut Tecla para se criar o ShortCurt
             .T.,;//[n][5] lShowBar Indica que o botao estara visivel na barra
             .F.,;//[n][6] lConfig Indica se botao estara visivel na configuracao
@@ -213,15 +229,15 @@ static function Browse(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as charact
         bUpdateData:={|oBrwButton|;
             MsgRun(;
                 cTitle,;
-                "Atualizando. Aguarde...",;
+                "Updating. Please wait...",;
                 {||BrowseCallBack(oFWBrowse,@aFWBrwData,oHBBridgeDataSet,cHBBridgeDataSetSQL,jHBBridgeDataSetPage,"all",cFilterExpr)};
             );
         }
 
         oFWDialogModal:AddButton(;
-            "&Atualizar",;//[n][1] cTitle Titulo do Botao
+            "&Refresh",;//[n][1] cTitle Titulo do Botao
                 bUpdateData,;//[n][2] bBloco Bloco de codigo que sera executado
-                "Atualizar",;//[n][3] cToolTip Comentario do botao
+                "Refresh",;//[n][3] cToolTip Comentario do botao
                 nil,;//[n][4] nShortCut Tecla para se criar o ShortCurt
                 .T.,;//[n][5] lShowBar Indica que o botao estara visivel na barra
                 .F.,;//[n][6] lConfig Indica se botao estara visivel na configuracao
@@ -231,20 +247,17 @@ static function Browse(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as charact
         bFilter:={|oBrwButton|;
             MsgRun(;
                 cTitle,;
-                "Atualizando. Aguarde...",;
+                "Updating. Please wait...",;
                 {||;
-                    FWFreeArray(@aFWBrwData),;
-                    aFWBrwData:=BuildCustomFilder(oHBBridgeDataSet,cHBBridgeDataSetSQL,jHBBridgeDataSetPage,@cFilterExpr),;
-                    oFWBrowse:SetArray(aFWBrwData),;
-                    oFWBrowse:Refresh(.F.);
+                    BrowseFilter(oFWBrowse,@aFWBrwData,oHBBridgeDataSet,cHBBridgeDataSetSQL,jHBBridgeDataSetPage,@cFilterExpr);
                 };
             );
         }
 
         oFWDialogModal:AddButton(;
-            "&Filtrar",;//[n][1] cTitle Titulo do Botao
+            "&Filter",;//[n][1] cTitle Titulo do Botao
                 bFilter,;//[n][2] bBloco Bloco de codigo que sera executado
-                "Filtrar",;//[n][3] cToolTip Comentario do botao
+                "Filter",;//[n][3] cToolTip Comentario do botao
                 nil,;//[n][4] nShortCut Tecla para se criar o ShortCurt
                 .T.,;//[n][5] lShowBar Indica que o botao estara visivel na barra
                 .F.,;//[n][6] lConfig Indica se botao estara visivel na configuracao
@@ -256,15 +269,15 @@ static function Browse(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as charact
             bFirst:={|oBrwButton|;
                 MsgRun(;
                     cTitle,;
-                    "Atualizando. Aguarde...",;
-                    {||BrowseCallBack(oFWBrowse,aFWBrwData,oHBBridgeDataSet,cHBBridgeDataSetSQL,jHBBridgeDataSetPage,"first",cFilterExpr)};
+                    "Updating. Please wait...",;
+                    {||BrowseCallBack(oFWBrowse,@aFWBrwData,oHBBridgeDataSet,cHBBridgeDataSetSQL,jHBBridgeDataSetPage,"first",cFilterExpr)};
                 );
             }
 
             oFWDialogModal:AddButton(;
-                "< &Primeira",;//[n][1] cTitle Titulo do Botao
+                "< &First",;//[n][1] cTitle Titulo do Botao
                     bFirst,;//[n][2] bBloco Bloco de codigo que sera executado
-                    "Primeira",;//[n][3] cToolTip Comentario do botao
+                    "First",;//[n][3] cToolTip Comentario do botao
                     nil,;//[n][4] nShortCut Tecla para se criar o ShortCurt
                     .T.,;//[n][5] lShowBar Indica que o botao estara visivel na barra
                     .F.,;//[n][6] lConfig Indica se botao estara visivel na configuracao
@@ -274,15 +287,15 @@ static function Browse(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as charact
             bPrevius:={|oBrwButton|;
                 MsgRun(;
                     cTitle,;
-                    "Atualizando. Aguarde...",;
-                    {||BrowseCallBack(oFWBrowse,aFWBrwData,oHBBridgeDataSet,cHBBridgeDataSetSQL,jHBBridgeDataSetPage,"previus",cFilterExpr)};
+                    "Updating. Please wait...",;
+                    {||BrowseCallBack(oFWBrowse,@aFWBrwData,oHBBridgeDataSet,cHBBridgeDataSetSQL,jHBBridgeDataSetPage,"previous",cFilterExpr)};
                 );
             }
 
             oFWDialogModal:AddButton(;
-                "&<< Anterior",;//[n][1] cTitle Titulo do Botao
+                "&<< Previous",;//[n][1] cTitle Titulo do Botao
                     bPrevius,;//[n][2] bBloco Bloco de codigo que sera executado
-                    "Anterior",;//[n][3] cToolTip Comentario do botao
+                    "Previous",;//[n][3] cToolTip Comentario do botao
                     nil,;//[n][4] nShortCut Tecla para se criar o ShortCurt
                     .T.,;//[n][5] lShowBar Indica que o botao estara visivel na barra
                     .F.,;//[n][6] lConfig Indica se botao estara visivel na configuracao
@@ -292,15 +305,15 @@ static function Browse(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as charact
             bNext:={|oBrwButton|;
                 MsgRun(;
                     cTitle,;
-                    "Atualizando. Aguarde...",;
-                    {||BrowseCallBack(oFWBrowse,aFWBrwData,oHBBridgeDataSet,cHBBridgeDataSetSQL,jHBBridgeDataSetPage,"next",cFilterExpr)};
+                    "Updating. Please wait...",;
+                    {||BrowseCallBack(oFWBrowse,@aFWBrwData,oHBBridgeDataSet,cHBBridgeDataSetSQL,jHBBridgeDataSetPage,"next",cFilterExpr)};
                 );
             }
 
             oFWDialogModal:AddButton(;
-                "&>> Proxima",;//[n][1] cTitle Titulo do Botao
+                "&>> Next",;//[n][1] cTitle Titulo do Botao
                     bNext,;//[n][2] bBloco Bloco de codigo que sera executado
-                    "Proxima",;//[n][3] cToolTip Comentario do botao
+                    "Next",;//[n][3] cToolTip Comentario do botao
                     nil,;//[n][4] nShortCut Tecla para se criar o ShortCurt
                     .T.,;//[n][5] lShowBar Indica que o botao estara visivel na barra
                     .F.,;//[n][6] lConfig Indica se botao estara visivel na configuracao
@@ -310,15 +323,15 @@ static function Browse(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as charact
             bLast:={|oBrwButton|;
                 MsgRun(;
                     cTitle,;
-                    "Atualizando. Aguarde...",;
-                    {||BrowseCallBack(oFWBrowse,aFWBrwData,oHBBridgeDataSet,cHBBridgeDataSetSQL,jHBBridgeDataSetPage,"last",cFilterExpr)};
+                    "Updating. Please wait...",;
+                    {||BrowseCallBack(oFWBrowse,@aFWBrwData,oHBBridgeDataSet,cHBBridgeDataSetSQL,jHBBridgeDataSetPage,"last",cFilterExpr)};
                 );
             }
 
             oFWDialogModal:AddButton(;
-                "> &Ultima",;//[n][1] cTitle Titulo do Botao
+                "> &Last",;//[n][1] cTitle Titulo do Botao
                     bLast,;//[n][2] bBloco Bloco de codigo que sera executado
-                    "Ultima",;//[n][3] cToolTip Comentario do botao
+                    "Last",;//[n][3] cToolTip Comentario do botao
                     nil,;//[n][4] nShortCut Tecla para se criar o ShortCurt
                     .T.,;//[n][5] lShowBar Indica que o botao estara visivel na barra
                     .F.,;//[n][6] lConfig Indica se botao estara visivel na configuracao
@@ -348,7 +361,7 @@ static function Browse(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as charact
 
     FWFreeArray(@aHeader)
     FWFreeArray(@aFWBrwSeek)
-    FWFreeArray(@aFWBrwData)
+    BrowseReleaseRows(@aFWBrwData)
     FWFreeArray(@aFWBrwModel)
     if (valType(aFWBrwColumn)=="A")
         aEval(aFWBrwColumn,{|o|FreeObj(o)})
@@ -367,30 +380,83 @@ return(nil)
 static function BrowseGetData(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as character,jHBBridgeDataSetPage as json,cOption as character,cFilterExpr as character) as array
     local aFWBrwData:=Array(0) as array
     local jRows as json
-    local i as numeric
+    local jRow as json
+    local cSQL:=BrowseSQL(cHBBridgeDataSetSQL,cFilterExpr) as character
+    local lOpened:=.F. as logical
+    local nRow as numeric
+    local nRows as numeric
     if (ValType(jHBBridgeDataSetPage)=="J")
-        if ((cOption=="previus").and.(oHBBridgeDataSet:HasPreviousPage()))
-            if (!oHBBridgeDataSet:PreviousPage())
-                oHBBridgeDataSet:OpenSQL(cHBBridgeDataSetSQL+" AND ("+cFilterExpr+")",jHBBridgeDataSetPage)
-            endif
+        if (cOption=="previous")
+            lOpened:=oHBBridgeDataSet:PreviousPage()
         elseif (cOption=="next")
-            if ((!oHBBridgeDataSet:NextPage()).and.(oHBBridgeDataSet:HasNextPage()))
-                oHBBridgeDataSet:OpenSQL(cHBBridgeDataSetSQL+" AND ("+cFilterExpr+")",jHBBridgeDataSetPage)
-            endif
+            lOpened:=oHBBridgeDataSet:NextPage()
         elseif (cOption=="first")
-            oHBBridgeDataSet:OpenSQL(cHBBridgeDataSetSQL+" AND ("+cFilterExpr+")",jHBBridgeDataSetPage)
+            lOpened:=oHBBridgeDataSet:OpenPage(cSQL,1,jHBBridgeDataSetPage["size"],jHBBridgeDataSetPage["orderBy"])
         elseif (cOption=="last")
-            oHBBridgeDataSet:OpenPage(cHBBridgeDataSetSQL+" AND ("+cFilterExpr+")",oHBBridgeDataSet:TotalPages(),oHBBridgeDataSet:PageSize(),oHBBridgeDataSet:GetOrderBy())
+            if (oHBBridgeDataSet:TotalPages()<=0)
+                return(nil)
+            endif
+            lOpened:=oHBBridgeDataSet:OpenPage(cSQL,oHBBridgeDataSet:TotalPages(),oHBBridgeDataSet:PageSize(),oHBBridgeDataSet:GetOrderBy())
         else //"all"
-            oHBBridgeDataSet:OpenSQL(cHBBridgeDataSetSQL+" AND ("+cFilterExpr+")",jHBBridgeDataSetPage)
+            lOpened:=oHBBridgeDataSet:OpenSQL(cSQL,jHBBridgeDataSetPage)
         endif
+    else
+        lOpened:=oHBBridgeDataSet:OpenSQL(cSQL)
     endif
+    if (!lOpened)
+        return(nil)
+    endif
+    nRows:=oHBBridgeDataSet:RowCount()
     jRows:=oHBBridgeDataSet:GetRows()
-    for i:=1 to Len(jRows:GetNames())
-        aAdd(aFWBrwData,jRows[tlpp.ToStr(i)])
+    for nRow:=1 to nRows
+        // The array owns each row independently of the temporary JSON root.
+        jRow:=JSONObject():New()
+        jRow:FromJSON(jRows[tlpp.ToStr(nRow)]:ToJSON())
+        aAdd(aFWBrwData,jRow)
     next
     FreeObj(@jRows)
 return(aFWBrwData)
+
+static function BrowseSQL(cSQL as character,cFilterExpr as character) as character
+    if ((!Empty(cFilterExpr)).and.(cFilterExpr!="(1=1)"))
+        // The presentation adapter accepts a caller SELECT with an existing
+        // WHERE and no trailing ORDER BY/semicolon. It is not a SQL parser.
+        cSQL+=" AND ("+cFilterExpr+")"
+    endif
+return(cSQL)
+
+static procedure BrowseReleaseRows(aRows as array)
+    local nRow as numeric
+    if (ValType(aRows)=="A")
+        for nRow:=1 to Len(aRows)
+            if (ValType(aRows[nRow])=="J")
+                FreeObj(@aRows[nRow])
+            endif
+        next
+        FWFreeArray(@aRows)
+    endif
+return
+
+static procedure BrowseQueryError(oDataSet as object)
+    if (!Empty(oDataSet:ErrorCode()))
+        MsgStop(oDataSet:ErrorCode()+": "+oDataSet:ErrorMessage(),"hbBridge query failed")
+    endif
+return
+
+static procedure BrowseFilter(oFWBrowse as object,aFWBrwData as array,oDataSet as object,cSQL as character,jPage as json,cFilterExpr as character)
+    local aNewData as array
+    local cNewFilter:=cFilterExpr as character
+    aNewData:=BuildCustomFilder(oDataSet,cSQL,jPage,@cNewFilter)
+    if (ValType(aNewData)=="A")
+        BrowseReleaseRows(@aFWBrwData)
+        aFWBrwData:=aNewData
+        cFilterExpr:=cNewFilter
+        oFWBrowse:SetArray(aFWBrwData)
+        oFWBrowse:Refresh(.T.)
+    else
+        BrowseQueryError(oDataSet)
+    endif
+return
 
 static function BuildCustomFilder(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as character,jHBBridgeDataSetPage as json,cFilterExpr as character) as array
 
@@ -401,9 +467,13 @@ static function BuildCustomFilder(oHBBridgeDataSet as object,cHBBridgeDataSetSQL
     local cField as character
     local cTitle as character
     local cAliasTmp as character
+    local cF3 as character
 
     local jF3 as json
     local jHeader as json
+    local jCustomFilter as json
+    local jFilter as json
+    local aFWBrwData as array
     local nField,nFields as numeric
     local nFilter,nFilters as numeric
 
@@ -413,8 +483,11 @@ static function BuildCustomFilder(oHBBridgeDataSet as object,cHBBridgeDataSetSQL
 
     jF3:=JSONObject():New()
     jHeader:=oHBBridgeDataSet:Header()
-    aHeader:=jHeader:GetNames()
-    nFields:=Len(aHeader)
+    nFields:=oHBBridgeDataSet:FieldCount()
+    aHeader:=Array(nFields)
+    for nField:=1 to nFields
+        aHeader[nField]:=oHBBridgeDataSet:FieldName(nField)
+    next nField
     aFields:=Array(0)
 
     for nField:=1 to nFields
@@ -422,7 +495,12 @@ static function BuildCustomFilder(oHBBridgeDataSet as object,cHBBridgeDataSetSQL
         if (cField=="R_E_C_N_O_")
             loop
         endif
-        aAdd(aFields,{cField,__GetFieldType(jHeader[cField]["type"]),jHeader[cField]["length"],jHeader[cField]["decimals"]})
+        // FWTemporaryTable's native schema is positional. Resolve logical
+        // Protheus sizes/types locally rather than treating ODBC as SX3.
+        aAdd(aFields,{cField,;
+            if(Empty(GetSX3Cache(cField,"X3_TIPO")),__GetFieldType(jHeader[cField]["type"]),GetSX3Cache(cField,"X3_TIPO")),;
+            if(Empty(GetSX3Cache(cField,"X3_TAMANHO")),jHeader[cField]["length"],GetSX3Cache(cField,"X3_TAMANHO")),;
+            if(Empty(GetSX3Cache(cField,"X3_TIPO")),jHeader[cField]["decimals"],GetSX3Cache(cField,"X3_DECIMAL"))})
         cF3:=GetSX3Cache(cField,"X3_F3")
         if (!Empty(cF3))
             jF3[cField]:=cF3//Adicione + Field:F3 se necessario. Ex.: {"B1_COD":"SB1","B1_GRUPO":"SBM","B1_CODGRU":"SZ4Pro"}
@@ -431,27 +509,26 @@ static function BuildCustomFilder(oHBBridgeDataSet as object,cHBBridgeDataSetSQL
 
     if (!Empty(aFields))
 
-        nFilters:=nFields
+        nFilters:=Len(aFields)
 
         // Adiciona Filtros Customizados
         jCustomFilter:=JSONObject():New()
         jCustomFilter:Set(Array(nFilters))
         for nFilter:=1 to nFilters
-            cField:=aHeader[nFilter]
-            if (cField=="R_E_C_N_O_")
-                loop
-            endif
+            cField:=aFields[nFilter][DBS_NAME]
             cTitle:=GetSX3Cache(cField,"X3_TITULO")
             if (Empty(cTitle))
                 cTitle:=cField
             endif
-            jCustomFilter[nFilter]:=JSONObject():New()
-            jCustomFilter[nFilter]["__TITLE__"]:=cTitle
-            jCustomFilter[nFilter]["__FIELD_NAME__"]:=cField
-            jCustomFilter[nFilter]["__OP_ADVPL____"]:="=="
-            jCustomFilter[nFilter]["__OP_SQL__"]:="="
-            jCustomFilter[nFilter]["__REAL_VALUE__"]:=FilterGetRealValue(oHBBridgeDataSet:FieldGet(cField),jHeader[cField]["type"])
-            jCustomFilter[nFilter]["__VALUE__"]:="'"+FilterRealValue2Str(jCustomFilter[nFilter]["__REAL_VALUE__"],jHeader[cField]["type"])+"'"
+            jFilter:=JSONObject():New()
+            jFilter["__TITLE__"]:=cTitle
+            jFilter["__FIELD_NAME__"]:=cField
+            jFilter["__OP_ADVPL__"]:="=="
+            jFilter["__OP_SQL__"]:="="
+            jFilter["__REAL_VALUE__"]:=FilterGetRealValue(oHBBridgeDataSet:FieldGet(cField),aFields[nFilter][DBS_TYPE])
+            jFilter["__VALUE__"]:=FilterLiteral(jFilter["__REAL_VALUE__"],aFields[nFilter][DBS_TYPE],.F.)
+            jFilter["__SQL_VALUE__"]:=FilterLiteral(jFilter["__REAL_VALUE__"],aFields[nFilter][DBS_TYPE],.T.)
+            jCustomFilter[nFilter]:=jFilter
         next nFilter
 
         aCustomFilter:=HBBridge.Client.HBBridgeTOTVSFilter():BuildCustomFilder(jCustomFilter)
@@ -464,9 +541,6 @@ static function BuildCustomFilder(oHBBridgeDataSet as object,cHBBridgeDataSetSQL
 
         cFilterExpr:=HBBridge.Client.HBBridgeTOTVSFilter():BuildExpr(cAliasTmp,1,.T.,@jF3,aCustomFilter,1)
         FWFreeArray(@aCustomFilter)
-        aEval(jF3:GetNames(),{|cName|jF3:DelName(cName)})
-        FreeObj(@jF3)
-
         oFWTemporaryTable:Delete()
         FreeObj(@oFWTemporaryTable)
 
@@ -474,6 +548,8 @@ static function BuildCustomFilder(oHBBridgeDataSet as object,cHBBridgeDataSetSQL
 
     FWFreeArray(@aHeader)
     FWFreeArray(@aFields)
+    FreeObj(@jF3)
+    FreeObj(@jHeader)
 
     if (empty(cFilterExpr))
         cFilterExpr:="(1=1)"
@@ -484,23 +560,28 @@ static function BuildCustomFilder(oHBBridgeDataSet as object,cHBBridgeDataSetSQL
 return(aFWBrwData)
 
 static function FilterGetRealValue(xValue,cFieldType)
-    if (cFieldType=="D:N")
+    if (__GetFieldType(cFieldType)=="D")
         DEFAULT xValue:=""
-        xValue:=SToD(xValue)
+        if (ValType(xValue)=="C")
+            xValue:=SToD(xValue)
+        endif
     endif
 return(xValue)
 
 static function FilterRealValue2Str(xValue,cFieldType)
     local cType as character
     local cStrRealValueFilter as character
-    if (cFieldType=="N:N")
+    cFieldType:=__GetFieldType(cFieldType)
+    if (cFieldType=="N")
         DEFAULT xValue:=0
         cStrRealValueFilter:=tlpp.ToStr(xValue)
-    elseif (cFieldType=="D:N")
+    elseif (cFieldType=="D")
         DEFAULT xValue:=""
         cType:=ValType(xValue)
         if (cType=="D")
             cStrRealValueFilter:=DToS(xValue)
+        elseif (cType=="C")
+            cStrRealValueFilter:=xValue
         elseif (cType!="C")
             cStrRealValueFilter:=AllToChar(xValue)
         endif
@@ -515,33 +596,54 @@ static function FilterRealValue2Str(xValue,cFieldType)
     endif
 return(cStrRealValueFilter)
 
+static function FilterLiteral(xValue,cFieldType,lSQL)
+    local cValue:=FilterRealValue2Str(xValue,cFieldType) as character
+    cFieldType:=__GetFieldType(cFieldType)
+    if (cFieldType=="N")
+        return(cValue)
+    elseif (cFieldType=="L")
+        DEFAULT xValue:=.F.
+        return(if(lSQL,if(xValue,"1","0"),if(xValue,".T.",".F.")))
+    elseif ((cFieldType=="D").and.(!lSQL))
+        return("SToD('"+cValue+"')")
+    endif
+return("'"+StrTran(cValue,"'","''")+"'")
+
 static function __GetFieldType(cFieldType)
     cFieldType:=StrTran(cFieldType,"I","N")
+    cFieldType:=StrTran(cFieldType,"B","N")
+    cFieldType:=StrTran(cFieldType,"T","C")
 return(Left(cFieldType,1))
 
 static Procedure BrowseCallBack(oFWBrowse,aFWBrwData,oHBBridgeDataSet,cHBBridgeDataSetSQL,jHBBridgeDataSetPage,cOption,cFilterExpr)
 
     local lCallBack as logical
+    local aNewData as array
 
     lCallBack:=(cOption=="all")
     if (!lCallBack)
-        lCallBack:=((cOption=="previus").and.(oHBBridgeDataSet:HasPreviousPage()))
+        lCallBack:=((cOption=="previous").and.(oHBBridgeDataSet:HasPreviousPage()))
         if (!lCallBack)
             lCallBack:=((cOption=="next").and.(oHBBridgeDataSet:HasNextPage()))
             if (!lCallBack)
                 lCallBack:=(cOption=="first")
                 if (!lCallBack)
-                    lCallBack:=(cOption=="last")
+                    lCallBack:=((cOption=="last").and.(oHBBridgeDataSet:TotalPages()>0))
                 endif
             endif
         endif
     endif
 
     if (lCallBack)
-        FWFreeArray(@aFWBrwData)
-        aFWBrwData:=BrowseGetData(oHBBridgeDataSet,cHBBridgeDataSetSQL,jHBBridgeDataSetPage,cOption,cFilterExpr)
-        oFWBrowse:SetArray(aFWBrwData)
-        oFWBrowse:Refresh(.T./*lGoTop*/)
+        aNewData:=BrowseGetData(oHBBridgeDataSet,cHBBridgeDataSetSQL,jHBBridgeDataSetPage,cOption,cFilterExpr)
+        if (ValType(aNewData)=="A")
+            BrowseReleaseRows(@aFWBrwData)
+            aFWBrwData:=aNewData
+            oFWBrowse:SetArray(aFWBrwData)
+            oFWBrowse:Refresh(.T./*lGoTop*/)
+        else
+            BrowseQueryError(oHBBridgeDataSet)
+        endif
     endif
 
 return
@@ -553,6 +655,8 @@ static function __FWBrowseSeek(oFWSeek as object,oFWBrowse as object,aFWBrwData 
     local cSize as character
     local cDecimal as character
     local cSQLSeek as character
+    local cField as character
+    local dSeek as date
 
     local nATCol:=0 as numeric
 
@@ -560,16 +664,24 @@ static function __FWBrowseSeek(oFWSeek as object,oFWBrowse as object,aFWBrwData 
         cSeek:=AllTrim(oFWSeek:GetSeek())
         if (!Empty(cSeek))
             nATCol:=oFWSeek:GetOrder()
-            if (nATCol>0)
+            if ((nATCol>0).and.(nATCol<=oHBBridgeDataSet:FieldCount()))
+                cField:=oHBBridgeDataSet:FieldName(nATCol)
                 cType:=oFWBrowse:aColumns[nATCol]:GetType()
                 if (cType$"C|D")
                     if (cType="C")
-                        cSQLSeek:="LOWER("+oHBBridgeDataSet:FieldName(nATCol)+") LIKE '%"+Lower(cSeek)+"%'"
+                        cSQLSeek:="LOWER("+cField+") LIKE '%"+StrTran(Lower(cSeek),"'","''")+"%'"
                     else
                         if ("/"$cSeek)
-                            cSeek:=DToS(CToD(cSeek))
+                            dSeek:=CToD(cSeek)
+                        else
+                            dSeek:=SToD(StrTran(cSeek,"-",""))
                         endif
-                        cSQLSeek:=""+oHBBridgeDataSet:FieldName(nATCol)+" LIKE '%"+cSeek+"%'"
+                        if (Empty(dSeek))
+                            MsgStop("Enter a valid date.","hbBridge search")
+                            return(0)
+                        endif
+                        cSeek:=DToS(dSeek)
+                        cSQLSeek:=cField+"='"+Left(cSeek,4)+"-"+SubStr(cSeek,5,2)+"-"+Right(cSeek,2)+"'"
                     endif
                 elseif (cType=="N")
                     if (","$cSeek)
@@ -578,11 +690,16 @@ static function __FWBrowseSeek(oFWSeek as object,oFWBrowse as object,aFWBrwData 
                         endif
                         cSeek:=StrTran(cSeek,",",".")
                     endif
+                    if (!BrowseNumberValid(cSeek))
+                        MsgStop("Enter a valid decimal number.","hbBridge search")
+                        return(0)
+                    endif
                     cSize:=tlpp.ToStr(oFWBrowse:aColumns[nATCol]:GetSize())
                     cDecimal:=tlpp.ToStr(oFWBrowse:aColumns[nATCol]:GetDecimal())
-                    cSQLSeek:="CAST("+oHBBridgeDataSet:FieldName(nATCol)+" AS DECIMAL("+cSize+","+cDecimal+"))="+"CAST("+cSeek+" AS DECIMAL("+cSize+","+cDecimal+"))
+                    cSQLSeek:="CAST("+cField+" AS DECIMAL("+cSize+","+cDecimal+"))=CAST("+cSeek+" AS DECIMAL("+cSize+","+cDecimal+"))"
                 else
-                    cSQLSeek:=oHBBridgeDataSet:FieldName(nATCol)+"="+cSeek
+                    MsgStop("Search is unsupported for this field type.","hbBridge search")
+                    return(0)
                 endif
                 //TODO: Resolve this Workaround __cPrefixQryAlias
                 if (Type("__cPrefixQryAlias")=="C")//TODO: resolver Alias para campos comuns (R_E_C_N_O_,R_E_C_D_E_L_,D_E_L_E_T_,etc) com HBBridgeSqlTools():PrefixQryAlias ou FieldAlias ou FielPrefixdAlias?
@@ -597,3 +714,27 @@ static function __FWBrowseSeek(oFWSeek as object,oFWBrowse as object,aFWBrwData 
     endif
 
 return(1)
+
+static function BrowseNumberValid(cNumber as character) as logical
+    local nIndex:=1 as numeric
+    local nDigits:=0 as numeric
+    local nDots:=0 as numeric
+    local cChar as character
+    if ((!Empty(cNumber)).and.(Left(cNumber,1)$"+-"))
+        nIndex++
+    endif
+    while (nIndex<=Len(cNumber))
+        cChar:=SubStr(cNumber,nIndex,1)
+        if (cChar==".")
+            nDots++
+            if (nDots>1)
+                return(.F.)
+            endif
+        elseif (cChar$"0123456789")
+            nDigits++
+        else
+            return(.F.)
+        endif
+        nIndex++
+    enddo
+return(nDigits>0)

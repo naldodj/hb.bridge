@@ -37,25 +37,25 @@ não há uma implementação paralela de MVP nem camada de retrocompatibilidade.
 
 ## Implementação
 
-- [hbbridgeframing.hb](../src/hb/transports/protheus/hbbridgeframing.hb) preserva o estado
+- [hbbridge.framing.hb](../src/hb/transports/protheus/hbbridge.framing.hb) preserva o estado
   de descompressão entre leituras, aplica as políticas configuradas e as
   capacidades do runtime e só despacha após o final válido. O prazo total
   de cada recepção/envio é configurável, com padrão de 30 segundos.
-- [hbbridgedecoder.c](../src/c/hbbridgedecoder.c) chama `inflate` da zlib já
+- [hbbridge.decoder.c](../src/c/hbbridge.decoder.c) chama `inflate` da zlib já
   vinculada pelo Harbour. O estado tem liberação explícita e finalizador GC;
   buffers de saída de 32 KiB respeitam a capacidade do runtime e, quando
   definido, o orçamento de expansão antes da criação das strings.
   CRC/trailer inválidos e bytes extras no mesmo bloco comprimido são rejeitados.
-- [hbbridgecompressor.c](../src/c/hbbridgecompressor.c) usa a mesma zlib para
+- [hbbridge.compressor.c](../src/c/hbbridge.compressor.c) usa a mesma zlib para
   gerar gzip incrementalmente, com estado por resposta, liberação explícita
   e finalizador GC. O servidor envia buffers comprimidos sem precisar
   materializar toda a saída gzip em uma única string.
-- [hbbridgetime.c](../src/c/hbbridgetime.c) fornece
+- [hbbridge.time.c](../src/c/hbbridge.time.c) fornece
   `HBBridgeMonotonicMs()` para os prazos e o uptime do servidor. No Windows,
   usa `GetTickCount64`, sem contador compartilhado para estender wrap de 32
   bits. No POSIX, usa `clock_gettime(CLOCK_MONOTONIC)`. Falha se a fonte
   monotônica não estiver disponível, sem substituí-la pelo relógio civil.
-- [Cliente TLPP](../src/tlpp/hbbridgeclient.tlpp) acumula bytes comprimidos,
+- [Cliente TLPP](../src/tlpp/hbbridge.client.tlpp) acumula bytes comprimidos,
   verifica `GzStrComp/GzStrDecomp`, exige frame exato e JSON válido, e retorna
   falhas com `success: false`, `error` e `code`. Envios positivos incompletos
   avançam somente pelos bytes enviados, sem repetir a chamada de aplicação.
@@ -114,7 +114,7 @@ O timeout TLPP cobre conexão, leituras e verificações entre envios. `Send`
 não oferece timeout como argumento, portanto uma chamada bloqueante pode
 exceder esse prazo. O cliente passou a usar `TimeCounter()` por meio da classe
 `HBBridge.Client.HBBridgeTime`, com métodos estáticos em
-[hbbridgetime.tlpp](../src/tlpp/hbbridgetime.tlpp), adaptados de
+[hbbridge.time.tlpp](../src/tlpp/hbbridge.time.tlpp), adaptados de
 `dna.tech.StopWatch.__GetCurrentTimeStamp()`. Uma leitura por amostra substitui
 `Date()`/`Seconds()`, e as diferenças usam milissegundos, sem um teto de um dia.
 O adapter aplica Unix × 1000 para corrigir a diferença reproduzida na
@@ -149,7 +149,7 @@ em execução nesta entrega.
 ## Validação
 
 O runner [test-hbbridge.ps1](../scripts/test-hbbridge.ps1) compila os mesmos
-componentes do produto e executa [hbbridgeframingtest.hb](../tests/integration/harbour/hbbridgeframingtest.hb)
+componentes do produto e executa [hbbridge.framing.test.hb](../tests/integration/harbour/hbbridge.framing.test.hb)
 junto às regressões do Marco 1. Os testes conferem conteúdo integral com
 dados variados cujo gzip supera 65.535 bytes; fragmentam inclusive o header
 e o trailer; verificam políticas de expansão, CRC inválido, bytes excedentes,
@@ -175,11 +175,11 @@ Resultado em `tmp/tests-1156a4ae33964edc925ff65e09748ddb/results.log`.
 As verificações de orçamento da resposta comprimida e limite por chamada
 zlib também passaram. O build isolado do candidato final e sua opção `--help`
 passaram com as últimas guardas de capacidade.
-As 29 verificações adicionais de [hbbridgetimetest.hb](../tests/unit/hbbridgetimetest.hb)
+As 29 verificações adicionais de [hbbridge.time.test.hb](../tests/unit/hbbridge.time.test.hb)
 conferem inteiro não negativo, leituras sem regressão, avanço durante espera e
 oito threads usando o mesmo relógio. Esses testes não alteram a hora do sistema.
 
-O [teste Protheus](../src/tlpp/tests/protheus/hbbridgeconnectiontest.tlpp)
+O [teste Protheus](../src/tlpp/tests/protheus/hbbridge.connection.test/hbbridge.connection.test.tlpp)
 preserva Health/ADDON/Echo, compara os 200.000 caracteres integralmente e
 acrescenta um Echo de dados ASCII variados. Antes da chamada, exige que o
 gzip de teste exceda 65.535 bytes; os logs registram tamanhos e resultado
@@ -188,7 +188,7 @@ sem despejar todo o payload. O quarto argumento opcional
 adicional para medir o limite efetivo do AppServer; o padrão zero não o executa.
 O teste também verifica a escala de `TimeCounter`, avanço durante espera e
 aritmética do orçamento, incluindo expiração, frações, regressão e prazo maior
-que 24 horas. Compile o novo `hbbridgetime.tlpp` junto dos demais fontes TLPP.
+que 24 horas. Compile o novo `hbbridge.time.tlpp` junto dos demais fontes TLPP.
 
 **Confirmado pelo operador em 2026-10-03:** Health, ADDON.Execute e os dois
 Echo passaram no Protheus, com 200.000 bytes idênticos e gzip de requisição

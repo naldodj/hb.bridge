@@ -12,7 +12,7 @@ registra resultados verificados; ChangeLog e Git preservam o histórico.
 | Item | Valor atual |
 | --- | --- |
 | ID | `001-mssql-acceptance` |
-| Abertura / atualização | 2026-10-07 / 2026-10-08 |
+| Abertura / atualização | 2026-10-07 / 2026-10-12 |
 | Situação | MSSQL nativo homologado: 92 checks; Protheus TCP: 29 e HTTP: 13 em cada banco MSSQL/SQLite. Pacote permanece aberto. |
 | Objetivo | Homologar RPCRDD.Query/dataset existentes em banco MSSQL real identificado, por Harbour, TCP Protheus e HTTP Protheus. |
 | Referência do produto | Código publicado `50e1c65`; checkout na abertura `bce52d2` inclui atualização do badge de clones. |
@@ -89,13 +89,17 @@ constatações de aceite, sem motivo para repetir o inventário concluído.
 
 - [x] **D01 — Revisar a interface consumidora.** Conferir exemplos locais
   FileRead/FileNavigator fornecidos; adotar `MoreToRead()` e métodos de metadados,
-  preservando `Eof()`/`Skip()` locais à página e `DSStruct()` do usuário.
+  preservando `Eof()`/`Skip()` locais à página. A API canônica atual é
+  `Header()`; o responsável removeu `DSStruct()` depois.
 - [ ] **D02 — Homologar a extensão TLPP do dataset.** Compilar/exercitar cópias
   de cabeçalho/campo/linha, ordem das colunas, varredura automática, verificações
   repetidas, vazio/fechado e falha/recuperação de página. Novos mocks sem dados ERP.
   Implementação e fixture de 45 checks preparados. A tentativa de compilação de
   2026-10-08 falhou antes de compilar os fontes: `COMPILEERROR-300`, RPO custom
   em uso (`tmp/totvs-compile.log`, thread 36788). Aceite de execução pendente.
+  A revisão de 2026-10-12 acrescenta validação de totais/perfil e 67 checks/31
+  chamadas mock, além de 12 checks puros de helpers. A compilação recursiva
+  inclui os 24 fontes; veja o novo [registro](docs/acceptance.pt-BR.md).
 - [ ] **D03 — Corrigir integridade textual e numérica.** Garantir execução/
   transporte UTF-8 consistentes, conversão textual cliente explícita e binários;
   corrigir a perda FLOAT fracionária reproduzida no JSON e definir decimal
@@ -121,11 +125,11 @@ constatações de aceite, sem motivo para repetir o inventário concluído.
   e textos acentuados/Unicode. Definir representações esperadas antes das
   asserções; registrar restrições de runtime/tipo sem conversão silenciosa.
 - [x] **M04 — Homologar TCP Protheus.** Executar
-  [U_HBBridgeQueryTest](src/tlpp/tests/protheus/hbbridgequerytest.tlpp) no alias
+  [U_HBBridgeQueryTest](src/tlpp/tests/protheus/hbbridge.query.test/hbbridge.query.test.tlpp) no alias
   MSSQL explícito, incluindo os 29 checks. Acrescentar casos de backend
   necessários ao produto/testes compartilhados, sem outra implementação Query.
 - [x] **M05 — Homologar HTTP Protheus.** Executar
-  [U_HBBridgeHTTPTest](src/tlpp/tests/protheus/hbbridgehttptest.tlpp) com o mesmo
+  [U_HBBridgeHTTPTest](src/tlpp/tests/protheus/hbbridge.http.test/hbbridge.http.test.tlpp) com o mesmo
   alias MSSQL explícito e dataset comum. Conferir perfil/backend escolhido,
   valores e páginas; sucesso HTTP genérico não basta.
 - [ ] **M06 — Verificar falhas e recuperação.** SQL inválido, perfil desconhecido,
@@ -235,6 +239,19 @@ Sem nova evidência que exija revisão, não repetir migração, inventário ou
 casos nativos/TCP/HTTP homologados. M07–M09 e critérios do pacote permanecem.
 
 ## Pacotes seguintes: direção reservada
+
+Observação do responsável em 2026-10-12: [avaliar reuso de conexões SQL](docs/sql-connections.pt-BR.md)
+após medir seu custo real, aproveitando a referência de M08. Comparar pooling
+ODBC e reuso por perfil gerenciado pelo host; distinguir persistência do banco
+e do transporte RPC. A anotação não decide implementação nem altera a próxima
+tarefa ou os critérios de conclusão do pacote.
+
+A [análise de extensões](docs/extensions-review.pt-BR.md) de 2026-10-12 registra
+SQLRDD, Duktape e CCHarbour como pacotes opcionais posteriores, sem adotar
+dependências nem reiniciar este pacote. O [guia de exemplos](examples/protheus/README.pt-BR.md)
+catalogou consumidores atuais. A regressão nativa passou 583 checks sem falhas;
+browse/UI e execução dos novos mocks TLPP continuam pendentes. Esta revisão
+não resolve UTF-8/FLOAT nem implementa credenciais cifradas.
 
 | Ordem | Direção |
 | --- | --- |

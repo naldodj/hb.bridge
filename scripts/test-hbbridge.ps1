@@ -27,8 +27,8 @@ try {
 
     # Map source names by key, preserving the addon contract's runtime identities.
     $fixtures = @{
-        hbbridgefaultaddon = 'hbbridge_mt_fault'
-        hbbridgeisolationaddon = 'hbbridge_mt_isolation'
+        'hbbridge.fault.addon' = 'hbbridge_mt_fault'
+        'hbbridge.isolation.addon' = 'hbbridge_mt_isolation'
     }
     foreach ($fixture in $fixtures.GetEnumerator()) {
         $source = Join-Path $projectRoot "tests/integration/harbour/$($fixture.Key).hb"

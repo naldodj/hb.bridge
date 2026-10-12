@@ -41,6 +41,7 @@ class HBBridgeRPCDataSet
     public method HasNextPage() as logical
     public method PageNumber() as numeric
     public method PageSize() as numeric
+    public method HasTotals() as logical
     public method TotalRows() as numeric
     public method TotalPages() as numeric
     public method MoreToRead() as logical
@@ -102,12 +103,30 @@ method OpenSQL(cSql,jPage) class HBBridgeRPCDataSet
     local nField:=0 as numeric
     local nFields:=0 as numeric
     local nPosition:=0 as numeric
+    local nExpectedPages:=0 as numeric
 
     paramtype 1 var cSql as character
     paramtype 2 var jPage as json optional
 
     self:Close()
     self:cAliasProfile:=cAliasProfile
+    if (ValType(jPage)=="J")
+        lValid:=jPage:HasProperty("number").and.jPage:HasProperty("size").and.jPage:HasProperty("orderBy")
+        if (lValid)
+            lValid:=(ValType(jPage["number"])=="N").and.(ValType(jPage["size"])=="N").and.(ValType(jPage["orderBy"])=="C")
+        endif
+        if (lValid)
+            lValid:=(jPage["number"]>=1).and.(jPage["number"]==Int(jPage["number"])).and.;
+                (jPage["size"]>=1).and.(jPage["size"]==Int(jPage["size"])).and.!Empty(AllTrim(jPage["orderBy"]))
+        endif
+        if (!lValid)
+            self:cErrorCode:="INVALID_PAGE"
+            self:cErrorMessage:="Page requires a positive integer number and size and a nonempty orderBy."
+            FreeObj(@jParams)
+            return(.F.)
+        endif
+    endif
+    lValid:=.F.
     jParams["alias"]:=self:cAliasProfile
     jParams["sql"]:=cSql
     if (ValType(jPage)=="J")
@@ -213,6 +232,34 @@ method OpenSQL(cSql,jPage) class HBBridgeRPCDataSet
                         .and. (jResponse["page"]["lastRow"]==jResponse["page"]["firstRow"]+jResponse["rowCount"]-1);
                     )
                 endif
+            endif
+        endif
+    endif
+    if (lValid)
+        if (ValType(jPage)!="J")
+            lValid:=!jResponse:HasProperty("page")
+        endif
+    endif
+    if (lValid)
+        if (jResponse:HasProperty("totalRows").or.jResponse:HasProperty("totalPages"))
+            lValid:=jResponse:HasProperty("totalRows").and.jResponse:HasProperty("totalPages")
+            if (lValid)
+                lValid:=(ValType(jResponse["totalRows"])=="N").and.(ValType(jResponse["totalPages"])=="N")
+            endif
+            if (lValid)
+                lValid:=(jResponse["totalRows"]>=0).and.(jResponse["totalRows"]<=9007199254740991).and.;
+                    (jResponse["totalRows"]==Int(jResponse["totalRows"])).and.;
+                    (jResponse["totalPages"]>=0).and.(jResponse["totalPages"]<=9007199254740991).and.;
+                    (jResponse["totalPages"]==Int(jResponse["totalPages"]))
+            endif
+            if (lValid)
+                if (ValType(jPage)=="J")
+                    nExpectedPages:=Int(jResponse["totalRows"]/jPage["size"])+IIf(Mod(jResponse["totalRows"],jPage["size"])==0,0,1)
+                else
+                    nExpectedPages:=IIf(jResponse["rowCount"]>0,1,0)
+                    lValid:=(jResponse["totalRows"]==jResponse["rowCount"])
+                endif
+                lValid:=lValid.and.(jResponse["totalPages"]==nExpectedPages)
             endif
         endif
     endif
@@ -330,7 +377,7 @@ method HasPreviousPage() class HBBridgeRPCDataSet
 
     if (ValType(self:jResult)=="J").and.(self:jResult:HasProperty("page"))
         if (self:jResult["page"]:HasProperty("number"))
-            return(self:jResult["page"]["number"]!=1)
+            return(self:jResult["page"]["number"]>1)
         endif
     endif
 
@@ -384,11 +431,22 @@ method PageSize() class HBBridgeRPCDataSet
 
 return(0)
 
+method HasTotals() class HBBridgeRPCDataSet
+
+    if (ValType(self:jResult)=="J")
+        return(!self:jResult:HasProperty("page").or.self:jResult:HasProperty("totalRows"))
+    endif
+
+return(.F.)
+
 method TotalRows() as numeric class HBBridgeRPCDataSet
 
     if (ValType(self:jResult)=="J")
         if self:jResult:HasProperty("totalRows")
             return(self:jResult["totalRows"])
+        endif
+        if self:jResult:HasProperty("page")
+            return(-1)
         endif
     endif
 
@@ -399,6 +457,9 @@ method TotalPages() as numeric class HBBridgeRPCDataSet
     if (ValType(self:jResult)=="J")
         if self:jResult:HasProperty("totalPages")
             return(self:jResult["totalPages"])
+        endif
+        if self:jResult:HasProperty("page")
+            return(-1)
         endif
     endif
 
@@ -453,7 +514,6 @@ method FieldInfo(cFieldName) class HBBridgeRPCDataSet
     paramtype 1 var cFieldName as character
     cKey:=Upper(AllTrim(cFieldName))
 
-    jField:=JSONObject():New()
     if ((ValType(self:jResult)=="J").and.(self:jResult:HasProperty("header")))
         if (self:jResult["header"]:HasProperty(cKey))
             jField:FromJSON(self:jResult["header"][cKey]:ToJSON())
@@ -544,7 +604,6 @@ method Close() class HBBridgeRPCDataSet
     self:nRowIndex:=0
     self:nTotalRows:=0
     self:nTotalFields:=0
-    self:cAliasProfile:=""
     self:cSql:=""
     self:cOrderBy:=""
     self:cErrorCode:=""
@@ -574,5 +633,9 @@ return(self:cAliasProfile)
 
 method SetAliasProfile(cAliasProfile) class HBBridgeRPCDataSet
     local cLastAliasProfile:=self:cAliasProfile as character
+    paramtype 1 var cAliasProfile as character
+    if (!(cAliasProfile==cLastAliasProfile))
+        self:Close()
+    endif
     self:cAliasProfile:=cAliasProfile
 return(cLastAliasProfile)

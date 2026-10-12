@@ -66,7 +66,7 @@ RETURN { "transport" => cTransport, "addonRoot" => cAddonRoot, "state" => hState
 
 FUNCTION HBBridgeDispatch( hRegistry, cService, xParams, hContext, nVersion )
 
-    LOCAL cKey, hEntry, hCall, xResult, cType,oError
+    LOCAL cKey, hEntry, hCall, xResult, cType, oError
 
     IF nVersion == NIL
         nVersion := 1
@@ -105,47 +105,62 @@ FUNCTION HBBridgeDispatch( hRegistry, cService, xParams, hContext, nVersion )
             xResult := HBBridgeError( "INVALID_RESULT", "Unsupported result type" )
         ENDIF
     RECOVER USING oError
-        xResult := HBBridgeError( "SERVICE_ERROR", "Service execution failed" , oError )
+        xResult := HBBridgeError( "SERVICE_ERROR", "Service execution failed", oError )
     END SEQUENCE
 
 RETURN xResult
 
-FUNCTION HBBridgeError( cCode, cError , oError )
-    LOCAL cMessage:=HBBridgeErrorMessage( oError )
-RETURN { "success" => .F., "error" => cError, "code" => cCode , "message" => cMessage }
+FUNCTION HBBridgeError( cCode, cError, oError )
+RETURN { "success" => .F., "error" => cError, "code" => cCode, ;
+    "message" => HBBridgeErrorMessage( oError ) }
 
+/* Public complementary diagnostics contain only native numeric codes and
+ * fixed English labels. Native descriptions, operations, filenames and args
+ * can contain SQL, passwords or local paths and must never cross the wire.
+ * A handler may BREAK any value, including an unrelated object.
+ */
 FUNCTION HBBridgeErrorMessage( oError )
-    LOCAL cMessage
+    LOCAL cMessage := "", cSubsystem, cSeverity, nSeverity, nGeneric, nSubcode, nOSCode
+    LOCAL hSubsystems := { "BASE" => .T., "DBCMD" => .T., "SQLBASE" => .T., ;
+        "SQLMIX" => .T., "SDDODBC" => .T., "SDDSQLITE3" => .T., "SQLITE3" => .T. }
 
-    if (ValType(oError)=="O")
-
-        /* start error message */
-        cMessage := iif( oError:severity > ES_WARNING, "Error", "Warning" ) + " "
-
-        /* add subsystem name if available */
-        cMessage += iif( HB_ISSTRING( oError:subsystem ), oError:subsystem(), "???" )
-
-        /* add subsystem's error code if available */
-        cMessage += "/" + iif( HB_ISNUMERIC( oError:subCode ), hb_ntos( oError:subCode ), "???" )
-
-        /* add error description if available */
-        IF HB_ISSTRING( oError:description )
-            cMessage += "  " + oError:description
+    IF ! HB_ISOBJECT( oError )
+        RETURN cMessage
+    ENDIF
+    /* Only Harbour's native Error class has the trusted numeric accessors. */
+    IF __objGetClsName( oError ) != "ERROR"
+        RETURN cMessage
+    ENDIF
+    BEGIN SEQUENCE WITH __BreakBlock()
+        cSubsystem := oError:subsystem
+        IF ! HB_ISSTRING( cSubsystem )
+            cSubsystem := "UNKNOWN"
+        ELSEIF ! hb_HHasKey( hSubsystems, cSubsystem )
+            cSubsystem := "UNKNOWN"
         ENDIF
-
-        /* add either filename or operation */
+        nSeverity := oError:severity
+        nGeneric := oError:genCode
+        nSubcode := oError:subCode
+        nOSCode := oError:osCode
+        IF ! HB_ISNUMERIC( nSeverity ) .OR. ! HB_ISNUMERIC( nGeneric ) .OR. ;
+            ! HB_ISNUMERIC( nSubcode ) .OR. ! HB_ISNUMERIC( nOSCode )
+            Break( NIL )
+        ENDIF
         DO CASE
-        CASE ! Empty( oError:filename )
-            cMessage += ": " + oError:filename
-        CASE ! Empty( oError:operation )
-            cMessage += ": " + oError:operation
+        CASE nSeverity == ES_WHOCARES
+            cSeverity := "Information"
+        CASE nSeverity == ES_WARNING
+            cSeverity := "Warning"
+        CASE nSeverity == ES_CATASTROPHIC
+            cSeverity := "Fatal error"
+        OTHERWISE
+            cSeverity := "Error"
         ENDCASE
-
-    else
-
-        cMessage:=""
-
-    endif
+        cMessage := cSeverity + " " + cSubsystem + "/" + hb_ntos( nSubcode ) + ;
+            " (generic code " + hb_ntos( nGeneric ) + ", OS code " + hb_ntos( nOSCode ) + ")"
+    RECOVER
+        cMessage := ""
+    END SEQUENCE
 
 RETURN cMessage
 

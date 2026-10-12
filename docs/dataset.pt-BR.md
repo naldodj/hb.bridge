@@ -5,21 +5,35 @@
 ## Navegação e metadados
 
 `HBBridge.RDD.HBBridgeRPCDataSet` expõe registros JSON por nome. `Header()`
-devolve cópia independente do cabeçalho; `DSStruct()` permanece como alias de
-compatibilidade. `FieldInfo(nome)` devolve os metadados de um campo.
+devolve cópia independente do cabeçalho. `FieldInfo(nome)` devolve os metadados de um campo.
 `FieldCount()` e `FieldName(posição)` enumeram a ordem original das colunas SQL
 pelo `position` explícito, sem depender da ordem das chaves JSON.
 `GetRow()` devolve cópia independente da linha atual, sem avançar.
-`Header()`/`DSStruct()` devolvem `{}` quando fechado. `FieldInfo()` devolve
+`Header()` devolve `{}` quando fechado. `FieldInfo()` devolve
 `{}` para campo ausente ou dataset fechado; `GetRow()` devolve `{}` no EOF.
 `FieldName()` devolve `""` fora do intervalo iniciado em 1; `FieldGet()`
 devolve `Nil` para campo ausente ou no EOF. Esses métodos não buscam páginas.
 O chamador é dono das cópias JSON e as libera com `FreeObj()`.
 
+Selecione o alias da conexão com `SetAliasProfile(alias)` antes de chamar
+`OpenSQL(sql[, page])` ou `OpenPage(sql, number, size, orderBy)`.
+`GetAliasProfile()` consulta essa seleção; `SetAliasProfile()` devolve seu
+valor anterior. Trocar o alias fecha o resultado atual, impedindo que uma
+página posterior mude silenciosamente de banco. `Close()` libera dados e
+erros, mas mantém o alias selecionado para outra consulta. A biblioteca não
+escolhe um alias de demonstração.
+
+`FieldExist(name)` consulta o cabeçalho mesmo no EOF. `GetRows()` devolve uma
+cópia independente **somente da página atual**, sem buscar ou concatenar outras
+páginas. `GetOrderBy()` devolve a ordenação selecionada. `PreviousPage()` busca
+a página anterior quando `HasPreviousPage()` é verdadeiro e posiciona o dataset
+no primeiro registro devolvido. Os métodos de página fazem chamadas separadas.
+
 Use `MoreToRead()` para varredura sequencial entre páginas:
 
 ```advpl
-if oDataSet:OpenPage(cProfile, cSQL, 1, 10, cOrderBy)
+oDataSet:SetAliasProfile(cProfile)
+if oDataSet:OpenPage(cSQL, 1, 10, cOrderBy)
     while oDataSet:MoreToRead()
         xValue := oDataSet:FieldGet("NAME")
         oDataSet:Skip()
@@ -38,6 +52,36 @@ Portanto, realiza I/O na mudança de página. `Eof()` e `Skip()` preservam o
 comportamento local à página para a navegação manual existente. `RowCount()`
 continua contando a página atual, não a consulta inteira. Repetir a verificação
 não consome registro. `GetRow()` exige `Skip()` explícito.
+
+## Total de linhas e páginas
+
+O serviço paginado atual retorna `totalRows` e `totalPages` na raiz do resultado
+para a consulta base completa do chamador, separados do `rowCount` da página.
+`TotalPages()` corresponde ao arredondamento para cima do total de linhas
+dividido pelo tamanho da página; resultado vazio tem zero páginas. Os totais
+contam a consulta recebida, incluindo `TOP`, `LIMIT` e filtros de negócio do
+chamador, não todas as linhas de uma tabela de origem.
+
+Consulte `HasTotals()` antes de exibir os totais:
+
+| Estado do dataset | `HasTotals()` | `TotalRows()` / `TotalPages()` |
+| --- | --- | --- |
+| Fechado ou abertura com falha | falso | `0` / `0`. |
+| Resultado aberto sem paginação | verdadeiro | Total de linhas / `0` quando vazio, senão `1`. |
+| Resultado paginado aberto com ambos os totais | verdadeiro | Totais do servidor validados. |
+| Resposta paginada anterior sem nenhum total | falso | `-1` / `-1`, explicitamente desconhecidos. |
+
+O par de totais deve conter inteiros exatos não negativos dentro de `2^53-1`,
+com páginas compatíveis com linhas e tamanho de página. Metade ausente, tipo
+errado, fração ou total de páginas inconsistente resulta em `INVALID_RESULT`.
+Totais desconhecidos não são inferidos da página atual nem de `hasNext`.
+
+Cada chamada paginada executa a consulta da página e um `COUNT` separado na
+mesma conexão. Isso acrescenta trabalho no banco; nem esse par nem as páginas
+posteriores formam um snapshot. Mudanças concorrentes podem produzir
+observações diferentes da página e da contagem. Use isolamento apropriado ou
+um futuro contrato de snapshot/cursor quando for necessária consistência
+entre requisições.
 
 As referências locais FileRead/FileNavigator orientaram essa interface.
 Outra classe de navegação e um índice do resultado completo não são necessários

@@ -11,8 +11,12 @@
   upstream formatting, copyright and license notices in third-party files.
 - Use English identifiers. Files are lowercase. Functions, procedures,
   methods, namespaces and classes use PascalCase, as explicitly agreed with
-  the project owner. A class file uses its exact class name in lowercase:
-  `HBBridgeClient` lives in `hbbridgeclient.tlpp`.
+  the project owner. Source basenames use lowercase words separated by dots:
+  `HBBridgeClient` lives in `hbbridge.client.tlpp`. Removing the dots must
+  yield the class name in lowercase; dots do not denote namespace segments.
+- Write project-owned error messages, logs and UI labels in English. Preserve
+  external API text and intentional language/encoding test data. Portuguese
+  documentation remains in the paired `.pt-BR` files.
 - Use the same module naming convention for Harbour, TLPP, C and Zig;
   extensions identify the language. Product modules start with `hbbridge`.
 - Use `.hb` for project-owned Harbour sources, tests and addons. Preserve

@@ -8,6 +8,13 @@ identifiers. Files are lowercase; functions, procedures, methods, namespaces
 and classes use PascalCase, following the owner's explicit clarification. Conventional
 Git filenames and the `.pt-BR` locale suffix are exceptions to lowercase.
 
+Source basenames separate lowercase words with dots, for example
+`hbbridge.rpc.dataset.tlpp`. Removing dots must match the lowercase class
+name `HBBridgeRPCDataSet`. This word segmentation does not change namespaces.
+Own error messages, logs and UI labels are English; external text and intentional
+accent/encoding fixtures retain their original language. Portuguese documentation
+uses its paired `.pt-BR` files.
+
 Project-owned Harbour modules, tests and addons use `.hb`; imported upstream
 sources retain `.prg`. External/runtime `.prg` inputs remain supported. This
 extension convention does not change the Harbour language or module names.
@@ -23,16 +30,16 @@ the path to build an executable, or `-gh` before it to produce an HRB:
 
 | Responsibility | TLPP class / file | Harbour module |
 | --- | --- | --- |
-| Client | `HBBridgeClient` / `hbbridgeclient.tlpp` | Native clients use NETIO APIs; no redundant client class is introduced. |
-| HTTP client | `HBBridgeHTTPClient` / `hbbridgehttpclient.tlpp` | `transports/http/hbbridgehttp.hb` adapts HTTP to the shared registry. |
-| Configuration | `HBBridgeConfig` / `hbbridgeconfig.tlpp` | `host/hbbridgeconfig.hb` and `host/hbbridgeini.hb` configure the server. |
-| Time | `HBBridgeTime` / `hbbridgetime.tlpp` | `src/c/hbbridgetime.c` implements the monotonic server clock. |
-| SQL dataset | `HBBridgeRPCDataSet` / `hbbridgerpcdataset.tlpp` | `services/hbbridgequery.hb` implements SQL requests. |
+| Client | `HBBridgeClient` / `hbbridge.client.tlpp` | Native clients use NETIO APIs; no redundant client class is introduced. |
+| HTTP client | `HBBridgeHTTPClient` / `hbbridge.http.client.tlpp` | `transports/http/hbbridge.http.hb` adapts HTTP to the shared registry. |
+| Configuration | `HBBridgeConfig` / `hbbridge.config.tlpp` | `host/hbbridge.config.hb` and `host/hbbridge.ini.hb` configure the server. |
+| Time | `HBBridgeTime` / `hbbridge.time.tlpp` | `src/c/hbbridge.time.c` implements the monotonic server clock. |
+| SQL dataset | `HBBridgeRPCDataSet` / `hbbridge.rpc.dataset.tlpp` | `services/hbbridge.query.hb` implements SQL requests. |
 
 Matching names identify related responsibilities; these modules retain their
 different client/server roles. Harbour procedural modules do not need empty
 classes simply to imitate TLPP. Future Harbour classes must also live in a
-file whose basename is their class name in lowercase.
+file whose dotted basename, with dots removed, is their class name in lowercase.
 
 Examples: `HBBridge.Client.HBBridgeClient():New()` and
 `HBBridge.RDD.HBBridgeRPCDataSet():OpenSQL(...)`. Existing `U_` test entry

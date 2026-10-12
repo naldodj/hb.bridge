@@ -2,9 +2,9 @@
 
 [Português](README.pt-BR.md)
 
-The [HTTP client](../../src/tlpp/hbbridgehttpclient.tlpp) exposes
+The [HTTP client](../../src/tlpp/hbbridge.http.client.tlpp) exposes
 `HBBridge.Client.HBBridgeHTTPClient` using Protheus's native `FWRest`.
-The [Protheus test](../../src/tlpp/tests/protheus/hbbridgehttptest.tlpp)
+The [Protheus test](../../src/tlpp/tests/protheus/hbbridge.http.test/hbbridge.http.test.tlpp)
 exercises the same hbBridge services used by Harbour and the TCP client.
 HTTP uses UTF-8 JSON and bearer authentication; it does not use the TCP
 `HBBRIDGE/1` frame or gzip. See [the HTTP contract](../../docs/http.md).
@@ -156,7 +156,8 @@ The same client can back the existing paginated dataset:
     local oClient := HBBridge.Client.HBBridgeHTTPClient():New() as object
     local oDataSet := HBBridge.RDD.HBBridgeRPCDataSet():New(oClient) as object
 
-    if oDataSet:OpenPage("sqlite_demo", "SELECT 1 AS ID", 1, 10, "ID")
+    oDataSet:SetAliasProfile("sqlite_demo")
+    if oDataSet:OpenPage("SELECT 1 AS ID", 1, 10, "ID")
         ConOut("ID: " + CValToChar(oDataSet:FieldGet("ID")))
     else
         ConOut(oDataSet:ErrorCode() + ": " + oDataSet:ErrorMessage())

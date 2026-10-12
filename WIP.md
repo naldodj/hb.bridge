@@ -12,7 +12,7 @@ acceptance records verified results; ChangeLog and Git preserve history.
 | Item | Current value |
 | --- | --- |
 | ID | `001-mssql-acceptance` |
-| Opened / updated | 2026-10-07 / 2026-10-08 |
+| Opened / updated | 2026-10-07 / 2026-10-12 |
 | Status | Native MSSQL accepted: 92 checks; Protheus TCP: 29 and HTTP: 13 each for MSSQL/SQLite. Package remains open. |
 | Goal | Accept the existing RPCRDD.Query/dataset against an identified real MSSQL database through Harbour, Protheus TCP and Protheus HTTP. |
 | Product reference | Published code `50e1c65`; checkout at package opening `bce52d2` includes the clone badge update. |
@@ -87,13 +87,17 @@ new acceptance findings, not reasons to repeat the completed inventory.
 
 - [x] **D01 — Review the consumer interface.** Inspect the supplied local
   FileRead/FileNavigator examples; adopt explicit `MoreToRead()` and metadata
-  methods while preserving page-local `Eof()`/`Skip()` and the user's `DSStruct()`.
+  methods while preserving page-local `Eof()`/`Skip()`. Current canonical
+  metadata API is `Header()`; the owner removed `DSStruct()` afterwards.
 - [ ] **D02 — Accept the TLPP dataset extension.** Compile and exercise
   header/field/row copies, column order, automatic traversal, repeated checks,
   empty/closed state and page failure/recovery. The new mock tests use no ERP data.
   Implementation and 45-check mock fixture are prepared. The 2026-10-08 compile
   attempt failed before source compilation: `COMPILEERROR-300`, custom RPO in use
   (`tmp/totvs-compile.log`, thread 36788). Runtime acceptance remains pending.
+  The 2026-10-12 review adds totals/profile validation and 67 mock checks/31
+  calls, plus 12 pure helper checks. Recursive compilation now includes all
+  24 sources; see the new [acceptance record](docs/acceptance.md).
 - [ ] **D03 — Correct text and numeric integrity.** Enforce consistent UTF-8
   execution/wire semantics, explicit client text conversion and binary handling;
   fix the reproduced fractional FLOAT JSON loss and define lossless decimal/
@@ -120,11 +124,11 @@ new acceptance findings, not reasons to repeat the completed inventory.
   and accented/Unicode text. Define expected representations before assertions;
   record runtime/type restrictions rather than silently converting values.
 - [x] **M04 — Accept Protheus TCP.** Run the existing
-  [U_HBBridgeQueryTest](src/tlpp/tests/protheus/hbbridgequerytest.tlpp) against
+  [U_HBBridgeQueryTest](src/tlpp/tests/protheus/hbbridge.query.test/hbbridge.query.test.tlpp) against
   the explicit MSSQL alias, including all 29 checks. Add necessary backend
   cases to the shared product/tests without a second query implementation.
 - [x] **M05 — Accept Protheus HTTP.** Run
-  [U_HBBridgeHTTPTest](src/tlpp/tests/protheus/hbbridgehttptest.tlpp) with the
+  [U_HBBridgeHTTPTest](src/tlpp/tests/protheus/hbbridge.http.test/hbbridge.http.test.tlpp) with the
   same explicit MSSQL alias and the common dataset. Check the actual selected
   profile/backend, values and pages; a generic HTTP success alone is insufficient.
 - [ ] **M06 — Verify failures and recovery.** Invalid SQL, unknown profile,
@@ -234,6 +238,19 @@ Do not repeat accepted migrations, inventory or native/TCP/HTTP cases without
 new evidence requiring it. M07–M09 and the package completion criteria remain.
 
 ## Following packages: reserved direction
+
+Owner observation on 2026-10-12: [evaluate SQL connection reuse](docs/sql-connections.md)
+after measuring its actual cost, using M08's baseline as input. Compare ODBC
+pooling and host-owned per-profile reuse; distinguish database persistence from
+RPC transport persistence. This note does not authorize an implementation choice
+or change the next task/package completion criteria.
+
+The 2026-10-12 [extension review](docs/extensions-review.md) records SQLRDD,
+Duktape and CCHarbour as optional later packages, without adopting dependencies
+or resetting this package. Current Protheus consumers are cataloged in the
+[example guide](examples/protheus/README.md). Native review regression passed
+583 checks with zero failures; new browse/UI and TLPP mock runtime acceptance
+remain pending. UTF-8/FLOAT and encrypted credentials are not resolved by this review.
 
 | Order | Direction |
 | --- | --- |

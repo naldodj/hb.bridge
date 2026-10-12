@@ -11,8 +11,12 @@
   formatação, os avisos de copyright e as licenças dos arquivos de terceiros.
 - Use identificadores em inglês. Arquivos em minúsculas. Funções, procedures,
   métodos, namespaces e classes usam PascalCase, conforme esclarecimento
-  explícito do responsável. O arquivo usa o nome da classe em minúsculas:
-  `HBBridgeClient` fica em `hbbridgeclient.tlpp`.
+  explícito do responsável. Os fontes usam palavras minúsculas separadas por
+  pontos: `HBBridgeClient` fica em `hbbridge.client.tlpp`. Remover os pontos
+  deve produzir o nome da classe em minúsculas; pontos não representam namespaces.
+- Escreva mensagens de erro, logs e rótulos de interface próprios em inglês.
+  Preserve textos externos e dados intencionais de testes de idioma/codificação.
+  A documentação portuguesa continua nos arquivos pareados `.pt-BR`.
 - Use a mesma convenção de módulos em Harbour, TLPP, C e Zig; a extensão
   identifica a linguagem. Os módulos do produto começam com `hbbridge`.
 - Use `.hb` nos fontes Harbour próprios, testes e addons. Preserve arquivos

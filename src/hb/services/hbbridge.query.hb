@@ -77,11 +77,11 @@ STATIC FUNCTION SQLQueryLocked( cSQL, hProfile, hPage )
          * without an assigned alias, which numeric cleanup must still own.
          */
         dbSelectArea( 0 )
+        nQueryArea := Select()
         cAlias := hb_rddGetTempAlias()
-        IF !dbUseArea( .T., "SQLMIX", cSQL, cAlias, .T., .T., NIL, nConnection )
+        IF ! dbUseArea( .F., "SQLMIX", cSQL, cAlias, .T., .T., NIL, nConnection )
             Break( NIL )
         ENDIF
-        nQueryArea := Select()
         nFields := ( cAlias )->( FCount() )
         IF nFields == 0
             Break( NIL )

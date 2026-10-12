@@ -29,7 +29,7 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'The Zig library build failed.' }
     $testTarget = Join-Path $runRoot 'hbbridgemssqltest'
     $testExecutable = $testTarget + $toolchain.ExecutableExtension
-    & $toolchain.Hbmk2 "-comp=$($toolchain.Compiler)" tests/integration/harbour/hbbridgemssqltest.hbp `
+    & $toolchain.Hbmk2 "-comp=$($toolchain.Compiler)" tests/integration/harbour/hbbridge.mssql.test.hbp `
         "-o$testTarget" "-workdir=$buildRoot"
     if ($LASTEXITCODE -ne 0) { throw 'The MSSQL acceptance executable build failed.' }
     Set-Location -LiteralPath $runRoot

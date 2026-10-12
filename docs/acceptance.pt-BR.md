@@ -42,7 +42,7 @@ Na homologação original do Marco 1, o teste usou os padrões de cliente
 não comprova o contrato modificado posteriormente.
 
 Para homologar o produto atual, compile **`src/tlpp/` inteiro**, incluindo
-[tests/protheus/hbbridgeconnectiontest.tlpp](../src/tlpp/tests/protheus/hbbridgeconnectiontest.tlpp),
+[tests/protheus/hbbridgeconnectiontest.tlpp](../src/tlpp/tests/protheus/hbbridge.connection.test/hbbridge.connection.test.tlpp),
 e execute `U_HBBridgeConnectionTest(cHost, nPort, nTimeout, nLargePayloadBytes)`.
 Sem argumentos, a conexão consulta `[hbBridge]` no INI ativo; os fallbacks
 são `127.0.0.1`, `1512`, `30000` ms e `0` bytes
@@ -663,7 +663,7 @@ identifica `marin` em `DNA-TECH-01` e a mesma pilha `tttm120.rpo`, `tlpp.rpo`,
 | `U_HBBridgeHTTPTestMSSQL` / `MSSQL/pData` | Programa 10:33:32, thread 25976; teste 10:33:33–10:33:34 | Todos os 13 checks true/PASS, Health HTTP 200; duração 00:00:01. |
 | `U_HBBridgeHTTPTestSQLite` / `sqlite_demo` | Programa 10:34:06, thread 9916; teste 10:34:07–10:34:07 | Todos os 13 checks true/PASS, Health HTTP 200; duração 00:00:00. |
 
-Os [wrappers HTTP do operador](../src/tlpp/tests/protheus/hbbridgehttptest.tlpp)
+Os [wrappers HTTP do operador](../src/tlpp/tests/protheus/hbbridge.http.test/hbbridge.http.test.tlpp)
 definem explicitamente o alias SQL padrão e encaminham ao teste comum.
 Mantêm a resolução existente de URL/token/timeout quando os argumentos de
 transporte são omitidos. Ambos passaram em `healthGet`, `healthPost`,
@@ -697,7 +697,7 @@ local à página; `MoreToRead()` busca a próxima ao atingir EOF e preserva o
 erro de uma requisição malsucedida. Cabeçalho, campo e linha retornam cópias
 JSON independentes. Veja [comportamento e proposta de contrato](dataset.pt-BR.md).
 
-O novo [U_HBBridgeDataSetTest](../src/tlpp/tests/protheus/hbbridgedatasettest.tlpp)
+O novo [U_HBBridgeDataSetTest](../src/tlpp/tests/protheus/hbbridge.dataset.test/hbbridge.dataset.test.tlpp)
 isolado usa cliente simulado, sem SQL, credenciais, rede ou dados ERP.
 Seu relatório esperado de sucesso contém **45 checks e 17 chamadas simuladas**,
 cobrindo ordem/cópias de metadados, varredura automática, verificações repetidas,
@@ -739,3 +739,55 @@ validadores de commit em **150 arquivos**, links locais em **63 documentos** e
 whitespace. Log: `tmp/dataset-commit-gate-20261008.log`. Saídas do pré-processador
 TLPP são ignoradas como artefatos de build. A regressão nativa completa não
 foi repetida para este trabalho de navegação TLPP e documentação.
+
+## Revisão de fontes, exemplos e extensões em 2026-10-12
+
+Revisados commits do responsável até `344c86b`, incluindo nomes pontuados,
+helpers browse/filtro/SQL no cliente e grupos de testes Protheus. Caminhos e
+exemplos de API atuais foram alinhados, preservando registros anteriores.
+`Header()` é canônico; configurar `SetAliasProfile()` antes de `OpenSQL()`/
+`OpenPage()` com argumentos SQL. O [guia de consumidores](../examples/protheus/README.pt-BR.md)
+separa fixtures de exemplos ERP/UI locais.
+
+Correções abrangem propriedade da área SQL na abertura parcial, detalhes
+seguros de erros/JSON, totais e perfil do dataset, cópias das linhas do browse,
+busca/filtro tipados e escapados, callbacks e erros de compilação dos helpers/
+exemplos. A seleção original era válida: `dbSelectArea(0)` escolhe uma área
+livre, não a área anterior do chamador. Preservados contagem real, cálculo
+constante de páginas e `COUNT_BIG` MSSQL já corrigidos pelo responsável.
+
+Regressão nativa: **583 checks, zero falhas**,
+`tmp/tests-79526806a38f44a6a2a34c8e0feb2202/results.log`;
+wrapper `tmp/review-harbour-final-20261012.log`. A única falha da primeira
+rodada era uma fixture INI contraditória que exigia presença e ausência do
+mesmo alias; o teste negativo agora usa outra grafia. Novos checks exercitam
+detalhes seguros/JSON, totais exatos e restauração da área anterior. Não são
+novos aceites MSSQL, HTTP Protheus, Linux ou execução de interface.
+
+O compilador inicialmente interpretou sete pastas pontuadas como arquivos,
+com 19 entradas/12 sucessos/7 erros. O launcher corrigido gera lista recursiva
+no formato TOTVS: linha única separada e terminada por ponto e vírgula.
+Compilação final: **24 fontes, 24 sucessos, zero erros**, `custom.rpo` atualizado
+em 2026-10-12 16:18:59 São Paulo, thread 3112. Log:
+`tmp/review-totvs-accepted-20261012-build.log`. Parada/partida administrativas
+usaram os scripts do responsável; partida retornou zero. O processo do
+compilador continua encerrando com **0xC0000409 após concluir o build**;
+não se afirma encerramento limpo. Tentativas parciais anteriores não homologam
+toda a árvore.
+
+O mock dataset espera **67 checks/31 chamadas**; o teste helper espera **12
+checks**. Foram compilados, sem execução nesta revisão. Browse/filtro/busca
+SRA/SX5, tipos e liberação exigem aceite do operador. A fixture query executa
+SELECTs constantes por padrão; o quinto argumento habilita explicitamente os
+exemplos ERP do responsável. Esta análise não leu registros de funcionários.
+
+A [análise do brainstorming](extensions-review.pt-BR.md) registra SQLRDD,
+Duktape e CCHarbour como candidatos futuros com fontes primárias. Nenhum motor,
+modelo externo, adaptador DBAccess ou dependência foi instalado. UTF-8/FLOAT,
+credenciais cifradas e demais critérios do pacote continuam pendentes no WIP.
+
+Os três validadores passaram em **170 arquivos**; links locais em **67
+documentos** e whitespace aprovados. Log:
+`tmp/review-commit-gate-final-20261012.log`. Disponibilidade após partida
+verificada nas portas locais **5555, 7890, 1234 e 4321**. Índice preparado pelo
+usuário preservado; esta revisão não efetuou commit/publicação.

@@ -27,12 +27,12 @@ TLPP; nenhum valor de configuração privada foi consultado nesta análise.
 | Cliente TCP HBBRIDGE/1 | A configuração TLPP atual não tem segredo de autenticação; o transporte TCP comum não possui camada de autenticação por credencial/TLS. | Definir autenticação e transporte protegido separadamente; cifrar o INI não os acrescenta ao protocolo. |
 | Chave privada HTTPS | `PrivateKey` identifica um arquivo PEM no servidor quando build/configuração TLS estão disponíveis. | Proteger esse arquivo e seus backups separadamente; o caminho do certificado não é um provedor de cifragem da chave privada. |
 
-Referências da implementação: [mapeamento INI do host](../src/hb/host/hbbridgeini.hb),
-[validação do host](../src/hb/host/hbbridgeconfig.hb),
-[adaptador NETIO](../src/hb/transports/netio/hbbridgenetio.hb),
-[autorização HTTP](../src/hb/transports/http/hbbridgehttp.hb),
-[cliente HTTP TLPP](../src/tlpp/hbbridgehttpclient.tlpp) e
-[configuração TCP TLPP](../src/tlpp/hbbridgeconfig.tlpp).
+Referências da implementação: [mapeamento INI do host](../src/hb/host/hbbridge.ini.hb),
+[validação do host](../src/hb/host/hbbridge.config.hb),
+[adaptador NETIO](../src/hb/transports/netio/hbbridge.netio.hb),
+[autorização HTTP](../src/hb/transports/http/hbbridge.http.hb),
+[cliente HTTP TLPP](../src/tlpp/hbbridge.http.client.tlpp) e
+[configuração TCP TLPP](../src/tlpp/hbbridge.config.tlpp).
 
 O contrato comum previsto é uma referência de credencial resolvida localmente
 pelo consumidor, ou texto cifrado autenticado e versionado cuja chave mestra

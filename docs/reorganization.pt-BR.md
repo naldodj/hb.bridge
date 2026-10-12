@@ -11,14 +11,14 @@ preparando os próximos marcos do [TODO](../TODO.pt-BR.md).
 
 | Origem | Destino | Responsabilidade |
 | --- | --- | --- |
-| `src/hb/server/server.prg` — `Main` | [host/hbbridgemain.hb](../src/hb/host/hbbridgemain.hb) | Entrada, opções e ciclo de vida do console. |
-| `src/hb/server/server.prg` — recepção/envio | [transports/protheus/hbbridgeframing.hb](../src/hb/transports/protheus/hbbridgeframing.hb) | Enquadramento e compressão atuais. |
-| `src/hb/server/mt_server.prg` | [transports/protheus/hbbridgeserver.hb](../src/hb/transports/protheus/hbbridgeserver.hb) | Listener, workers e encerramento. |
-| `src/hb/dispatcher/dispatcher.prg` | [core/hbbridgedispatcher.hb](../src/hb/core/hbbridgedispatcher.hb) | Registro/despacho/validação; valores nativos desde o Marco 1. |
-| Respostas dos serviços no dispatcher | [services/hbbridgeservices.hb](../src/hb/services/hbbridgeservices.hb) | Hoje reúne Health/Echo/ADDON.Execute e descoberta. |
-| Bloco C do loader | [c/hbbridgezig.c](../src/c/hbbridgezig.c) | Mesma API Harbour e chamada à função Zig. |
-| `tests/harbour/` | [integration/harbour](../tests/integration/harbour/hbbridgeservertest.hb) | Suíte MT e fixtures. |
-| `tests/protheus/` | [src/tlpp/tests/protheus](../src/tlpp/tests/protheus/hbbridgeconnectiontest.tlpp) | Teste TLPP, reunido à árvore compilável Protheus. |
+| `src/hb/server/server.prg` — `Main` | [host/hbbridge.main.hb](../src/hb/host/hbbridge.main.hb) | Entrada, opções e ciclo de vida do console. |
+| `src/hb/server/server.prg` — recepção/envio | [transports/protheus/hbbridge.framing.hb](../src/hb/transports/protheus/hbbridge.framing.hb) | Enquadramento e compressão atuais. |
+| `src/hb/server/mt_server.prg` | [transports/protheus/hbbridge.server.hb](../src/hb/transports/protheus/hbbridge.server.hb) | Listener, workers e encerramento. |
+| `src/hb/dispatcher/dispatcher.prg` | [core/hbbridge.dispatcher.hb](../src/hb/core/hbbridge.dispatcher.hb) | Registro/despacho/validação; valores nativos desde o Marco 1. |
+| Respostas dos serviços no dispatcher | [services/hbbridge.services.hb](../src/hb/services/hbbridge.services.hb) | Hoje reúne Health/Echo/ADDON.Execute e descoberta. |
+| Bloco C do loader | [c/hbbridge.zig.c](../src/c/hbbridge.zig.c) | Mesma API Harbour e chamada à função Zig. |
+| `tests/harbour/` | [integration/harbour](../tests/integration/harbour/hbbridge.server.test.hb) | Suíte MT e fixtures. |
+| `tests/protheus/` | [src/tlpp/tests/protheus](../src/tlpp/tests/protheus/hbbridge.connection.test/hbbridge.connection.test.tlpp) | Teste TLPP, reunido à árvore compilável Protheus. |
 
 Loader, telemetria, cliente TLPP, biblioteca Zig, addon de exemplo e esboços de
 configuração permanecem em suas áreas. As pastas anteriores de servidor,
@@ -26,7 +26,7 @@ dispatcher e testes foram substituídas; não há duas implementações ativas.
 
 [hbbridge.hbm](../hbbridge.hbm) centraliza fontes/flags dos componentes.
 [hbbridge.hbp](../hbbridge.hbp) acrescenta a entrada do produto;
-[hbbridgeservertest.hbp](../tests/integration/harbour/hbbridgeservertest.hbp) acrescenta a entrada
+[hbbridge.server.test.hbp](../tests/integration/harbour/hbbridge.server.test.hbp) acrescenta a entrada
 de teste. [examples/mvp](../examples/mvp/README.pt-BR.md) executa o mesmo binário do
 produto e referencia seus clientes/addons.
 
@@ -56,11 +56,13 @@ nativa de STATICs em recargas sequenciais; veja a
 
 ## Organização atual de nomes e build
 
-Arquivos próprios usam nomes ingleses em minúsculas, com prefixo `hbbridge`
-nos componentes do produto. Os pares classe/arquivo TLPP são:
-`HBBridgeClient`/`hbbridgeclient.tlpp`, `HBBridgeConfig`/`hbbridgeconfig.tlpp`,
-`HBBridgeTime`/`hbbridgetime.tlpp` e
-`HBBridgeRPCDataSet`/`hbbridgerpcdataset.tlpp`. Funções, procedures, métodos,
+Arquivos próprios usam nomes ingleses em minúsculas, com palavras separadas
+por pontos e prefixo `hbbridge` nos componentes do produto. Remover os pontos
+do nome-base de um arquivo de classe produz seu identificador em minúsculas;
+declarações de namespace são independentes. Os pares classe/arquivo TLPP são:
+`HBBridgeClient`/`hbbridge.client.tlpp`, `HBBridgeConfig`/`hbbridge.config.tlpp`,
+`HBBridgeTime`/`hbbridge.time.tlpp` e
+`HBBridgeRPCDataSet`/`hbbridge.rpc.dataset.tlpp`. Funções, procedures, métodos,
 namespaces e classes usam PascalCase por decisão explícita do responsável.
 APIs nativas conservam sua grafia exigida. Veja [padrões](standards.pt-BR.md).
 

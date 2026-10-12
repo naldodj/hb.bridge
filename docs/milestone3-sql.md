@@ -2,7 +2,7 @@
 
 [Português (Brasil)](milestone3-sql.pt-BR.md)
 
-[The SQL service](../src/hb/services/hbbridgequery.hb) uses native Harbour
+[The SQL service](../src/hb/services/hbbridge.query.hb) uses native Harbour
 rddsql/SQLMIX, linked sddsqlt3 for SQLite and sddodbc for MSSQL/ODBC; it does
 not implement a new RDD.
 Operator SQLite dataset/page acceptance: 2026-10-04 00:40:06, all 29 checks.
@@ -104,6 +104,11 @@ References: [SQLite window functions](https://www.sqlite.org/windowfunctions.htm
 The result adds page={number,size,hasNext,firstRow,lastRow}.
 rowCount covers only the page; empty firstRow/lastRow are zero.
 Rows restart at "1" each page. Internal __HBBRIDGE_ROWNO is hidden.
+Paged results also include top-level `totalRows` and `totalPages` from a
+separate count of the supplied base query on the same connection. Empty
+results have zero pages; nonempty totals round up by page size. Counting adds
+database work and does not establish a snapshot with the page query or later
+requests. Concurrent changes can make those observations differ.
 
 orderBy accepts exposed simple column names separated by commas with optional
 ASC/DESC; ASCII letters/underscore, then digits are allowed.
@@ -140,22 +145,30 @@ and explicit null semantics remain contract work.
 
 ## Protheus dataset and test
 
-[HBBridgeRPCDataSet](../src/tlpp/hbbridgerpcdataset.tlpp) uses JSONObject:
+[HBBridgeRPCDataSet](../src/tlpp/hbbridge.rpc.dataset.tlpp) uses JSONObject:
 OpenSQL, FieldGet, Skip, Eof, Close, RowCount, ErrorCode, ErrorMessage.
-OpenPage(profile,sql,number,size,orderBy), NextPage, HasNextPage, PageNumber
+SetAliasProfile(profile), OpenSQL(sql[,page]), OpenPage(sql,number,size,orderBy),
+NextPage, HasNextPage, PageNumber
 and PageSize implement explicit pages. Skip stays in the current page;
 NextPage makes a new call.
 
 New(oClient) accepts an existing HBBridgeClient; New() creates one from
 AppServer [hbBridge], falling back to defaults when keys are absent.
-Close releases the result; an open failure leaves an empty dataset.
+Select the alias first with `SetAliasProfile(profile)`; changing it closes
+the old result. Close releases the result and preserves that selection; an
+open failure leaves an empty dataset and retains the error/selected profile.
 The dataset owns the complete response so nested JSON references remain valid.
 
-`Header()` returns an independent header JSON object; `DSStruct()` is its
-compatibility alias. `FieldInfo(name)` returns one field's independent metadata.
+`Header()` returns an independent header JSON object. `FieldInfo(name)` returns one field's independent metadata.
 `FieldCount()` and `FieldName(position)` enumerate the original SQL column
 order using explicit header positions. `GetRow()` copies the current row
 without advancing. These accessors perform no remote page requests.
+`GetRows()` copies the current page; `FieldExist()` checks field metadata even
+at EOF. `PreviousPage()`/`HasPreviousPage()` support explicit backward paging.
+`HasTotals()` distinguishes supplied totals from older paged responses with
+unknown totals (`TotalRows()`/`TotalPages()` return `-1`). Closed getters return
+zero; unpaged totals equal the complete row count and zero/one page. See the
+[dataset contract](dataset.md#total-rows-and-pages) for validation and costs.
 
 Use `while oDataSet:MoreToRead()` with an explicit `oDataSet:Skip()` for a
 sequential scan across pages. At page EOF, `MoreToRead()` requests the next
@@ -190,7 +203,7 @@ INI preparation uses the updated binary's sanitized --config-info.
 JSON remains supported.
 
 Compile the entire src/tlpp tree, including
-[hbbridgequerytest.tlpp](../src/tlpp/tests/protheus/hbbridgequerytest.tlpp),
+[hbbridge.query.test.tlpp](../src/tlpp/tests/protheus/hbbridge.query.test/hbbridge.query.test.tlpp),
 through scripts/build-totvs.cmd or the configured TOTVS tools.
 Changing only a server SQL profile does not require recompiling updated TLPP.
 
@@ -237,7 +250,7 @@ validation/test guidance. No TLPP recompile is required for host configuration a
 
 ## Regression and acceptance evidence
 
-[SQL tests](../tests/integration/harbour/hbbridgequerytest.hb) create an isolated
+[SQL tests](../tests/integration/harbour/hbbridge.query.test.hb) create an isolated
 persistent SQLite file and compare NETIO/TCP named results under concurrency.
 Coverage includes empty/null expressions/profiles/errors, complete/partial/empty
 pages, compound/descending order, gaps, metadata, reserved/duplicate aliases

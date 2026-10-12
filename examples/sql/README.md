@@ -72,6 +72,13 @@ IDs with gaps and invalid pagination/order. Queries select constants without
 writing Protheus tables. Direct ODBC/SQLRDD does not perform DBAccess/business
 workflows. Encrypted INI credentials and a local management utility are proposed.
 
+The optional fifth test argument `lRunERPExamples` defaults to false. Explicit
+true enables local SX5/SRA/SX3 queries for `MSSQL/pData` after the constant
+fixture. Those examples use caller-side, installation-specific SQL and print
+field values; adapt their physical names and formatting in Protheus. They
+have separate acceptance from the constant regression and do not add ERP
+rules to the bridge core. See [test calls](../../tests/README.md).
+
 Operator SQLite acceptance: 2026-10-04 00:40:06, thread 41228, all 29 checks
 true, later reconfirmed with the client INI acceptance. The operator reconfirmed all 29 SQLite
 checks on 2026-10-07, thread 27136, after reported recompilation of the renamed
@@ -131,9 +138,11 @@ For Protheus acceptance, start the product with the same private profile:
 
 Then run `U_HBBridgeQueryTest("MSSQL/pData", "127.0.0.1", 1512, 30000)` with
 the actual client destination. Use the same explicit alias for
-[HTTP acceptance](../http/README.md). The convenience entries
-`U_HBBridgeQueryTestMSSQL()` and `U_HBBridgeQueryTestSQLite()` provide the
-local example aliases without changing the generic client's defaults.
+[HTTP acceptance](../http/README.md). `U_HBBridgeQueryTestSQLite()` selects
+the SQLite example alias. `U_HBBridgeQueryTestTopInfo()` resolves an alias from
+the active Protheus DBAccess connection information on the calling side; that
+exact alias must already exist in hbBridge configuration. The generic client
+retains no forced database profile.
 
 On 2026-10-08, the private SQL-login profile passed **92 native checks, zero
 failures and no skips** against SQL Server `16.0.1200.5`, database `pData`,

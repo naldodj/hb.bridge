@@ -583,7 +583,7 @@ stack. Times below are São Paulo on 2026-10-08.
 | `U_HBBridgeHTTPTestMSSQL` / `MSSQL/pData` | Program 10:33:32, thread 25976; test 10:33:33–10:33:34 | All 13 checks true/PASS, Health HTTP 200; elapsed 00:00:01. |
 | `U_HBBridgeHTTPTestSQLite` / `sqlite_demo` | Program 10:34:06, thread 9916; test 10:34:07–10:34:07 | All 13 checks true/PASS, Health HTTP 200; elapsed 00:00:00. |
 
-The operator's [HTTP wrappers](../src/tlpp/tests/protheus/hbbridgehttptest.tlpp)
+The operator's [HTTP wrappers](../src/tlpp/tests/protheus/hbbridge.http.test/hbbridge.http.test.tlpp)
 default the SQL alias explicitly and forward to the common test. They retain
 the existing URL/token/timeout resolution for omitted transport arguments.
 Both runs passed `healthGet`, `healthPost`, `servicesGet`, `echo`, `addon`,
@@ -617,7 +617,7 @@ the accepted runs above. The TLPP dataset now includes `MoreToRead()`,
 error. Header, field and row access return independent JSON copies. See
 [dataset behavior and proposed contract](dataset.md).
 
-The new isolated [U_HBBridgeDataSetTest](../src/tlpp/tests/protheus/hbbridgedatasettest.tlpp)
+The new isolated [U_HBBridgeDataSetTest](../src/tlpp/tests/protheus/hbbridge.dataset.test/hbbridge.dataset.test.tlpp)
 uses a mock client, without SQL, credentials, network calls or ERP data.
 Its expected successful report is **45 checks and 17 mock calls**, covering
 metadata ordering/copies, automatic traversal, repeated checks, closed/empty
@@ -656,3 +656,55 @@ commit validators for **150 files**, local links across **63 documents** and
 whitespace checks. Gate log: `tmp/dataset-commit-gate-20261008.log`.
 TLPP preprocessor outputs are ignored as generated build artifacts. No full
 native regression was repeated for the TLPP/navigation and documentation work.
+
+## Source, examples and extension review on 2026-10-12
+
+Reviewed owner commits through `344c86b`, including dotted module names,
+client-side browse/filter/SQL helpers and grouped Protheus tests. Updated
+current paths/API examples while retaining the earlier acceptance records.
+`Header()` is canonical; configure `SetAliasProfile()` before SQL-only
+`OpenSQL()`/`OpenPage()`. The new [consumer guide](../examples/protheus/README.md)
+distinguishes fixtures from local ERP/UI examples.
+
+Corrections cover partial-open SQL area ownership, public diagnostic redaction
+and JSON encoding, total validation/profile lifetime, browse row ownership,
+typed/escaped seek/filter expressions, callback updates and compilation errors
+in helpers/examples. The original area selection was valid: `dbSelectArea(0)`
+selects a free area, not the saved caller area. Preserve the already corrected
+real row count, constant-time page calculation and MSSQL `COUNT_BIG`.
+
+Native regression: **583 checks, zero failures**,
+`tmp/tests-79526806a38f44a6a2a34c8e0feb2202/results.log`;
+wrapper `tmp/review-harbour-final-20261012.log`. The first run's single failure
+was a contradictory INI fixture asserting both presence and absence of the
+same alias; the negative check now uses a different case. The added checks
+exercise safe error details/JSON, exact totals and caller area restoration.
+No new MSSQL connection, Protheus HTTP, Linux or UI runtime claim follows.
+
+The directory compiler initially interpreted seven dotted test folders as
+files and reported 19 inputs/12 successes/7 errors. The corrected launcher
+generates a recursive file list in the documented single-line, semicolon-
+terminated TOTVS format. Final compilation: **24 sources, 24 successes,
+zero errors**, `custom.rpo` updated 2026-10-12 16:18:59 São Paulo, thread 3112.
+Log: `tmp/review-totvs-accepted-20261012-build.log`. Admin stop/start used the
+owner's scripts; startup returned zero. The compiler process still exited
+with **0xC0000409 after the completed build**; a clean process exit is not
+claimed. Earlier partial attempts are not acceptance of the whole source tree.
+
+The new dataset mock expects **67 checks/31 calls**; the helper test expects
+**12 checks**. They were compiled, not executed in this review. Interactive
+SRA/SX5 browse/filter/seek, field types and cleanup require operator acceptance.
+The query fixture runs constant SELECTs by default; its fifth argument
+explicitly enables the owner's ERP examples. No personnel rows were read by
+this review.
+
+The [brainstorming review](extensions-review.md) records SQLRDD, Duktape and
+CCHarbour as future candidates with primary-source references. No engine,
+external model, DBAccess adapter or new dependency was installed. UTF-8/FLOAT,
+credential encryption and the remaining package criteria stay pending in WIP.
+
+All three validators passed for **170 files**; local links across **67
+documents** and whitespace passed. Log:
+`tmp/review-commit-gate-final-20261012.log`. Restart readiness was independently
+verified on local ports **5555, 7890, 1234 and 4321**. The user's staged index
+was preserved; this review did not commit or publish.

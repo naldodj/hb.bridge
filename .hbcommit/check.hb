@@ -151,6 +151,7 @@ STATIC FUNCTION CheckFile( cName, /* @ */ aErr, lApplyFixes )
       "LICENSE", ;
       "README.*", ;
       "WARNING.*", ;
+      "FUNDING.*", ;
       "*/RELNOTES.txt", ;
       "*/HARBOUR_README_*.txt", ;
       "ChangeLog.txt", ;

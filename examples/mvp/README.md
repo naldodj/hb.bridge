@@ -25,8 +25,8 @@ file < CLI; see [configuration](../../docs/configuration.md). Stop with Ctrl+Q.
 Build refuses a running output; use `-OutputDirectory tmp/candidate` to build
 alongside an active instance. See [scripts](../../scripts/README.md).
 
-Compile all `src/tlpp/`, including [client](../../src/tlpp/hbbridgeclient.tlpp)
-and [tests](../../src/tlpp/tests/protheus/hbbridgeconnectiontest.tlpp), in the
+Compile all `src/tlpp/`, including [client](../../src/tlpp/hbbridge.client.tlpp)
+and [tests](../../src/tlpp/tests/protheus/hbbridge.connection.test/hbbridge.connection.test.tlpp), in the
 AppServer. Run `U_HBBridgeConnectionTest()` or explicit host/port/timeout.
 Omitted arguments read `[hbBridge]` in the active AppServer INI, falling back
 to `127.0.0.1:1512`. Merge the
