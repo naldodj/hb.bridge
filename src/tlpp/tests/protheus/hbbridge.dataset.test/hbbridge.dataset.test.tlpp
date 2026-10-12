@@ -1,5 +1,5 @@
 /* Released to Public Domain. */
-#include "protheus.ch"
+#include "totvs.ch"
 #include "tlpp-core.th"
 
 // No configuration, network, database or ERP table is read by this test.
@@ -36,7 +36,8 @@ procedure U_HBBridgeDataSetTest()
 
     QueueDataSetResult(oClient, DataSetResult(10, 2, 1, 2, .T.))
     QueueDataSetResult(oClient, DataSetResult(30, 1, 2, 2, .F.))
-    lOpened := oDataSet:OpenPage("opaque/profile", cSql, 1, 2, "ID ASC")
+    oDataSet:SetAliasProfile("opaque/profile")
+    lOpened := oDataSet:OpenPage(cSql, 1, 2, "ID ASC")
     jChecks["openPage"] := lOpened .and. oClient:CallCount() == 1
     if lOpened
         jChecks["fieldCount"] := oDataSet:FieldCount() == 2
@@ -57,7 +58,7 @@ procedure U_HBBridgeDataSetTest()
         FreeObj(@jHeader)
         jInfo["position"] := 2
         jInfo["format"]["label"] := "changed field"
-        jHeader := oDataSet:DSStruct()
+        jHeader := oDataSet:Header()
         jChecks["fieldInfoDefensiveCopy"] := jHeader["ID"]["position"] == 1 .and. ;
             jHeader["ID"]["format"]["label"] == "identifier"
         FreeObj(@jInfo)
@@ -122,7 +123,8 @@ procedure U_HBBridgeDataSetTest()
     FreeObj(@jHeader)
 
     QueueDataSetResult(oClient, DataSetResult(0, 0, 1, 2, .F.))
-    lOpened := oDataSet:OpenPage("opaque/profile", cSql, 1, 2, "ID ASC")
+    oDataSet:SetAliasProfile("opaque/profile")
+    lOpened := oDataSet:OpenPage(cSql, 1, 2, "ID ASC")
     jChecks["emptyPage"] := lOpened .and. oDataSet:Eof() .and. ;
         oDataSet:FieldCount() == 2 .and. !oDataSet:MoreToRead() .and. ;
         !oDataSet:MoreToRead() .and. oClient:CallCount() == 3
@@ -133,7 +135,8 @@ procedure U_HBBridgeDataSetTest()
     jResponse["code"] := "TIMEOUT"
     jResponse["error"] := "Controlled next-page failure."
     QueueDataSetResult(oClient, jResponse)
-    lOpened := oDataSet:OpenPage("opaque/profile", cSql, 1, 2, "ID ASC")
+    oDataSet:SetAliasProfile("opaque/profile")
+    lOpened := oDataSet:OpenPage(cSql, 1, 2, "ID ASC")
     jChecks["failureFixtureOpen"] := lOpened .and. oClient:CallCount() == 4
     oDataSet:Skip()
     oDataSet:Skip()
@@ -151,7 +154,8 @@ procedure U_HBBridgeDataSetTest()
     FreeObj(@jRow)
 
     QueueDataSetResult(oClient, DataSetResult(99, 1, 0, 0, .F.))
-    lOpened := oDataSet:OpenSQL("opaque/profile", cSql)
+    oDataSet:SetAliasProfile("opaque/profile")
+    lOpened := oDataSet:OpenSQL(cSql)
     jChecks["reopenAfterFailure"] := lOpened .and. Empty(oDataSet:ErrorCode()) .and. ;
         Empty(oDataSet:ErrorMessage()) .and. oDataSet:MoreToRead() .and. ;
         oDataSet:FieldGet("ID") == 99 .and. oClient:CallCount() == 6
@@ -162,7 +166,8 @@ procedure U_HBBridgeDataSetTest()
     jResponse := DataSetResult(1, 1, 0, 0, .F.)
     jResponse["header"]["NAME"]["position"] := 1
     QueueDataSetResult(oClient, jResponse)
-    lOpened := oDataSet:OpenSQL("opaque/profile", cSql)
+    oDataSet:SetAliasProfile("opaque/profile")
+    lOpened := oDataSet:OpenSQL(cSql)
     jChecks["duplicatePositionRejected"] := !lOpened .and. ;
         oDataSet:ErrorCode() == "INVALID_RESULT" .and. oDataSet:FieldCount() == 0
     nCalls := oClient:CallCount()
@@ -173,42 +178,49 @@ procedure U_HBBridgeDataSetTest()
     jResponse["header"]["NAME"] := JSONObject():New()
     jResponse["header"]["NAME"]["type"] := "C"
     QueueDataSetResult(oClient, jResponse)
-    lOpened := oDataSet:OpenSQL("opaque/profile", cSql)
+    oDataSet:SetAliasProfile("opaque/profile")
+    lOpened := oDataSet:OpenSQL(cSql)
     jChecks["missingPositionRejected"] := !lOpened .and. oDataSet:ErrorCode() == "INVALID_RESULT"
 
     jResponse := DataSetResult(1, 1, 0, 0, .F.)
     jResponse["header"]["NAME"]["position"] := 1.5
     QueueDataSetResult(oClient, jResponse)
-    lOpened := oDataSet:OpenSQL("opaque/profile", cSql)
+    oDataSet:SetAliasProfile("opaque/profile")
+    lOpened := oDataSet:OpenSQL(cSql)
     jChecks["fractionalPositionRejected"] := !lOpened .and. oDataSet:ErrorCode() == "INVALID_RESULT"
 
     jResponse := DataSetResult(1, 1, 0, 0, .F.)
     jResponse["header"]["NAME"]["position"] := 3
     QueueDataSetResult(oClient, jResponse)
-    lOpened := oDataSet:OpenSQL("opaque/profile", cSql)
+    oDataSet:SetAliasProfile("opaque/profile")
+    lOpened := oDataSet:OpenSQL(cSql)
     jChecks["outOfRangePositionRejected"] := !lOpened .and. oDataSet:ErrorCode() == "INVALID_RESULT"
 
     jResponse := DataSetResult(1, 1, 0, 0, .F.)
     jResponse["header"]["NAME"]["position"] := "2"
     QueueDataSetResult(oClient, jResponse)
-    lOpened := oDataSet:OpenSQL("opaque/profile", cSql)
+    oDataSet:SetAliasProfile("opaque/profile")
+    lOpened := oDataSet:OpenSQL(cSql)
     jChecks["nonNumericPositionRejected"] := !lOpened .and. oDataSet:ErrorCode() == "INVALID_RESULT"
 
     jResponse := DataSetResult(1, 1, 0, 0, .F.)
     jResponse["header"]["NAME"] := "not field metadata"
     QueueDataSetResult(oClient, jResponse)
-    lOpened := oDataSet:OpenSQL("opaque/profile", cSql)
+    oDataSet:SetAliasProfile("opaque/profile")
+    lOpened := oDataSet:OpenSQL(cSql)
     jChecks["nonObjectMetadataRejected"] := !lOpened .and. oDataSet:ErrorCode() == "INVALID_RESULT"
 
     QueueDataSetResult(oClient, DataSetResult(44, 1, 0, 0, .F.))
-    lOpened := oDataSet:OpenSQL("opaque/profile", cSql)
+    oDataSet:SetAliasProfile("opaque/profile")
+    lOpened := oDataSet:OpenSQL(cSql)
     jChecks["reopenAfterInvalidMetadata"] := lOpened .and. Empty(oDataSet:ErrorCode()) .and. ;
         oDataSet:FieldCount() == 2 .and. oDataSet:FieldGet("ID") == 44
 
     jResponse := DataSetResult(0, 0, 0, 0, .F.)
     jResponse["header"] := JSONObject():New()
     QueueDataSetResult(oClient, jResponse)
-    lOpened := oDataSet:OpenSQL("opaque/profile", cSql)
+    oDataSet:SetAliasProfile("opaque/profile")
+    lOpened := oDataSet:OpenSQL(cSql)
     nCalls := oClient:CallCount()
     jChecks["emptyHeaderAccepted"] := lOpened .and. oDataSet:FieldCount() == 0 .and. ;
         oDataSet:FieldName(1) == "" .and. !oDataSet:MoreToRead() .and. ;
@@ -219,7 +231,8 @@ procedure U_HBBridgeDataSetTest()
     QueueDataSetResult(oClient, DataSetResult(140, 1, 3, 2, .F.))
     nCalls := oClient:CallCount()
     nRecords := 0
-    lOpened := oDataSet:OpenPage("opaque/profile", cSql, 1, 2, "ID ASC")
+    oDataSet:SetAliasProfile("opaque/profile")
+    lOpened := oDataSet:OpenPage(cSql, 1, 2, "ID ASC")
     while oDataSet:MoreToRead()
         nRecords++
         nSum += oDataSet:FieldGet("ID")

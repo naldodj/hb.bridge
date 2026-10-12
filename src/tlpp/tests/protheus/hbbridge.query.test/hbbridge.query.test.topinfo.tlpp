@@ -1,0 +1,16 @@
+#include "totvs.ch"
+
+procedure U_HBBridgeQueryTestTopInfo(cAliasProfile, cHost, nPort, nTimeout)
+
+    local aFWGetTopInfo:=FWGetTopInfo() as array
+    local cIniFile:=GetSrvIniName() as character
+
+    DEFAULT cAliasProfile:=(aFWGetTopInfo[4]+"/"+aFWGetTopInfo[5])
+    FWFreeArray(@aFWGetTopInfo)
+    DEFAULT cHost:=GetPvProfString("hbBridge","Host","127.0.0.1",cIniFile)
+    DEFAULT nPort:=Val(GetPvProfString("hbBridge","Port","1512",cIniFile))
+    DEFAULT nTimeout:=30000
+
+    U_HBBridgeQueryTest(cAliasProfile, cHost, nPort, nTimeout)
+
+return

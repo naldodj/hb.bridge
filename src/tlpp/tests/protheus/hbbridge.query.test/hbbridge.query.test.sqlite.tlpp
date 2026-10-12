@@ -1,0 +1,15 @@
+#include "totvs.ch"
+#include "hbbridge.h"
+
+procedure U_HBBridgeQueryTestSQLite(cAliasProfile, cHost, nPort, nTimeout)
+
+    local cIniFile:=GetSrvIniName() as character
+
+    DEFAULT cAliasProfile:="sqlite_demo"
+    DEFAULT cHost:=GetPvProfString("hbBridge","Host","127.0.0.1",cIniFile)
+    DEFAULT nPort:=Val(GetPvProfString("hbBridge","Port","1512",cIniFile))
+    DEFAULT nTimeout:=30000
+
+    U_HBBridgeQueryTest(cAliasProfile, cHost, nPort, nTimeout)
+
+return

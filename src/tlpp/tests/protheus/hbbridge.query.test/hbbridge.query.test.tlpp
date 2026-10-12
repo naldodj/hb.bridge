@@ -1,40 +1,12 @@
+#include "totvs.ch"
 #include "hbbridge.h"
-#include "protheus.ch"
-
-procedure U_HBBridgeQueryTestMSSQL(cAliasProfile, cHost, nPort, nTimeout)
-
-    local aFWGetTopInfo:=FWGetTopInfo() as array
-    local cIniFile:=GetSrvIniName() as character
-
-    DEFAULT cAliasProfile:=(aFWGetTopInfo[4]+"/"+aFWGetTopInfo[5])
-    FWFreeArray(@aFWGetTopInfo)
-    DEFAULT cHost:=GetPvProfString("hbBridge","Host","127.0.0.1",cIniFile)
-    DEFAULT nPort:=Val(GetPvProfString("hbBridge","Port","1512",cIniFile))
-    DEFAULT nTimeout:=30000
-
-    U_HBBridgeQueryTest(cAliasProfile, cHost, nPort, nTimeout)
-
-return
-
-procedure U_HBBridgeQueryTestSQLite(cAliasProfile, cHost, nPort, nTimeout)
-
-    local cIniFile:=GetSrvIniName() as character
-
-    DEFAULT cAliasProfile:="sqlite_demo"
-    DEFAULT cHost:=GetPvProfString("hbBridge","Host","127.0.0.1",cIniFile)
-    DEFAULT nPort:=Val(GetPvProfString("hbBridge","Port","1512",cIniFile))
-    DEFAULT nTimeout:=30000
-
-    U_HBBridgeQueryTest(cAliasProfile, cHost, nPort, nTimeout)
-
-return
 
 procedure U_HBBridgeQueryTest(cAliasProfile, cHost, nPort, nTimeout)
     local cTimeStart,cTimeEnd as character
     ConOut("hbBridge U_HBBridgeQueryTest Start: "+DTos(Date())+"/"+(cTimeStart:=Time()))
     HBBridgeQueryTest(cAliasProfile, cHost, nPort, nTimeout)
     ConOut("hbBridge U_HBBridgeQueryTest End: "+DTos(Date())+"/"+(cTimeEnd:=Time()))
-    ConOut("hbBridge U_HBBridgeQueryTest ElapTime: "+ElapTime(cTimeStart,cTimeEnd))
+    ConOut("hbBridge U_HBBridgeQueryTest Elapsed Time: "+ElapTime(cTimeStart,cTimeEnd))
 return
 
 static procedure HBBridgeQueryTest(cAliasProfile, cHost, nPort, nTimeout)

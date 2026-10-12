@@ -1,6 +1,6 @@
-#include "protheus.ch"
-#include "parmtype.ch"
+#include "totvs.ch"
 #include "hbbridge.h"
+#include "parmtype.ch"
 
 #define __IS_THE_ADDONS_EXECUTION_ENABLED__ .T.
 

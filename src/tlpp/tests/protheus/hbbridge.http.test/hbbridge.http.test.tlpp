@@ -1,5 +1,5 @@
 /* Released to Public Domain. */
-#include "protheus.ch"
+#include "totvs.ch"
 #include "tlpp-core.th"
 
 procedure U_HBBridgeHTTPTestMSSQL(cURL, cToken, nTimeoutSeconds, cSQLProfile, cAddonModule)
@@ -17,7 +17,7 @@ procedure U_HBBridgeHTTPTest(cURL, cToken, nTimeoutSeconds, cSQLProfile, cAddonM
     ConOut("hbBridge U_HBBridgeHTTPTest Start: "+DTos(Date())+"/"+(cTimeStart:=Time()))
     HBBridgeHTTPTest(cURL, cToken, nTimeoutSeconds, cSQLProfile, cAddonModule)
     ConOut("hbBridge U_HBBridgeHTTPTest End: "+DTos(Date())+"/"+(cTimeEnd:=Time()))
-    ConOut("hbBridge U_HBBridgeHTTPTest ElapTime: "+ElapTime(cTimeStart,cTimeEnd))
+    ConOut("hbBridge U_HBBridgeHTTPTest Elapsed Time: "+ElapTime(cTimeStart,cTimeEnd))
 return
 
 static procedure HBBridgeHTTPTest(cURL, cToken, nTimeoutSeconds, cSQLProfile, cAddonModule)

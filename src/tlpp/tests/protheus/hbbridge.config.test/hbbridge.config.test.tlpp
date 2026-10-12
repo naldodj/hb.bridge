@@ -1,4 +1,4 @@
-#include "protheus.ch"
+#include "totvs.ch"
 #include "tlpp-core.th"
 
 procedure U_HBBridgeConfigTest()
