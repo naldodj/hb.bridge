@@ -1,0 +1,111 @@
+/*----------------------------------------------------------------------
+
+ _      _      _            _      _                  _            _
+| |__  | |__  | |__   _ __ (_)  __| |  __ _   ___    | |__    ___ | | _ __    ___  _ __
+| '_ \ | '_ \ | '_ \ | '__|| | / _` | / _` | / _ \   | '_ \  / _ \| || '_ \  / _ \| '__|
+| | | || |_) || |_) || |   | || (_| || (_| ||  __/ _ | | | ||  __/| || |_) ||  __/| |
+|_| |_||_.__/ |_.__/ |_|   |_| \__,_| \__, | \___|(_)|_| |_| \___||_|| .__/  \___||_|
+                                      |___/                          |_|
+Released to Public Domain.
+--------------------------------------------------------------------------------------
+*/
+
+#include "totvs.ch"
+#include "parmtype.ch"
+
+namespace HBBridge.Helper
+
+**************************************************************************************************************************************
+/*
+ _      _      _            _      _                                        _
+| |__  | |__  | |__   _ __ (_)  __| |  __ _   ___  _ __   _   _  _ __ ___  | |__    ___  _ __
+| '_ \ | '_ \ | '_ \ | '__|| | / _` | / _` | / _ \| '_ \ | | | || '_ ` _ \ | '_ \  / _ \| '__|
+| | | || |_) || |_) || |   | || (_| || (_| ||  __/| | | || |_| || | | | | || |_) ||  __/| |
+|_| |_||_.__/ |_.__/ |_|   |_| \__,_| \__, | \___||_| |_| \__,_||_| |_| |_||_.__/  \___||_|
+                                      |___/
+*/
+class HBBridgeNumber
+
+    static method RetPictVal(nVal as numeric,lDecZero as logical,nInt as numeric,nDec as numeric,lPictSepMil as logical) as character
+    static method RetPictLen(nVal as numeric,lDecZero as logical,nInt as numeric,nDec as numeric,lPictSepMil as logical) as numeric
+
+end class
+
+static method RetPictVal(nVal,lDecZero,nInt,nDec,lPictSepMil) class HBBridgeNumber
+
+    local cPictVal as character
+
+    paramtype 1 var nVal as numeric
+    paramtype 2 var lDecZero as logical optional
+    paramtype 3 var nInt as numeric optional
+    paramtype 4 var nDec as numeric optional
+    paramtype 5 var lPictSepMil as logical optional
+
+    cPictVal:=RetPictVal(@nVal,@lDecZero,@nInt,@nDec,@lPictSepMil)
+
+    if (Right(cPictVal,2)==".9")
+        cPictVal+="9"
+    endif
+
+    if (Left(cPictVal,1)==",")
+        cPictVal:=SubStr(cPictVal,2)
+    endif
+
+return(cPictVal)
+
+static method RetPictLen(nVal,lDecZero,nInt,nDec,lPictSepMil) class HBBridgeNumber
+
+    local cPictVal as character
+
+    local nPictLen as numeric
+
+    paramtype 1 var nVal as numeric
+    paramtype 2 var lDecZero as logical optional
+    paramtype 3 var nInt as numeric optional
+    paramtype 4 var nDec as numeric optional
+    paramtype 5 var lPictSepMil as logical optional
+
+    cPictVal:=RetPictVal(@nVal,@lDecZero,@nInt,@nDec,@lPictSepMil)
+    nPictLen:=Len(cPictVal)
+
+return(nPictLen)
+
+static function RetPictVal(nVal as numeric,lDecZero as logical,nInt as numeric,nDec as numeric,lPictSepMil as logical) as character
+
+    local cPict as character
+    local cPictSepMil as character
+
+    local uInt
+    local uDec
+
+    uInt:=Int(nVal)
+    uDec:=(nVal-uInt)
+    DEFAULT lDecZero:=.F.
+    if ((uDec==0).and.(!(lDecZero)))
+        uDec:=nil
+    endif
+    if (uDec<>nil)
+        uDec:=tlpp.ToStr(uDec)
+        uDec:=SubStr(uDec,At(".",uDec)+1)
+        uDec:=Len(uDec)
+    endif
+    uInt:=Len(tlpp.ToStr(uInt))
+    nInt:=uInt
+    cPict:=Replicate("9",uInt)
+    DEFAULT lPictSepMil:=.F.
+    if (lPictSepMil)
+        if (nInt>3)
+            cPictSepMil:=cPict
+            cPict:=""
+            for uInt:=nInt To 1 Step-3
+                cPict:=(","+SubStr(cPictSepMil,-3,uInt)+cPict)
+            next uInt
+        endif
+    endif
+    if (uDec<>nil)
+        cPict+="."
+        cPict+=Replicate("9",uDec)
+        nDec:=uDec
+    endif
+
+return(cPict)

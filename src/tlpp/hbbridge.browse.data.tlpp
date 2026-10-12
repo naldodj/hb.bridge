@@ -6,7 +6,6 @@
 | | | || |_) || |_) || |   | || (_| || (_| ||  __/ _ | |_) || |   | (_) | \ V  V / \__ \|  __/ _ | (_| || (_| || |_ | (_| |
 |_| |_||_.__/ |_.__/ |_|   |_| \__,_| \__,| \___|(_)|_.__/ |_|    \___/   \_/\_/  |___/ \___|(_) \__,_| \__,_| \__| \__,_|
 
-
 Released to Public Domain.
 --------------------------------------------------------------------------------------
 */
@@ -17,6 +16,7 @@ Released to Public Domain.
 #include "tlpp-core.th"
 
 namespace HBBridge.Client
+using namespace HBBridge.SQL.Tools
 
 class HBBridgeBrowseData
     static method Browse(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as character,jHBBridgeDataSetPage as json,/*@*/oFWBrowse as object,/*@*/aFWBrwData as array,cTitle as character,bLDblClick as codeblock,bCustomHeaderClick as codeblock,aCustomButtons as array) as variant
@@ -92,10 +92,19 @@ static function Browse(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as charact
             endif
             cFieldPicture:=GetSX3Cache(cField,"X3_PICTURE")
             nFieldLen:=GetSX3Cache(cField,"X3_TAMANHO")
+            if (Empty(nFieldLen))
+                nFieldLen:=16
+            endif
             nFieldDec:=GetSX3Cache(cField,"X3_DECIMAL")
+            if (Empty(nFieldDec))
+                nFieldDec:=0
+            endif
             cFieldType:=GetSX3Cache(cField,"X3_TIPO")
             if (Empty(cFieldType))
                 cFieldType:=__GetFieldType(jHeader[cField]["type"])
+            endif
+            if ((Empty(cFieldPicture)).and.(cFieldType=="N"))
+                cFieldPicture:=HBBridge.Helper.HBBridgeNumber():RetPictVal(Val(Replicate("9",nFieldLen)+"."+Replicate("9",nFieldDec)),.F.,@nFieldLen,@nFieldDec,.F.)
             endif
             aAdd(aFWBrwModel,{cFieldTitle,cFieldPicture,nFieldLen,nFieldDec,1,cFieldType})
         next nField
@@ -147,7 +156,7 @@ static function Browse(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as charact
         oFWBrowse:SetDataArray()
         oFWBrowse:SetArray(aFWBrwData)
         oFWBrowse:SetColumns(aFWBrwColumn)
-        oFWBrowse:SetSeek({|oSelf,oBrowse|__FWBrowseSeek(oSelf,oBrowse,oHBBridgeDataSet)},aFWBrowseSeek)
+        oFWBrowse:SetSeek({|oSelf,oFWBrowse|__FWBrowseSeek(oSelf,oFWBrowse,@aFWBrwData,oHBBridgeDataSet,cHBBridgeDataSetSQL,jHBBridgeDataSetPage,cFilterExpr)},aFWBrowseSeek)
         oFWBrowse:DisableFilter()
 
         if (valtype(bLDblClick)!="B")
@@ -537,71 +546,54 @@ static Procedure BrowseCallBack(oFWBrowse,aFWBrwData,oHBBridgeDataSet,cHBBridgeD
 
 return
 
-static function __FWBrowseSeek(oSeek as object,oBrowse as object,oHBBridgeDataSet as object)
+static function __FWBrowseSeek(oFWSeek as object,oFWBrowse as object,aFWBrwData as array,oHBBridgeDataSet as object,cHBBridgeDataSetSQL as character,jHBBridgeDataSetPage as json,cFilterExpr as character)
 
-    local aColumns:={} as array
+    local cType as character
+    local cSeek as character
+    local cSize as character
+    local cDecimal as character
+    local cSQLSeek as character
 
-    local cType:="" as character
-    local cSeek:="" as character
-    local cbAScan:="" as character
-
-    local lFound:=.F. as logical
-
-    local nOrder:=0 as numeric
     local nATCol:=0 as numeric
-    local nATRow:=1 as numeric
-    local nColumn:=0 as numeric
 
-    local oBrwData as object
-
-    //TODO: Revisar e permitir a pesquisa em pagina ainda nao carregada
-    if (ValType(oSeek)=="O")
-        oBrwData:=oBrowse:oData
-        cSeek:=oSeek:GetSeek()
+    if (ValType(oFWSeek)=="O")
+        cSeek:=AllTrim(oFWSeek:GetSeek())
         if (!Empty(cSeek))
-            nOrder:=oSeek:GetOrder()
-            aColumns:=StrTokArr2(oSeek:aOrder[nOrder],"+")
-            if (!Empty(aColumns))
-                cbAScan:="{||aScan(oBrwData:aArray,{|x|("
-                for nColumn:=1 to Len(aColumns)
-                    nATCol:=aScan(oBrowse:aColumns,{ |x|(x:GetTitle()==aColumns[nColumn])})
-                    if (nATCol>0)
-                        cType:=oBrowse:aColumns[nATCol]:GetType()
-                        if (ValType(cType)=="U")
-                            cType:=ValType(Eval(oBrowse:aColumns[nATCol]:GetData()))
-                        endif
-                        if (cType=="D")
-                            cbAScan+="x['"+oHBBridgeDataSet:FieldName(nATCol)+"']+"
-                        else
-                            cbAScan+="x['"+oHBBridgeDataSet:FieldName(nATCol)+"']+"
-                        endif
+            nATCol:=oFWSeek:GetOrder()
+            if (nATCol>0)
+                cType:=oFWBrowse:aColumns[nATCol]:GetType()
+                if (cType$"C|D")
+                    if (cType="C")
+                        cSQLSeek:="LOWER("+oHBBridgeDataSet:FieldName(nATCol)+") LIKE '%"+Lower(cSeek)+"%'"
                     else
-                        cbAScan:=""
-                        exit
-                    endif
-                next nColumn
-                if (!Empty(cbAScan))
-                    cbAScan:=SubStr(cbAScan,1,Len(cbAScan)-1)+"="
-                    if (cType=="C")
-                        cbAScan+="'"+Trim(cSeek)+"'"
-                    elseif (cType=="D")
                         if ("/"$cSeek)
-                            cbAScan+="DToS(CToD('"+Trim(cSeek)+"'))"
-                        else
-                            cbAScan+="'"+Trim(cSeek)+"'"
+                            cSeek:=DToS(CToD(cSeek))
                         endif
-                    else
-                        cbAScan+=Trim(cSeek)
+                        cSQLSeek:=""+oHBBridgeDataSet:FieldName(nATCol)+" LIKE '%"+cSeek+"%'"
                     endif
-                    cbAScan+=")})}"
-                    nATRow:=Eval(&(cbAScan))
-                    lFound:=(nATRow>0)
+                elseif (cType=="N")
+                    if (","$cSeek)
+                        if ("."$cSeek)
+                            cSeek:=StrTran(cSeek,".","")
+                        endif
+                        cSeek:=StrTran(cSeek,",",".")
+                    endif
+                    cSize:=tlpp.ToStr(oFWBrowse:aColumns[nATCol]:GetSize())
+                    cDecimal:=tlpp.ToStr(oFWBrowse:aColumns[nATCol]:GetDecimal())
+                    cSQLSeek:="CAST("+oHBBridgeDataSet:FieldName(nATCol)+" AS DECIMAL("+cSize+","+cDecimal+"))="+"CAST("+cSeek+" AS DECIMAL("+cSize+","+cDecimal+"))
+                else
+                    cSQLSeek:=oHBBridgeDataSet:FieldName(nATCol)+"="+cSeek
+                endif
+                //TODO: Resolve this Workaround __cPrefixQryAlias
+                if (Type("__cPrefixQryAlias")=="C")//TODO: resolver Alias para campos comuns (R_E_C_N_O_,R_E_C_D_E_L_,D_E_L_E_T_,etc) com HBBridgeSqlTools():PrefixQryAlias ou FieldAlias ou FielPrefixdAlias?
+                    BrowseCallBack(oFWBrowse,@aFWBrwData,oHBBridgeDataSet,cHBBridgeDataSetSQL,jHBBridgeDataSetPage,"all",HBBridgeSqlTools():PrefixQryAlias(__cPrefixQryAlias,"("+cFilterExpr+" AND ("+cSQLSeek+"))"))
+                else
+                    BrowseCallBack(oFWBrowse,@aFWBrwData,oHBBridgeDataSet,cHBBridgeDataSetSQL,jHBBridgeDataSetPage,"all","("+cFilterExpr+" AND ("+cSQLSeek+"))")
                 endif
             endif
-            if (!lFound)
-                nATRow:=1
-            endif
+        else
+            BrowseCallBack(oFWBrowse,@aFWBrwData,oHBBridgeDataSet,cHBBridgeDataSetSQL,jHBBridgeDataSetPage,"all",cFilterExpr)
         endif
     endif
 
-return(nATRow)
+return(1)

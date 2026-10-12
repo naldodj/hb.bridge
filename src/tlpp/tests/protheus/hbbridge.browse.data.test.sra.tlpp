@@ -7,12 +7,13 @@ procedure U_HBBridgeBrowseDataTestSRA()
     jParameters["cEmp"]:="99"
     jParameters["cFil"]:="01"
     beginContent var jParameters["cSQL"]
-        SELECT RA_FILIAL
-            ,RA_MAT
-            ,RA_NOME
-            ,CAST(RA_SALARIO AS DECIMAL(12,2)) AS RA_SALARIO
-            ,CAST(RA_ADMISSA AS DATE) RA_ADMISSA
-            ,RA_CC,CTT.CTT_DESC01
+        SELECT SRA.RA_FILIAL
+            ,SRA.RA_MAT
+            ,SRA.RA_NOME
+            ,CAST(SRA.RA_SALARIO AS DECIMAL(12,2)) AS RA_SALARIO
+            ,CAST(SRA.RA_ADMISSA AS DATE) RA_ADMISSA
+            ,SRA.RA_CC
+            ,CTT.CTT_DESC01
             ,SRA.R_E_C_N_O_
         FROM SRA990 SRA
         LEFT JOIN CTT990 CTT
@@ -41,6 +42,8 @@ procedure U_HBBridgeBrowseDataTestSRA()
         ,"CTT_DESC01";
     }
     jParameters["cATRecNoMsMGet"]:="R_E_C_N_O_"
+    //TODO: Resolve this Workaround private __cPrefixQryAlias
+    private __cPrefixQryAlias:="SRA" as character//TODO: resolver Alias para campos comuns (R_E_C_N_O_,R_E_C_D_E_L_,D_E_L_E_T_,etc) com HBBridgeSqlTools():PrefixQryAlias ou FieldAlias ou FielPrefixdAlias?
     U_HBBridgeBrowseDataTest(jParameters)
     if (Select(cAliasTmp)>0)
         (cAliasTmp)->(dbCloseArea())

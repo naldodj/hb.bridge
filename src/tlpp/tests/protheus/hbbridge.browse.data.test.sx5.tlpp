@@ -7,7 +7,7 @@ procedure U_HBBridgeBrowseDataTestSX5()
     jParameters["cEmp"]:="99"
     jParameters["cFil"]:="01"
     beginContent var jParameters["cSQL"]
-        SELECT * FROM SX5990 WHERE D_E_L_E_T_=' '
+        SELECT SX5.* FROM SX5990 SX5 WHERE SX5.D_E_L_E_T_=' '
     endContent
     jParameters["bOpenTables"]:={||;
         ,ChkFile(cAlias);
@@ -24,6 +24,8 @@ procedure U_HBBridgeBrowseDataTestSX5()
         ,"X5_DESCRI";
     }
     jParameters["cATRecNoMsMGet"]:="R_E_C_N_O_"
+    //TODO: Resolve this Workaround private __cPrefixQryAlias
+    private __cPrefixQryAlias:="SX5" as character//TODO: resolver Alias para campos comuns (R_E_C_N_O_,R_E_C_D_E_L_,D_E_L_E_T_,etc) com HBBridgeSqlTools():PrefixQryAlias ou FieldAlias ou FielPrefixdAlias?
     U_HBBridgeBrowseDataTest(jParameters)
     if (Select(cAlias)>0)
         (cAlias)->(dbCloseArea())

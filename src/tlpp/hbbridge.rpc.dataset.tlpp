@@ -3,7 +3,7 @@
 | |__  | |__  | |__   _ __ (_)  __| |  __ _   ___     _ __  _ __    ___      __| |  __ _ | |_   __ _  ___   ___ | |_
 | '_ \ | '_ \ | '_ \ | '__|| | / _` | / _` | / _ \   | '__|| '_ \  / __|    / _` | / _` || __| / _` |/ __| / _ \| __|
 | | | || |_) || |_) || |   | || (_| || (_| ||  __/ _ | |   | |_) || (__  _ | (_| || (_| || |_ | (_| |\__ \|  __/| |_
-|_| |_||_.__/ |_.__/ |_|   |_| \__,_| \__,| \___|(_)|_|   | .__/  \___|(_) \__,_| \__,_| \__| \__,_||___/ \___| \__|
+|_| |_||_.__/ |_.__/ |_|   |_| \__,_| \__, | \___|(_)|_|   | .__/  \___|(_) \__,_| \__,_| \__| \__,_||___/ \___| \__|
                                       |___/                |_|
 
 Released to Public Domain.
@@ -467,10 +467,15 @@ return(self:nTotalFields)
 
 method FieldName(nPosition) class HBBridgeRPCDataSet
 
+    local cFieldNameKey as character
+
     paramtype 1 var nPosition as numeric
 
     if ((nPosition>=1).and.(nPosition<=self:nTotalFields).and.(nPosition==Int(nPosition)))
-        return(self:jFieldNames[tlpp.ToStr(nPosition)])
+        cFieldNameKey:=tlpp.ToStr(nPosition)
+        if (self:jFieldNames:HasProperty(cFieldNameKey))
+            return(self:jFieldNames[cFieldNameKey])
+        endif
     endif
 
 return("")
@@ -507,7 +512,7 @@ method FieldGet(cFieldName) class HBBridgeRPCDataSet
     paramtype 1 var cFieldName as character
 
     cKey:=Upper(AllTrim(cFieldName))
-    if (self:jResult["header"]:HasProperty(cKey))
+    if ((self:jResult:HasProperty("header")).and.(self:jResult["header"]:HasProperty(cKey)))
         if (self:jResult:HasProperty("rows"))
             cRowKey:=tlpp.ToStr(self:nRowIndex)
             if ((self:jResult["rows"]:HasProperty(cRowKey)).and.(self:jResult["rows"][cRowKey]:HasProperty(cKey)))

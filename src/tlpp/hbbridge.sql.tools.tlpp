@@ -1,0 +1,450 @@
+/*
+ _      _      _            _      _                              _     _                  _          _    _
+| |__  | |__  | |__   _ __ (_)  __| |  __ _   ___     ___   __ _ | |   | |_   ___    ___  | | ___    | |_ | | _ __   _ __
+| '_ \ | '_ \ | '_ \ | '__|| | / _` | / _` | / _ \   / __| / _` || |   | __| / _ \  / _ \ | |/ __|   | __|| || '_ \ | '_ \
+| | | || |_) || |_) || |   | || (_| || (_| ||  __/ _ \__ \| (_| || | _ | |_ | (_) || (_) || |\__ \ _ | |_ | || |_) || |_) |
+|_| |_||_.__/ |_.__/ |_|   |_| \__,_| \__, | \___|(_)|___/ \__, ||_|(_) \__| \___/  \___/ |_||___/(_) \__||_|| .__/ | .__/
+                                      |___/                   |_|                                            |_|
+    The source code `hbbridge.sql.tools.tlpp` is based on a more detailed and feature-rich
+    source code, `dna.tech.dbeval.tlpp`, and implements part of the functionalities
+    present in the latter.
+
+Released to Hommy Quimica.
+--------------------------------------------------------------------------------------
+*/
+
+#include "totvs.ch"
+#include "dbinfo.ch"
+#include "parmtype.ch"
+
+#define MAX_BUFFER_SIZE 65536
+
+static __cCHR10:=CHR(10) as character
+static __cCHR13:=CHR(13) as character
+static __cCHR1310:=CRLF as character
+
+namespace HBBridge.SQL.Tools
+using namespace HBBridge.Helper
+
+class HBBridgeSqlTools
+
+    static method GetNextRecNo(cAlias as character,nNextRecNo as numeric,nRecNo as numeric,nOrder as numeric) as logical
+    static method GoToNextRecNo(cAlias as character,nNextRecNo as numeric,nOrder as numeric) as logical
+
+    static method SQLRecCount(cTable as character, cWhere as character,cSQLCount as character,lChangeQuery as logical) as numeric
+    static method GetMinMaxRecNo(cAlias as character,cTable as character,cWhere as character,nMinRecNo as numeric,nMaxRecNo as numeric) as logical
+
+    static method SQLDelete(cTable as character,cWhere as character) as numeric
+    static method SQLSetDeleted(cTable as character,cWhere as character) as numeric
+
+    static method GetAliasTableName(cAlias as character) as character
+    static method GetTmpRealNameByAlias(cAlias as character) as character
+
+    static method PrefixQryAlias(cAlias as character,cSQL as character) as character
+
+    static method GetNextFieldNum(cAlias as character,cField as character,nOrder as numeric,cMyIUseCode as character,lUseFilial as logical,lIgnoreDeleted as logical) as character
+
+end class
+
+static method GetNextRecNo(cAlias,nNextRecNo,nOrder) class HBBridgeSqlTools
+
+    local nRecNo as numeric
+
+    paramtype cAlias as character optional default Alias()
+    paramtype nNextRecNo as numeric optional default (-1)
+    paramtype nOrder as numeric optional default (cAlias)->(IndexOrd())
+
+    nRecNo:=(cAlias)->(RecNo())
+
+    (cAlias)->(dbSkip())
+
+    if (cAlias)->(eof())
+        nNextRecNo:=(-1)
+    else
+        nNextRecNo:=(cAlias)->(RecNo())
+    endif
+
+    return(HBBridgeSqlTools():GoToNextRecNo(cAlias,nRecNo,nOrder))
+
+static method GoToNextRecNo(cAlias,nNextRecNo,nOrder) class HBBridgeSqlTools
+
+    local lNextOk as logical
+
+    paramtype cAlias as character optional default Alias()
+    paramtype nNextRecNo as numeric optional default (-1)
+    paramtype nOrder as numeric optional default (cAlias)->(IndexOrd())
+
+    if (lNextOk:=(nNextRecNo>0))
+        (cAlias)->(dbSetOrder(nOrder))
+        (cAlias)->(MsGoTo(nNextRecNo))
+        lNextOk:=(cAlias)->(((!eof()).and.(!bof())).and.(RecNo()==nNextRecNo))
+        if (!lNextOk)
+            nNextRecNo:=(-1)
+        endif
+    endif
+
+    return(lNextOk)
+
+static method SQLRecCount(cTable,cWhere,cSQLCount,lChangeQuery) class HBBridgeSqlTools
+    paramtype cTable as character optional
+    paramtype cWhere as character optional default "(1=1)"
+    paramtype cSQLCount as character optional
+    paramtype lChangeQuery as logical optional default .F.
+return(SQLRecCount(@cTable,@cWhere,@cSQLCount))
+
+static function SQLRecCount(cTable as character, cWhere as character,cSQLCount as character,lChangeQuery as logical) as numeric
+
+    local aArea:=FWGetArea() as array
+
+    local cAlias:=getNextAlias() as numeric
+    local cQuery as character
+
+    local nRecCount:=0 as numeric
+
+    if (empty(cWhere))
+        cWhere:="(1=1)"
+    endif
+
+    if (!empty(cTable))
+        beginContent var cQuery
+            SELECT COUNT(*) QRYLASTREC
+            FROM cTable
+            WHERE cWhere
+        endContent
+    else
+        beginContent var cQuery
+            SELECT COUNT(*) QRYLASTREC
+            FROM (cSQLCount) x
+        endContent
+    endif
+
+    cQuery:=HBBridgeSTRTools():StrReplaceEx(;
+        cQuery;
+        ,{__cCHR1310," "};
+        ,{__cCHR10," "};
+        ,{__cCHR13," "};
+        ,{"  "," "};
+        ,{"cTable",cTable};
+        ,{"cSQLCount",cSQLCount};
+        ,{"cWhere",cWhere};
+    )
+
+    while ("  "$cQuery)
+        cQuery:=strTran(cQuery,"  "," ")
+    end while
+
+    DEFAULT lChangeQuery:=.F.
+    if (lChangeQuery)
+        cQuery:=ChangeQuery(cQuery)
+    endif
+
+    if (MsOpenDbf(.T.,"TOPCONN",TCGenQry(nil,nil,cQuery),cAlias,.T.,.T.,.F.,.F.))
+        nRecCount:=(cAlias)->QRYLASTREC
+        (cAlias)->(dbCloseArea())
+    endif
+
+    FWRestArea(aArea)
+    FWFreeArray(@aArea)
+
+return(nRecCount)
+
+static method GetMinMaxRecNo(cAlias,cTable,cWhere,nMinRecNo,nMaxRecNo) class HBBridgeSqlTools
+    paramtype cAlias as character optional default Alias()
+    paramtype cTable as character optional default RetSQLName(cAlias)
+    paramtype cWhere as character optional default "(1=1)"
+    paramtype nMinRecNo as numeric optional
+    paramtype nMaxRecNo as numeric optional
+return(GetMinMaxRecNo(@cAlias,@cTable,@cWhere,@nMinRecNo,@nMaxRecNo))
+
+static function GetMinMaxRecNo(cAlias as character,cTable as character,cWhere as character,nMinRecNo as numeric,nMaxRecNo as numeric) as logical
+
+    local aArea:=FWGetArea() as array
+
+    local cQryAlias:=getNextAlias() as character
+    local cQryMinMax as character
+
+    local lGetMinMaxRecNo as logical
+
+    if (empty(cWhere))
+        cWhere:="(1=1)"
+    endif
+
+    beginContent var cQryMinMax
+        SELECT MIN(R_E_C_N_O_) MINRECNO
+            ,MAX(R_E_C_N_O_) MAXRECNO
+        FROM cTable
+        WHERE cWhere
+    endContent
+
+    cQryMinMax:=HBBridgeStrTools():StrReplaceEx(;
+        cQryMinMax;
+        ,{__cCHR1310," "};
+        ,{__cCHR10," "};
+        ,{__cCHR13," "};
+        ,{"  "," "};
+        ,{"cTable",cTable};
+        ,{"cWhere",cWhere};
+    )
+
+    while ("  "$cQryMinMax)
+        cQryMinMax:=strTran(cQryMinMax,"  "," ")
+    end while
+
+    if (MsOpenDbf(.T.,"TOPCONN",TCGenQry(nil,nil,cQryMinMax),cQryAlias,.F.,.T.))
+        nMinRecNo:=(cQryAlias)->MINRECNO
+        nMaxRecNo:=(cQryAlias)->MAXRECNO
+        (cQryAlias)->(dbCloseArea())
+    else
+        nMinRecNo:=if(select(cAlias)>0,1,0)
+        nMaxRecNo:=if(select(cAlias)>0,(cAlias)->(RecCount()),0)
+    endif
+
+    FWRestArea(aArea)
+    FWFreeArray(@aArea)
+
+    lGetMinMaxRecNo:=((!empty(nMinRecNo)).or.(!empty(nMaxRecNo)))
+
+return(lGetMinMaxRecNo)
+
+static method SQLDelete(cTable,cWhere,cTCSQLError) class HBBridgeSqlTools
+
+    local cQueryExecD as character
+    local cQueryExecR as character
+    local cQueryExecDFull as character
+
+    local nMinRecNo as numeric
+    local nMaxRecNo as numeric
+    local nTCSQLExec:=0 as numeric
+    local nMinRecNoPlus as numeric
+    local nDeletedRecNos as numeric
+
+    paramtype cTable as character
+    paramtype cWhere as character default "D_E_L_E_T_='*'
+
+    nDeletedRecNos:=HBBridgeSqlTools():SQLRecCount(cTable,cWhere)
+    if (nDeletedRecNos>0)
+        HBBridgeSqlTools():GetMinMaxRecNo(nil,cTable,cWhere,@nMinRecNo,@nMaxRecNo)
+        cQueryExecD:="DELETE FROM "+cTable+" WHERE "+cWhere
+        nMinRecNoPlus:=nMinRecNo
+        while (nMinRecNo<=nMaxRecNo)
+            TCCommit(1) //Inicia a Transacao
+            nMinRecNoPlus+=Max(Min(MAX_BUFFER_SIZE,(nMaxRecNo-nMinRecNo)),1)
+            cQueryExecR:=" AND R_E_C_N_O_ BETWEEN "+tlpp.ToStr(nMinRecNo)+" AND "+tlpp.ToStr(nMinRecNoPlus)
+            cQueryExecDFull:=cQueryExecD
+            cQueryExecDFull+=cQueryExecR
+            nTCSQLExec:=TCSQLExec(cQueryExecDFull)
+            if (nTCSQLExec<0)
+                exit
+            endif
+            TCCommit(2) //Realiza o commit
+            TCCommit(4) //Finaliza a Transacao
+            nMinRecNo:=nMinRecNoPlus
+        end while
+        cTCSQLError:=TCSQLError()
+        TCRefresh(cTable)
+    endif
+
+return(nTCSQLExec)
+
+static method SQLSetDeleted(cTable,cWhere,cTCSQLError) class HBBridgeSqlTools
+
+    local cQueryExecD as character
+    local cQueryExecR as character
+    local cQueryExecDFull as character
+
+    local nMinRecNo as numeric
+    local nMaxRecNo as numeric
+    local nTCSQLExec:=0 as numeric
+    local nMinRecNoPlus as numeric
+    local nDeletedRecNos as numeric
+
+    paramtype cTable as character
+    paramtype cWhere as character
+
+    if (!("D_E_L_E_T_"$Upper(cWhere)))
+        cWhere:="(D_E_L_E_T_=' ') AND ("+cWhere+") "
+    endif
+
+    nDeletedRecNos:=HBBridgeSqlTools():SQLRecCount(cTable,cWhere)
+    if (nDeletedRecNos>0)
+        HBBridgeSqlTools():GetMinMaxRecNo(nil,cTable,cWhere,@nMinRecNo,@nMaxRecNo)
+        cQueryExecD:="UPDATE "+cTable+" SET D_E_L_E_T_='*',R_E_C_D_E_L_=R_E_C_N_O_ WHERE "+cWhere
+        nMinRecNoPlus:=nMinRecNo
+        while (nMinRecNo<=nMaxRecNo)
+            TCCommit(1) //Inicia a Transacao
+            nMinRecNoPlus+=Max(Min(MAX_BUFFER_SIZE,(nMaxRecNo-nMinRecNo)),1)
+            cQueryExecR:=" AND R_E_C_N_O_ BETWEEN "+tlpp.ToStr(nMinRecNo)+" AND "+tlpp.ToStr(nMinRecNoPlus)
+            cQueryExecDFull:=cQueryExecD
+            cQueryExecDFull+=cQueryExecR
+            nTCSQLExec:=TCSQLExec(cQueryExecDFull)
+            if (nTCSQLExec<0)
+                exit
+            endif
+            TCCommit(2) //Realiza o commit
+            TCCommit(4) //Finaliza a Transacao
+            nMinRecNo:=nMinRecNoPlus
+        end while
+        cTCSQLError:=TCSQLError()
+        TCRefresh(cTable)
+    endif
+
+return(nTCSQLExec)
+
+static method GetAliasTableName(cAlias) class HBBridgeSqlTools
+    local cTableRealName
+    paramtype 1 var cAlias as character optional default Alias()
+    //https://tdn.totvs.com/display/tec/DBInfo
+    cTableRealName:=(cAlias)->(dbInfo(DBI_FULLPATH))
+return(cTableRealName)
+
+static method GetTmpRealNameByAlias(cAlias) class HBBridgeSqlTools
+    local cType as character
+    local cTableRealName as character
+    paramtype 1 var cAlias as character optional default Alias()
+    cTableRealName:=HBBridgeSqlTools():GetAliasTableName(cAlias)
+    //https://tdn.totvs.com/display/tec/TCObject
+    if ((TCObject(cTableRealName,@cType)).and.(cType=="TEMPORARY TABLE"))
+        //https://tdn.totvs.com/display/tec/TCConfig
+        cTableRealName:=TCConfig("GETTEMPNAME="+cTableRealName)
+    endif
+return(cTableRealName)
+
+static method PrefixQryAlias(cAlias,cSQL) class HBBridgeSqlTools
+
+    local cOut:="" as character
+    local cChar as character
+    local cToken:="" as character
+
+    local n:=1 as numeric
+
+    paramtype 1 var cAlias as character
+    paramtype 2 var cSQL as character optional default ""
+
+    while (n<=Len(cSQL))
+
+        cChar:=SubStr(cSQL,n,1)
+
+        if (IsAlpha(cChar))
+
+            cToken:=""
+
+            while (n<=Len(cSQL))
+
+                cChar:=SubStr(cSQL,n,1)
+
+                if ((IsAlpha(cChar)).or.(IsDigit(cChar)).or.(cChar == "_"))
+                    cToken+=cChar
+                    n++
+                else
+                    exit
+                endif
+
+            end while
+
+            if ("_"$cToken)
+                if (!(SubStr(cSQL,n-Len(cToken)-1,1)=="."))
+                    cOut+=cAlias+"."+cToken
+                else
+                    cOut+=cToken
+                endif
+            else
+                cOut+=cToken
+            endif
+
+        else
+
+            cOut+=cChar
+            n++
+
+        endif
+
+    end while
+
+return(cOut)
+
+static method GetNextFieldNum(cAlias,cField,nOrder,cMyIUseCode,lUseFilial,lIgnoreDeleted) class HBBridgeSqlTools
+    local cTable as character
+    local cWhere as character
+    local cNextNum as character
+    local cTmpAlias:=GetNextAlias() as character
+    local cFieldFil as character
+    local cSQLTable as character
+    local cSQLAlias as character
+    local cAliasFilial as character
+    paramtype 1 var cAlias as character
+    paramtype 2 var cField as character
+    paramtype 3 var nOrder as numeric default 1
+    paramtype 4 var cMyIUseCode as character optional default cAlias
+    paramtype 5 var lUseFilial as logical optional default .T.
+    paramtype 6 var lIgnoreDeleted as logical optional default .T.
+    cTable:=RetSQLName(cAlias)
+    cSQLTable:=("%"+cTable+"%")
+    cSQLAlias:="%"+cAlias+"%"
+    cSQLField:="%"+cField+"%"
+    if (lUseFilial)
+        cFieldFil:="%"+(PrefixoCpo(cAlias)+"_FILIAL")+"%"
+        cAliasFilial:=FWxFilial(cAlias)
+        if (lIgnoreDeleted)
+            beginsql alias cTmpAlias
+                SELECT MAX(%exp:cSQLAlias%.%exp:cSQLField%) AS NEXTNUM
+                FROM %exp:cSQLTable% AS %exp:cSQLAlias%
+                WHERE %exp:cSQLAlias%.%exp:cFieldFil%=%exp:cAliasFilial%
+            endsql
+        else
+            beginsql alias cTmpAlias
+                SELECT MAX(%exp:cSQLAlias%.%exp:cSQLField%) AS NEXTNUM
+                FROM %exp:cSQLTable% AS %exp:cSQLAlias%
+                WHERE %exp:cSQLAlias%.%NotDel%
+                AND %exp:cSQLAlias%.%exp:cFieldFil%=%exp:cAliasFilial%
+            endsql
+        endif
+    else
+        if (lIgnoreDeleted)
+            beginsql alias cTmpAlias
+                SELECT MAX(%exp:cSQLAlias%.%exp:cSQLField%) AS NEXTNUM
+                FROM %exp:cSQLTable% AS %exp:cSQLAlias%
+            endsql
+        else
+            beginsql alias cTmpAlias
+                SELECT MAX(%exp:cSQLAlias%.%exp:cSQLField%) AS NEXTNUM
+                FROM %exp:cSQLTable% AS %exp:cSQLAlias%
+                WHERE %exp:cSQLAlias%.%NotDel%
+            endsql
+        endif
+    endif
+    cNextNum:=(cTmpAlias)->NEXTNUM
+    (cTmpAlias)->(dbCloseArea())
+    cNextNum:=PadL(AllTrim(cNextNum),GetSX3Cache(cField,"X3_TAMANHO"),"0")
+    (cAlias)->(dbSetOrder(nOrder))
+    //https://tdn.totvs.com/pages/releaseview.action?pageId=700496432
+    //MayIUseCode - Reserva de nomes com semaforo
+    if (lUseFilial)
+        cFieldFil:=(PrefixoCpo(cAlias)+"_FILIAL")
+        cWhere:=cFieldFil+"='"+cAliasFilial+"'"
+        cWhere+=" AND "+cField+"='"+cNextNum+"'"
+        if (!lIgnoreDeleted)
+            cWhere+=" AND D_E_L_E_T_<>'*'"
+        endif
+        while ((HBBridgeSqlTools():SQLRecCount(cTable,cWhere,nil,.F.)>0).or.(!MayIUseCode(cMyIUseCode+cAliasFilial+cNextNum)))
+            cNextNum:=__Soma1(cNextNum)
+            cWhere:=cFieldFil+"='"+cAliasFilial+"'"
+            cWhere+=" AND "+cField+"='"+cNextNum+"'"
+            if (!lIgnoreDeleted)
+                cWhere+=" AND D_E_L_E_T_<>'*'"
+            endif
+        end while
+    else
+        cWhere:=cField+"='"+cNextNum+"'"
+        if (!lIgnoreDeleted)
+            cWhere+=" AND D_E_L_E_T_<>'*'"
+        endif
+        while ((HBBridgeSqlTools():SQLRecCount(cTable,cWhere,nil,.F.)>0).or.(!MayIUseCode(cMyIUseCode+cAliasFilial+cNextNum)))
+            cNextNum:=__Soma1(cNextNum)
+            cWhere:=cField+"='"+cNextNum+"'"
+            if (!lIgnoreDeleted)
+                cWhere+=" AND D_E_L_E_T_<>'*'"
+            endif
+        end while
+    endif
+
+return(cNextNum)

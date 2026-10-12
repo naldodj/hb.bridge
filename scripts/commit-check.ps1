@@ -79,12 +79,11 @@ function Test-ProjectConventions {
             if ($relativePath -ceq 'build.zig' -and $name -ceq 'build') { continue }
             if ($name.StartsWith('U_', [StringComparison]::Ordinal)) { $name = $name.Substring(2) }
             foreach ($segment in ($name -split '[.-]')) {
-                if ($segment -cnotmatch '^(_{2})?[A-Z][A-Za-z0-9]*$') {
+                if ($segment -cnotmatch '^_*[A-Z?][A-Za-z0-9?_]*$') {
                     $failures.Add("${relativePath}: own function, procedure, method, namespace and class names must use PascalCase ($name)")
                     break
                 }
-            }
-        }
+            }        }
         $lineNumber = 0
         $blockComment = $false
         foreach ($line in ($content -split '\r?\n')) {

@@ -13,10 +13,6 @@ HBBridgeTOTVSFilter
 
 Released to Public Domain.
 --------------------------------------------------------------------------------------
-@type       Class
-@author     Marinaldo de Jesus (TOTVS/IP)
-@since      19/05/2026
---------------------------------------------------------------------------------------
 */
 #include "totvs.ch"
 #include "parmtype.ch"
