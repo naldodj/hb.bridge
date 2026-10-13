@@ -492,7 +492,7 @@ static function BuildCustomFilder(oHBBridgeDataSet as object,cHBBridgeDataSetSQL
 
     for nField:=1 to nFields
         cField:=aHeader[nField]
-        if (cField=="R_E_C_N_O_")
+        if (cField$"R_E_C_N_O_|R_E_C_D_E_L_|D_E_L_E_T_")
             loop
         endif
         // FWTemporaryTable's native schema is positional. Resolve logical
