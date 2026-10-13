@@ -28,11 +28,16 @@ interface Protheus e configuração HTTP/SQL do hbBridge operacionais.
 O perfil precisa existir no hbBridge. Credenciais HTTP ficam no AppServer;
 o navegador envia paginação, nomes de campos mapeados e valores dos filtros.
 
-Esta validação abrange as telas interativas demonstradas.
-`U_HBBridgeHTTPTableTest()`, `U_HBBridgeDataSetTest()` e `U_HBBridgeHelperTest()`
-têm homologação de execução própria; as capturas não apresentam seus resultados.
-D02/D03 do WIP continuam acompanhando cópias/varredura/recuperação do dataset
-e integridade UTF-8/FLOAT mais ampla. Veja o [pacote ativo](../../../../../WIP.pt-BR.md).
+Esta validação visual abrange as telas interativas demonstradas.
+Confirmada a execução do mock separado `U_HBBridgeHTTPTableTest()` em **2026-10-13
+às 17:46:56 São Paulo**, thread **27708**: **71 checks, todos PASS, zero falhas**.
+As 19 respostas enfileiradas foram consumidas sem chamadas inesperadas, incluindo
+rejeição/preservação de NUL, recuperação após falha e tratamento de totais ausentes.
+Veja o [registro da regressão](../../../../../docs/acceptance.pt-BR.md#validação-da-regressão-da-tabela-http-em-2026-10-13).
+`U_HBBridgeDataSetTest()` e `U_HBBridgeHelperTest()` têm validação própria
+confirmada às 17:56:23/17:56:45 na mesma data: 67 checks/31 chamadas e 12 checks,
+ambos OK. D02 do WIP concluída; D03 acompanha integridade UTF-8/FLOAT mais ampla.
+Veja o [pacote ativo](../../../../../WIP.pt-BR.md).
 
 ## Evidências SX5
 

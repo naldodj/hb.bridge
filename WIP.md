@@ -13,10 +13,10 @@ acceptance records verified results; ChangeLog and Git preserve history.
 | --- | --- |
 | ID | `001-mssql-acceptance` |
 | Opened / updated | 2026-10-07 / 2026-10-13 |
-| Status | Native MSSQL accepted: 92 checks; Protheus TCP: 29 and HTTP: 13 each for MSSQL/SQLite. Package remains open. |
+| Status | Native MSSQL: 92 checks; Protheus TCP: 29 and HTTP: 13 each for MSSQL/SQLite. D02 accepted: dataset 67 checks/31 calls and helpers 12 checks. Package remains open. |
 | Goal | Accept the existing RPCRDD.Query/dataset against an identified real MSSQL database through Harbour, Protheus TCP and Protheus HTTP. |
 | Product reference | Published code `50e1c65`; checkout at package opening `bce52d2` includes the clone badge update. |
-| Next task | Requested dataset API acceptance and UTF-8/FLOAT integrity corrections below; then resume M06. |
+| Next task | D03: correct and accept UTF-8/FLOAT integrity; then resume M06. |
 
 ### Decisions already made
 
@@ -90,6 +90,14 @@ do not redo the completed extension migration or infer MSSQL acceptance.
   This requested preparation is complete for the demonstrated views. D02/D03
   retain their specific mock execution and data-integrity acceptance tasks.
 
+- [x] **F02 — Correct and accept the HTTP table regression.** Manual execution
+  of `U_HBBridgeHTTPTableTest` on 2026-10-13 at 17:46:56 São Paulo, thread 27708,
+  passed **71 checks, zero failures**, including NUL boundaries/input preservation,
+  recovery and totals. All 19 queued mock responses were consumed without
+  unexpected calls. This closes the earlier 62-check run's three failures;
+  see the [record](docs/acceptance.md#http-table-regression-validation-on-2026-10-13).
+  Dataset/helper execution has subsequent acceptance in D02; D03 still tracks integrity.
+
 ### Work in order
 
 The analysis was expanded on 2026-10-08 after the accepted HTTP runs:
@@ -102,15 +110,14 @@ new acceptance findings, not reasons to repeat the completed inventory.
   FileRead/FileNavigator examples; adopt explicit `MoreToRead()` and metadata
   methods while preserving page-local `Eof()`/`Skip()`. Current canonical
   metadata API is `Header()`; `DSStruct()` was removed afterwards.
-- [ ] **D02 — Accept the TLPP dataset extension.** Compile and exercise
+- [x] **D02 — Accept the TLPP dataset extension.** Compile and exercise
   header/field/row copies, column order, automatic traversal, repeated checks,
   empty/closed state and page failure/recovery. The new mock tests use no ERP data.
-  Implementation and 45-check mock fixture are prepared. The 2026-10-08 compile
-  attempt failed before source compilation: `COMPILEERROR-300`, custom RPO in use
-  (`tmp/totvs-compile.log`, thread 36788). Runtime acceptance remains pending.
-  The 2026-10-12 review adds totals/profile validation and 67 mock checks/31
-  calls, plus 12 pure helper checks. Recursive compilation now includes all
-  24 sources; see the new [acceptance record](docs/acceptance.md).
+  Confirmed manual AppServer validation on 2026-10-13, São Paulo:
+  `U_HBBridgeDataSetTest`, 17:56:23, thread 32332, **67 checks/31 mock calls**;
+  `U_HBBridgeHelperTest`, 17:56:45, thread 28300, **12 checks**. All checks true,
+  both reports OK. See [scope/evidence](docs/acceptance.md#dataset-and-helper-validation-on-2026-10-13).
+  This accepts the mock/interface contract; native text/numeric integrity remains D03.
 - [ ] **D03 — Correct text and numeric integrity.** Enforce consistent UTF-8
   execution/wire semantics, explicit client text conversion and binary handling;
   fix the reproduced fractional FLOAT JSON loss and define lossless decimal/
@@ -244,8 +251,8 @@ resolution and does not replace M08 measurements. No compiler log, explicit
 call arguments or server artifact hash was supplied. HTTPS, wider native type
 transport and Linux remain separate acceptance tasks.
 
-Progress/evidence: P01/P02/F01 and M01–M05 complete for the exercised cases.
-Handle D02/D03 from the new request before resuming M06 with controlled
+Progress/evidence: P01/P02/F01/F02/D02 and M01–M05 complete for the exercised cases.
+Handle D03 integrity corrections before resuming M06 with controlled
 unavailable-connection/native-timeout cases, sanitized errors and recovery;
 invalid SQL/unknown-profile recovery already has native and TCP evidence.
 Do not repeat accepted migrations, inventory or native/TCP/HTTP cases without
@@ -263,8 +270,9 @@ The 2026-10-12 [extension review](docs/extensions-review.md) records SQLRDD,
 Duktape and CCHarbour as optional later packages, without adopting dependencies
 or resetting this package. Current Protheus consumers are cataloged in the
 [example guide](examples/protheus/README.md). Native review regression passed
-583 checks with zero failures; new browse/UI and TLPP mock runtime acceptance
-remain pending. UTF-8/FLOAT and encrypted credentials are not resolved by this review.
+583 checks with zero failures; remaining native browse/UI acceptance stays pending.
+The HTTP table views/71-check mock and dataset/helper 67/12-check runs have
+separate acceptance above. UTF-8/FLOAT and encrypted credentials remain pending.
 
 | Order | Direction |
 | --- | --- |

@@ -747,9 +747,60 @@ The SX5 descriptions also display accented text in these samples. This does
 not close the broader UTF-8/FLOAT correction in WIP D03. Protheus resolves
 the SX5 profile/table/branch context; hbBridge remains the generic executor.
 
-This accepts preparatory WIP F01 for the demonstrated views. Specific mock
-execution remains pending: dataset 67 checks/31 calls, helpers 12 checks and
-HTTP table 62 checks/19 queued responses. The table example does not exercise
+This accepts preparatory WIP F01 for the demonstrated views. The HTTP table
+mock has separate acceptance below. Dataset 67 checks/31 calls and helpers
+12 checks have subsequent validation in the next record. The table example does not exercise
 the automatic traversal/copy/failure cases required by D02. The screenshots
 do not identify the actual profile/backend, execution time, compiler build or
 server artifact; no new claim for those attributes or M06–M09 follows.
+
+## HTTP table regression validation on 2026-10-13
+
+Confirmed manual execution of `U_HBBridgeHTTPTableTest` at **17:46:56 São Paulo**
+(20:46:56 UTC), AppServer thread **27708**: **71 checks, all PASS, zero failures**;
+final report `hbBridge HTTP table checks: 71; OK`.
+The received result is summarized in `tmp/http-table-manual-20261013-174656.summary.txt`.
+
+The earlier run at 08:16:18, thread 36400, reported 62 checks with three failures:
+`rejectNulFilter`, `successAfterServiceFailure` and `missingTotalsAreVisible`.
+Filter validation now reads the original values before any JSON round-trip;
+the borrowed input is preserved. The mock uses a separate response cursor,
+so an unexpected call cannot skip a future fixture or mask later results.
+
+The accepted run covers NUL rejection at the beginning, middle and end and
+as the only byte for filters/search, input-byte preservation, query recovery,
+totals/errors, and the existing page/filter/order/projection checks.
+`noUnexpectedMockCalls` and `allQueuedResponsesConsumed` both pass; the fixture
+contains **19 queued responses**.
+
+Additional log lines report handshake error 10054 on thread 13968; the test
+still completes with 71 PASS. This record diagnoses neither that connection
+nor TLS behavior. This is a mock-contract run, without live HTTP or SQL calls.
+F02 is complete. D02 has subsequent dataset/helper validation below;
+D03 UTF-8/FLOAT remains pending.
+
+## Dataset and helper validation on 2026-10-13
+
+Confirmed manual AppServer validation, São Paulo time:
+
+| Entry | Start / thread | Result |
+| --- | --- | --- |
+| `U_HBBridgeDataSetTest` | 17:56:23 / 32332 | All 67 checks true; 31 mock calls; `Protheus OK`. |
+| `U_HBBridgeHelperTest` | 17:56:45 / 28300 | All 12 checks true; `Protheus OK`. |
+
+Summary: `tmp/dataset-helper-manual-20261013.summary.txt`. These are received
+manual results, not new local test execution or a fresh compiler-success log.
+
+The dataset run accepts field/header/row copies and column order, page-local
+EOF/Skip, automatic `MoreToRead()` traversal, idempotence, empty/closed states,
+page failure/recovery, metadata and totals validation, previous-page navigation
+and profile/result lifetime. The historical `dsStructDefensiveAlias` check name
+exercises `Header()`/`FieldInfo()` copies; no `DSStruct()` method was restored.
+Helpers accept SQL field qualification without modifying literals/comments,
+replacement behavior and the prepared typed filter expressions.
+
+D02 is complete. These mock/helper results perform no live SQL or HTTP calls;
+D03 still requires native UTF-8/FLOAT corrections and acceptance. A separate
+handshake error 10054 appears on thread 34420; the helper result remains OK.
+The connection/TLS condition is not diagnosed by these tests. Resume D03,
+then M06–M09; package 001 remains open.

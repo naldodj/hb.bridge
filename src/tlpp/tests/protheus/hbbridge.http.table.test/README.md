@@ -28,11 +28,16 @@ RPO, plus a working Protheus UI and hbBridge HTTP/SQL configuration.
 The profile must exist on hbBridge. HTTP credentials stay on the AppServer;
 browser requests contain pagination, mapped field names and filter values.
 
-This validation covers the demonstrated interactive views.
-`U_HBBridgeHTTPTableTest()`, `U_HBBridgeDataSetTest()` and `U_HBBridgeHelperTest()`
-have separate execution acceptance; screenshots do not report their results.
-WIP D02/D03 still track dataset copies/traversal/recovery and broader
-UTF-8/FLOAT integrity. See the [active package](../../../../../WIP.md).
+This visual validation covers the demonstrated interactive views.
+The separate `U_HBBridgeHTTPTableTest()` mock was validated on **2026-10-13
+at 17:46:56 São Paulo**, thread **27708**: **71 checks, all PASS, zero failures**.
+The 19 queued responses were consumed without unexpected calls, including
+NUL rejection/preservation, failure recovery and missing-total handling.
+See the [regression record](../../../../../docs/acceptance.md#http-table-regression-validation-on-2026-10-13).
+`U_HBBridgeDataSetTest()` and `U_HBBridgeHelperTest()` have separate confirmed
+validation at 17:56:23/17:56:45 on the same date: 67 checks/31 calls and 12 checks,
+both OK. WIP D02 is complete; D03 tracks broader UTF-8/FLOAT integrity.
+See the [active package](../../../../../WIP.md).
 
 ## SX5 evidence
 

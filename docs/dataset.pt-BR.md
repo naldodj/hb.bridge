@@ -92,6 +92,35 @@ Cada campo de `orderBy` deve existir na projeção SQL. Se a consulta usa
 `TOP`/`LIMIT`, o chamador também deve selecionar esse subconjunto de forma
 determinística; ordenar páginas externas não estabiliza um subconjunto sem ordem.
 
+## Aceite manual do dataset em 2026-10-13
+
+`U_HBBridgeDataSetTest()` passou em **67 checks, zero falhas e 31 chamadas
+simuladas**, em 2026-10-13 às 17:56:23, horário de São Paulo, thread 32332.
+Todos os checks por chave foram verdadeiros; o resultado final foi
+`OK; checks=67; mock calls=31`. A cobertura inclui cópias de cabeçalho/campo/
+linha/página, ordem de colunas, existência de campo, seleção de perfil,
+navegação anterior/próxima/`MoreToRead()`, checks repetidos, estados vazio/
+fechado, falha/recuperação de página e totais validados, desconhecidos e inválidos.
+
+`U_HBBridgeHelperTest()` passou em **12 checks puros, zero falhas**, às 17:56:45
+na mesma data e fuso, thread 28300. Todos os checks por chave foram verdadeiros;
+o resultado final foi `OK; checks=12`. A cobertura inclui prefixação de alias
+SQL, substituições de texto e expressões tipadas de filtros customizados.
+
+São resultados manuais de mocks no AppServer. A falha de compilação de
+2026-10-08 ocorreu antes de compilar os fontes da fixture anterior de 45 checks;
+os testes revisados ainda aguardavam execução na revisão de 2026-10-12.
+Os resultados de 2026-10-13 homologam o escopo dataset/helpers de D02. A chave
+histórica `dsStructDefensiveAlias` exercita uma cópia de `Header()` e
+`FieldInfo()`. `Header()` continua sendo a API canônica de metadados;
+`DSStruct()` continua removido.
+
+Essas rodadas não exercitam transporte, backend SQL nem tabela ERP. D03 é a
+próxima tarefa para as falhas de integridade UTF-8/FLOAT abaixo; o aceite
+ampliado de textos e números por TCP/HTTP e M06–M09 continuam abertos. Veja
+[testes](../tests/README.pt-BR.md) e [homologação](acceptance.pt-BR.md)
+para o registro de execução.
+
 ## Constatação de codificação em 2026-10-08
 
 O worker HTTP atual e o teste MSSQL nativo selecionam Harbour `UTF8EX`.

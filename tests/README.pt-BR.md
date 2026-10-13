@@ -11,7 +11,7 @@ em subpastas de [tests/protheus](../src/tlpp/tests/protheus):
 | `hbbridge.config.test/` | `U_HBBridgeConfigTest`. |
 | `hbbridge.dataset.test/` | `U_HBBridgeDataSetTest` e seu cliente simulado. |
 | `hbbridge.http.test/` | Teste HTTP comum e wrappers explícitos MSSQL/SQLite. |
-| `hbbridge.http.table.test/` | Exemplos FWWebEx fixture/SX5 (homologação manual confirmada) e mock separado `U_HBBridgeHTTPTableTest` (execução pendente); [evidências](../src/tlpp/tests/protheus/hbbridge.http.table.test/README.pt-BR.md). |
+| `hbbridge.http.table.test/` | Exemplos FWWebEx fixture/SX5 e mock `U_HBBridgeHTTPTableTest`: validação manual confirmada, 71 checks/zero falhas em 2026-10-13; [evidências](../src/tlpp/tests/protheus/hbbridge.http.table.test/README.pt-BR.md). |
 | `hbbridge.query.test/` | Teste Query comum, wrapper SQLite e wrapper `FWGetTopInfo()` no chamador. |
 | `hbbridge.browse.data.test/` | Exemplo de browse genérico e exemplos SX5/SRA preparados pelo chamador. |
 
@@ -207,9 +207,10 @@ de São Paulo. Ambos incluem primeira/próxima página e valores do dataset
 comum; os padrões das entradas selecionam `MSSQL/pData` e `sqlite_demo`.
 São execuções manuais AppServer, separadas da automação nativa. Transcrição:
 `tmp/protheus-http-mssql-sqlite-operator-20261008.log`.
-Veja [homologação](../docs/acceptance.pt-BR.md). A nova solicitação de dataset e
-as falhas UTF-8/FLOAT têm prioridade como D02/D03 no [WIP](../WIP.pt-BR.md),
-antes de M06, falhas controladas/recuperação. Esses relatos não implicam nova rodada nativa.
+Veja [homologação](../docs/acceptance.pt-BR.md). O aceite do mock dataset de D02
+foi concluído em 2026-10-13; a integridade UTF-8/FLOAT de D03 é a próxima tarefa
+no [WIP](../WIP.pt-BR.md), antes de M06, falhas controladas/recuperação.
+Esses relatos não implicam nova rodada nativa.
 
 Uma prova posterior de constantes somente para leitura mostrou que
 `CAST(123.4567 AS FLOAT)` continuou fracionário nativamente, mas virou `123`
@@ -228,7 +229,7 @@ precisão/wrap, capacidades e tipos ampliados da [matriz](../docs/acceptance.pt-
 
 O [catálogo de consumidores](../examples/protheus/README.pt-BR.md) reúne os
 grupos reorganizados, incluindo `hbbridge.helper.test/U_HBBridgeHelperTest`
-(12 checks puros esperados), o mock dataset de 67 checks e browses SRA/SX5.
+(12 checks puros homologados), o mock dataset homologado de 67 checks e browses SRA/SX5.
 `build-totvs.cmd` fornece lista recursiva explícita dos fontes, incluindo
 os filhos dos diretórios pontuados.
 
@@ -239,8 +240,10 @@ e execute `U_HBBridgeDataSetTest()` ou a
 [entrada WebApp](https://localhost:4321/webapp/?p=U_HBBridgeDataSetTest&e=PROTHEUS).
 Não requer listener hbBridge, perfil SQL, credenciais nem tabela ERP.
 
-O resultado revisado esperado tem **67 checks e 31 chamadas simuladas**,
-com execução ainda pendente no AppServer.
+Execução manual AppServer em 2026-10-13 às 17:56:23, horário de São Paulo,
+thread 32332, passou em **67 checks, zero falhas e 31 chamadas simuladas**.
+Todos os checks por chave foram verdadeiros; o resultado final foi
+`OK; checks=67; mock calls=31`.
 O teste cobre `MoreToRead()` entre páginas; verificações repetidas sem consumir
 linhas; `Eof()`/`Skip()` locais à página preservados; cópias independentes de
 `Header()`/`FieldInfo()`; ordem de colunas com `FieldCount()`/
@@ -251,9 +254,25 @@ desconhecidos, vazios e inválidos. A tentativa de compilação local em
 2026-10-08 retornou exit 1, `COMPILEERROR-300 Failed to open repository`, pois
 `custom.rpo` estava em uso; total/sucessos/erros foram `0/0/0`, sem compilação dos
 fontes. Log: `tmp/totvs-compile.log`. O AppServer ativo não foi parado. Aquela
-tentativa se refere à versão anterior de 45 checks/17 chamadas, não ao fonte
-revisado. Os fontes ainda requerem compilação e execução; contagens esperadas não
-são resultados homologados. Veja [API do dataset e falhas de integridade](../docs/dataset.pt-BR.md).
+tentativa se refere à versão anterior de 45 checks/17 chamadas. Na revisão de
+2026-10-12, a fixture revisada de 67 checks/31 chamadas e os 12 checks de helpers
+estavam preparados, com execução pendente. As rodadas manuais de 2026-10-13
+encerram essa pendência de execução. O check histórico `dsStructDefensiveAlias`
+usa uma cópia de `Header()` e `FieldInfo()`; `Header()` continua sendo a API
+canônica, com `DSStruct()` removido.
+
+[U_HBBridgeHelperTest](../src/tlpp/tests/protheus/hbbridge.helper.test/hbbridge.helper.test.tlpp)
+passou em **12 checks puros, zero falhas**, em 2026-10-13 às 17:56:45, horário
+de São Paulo, thread 28300. Todos os checks por chave foram verdadeiros;
+o resultado final foi `OK; checks=12`. A cobertura inclui prefixação de alias
+SQL com literais/comentários, substituições de texto e expressões tipadas de
+filtros customizados.
+
+Esses resultados manuais AppServer homologam o escopo de mocks dataset/helpers
+de D02. Não exercitam rede, banco nem dados ERP. O trabalho de integridade
+UTF-8/FLOAT ampliada de D03 é o próximo, seguido de M06–M09; veja [API do dataset
+e falhas de integridade](../docs/dataset.pt-BR.md) e
+[homologação](../docs/acceptance.pt-BR.md).
 
 ## Regressoes Harbour existentes
 

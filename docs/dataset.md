@@ -90,6 +90,32 @@ Every `orderBy` field must exist in the SQL projection. If caller SQL uses
 `TOP`/`LIMIT`, it must also select that subset deterministically; ordering the
 outer pages cannot stabilize an unordered inner subset.
 
+## Manual dataset acceptance on 2026-10-13
+
+`U_HBBridgeDataSetTest()` passed **67 checks, zero failures and 31 mock calls**
+on 2026-10-13 at 17:56:23 São Paulo time, thread 32332. Every keyed check was
+true; the final result was `OK; checks=67; mock calls=31`. Coverage includes
+header/field/row/page copies, column order, field existence, profile selection,
+previous/next/`MoreToRead()` traversal, repeated checks, empty/closed states,
+page failure/recovery and validated, unknown and malformed totals.
+
+`U_HBBridgeHelperTest()` passed **12 pure checks, zero failures**, at 17:56:45
+on the same date and timezone, thread 28300. Every keyed check was true;
+the final result was `OK; checks=12`. SQL alias prefixing, string replacements
+and typed custom-filter expressions are covered.
+
+These are manual AppServer mock results. The 2026-10-08 compilation failure
+preceded source compilation of the older 45-check fixture; the revised tests
+were still awaiting execution at the 2026-10-12 review. The 2026-10-13 results
+accept D02's dataset/helper scope. The historical result key
+`dsStructDefensiveAlias` exercises a `Header()` copy and `FieldInfo()`.
+`Header()` remains the canonical metadata API; `DSStruct()` remains removed.
+
+These runs exercise no transport, SQL backend or ERP table. D03 is the next
+task for the UTF-8/FLOAT integrity findings below; broader TCP/HTTP text and
+numeric acceptance and M06–M09 remain open. See [tests](../tests/README.md)
+and [acceptance](acceptance.md) for the execution record.
+
 ## Encoding finding on 2026-10-08
 
 The current HTTP worker and native MSSQL harness select Harbour `UTF8EX`.

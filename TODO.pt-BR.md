@@ -583,8 +583,14 @@ testado; somente versões e capacidades efetivamente implementadas são anunciad
   usar CP437 Harbour e a prova de 2026-10-08 perdeu fração FLOAT no JSON.
   Separar metadados SQL nativos, definições lógicas do chamador e valores no
   transporte; SX3/TOP_FIELD resolvidos no Protheus. [Análise](docs/dataset.pt-BR.md).
-- [ ] Homologação AppServer de Header, FieldInfo/FieldCount/FieldName/
-  GetRow e varredura MoreToRead entre páginas, incluindo falhas na busca.
+- [x] Homologação manual AppServer de mocks Header, FieldInfo/FieldCount/FieldName,
+  FieldExist/GetRow/GetRows, totais e navegação anterior/próxima/MoreToRead,
+  incluindo falha/recuperação de página: 67 checks/31 chamadas simuladas,
+  zero falhas, em 2026-10-13 às 17:56:23 São Paulo, thread 32332. Helpers puros
+  passaram nos 12 checks às 17:56:45, thread 28300. O escopo de mocks de D02
+  está homologado; a integridade UTF-8/FLOAT de D03 é a próxima tarefa, com
+  M06–M09 abertos. Essas rodadas não exercitam transporte, backend SQL nem
+  tabela ERP. [Evidência](docs/dataset.pt-BR.md).
 
 - [ ] Adicionar parâmetros SQL e metadados de tipo, tamanho, precisão e nulos,
   com evolução compatível do cabeçalho atual.

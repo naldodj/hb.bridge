@@ -101,8 +101,8 @@ See [acceptance](../docs/acceptance.md) for precise scope and remaining cases.
 ## Protheus compilation and calls
 
 The [consumer catalog](../examples/protheus/README.md) covers the reorganized
-groups, including `hbbridge.helper.test/U_HBBridgeHelperTest` (12 expected
-pure checks), the 67-check dataset mock and the interactive SRA/SX5 browses.
+groups, including `hbbridge.helper.test/U_HBBridgeHelperTest` (12 accepted
+pure checks), the accepted 67-check dataset mock and the interactive SRA/SX5 browses.
 `build-totvs.cmd` now supplies an explicit recursive file list so dotted
 directories do not omit their children.
 
@@ -124,7 +124,7 @@ subdirectories under [tests/protheus](../src/tlpp/tests/protheus):
 | `hbbridge.config.test/` | `U_HBBridgeConfigTest`. |
 | `hbbridge.dataset.test/` | `U_HBBridgeDataSetTest` and its mock client. |
 | `hbbridge.http.test/` | Shared HTTP test and explicit MSSQL/SQLite wrappers. |
-| `hbbridge.http.table.test/` | FWWebEx fixture/SX5 examples (manual acceptance confirmed) and separate `U_HBBridgeHTTPTableTest` mock (execution pending); [evidence](../src/tlpp/tests/protheus/hbbridge.http.table.test/README.md). |
+| `hbbridge.http.table.test/` | FWWebEx fixture/SX5 examples and `U_HBBridgeHTTPTableTest` mock: manual validation confirmed, 71 checks/zero failures on 2026-10-13; [evidence](../src/tlpp/tests/protheus/hbbridge.http.table.test/README.md). |
 | `hbbridge.query.test/` | Shared Query test, SQLite wrapper and caller-side `FWGetTopInfo()` wrapper. |
 | `hbbridge.browse.data.test/` | Generic browse example and caller-prepared SX5/SRA examples. |
 
@@ -206,8 +206,9 @@ then call `U_HBBridgeDataSetTest()` or its
 [WebApp entry](https://localhost:4321/webapp/?p=U_HBBridgeDataSetTest&e=PROTHEUS).
 It requires no hbBridge listener, SQL profile, credentials or ERP table.
 
-The revised expected result is **67 checks and 31 mock calls**, pending
-execution in the AppServer. The test
+Manual AppServer execution on 2026-10-13 at 17:56:23 São Paulo time, thread
+32332, passed **67 checks, zero failures and 31 mock calls**. Every keyed check
+was true; the final result was `OK; checks=67; mock calls=31`. The test
 covers `MoreToRead()` across pages; repeated checks without record consumption;
 preserved page-local `Eof()`/`Skip()`; `Header()`/`FieldInfo()`
 defensive copies; `FieldCount()`/`FieldName()` column order; `GetRow()` copies;
@@ -218,10 +219,22 @@ The local 2026-10-08 compile attempt returned exit 1,
 `COMPILEERROR-300 Failed to open repository`, because `custom.rpo` was in use;
 total/success/errors were `0/0/0`, without source compilation. Log:
 `tmp/totvs-compile.log`. The active AppServer was not stopped. That attempt
-concerned the earlier 45-check/17-call version, not the revised source. These
-sources still require compilation and execution; expected counts are not
-accepted results.
-See [dataset API and integrity findings](../docs/dataset.md).
+concerned the earlier 45-check/17-call version. At the 2026-10-12 review, the
+revised 67-check/31-call dataset fixture and 12 helper checks were prepared
+with execution pending. The 2026-10-13 manual runs close that execution gap.
+The historical `dsStructDefensiveAlias` check uses a `Header()` copy and
+`FieldInfo()`; `Header()` remains the canonical API, with `DSStruct()` removed.
+
+[U_HBBridgeHelperTest](../src/tlpp/tests/protheus/hbbridge.helper.test/hbbridge.helper.test.tlpp)
+passed **12 pure checks, zero failures**, on 2026-10-13 at 17:56:45 São Paulo
+time, thread 28300. Every keyed check was true; the final result was
+`OK; checks=12`. Coverage includes SQL alias prefixing with literals/comments,
+string replacements and typed custom-filter expressions.
+
+These manual AppServer results accept D02's dataset/helper mock scope. No
+network, database or ERP data is exercised. D03's broader UTF-8/FLOAT integrity
+work remains next, followed by M06–M09; see [dataset API and integrity
+findings](../docs/dataset.md) and [acceptance](../docs/acceptance.md).
 
 ## Manual acceptance and remaining scenarios
 
@@ -278,9 +291,10 @@ times. Both include the shared dataset's first/next pages and values; the
 entrypoint defaults select `MSSQL/pData` and `sqlite_demo`. These are manual
 AppServer runs, separate from native automation. Transcript:
 `tmp/protheus-http-mssql-sqlite-operator-20261008.log`.
-See [acceptance](../docs/acceptance.md). The new dataset request and
-UTF-8/FLOAT findings take priority as D02/D03 in [WIP](../WIP.md), before M06
-controlled failures/recovery. No new native run is inferred from these reports.
+See [acceptance](../docs/acceptance.md). D02's dataset mock acceptance completed
+on 2026-10-13; D03's UTF-8/FLOAT integrity work remains next in
+[WIP](../WIP.md), before M06 controlled failures/recovery. No new native run
+is inferred from these reports.
 
 A later read-only constant probe found `CAST(123.4567 AS FLOAT)` remained
 fractional natively but became `123` in JSON; `DECIMAL(15,4)` became `123.4567`

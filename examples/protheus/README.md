@@ -10,8 +10,8 @@ has its own dotted directory; this guide does not duplicate those sources.
 | --- | --- | --- |
 | `U_HBBridgeConfigTest` | AppServer client configuration checks. | Active AppServer INI. |
 | `U_HBBridgeConnectionTest` | Clock, Health, ADDON and exact Echo checks. | Running hbBridge TCP endpoint and addon fixture. |
-| `U_HBBridgeDataSetTest` | Metadata, totals, profile changes and page traversal. | Mock client only; expected 67 checks/31 calls, runtime acceptance pending. |
-| `U_HBBridgeHelperTest` | SQL aliasing, replacement and filter-expression checks. | No connection or ERP reads; expected 12 checks, runtime acceptance pending. |
+| `U_HBBridgeDataSetTest` | Metadata, totals, profile changes and page traversal. | Mock client only; manual validation confirmed: 67 checks/31 calls, 2026-10-13 17:56:23 São Paulo, thread 32332. |
+| `U_HBBridgeHelperTest` | SQL aliasing, replacement and filter-expression checks. | No connection or ERP reads; manual validation confirmed: 12 checks, 2026-10-13 17:56:45 São Paulo, thread 28300. |
 | `U_HBBridgeQueryTest`, `U_HBBridgeQueryTestSQLite`, `U_HBBridgeQueryTestTopInfo` | Constant query/page fixture. | Explicit remote SQL profile; TopInfo resolves its alias on Protheus. |
 | `U_HBBridgeHTTPTest`, `U_HBBridgeHTTPTestMSSQL`, `U_HBBridgeHTTPTestSQLite` | HTTP services and paginated SQL. | Enabled HTTP endpoint, client token and configured profile. |
 | `U_HBBridgeHTTPTable`, `U_HBBridgeHTTPTableSX5` | FWWebEx HTTP table, search, field filters and totals. | FWWebEx/DataTable/example tools in the RPO, UI and HTTP/SQL settings; validation confirmed for the demonstrated views on 2026-10-13. |
@@ -19,7 +19,8 @@ has its own dotted directory; this guide does not duplicate those sources.
 
 The [HTTP table guide and screenshots](../../src/tlpp/tests/protheus/hbbridge.http.table.test/README.md)
 record the fixture/SX5 validation. The separate
-`U_HBBridgeHTTPTableTest()` mock has no reported execution acceptance.
+`U_HBBridgeHTTPTableTest()` mock passed 71 checks on 2026-10-13 at 17:46:56
+São Paulo, thread 27708; all 19 queued responses consumed without unexpected calls.
 
 ## Dataset consumer
 

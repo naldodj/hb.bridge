@@ -5,6 +5,23 @@
    Caminhos antigos descrevem os arquivos existentes na época.
  */
 
+2026-10-13 20:57 UTC naldodj (Homologar a validação do dataset e helpers)
+  * Confirmar resultados manuais AppServer: dataset 67 checks/31 chamadas
+    mock, 17:56:23 São Paulo, thread 32332; helpers 12 checks, 17:56:45,
+    thread 28300. Ambos OK, todos os checks true; sem deduzir aceite SQL/HTTP real.
+  * Concluir D02 no WIP e atualizar homologação e guias/TODO EN/PT.
+    D03 UTF-8/FLOAT é a próxima etapa; M06–M09 e pacote 001 permanecem abertos.
+  ; Apenas documentação; alterações existentes/índice preservados.
+
+2026-10-13 20:50 UTC naldodj (Homologar a regressão corrigida da tabela HTTP)
+  ! Registrar validação dos filtros originais e cursor próprio de respostas
+    mock; preservar bytes NUL e impedir deslocamento por chamadas inesperadas.
+  * Resultado manual AppServer: U_HBBridgeHTTPTableTest, 17:46:56 São Paulo,
+    thread 27708, todos os 71 checks PASS, zero falhas; 19 respostas consumidas
+    sem chamadas inesperadas. Resolvida a rodada anterior de 62 checks/três falhas.
+  * Marcar F02 concluída no WIP e atualizar guias/catálogos/homologação EN/PT.
+    Execução dataset/helpers e integridade UTF-8/FLOAT permanecem pendentes.
+
 2026-10-13 11:11 UTC naldodj (Adotar redação impessoal na documentação)
   * Padronizar registros de validação e decisões com foco em resultados,
     métodos e evidências; preservar datas, escopo e execução manual/automatizada.

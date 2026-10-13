@@ -382,10 +382,13 @@ per-value limits; tested slow-consumer/invalid-decode/disconnect behavior.
   CP437, and the 2026-10-08 constant probe lost a FLOAT fraction in JSON.
   Separate native SQL metadata, caller logical definitions and wire values;
   SX3/TOP_FIELD stay caller-resolved. [Analysis](docs/dataset.md).
-- [ ] AppServer acceptance of Header, FieldInfo/FieldCount/FieldName,
-  FieldExist/GetRow/GetRows, totals and previous/next/MoreToRead traversal.
-  New mocks prepare 67 checks/31 calls; pure helpers prepare 12 checks.
-  Keep Protheus browse/ERP examples separate from constant fixtures.
+- [x] Manual AppServer mock acceptance of Header, FieldInfo/FieldCount/FieldName,
+  FieldExist/GetRow/GetRows, totals and previous/next/MoreToRead traversal,
+  including page failure/recovery: 67 checks/31 mock calls, zero failures,
+  2026-10-13 at 17:56:23 São Paulo, thread 32332. Pure helpers passed all 12
+  checks at 17:56:45, thread 28300. D02's mock scope is accepted; D03's
+  UTF-8/FLOAT integrity remains next, with M06–M09 open. These runs exercise
+  no transport, SQL backend or ERP table. [Evidence](docs/dataset.md).
 - [x] ROW_NUMBER/BETWEEN pages, sentinel hasNext, explicit order, OpenPage/
   NextPage; gaps in business IDs do not control ordinal pagination.
 - [ ] Keyset/cursors/snapshots/deadlines/expiry/large fields and write-stability

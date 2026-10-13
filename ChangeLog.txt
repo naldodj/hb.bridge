@@ -5,6 +5,23 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Standardize hbBridge naming and paging)"
  */
 
+2026-10-13 20:57 UTC naldodj (Accept dataset and helper validation)
+  * Confirm manual AppServer results: dataset 67 checks/31 mock calls,
+    17:56:23 Sao Paulo, thread 32332; helpers 12 checks, 17:56:45, thread 28300.
+    Both reports OK, every check true; no live SQL/HTTP acceptance inferred.
+  * Complete WIP D02, update paired acceptance and current guides/TODO.
+    D03 UTF-8/FLOAT is next; M06–M09 and package 001 remain open.
+  ; Documentation only; existing changes/index preserved.
+
+2026-10-13 20:50 UTC naldodj (Accept the corrected HTTP table regression)
+  ! Record original-value filter validation and separate mock response cursor;
+    preserve NUL input bytes and prevent unexpected calls shifting fixtures.
+  * Manual AppServer report: U_HBBridgeHTTPTableTest, 17:46:56 Sao Paulo,
+    thread 27708, all 71 checks PASS, zero failures; 19 responses consumed
+    without unexpected calls. The earlier 62-check/three-failure run is resolved.
+  * Mark WIP F02 complete and update paired guides/catalogs/acceptance.
+    Dataset/helper execution and UTF-8/FLOAT integrity remain pending.
+
 2026-10-13 11:11 UTC naldodj (Adopt impersonal documentation)
   * Standardize validation and decision records around results, methods and
     evidence; preserve dates, scope and manual versus automated execution.

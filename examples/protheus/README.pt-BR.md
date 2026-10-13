@@ -10,8 +10,8 @@ tem seu diretório com nome pontuado; este guia não duplica os fontes.
 | --- | --- | --- |
 | `U_HBBridgeConfigTest` | Configuração cliente AppServer. | INI ativo do AppServer. |
 | `U_HBBridgeConnectionTest` | Relógio, Health, ADDON e Echo idêntico. | Endpoint TCP hbBridge e addon de teste. |
-| `U_HBBridgeDataSetTest` | Metadados, totais, troca de perfil e navegação. | Somente mock; esperados 67 checks/31 chamadas, aceite de execução pendente. |
-| `U_HBBridgeHelperTest` | Alias SQL, substituição e expressões de filtro. | Sem conexão/leitura ERP; esperados 12 checks, aceite de execução pendente. |
+| `U_HBBridgeDataSetTest` | Metadados, totais, troca de perfil e navegação. | Somente mock; validação manual confirmada: 67 checks/31 chamadas, 2026-10-13 17:56:23 São Paulo, thread 32332. |
+| `U_HBBridgeHelperTest` | Alias SQL, substituição e expressões de filtro. | Sem conexão/leitura ERP; validação manual confirmada: 12 checks, 2026-10-13 17:56:45 São Paulo, thread 28300. |
 | `U_HBBridgeQueryTest`, `U_HBBridgeQueryTestSQLite`, `U_HBBridgeQueryTestTopInfo` | Fixture constante de query/páginas. | Perfil SQL remoto explícito; TopInfo resolve o alias no Protheus. |
 | `U_HBBridgeHTTPTest`, `U_HBBridgeHTTPTestMSSQL`, `U_HBBridgeHTTPTestSQLite` | Serviços HTTP e SQL paginado. | Endpoint HTTP ativo, token cliente e perfil configurado. |
 | `U_HBBridgeHTTPTable`, `U_HBBridgeHTTPTableSX5` | Tabela HTTP FWWebEx, pesquisa, filtros por campo e totais. | FWWebEx/DataTable/ferramentas de exemplos no RPO, interface e configurações HTTP/SQL; validação confirmada nas telas demonstradas em 2026-10-13. |
@@ -19,7 +19,8 @@ tem seu diretório com nome pontuado; este guia não duplica os fontes.
 
 O [guia da tabela HTTP e capturas](../../src/tlpp/tests/protheus/hbbridge.http.table.test/README.pt-BR.md)
 registra a validação da fixture/SX5. O mock separado
-`U_HBBridgeHTTPTableTest()` ainda não tem homologação de execução informada.
+`U_HBBridgeHTTPTableTest()` passou em 71 checks em 2026-10-13 às 17:46:56
+São Paulo, thread 27708; as 19 respostas consumidas sem chamadas inesperadas.
 
 ## Consumidor do dataset
 

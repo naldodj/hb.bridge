@@ -822,9 +822,60 @@ As descrições SX5 também mostram acentos nesses exemplos. Isso não conclui
 a correção UTF-8/FLOAT mais ampla de D03. Protheus resolve perfil/tabela/
 filial da SX5; hbBridge permanece executor genérico.
 
-F01 preparatório do WIP está homologado nas telas demonstradas. Execução
-específica dos mocks continua pendente: dataset 67 checks/31 chamadas,
-helpers 12 checks e tabela HTTP 62 checks/19 respostas enfileiradas. O exemplo
+F01 preparatório do WIP está homologado nas telas demonstradas. O mock da
+tabela HTTP tem aceite próprio abaixo. Dataset 67 checks/31 chamadas e
+helpers 12 checks têm validação posterior no próximo registro. O exemplo
 não exercita varredura automática/cópias/falhas exigidas em D02. As capturas
 não identificam perfil/backend efetivos, horário, build de compilação ou
 artefato do servidor; não são novos aceites desses atributos nem de M06–M09.
+
+## Validação da regressão da tabela HTTP em 2026-10-13
+
+Confirmada a execução manual de `U_HBBridgeHTTPTableTest` às **17:46:56 São Paulo**
+(20:46:56 UTC), thread AppServer **27708**: **71 checks, todos PASS, zero falhas**;
+resultado final `hbBridge HTTP table checks: 71; OK`.
+Resumo do resultado recebido em `tmp/http-table-manual-20261013-174656.summary.txt`.
+
+A rodada anterior às 08:16:18, thread 36400, registrou 62 checks e três falhas:
+`rejectNulFilter`, `successAfterServiceFailure` e `missingTotalsAreVisible`.
+A validação de filtros agora lê os valores originais antes de qualquer ciclo
+JSON; a entrada referenciada é preservada. O mock usa cursor próprio de respostas,
+impedindo que uma chamada inesperada pule uma fixture futura ou mascare resultados.
+
+A rodada homologada cobre rejeição de NUL no início, meio e fim e como único
+byte em filtros/pesquisa, preservação dos bytes de entrada, recuperação de
+consulta, totais/erros e os checks existentes de páginas/filtros/ordem/projeção.
+`noUnexpectedMockCalls` e `allQueuedResponsesConsumed` passaram; a fixture
+contém **19 respostas enfileiradas**.
+
+Linhas adicionais registram handshake com erro 10054 na thread 13968; o teste
+termina com 71 PASS. Este registro não diagnostica essa conexão nem o TLS.
+É um teste de contrato com mock, sem chamadas HTTP ou SQL reais.
+F02 concluída. D02 tem validação posterior do dataset/helpers abaixo;
+UTF-8/FLOAT em D03 permanece pendente.
+
+## Validação do dataset e helpers em 2026-10-13
+
+Confirmada a validação manual no AppServer, horário de São Paulo:
+
+| Entrada | Início / thread | Resultado |
+| --- | --- | --- |
+| `U_HBBridgeDataSetTest` | 17:56:23 / 32332 | Todos os 67 checks true; 31 chamadas mock; `Protheus OK`. |
+| `U_HBBridgeHelperTest` | 17:56:45 / 28300 | Todos os 12 checks true; `Protheus OK`. |
+
+Resumo: `tmp/dataset-helper-manual-20261013.summary.txt`. São resultados
+manuais recebidos, sem nova execução local nem novo log de sucesso do compilador.
+
+O dataset homologa cópias de campos/cabeçalho/linhas e ordem das colunas,
+EOF/Skip locais à página, varredura automática `MoreToRead()`, idempotência,
+estados vazio/fechado, falha/recuperação de página, validação de metadados e
+totais, página anterior e ciclo de perfil/resultado. O nome histórico do check
+`dsStructDefensiveAlias` exercita cópias `Header()`/`FieldInfo()`; nenhum método
+`DSStruct()` foi restaurado. Helpers homologam qualificação SQL sem modificar
+literais/comentários, substituições e as expressões tipadas de filtro preparadas.
+
+D02 concluída. Estes resultados mock/helpers não fazem chamadas SQL ou HTTP
+reais; D03 ainda exige correções e homologação UTF-8/FLOAT nativas. O log
+também registra handshake com erro 10054 na thread 34420; o helper termina OK.
+Esses testes não diagnosticam a condição da conexão/TLS. Retomar D03 e depois
+M06–M09; o pacote 001 permanece aberto.

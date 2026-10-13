@@ -13,10 +13,10 @@ registra resultados verificados; ChangeLog e Git preservam o histórico.
 | --- | --- |
 | ID | `001-mssql-acceptance` |
 | Abertura / atualização | 2026-10-07 / 2026-10-13 |
-| Situação | MSSQL nativo homologado: 92 checks; Protheus TCP: 29 e HTTP: 13 em cada banco MSSQL/SQLite. Pacote permanece aberto. |
+| Situação | MSSQL nativo: 92 checks; Protheus TCP: 29 e HTTP: 13 em cada banco MSSQL/SQLite. D02 homologada: dataset 67 checks/31 chamadas e helpers 12 checks. Pacote permanece aberto. |
 | Objetivo | Homologar RPCRDD.Query/dataset existentes em banco MSSQL real identificado, por Harbour, TCP Protheus e HTTP Protheus. |
 | Referência do produto | Código publicado `50e1c65`; checkout na abertura `bce52d2` inclui atualização do badge de clones. |
-| Próxima tarefa | Aceite da API dataset solicitada e correções UTF-8/FLOAT abaixo; depois retomar M06. |
+| Próxima tarefa | D03: corrigir e homologar integridade UTF-8/FLOAT; depois retomar M06. |
 
 ### Decisões já tomadas
 
@@ -92,6 +92,14 @@ não repetir a migração concluída nem deduzir homologação MSSQL.
   A preparação solicitada está concluída nas telas demonstradas. D02/D03
   mantêm suas tarefas específicas de execução mock e integridade dos dados.
 
+- [x] **F02 — Corrigir e homologar a regressão da tabela HTTP.** Confirmada a
+  execução manual de `U_HBBridgeHTTPTableTest` em 2026-10-13 às 17:46:56 São Paulo,
+  thread 27708: **71 checks, zero falhas**, incluindo NUL nas extremidades/
+  preservação da entrada, recuperação e totais. Consumidas as 19 respostas
+  mock sem chamadas inesperadas. Encerradas as três falhas da rodada anterior
+  de 62 checks; veja o [registro](docs/acceptance.pt-BR.md#validação-da-regressão-da-tabela-http-em-2026-10-13).
+  Execução dataset/helpers tem aceite posterior em D02; integridade permanece em D03.
+
 ### Trabalho em ordem
 
 Ampliada a análise em 2026-10-08 após os aceites HTTP: acesso ao
@@ -104,15 +112,14 @@ constatações de aceite, sem motivo para repetir o inventário concluído.
   FileRead/FileNavigator fornecidos; adotar `MoreToRead()` e métodos de metadados,
   preservando `Eof()`/`Skip()` locais à página. A API canônica atual é
   `Header()`; `DSStruct()` foi removido depois.
-- [ ] **D02 — Homologar a extensão TLPP do dataset.** Compilar/exercitar cópias
+- [x] **D02 — Homologar a extensão TLPP do dataset.** Compilar/exercitar cópias
   de cabeçalho/campo/linha, ordem das colunas, varredura automática, verificações
   repetidas, vazio/fechado e falha/recuperação de página. Novos mocks sem dados ERP.
-  Implementação e fixture de 45 checks preparados. A tentativa de compilação de
-  2026-10-08 falhou antes de compilar os fontes: `COMPILEERROR-300`, RPO custom
-  em uso (`tmp/totvs-compile.log`, thread 36788). Aceite de execução pendente.
-  A revisão de 2026-10-12 acrescenta validação de totais/perfil e 67 checks/31
-  chamadas mock, além de 12 checks puros de helpers. A compilação recursiva
-  inclui os 24 fontes; veja o novo [registro](docs/acceptance.pt-BR.md).
+  Confirmada a validação manual no AppServer em 2026-10-13, São Paulo:
+  `U_HBBridgeDataSetTest`, 17:56:23, thread 32332, **67 checks/31 chamadas mock**;
+  `U_HBBridgeHelperTest`, 17:56:45, thread 28300, **12 checks**. Todos true,
+  ambos os resultados OK. Veja [escopo/evidências](docs/acceptance.pt-BR.md#validação-do-dataset-e-helpers-em-2026-10-13).
+  Homologado o contrato mock/interface; integridade textual/numérica nativa permanece em D03.
 - [ ] **D03 — Corrigir integridade textual e numérica.** Garantir execução/
   transporte UTF-8 consistentes, conversão textual cliente explícita e binários;
   corrigir a perda FLOAT fracionária reproduzida no JSON e definir decimal
@@ -247,8 +254,8 @@ segundos inteiros e não substitui as medições de M08. Sem log de compilador,
 argumentos explícitos da chamada ou hash do artefato servidor fornecidos.
 HTTPS, transporte ampliado de tipos nativos e Linux têm aceites separados.
 
-Progresso/evidência: P01/P02/F01 e M01–M05 concluídas nos casos exercitados.
-Tratar D02/D03 da nova solicitação antes de retomar M06 com conexão
+Progresso/evidência: P01/P02/F01/F02/D02 e M01–M05 concluídas nos casos exercitados.
+Tratar as correções de integridade D03 antes de retomar M06 com conexão
 indisponível/timeout nativo controlados, erros sanitizados e recuperação;
 SQL inválido/perfil desconhecido já têm evidências no núcleo e TCP.
 Sem nova evidência que exija revisão, não repetir migração, inventário ou
@@ -266,8 +273,9 @@ A [análise de extensões](docs/extensions-review.pt-BR.md) de 2026-10-12 regist
 SQLRDD, Duktape e CCHarbour como pacotes opcionais posteriores, sem adotar
 dependências nem reiniciar este pacote. O [guia de exemplos](examples/protheus/README.pt-BR.md)
 catalogou consumidores atuais. A regressão nativa passou 583 checks sem falhas;
-browse/UI e execução dos novos mocks TLPP continuam pendentes. Esta revisão
-não resolve UTF-8/FLOAT nem implementa credenciais cifradas.
+browses nativos/UI restantes continuam pendentes. As telas de tabela HTTP,
+seu mock de 71 checks e execuções dataset/helpers de 67/12 checks têm aceite próprio acima.
+UTF-8/FLOAT e implementação de credenciais cifradas continuam pendentes.
 
 | Ordem | Direção |
 | --- | --- |
