@@ -1,0 +1,420 @@
+/* Released to Public Domain. */
+#include "totvs.ch"
+#include "tlpp-core.th"
+
+// Pure consumer/dataset contract checks: no INI, HTTP or ERP table is read.
+procedure U_HBBridgeHTTPTableTest()
+
+    local oClient := HBBridge.Tests.HBBridgeHTTPTableMockClient():New() as object
+    local jFields := HTTPTableTestFields() as json
+    local cSQL := "SELECT ID,NAME,AMOUNT,SECRET FROM fixture WHERE TENANT_ID = 7 AND ACTIVE = 1" as character
+    local cBase := "SELECT HBGRID.* FROM (" + cSQL + ") AS HBGRID" as character
+    local oTable := HBBridge.Examples.HBBridgeHTTPTable():New(;
+        "opaque/profile", cSQL, jFields, "ID", oClient) as object
+    local oInvalid as object
+    local jChecks := JSONObject():New() as json
+    local jRequest as json
+    local jResponse as json
+    local jRecorded as json
+    local jFixture as json
+    local aChecks as array
+    local nCheck := 0, nCalls := 0 as numeric
+    local lOk := .T. as logical
+
+    // Caller mutation cannot change the consumer's validated field mapping.
+    jFields["NAME"]["type"] := "N"
+    FreeObj(@jFields)
+
+    HTTPTableTestQueue(oClient, HTTPTableTestResult(10, 2, 1, 2, 5, .T.))
+    jRequest := HTTPTableTestRequest(7, 0, 2)
+    jRequest["orderField"] := "NAME"
+    jRequest["orderDirection"] := "DESC"
+    jResponse := oTable:Handle(jRequest)
+    jChecks["firstPage"] := jResponse["success"] .and. jResponse["draw"] == 7 .and. ;
+        ValType(jResponse["data"]) == "A" .and. Len(jResponse["data"]) == 2
+    jChecks["keyedRowsBecomeArray"] := jResponse["data"][1]["ID"] == 10 .and. ;
+        jResponse["data"][2]["ID"] == 20
+    jChecks["mappedProjectionOnly"] := !jResponse["data"][1]:HasProperty("SECRET") .and. ;
+        jResponse["data"][1]["AMOUNT"] == 12.5
+    jChecks["unfilteredTotals"] := jResponse["recordsTotal"] == 5 .and. ;
+        jResponse["recordsFiltered"] == 5
+    jChecks["currentPageOnly"] := oClient:CallCount() == 1
+    jRecorded := oClient:Request(1)
+    jChecks["trustedProfileAndSQL"] := jRecorded["alias"] == "opaque/profile" .and. ;
+        jRecorded["sql"] == cBase
+    jChecks["deterministicTieBreaker"] := jRecorded["page"]["orderBy"] == "NAME DESC,ID ASC"
+    FreeObj(@jRecorded)
+    FreeObj(@jRequest)
+    FreeObj(@jResponse)
+
+    HTTPTableTestQueue(oClient, HTTPTableTestResult(30, 2, 2, 2, 5, .T.))
+    jRequest := HTTPTableTestRequest(8, 2, 2)
+    jResponse := oTable:Handle(jRequest)
+    jRecorded := oClient:Request(2)
+    jChecks["offsetToPage"] := jRecorded["page"]["number"] == 2 .and. ;
+        jRecorded["page"]["size"] == 2 .and. jResponse["data"][1]["ID"] == 30
+    jChecks["keyOrderHasNoDuplicate"] := jRecorded["page"]["orderBy"] == "ID ASC"
+    jChecks["secondPageDoesNotPrefetch"] := oClient:CallCount() == 2 .and. ;
+        Len(jResponse["data"]) == 2
+    FreeObj(@jRecorded)
+    FreeObj(@jRequest)
+    FreeObj(@jResponse)
+
+    HTTPTableTestQueue(oClient, HTTPTableTestResult(0, 0, 4, 2, 5, .F.))
+    jRequest := HTTPTableTestRequest(9, 6, 2)
+    jResponse := oTable:Handle(jRequest)
+    jChecks["emptyPageKeepsTotals"] := jResponse["success"] .and. ;
+        Len(jResponse["data"]) == 0 .and. jResponse["recordsTotal"] == 5 .and. ;
+        jResponse["recordsFiltered"] == 5
+    FreeObj(@jRequest)
+    FreeObj(@jResponse)
+
+    HTTPTableTestQueue(oClient, HTTPTableTestResult(0, 0, 1, 2, 0, .F.))
+    jRequest := HTTPTableTestRequest(10, 0, 2)
+    jResponse := oTable:Handle(jRequest)
+    jChecks["zeroTotalsStayZero"] := jResponse["success"] .and. ;
+        Len(jResponse["data"]) == 0 .and. jResponse["recordsTotal"] == 0 .and. ;
+        jResponse["recordsFiltered"] == 0 .and. oClient:CallCount() == 4
+    FreeObj(@jRequest)
+    FreeObj(@jResponse)
+
+    HTTPTableTestQueue(oClient, HTTPTableTestResult(20, 1, 1, 2, 1, .F.))
+    HTTPTableTestQueue(oClient, HTTPTableTestResult(10, 1, 1, 1, 6, .T.))
+    jRequest := HTTPTableTestRequest(11, 0, 2)
+    jRequest["search"] := "O'Brien%_[]~"
+    jRequest["filters"] := JSONObject():New()
+    jRequest["filters"]["ID"] := 20
+    jRequest["filters"]["NAME"] := "O'Brien"
+    jRequest["orderField"] := "name"
+    jRequest["orderDirection"] := "desc"
+    jResponse := oTable:Handle(jRequest)
+    jRecorded := oClient:Request(5)
+    jChecks["filteredAndUnfilteredTotals"] := jResponse["success"] .and. ;
+        jResponse["recordsFiltered"] == 1 .and. jResponse["recordsTotal"] == 6 .and. ;
+        oClient:CallCount() == 6
+    jChecks["quotedTextFilter"] := "HBGRID.[NAME] = 'O''Brien'" $ jRecorded["sql"]
+    jChecks["numericFilter"] := "HBGRID.[ID] = 20" $ jRecorded["sql"]
+    jChecks["literalSearchWildcards"] := ;
+        "HBGRID.[NAME] LIKE '%O''Brien~%~_~[~]~~%' ESCAPE '~'" $ jRecorded["sql"]
+    jChecks["logicalMetadataIsSnapshot"] := !("HBGRID.[ID] LIKE" $ jRecorded["sql"]) .and. ;
+        !("HBGRID.[AMOUNT] LIKE" $ jRecorded["sql"])
+    jChecks["fixedBusinessPredicates"] := cBase $ jRecorded["sql"]
+    FreeObj(@jRecorded)
+    jRecorded := oClient:Request(6)
+    jChecks["unfilteredCountUsesSameBase"] := jRecorded["sql"] == cBase .and. ;
+        jRecorded["alias"] == "opaque/profile" .and. jRecorded["page"]["number"] == 1 .and. ;
+        jRecorded["page"]["size"] == 1 .and. jRecorded["page"]["orderBy"] == "ID ASC"
+    FreeObj(@jRecorded)
+    FreeObj(@jRequest)
+    FreeObj(@jResponse)
+
+    HTTPTableTestQueue(oClient, HTTPTableTestResult(0, 0, 1, 2, 0, .F.))
+    HTTPTableTestQueue(oClient, HTTPTableTestResult(10, 1, 1, 1, 8, .T.))
+    jRequest := HTTPTableTestRequest(12, 0, 2)
+    jRequest["filters"] := JSONObject():New()
+    jRequest["filters"]["NAME"] := ""
+    jResponse := oTable:Handle(jRequest)
+    jRecorded := oClient:Request(7)
+    jChecks["emptyStringIsAFilter"] := "HBGRID.[NAME] = ''" $ jRecorded["sql"]
+    jChecks["filteredZeroAndFreshTotal"] := jResponse["success"] .and. ;
+        jResponse["recordsFiltered"] == 0 .and. jResponse["recordsTotal"] == 8 .and. ;
+        Len(jResponse["data"]) == 0 .and. oClient:CallCount() == 8
+    FreeObj(@jRecorded)
+    FreeObj(@jRequest)
+    FreeObj(@jResponse)
+
+    HTTPTableTestQueue(oClient, HTTPTableTestResult(10, 1, 1, 2, 1, .F.))
+    HTTPTableTestQueue(oClient, HTTPTableTestResult(10, 1, 1, 1, 8, .T.))
+    jRequest := HTTPTableTestRequest(13, 0, 2)
+    jRequest["filters"] := JSONObject():New()
+    jRequest["filters"]["AMOUNT"] := -3.25
+    jRequest["filters"]["NAME"] := "x' OR 1=1 --"
+    jResponse := oTable:Handle(jRequest)
+    jRecorded := oClient:Request(9)
+    jChecks["fractionalNumericLiteral"] := "HBGRID.[AMOUNT] = -3.25" $ jRecorded["sql"]
+    jChecks["injectionTextRemainsLiteral"] := "HBGRID.[NAME] = 'x'' OR 1=1 --'" $ jRecorded["sql"]
+    FreeObj(@jRecorded)
+    FreeObj(@jRequest)
+    FreeObj(@jResponse)
+
+    // Every rejection also verifies that the client received no request.
+    jRequest := HTTPTableTestRequest(14, 0, -1)
+    jChecks["rejectAllRows"] := HTTPTableTestRejected(oTable, oClient, jRequest, "INVALID_PAGE")
+    jRequest["length"] := 0
+    jChecks["rejectZeroLength"] := HTTPTableTestRejected(oTable, oClient, jRequest, "INVALID_PAGE")
+    jRequest["length"] := 2.5
+    jChecks["rejectFractionalLength"] := HTTPTableTestRejected(oTable, oClient, jRequest, "INVALID_PAGE")
+    jRequest["length"] := "2"
+    jChecks["rejectTextLength"] := HTTPTableTestRejected(oTable, oClient, jRequest, "INVALID_PAGE")
+    jRequest["length"] := 9007199254740991
+    jChecks["rejectPageOverflow"] := HTTPTableTestRejected(oTable, oClient, jRequest, "INVALID_PAGE")
+    jRequest["length"] := 2
+    jRequest["start"] := -1
+    jChecks["rejectNegativeOffset"] := HTTPTableTestRejected(oTable, oClient, jRequest, "INVALID_PAGE")
+    jRequest["start"] := 0.5
+    jChecks["rejectFractionalOffset"] := HTTPTableTestRejected(oTable, oClient, jRequest, "INVALID_PAGE")
+    jRequest["start"] := 3
+    jChecks["rejectUnalignedOffset"] := HTTPTableTestRejected(oTable, oClient, jRequest, "INVALID_PAGE")
+    jRequest["start"] := 9007199254740990
+    jChecks["rejectSentinelOverflow"] := HTTPTableTestRejected(oTable, oClient, jRequest, "INVALID_PAGE")
+    jRequest["start"] := 0
+    jRequest["draw"] := "<script>"
+    jChecks["rejectUnsafeDraw"] := HTTPTableTestRejected(oTable, oClient, jRequest, "INVALID_PAGE")
+    jRequest["draw"] := 1.5
+    jChecks["rejectFractionalDraw"] := HTTPTableTestRejected(oTable, oClient, jRequest, "INVALID_PAGE")
+    jRequest["draw"] := 9007199254740992
+    jChecks["rejectInexactDraw"] := HTTPTableTestRejected(oTable, oClient, jRequest, "INVALID_PAGE")
+    FreeObj(@jRequest)
+
+    jRequest := HTTPTableTestRequest(15, 0, 2)
+    jRequest["orderField"] := "NAME DESC; DROP TABLE fixture"
+    jChecks["rejectOrderSQL"] := HTTPTableTestRejected(oTable, oClient, jRequest, "INVALID_ORDER")
+    jRequest["orderField"] := "SECRET"
+    jChecks["rejectUnmappedOrder"] := HTTPTableTestRejected(oTable, oClient, jRequest, "INVALID_ORDER")
+    jRequest["orderField"] := "ID"
+    jRequest["orderDirection"] := "DESC; SELECT 1"
+    jChecks["rejectOrderDirection"] := HTTPTableTestRejected(oTable, oClient, jRequest, "INVALID_ORDER")
+    FreeObj(@jRequest)
+
+    jRequest := HTTPTableTestRequest(16, 0, 2)
+    jRequest["filters"] := JSONObject():New()
+    jRequest["filters"]["SECRET"] := "server"
+    jChecks["rejectUnmappedFilter"] := HTTPTableTestRejected(oTable, oClient, jRequest, "INVALID_FILTER")
+    FreeObj(@jRequest)
+    jRequest := HTTPTableTestRequest(16, 0, 2)
+    jRequest["filters"] := JSONObject():New()
+    jRequest["filters"]["ID"] := "20 OR 1=1"
+    jChecks["rejectNumericSQLText"] := HTTPTableTestRejected(oTable, oClient, jRequest, "INVALID_FILTER")
+    jRequest["filters"]["ID"] := .T.
+    jChecks["rejectLogicalFilter"] := HTTPTableTestRejected(oTable, oClient, jRequest, "INVALID_FILTER")
+    jRequest["filters"]["ID"] := Nil
+    jChecks["rejectNullFilter"] := HTTPTableTestRejected(oTable, oClient, jRequest, "INVALID_FILTER")
+    FreeObj(@jRequest)
+    jRequest := HTTPTableTestRequest(16, 0, 2)
+    jRequest["filters"] := JSONObject():New()
+    jRequest["filters"]["NAME"] := "x" + Chr(0) + "y"
+    jChecks["rejectNulFilter"] := HTTPTableTestRejected(oTable, oClient, jRequest, "INVALID_FILTER")
+    jRequest["filters"] := Array(0)
+    jChecks["rejectArrayFilters"] := HTTPTableTestRejected(oTable, oClient, jRequest, "INVALID_FILTER")
+    FreeObj(@jRequest)
+
+    jRequest := HTTPTableTestRequest(17, 0, 2)
+    jRequest["search"] := 1
+    jChecks["rejectNumericSearch"] := HTTPTableTestRejected(oTable, oClient, jRequest, "INVALID_SEARCH")
+    jRequest["search"] := "x" + Chr(0) + "y"
+    jChecks["rejectNulSearch"] := HTTPTableTestRejected(oTable, oClient, jRequest, "INVALID_SEARCH")
+    FreeObj(@jRequest)
+
+    jRequest := HTTPTableTestRequest(18, 0, 2)
+    jRequest["sql"] := "SELECT * FROM private_table"
+    jChecks["rejectBrowserSQL"] := HTTPTableTestRejected(oTable, oClient, jRequest, "INVALID_REQUEST")
+    FreeObj(@jRequest)
+    jRequest := HTTPTableTestRequest(18, 0, 2)
+    jRequest["alias"] := "other/profile"
+    jChecks["rejectBrowserProfile"] := HTTPTableTestRejected(oTable, oClient, jRequest, "INVALID_REQUEST")
+    FreeObj(@jRequest)
+    jRequest := HTTPTableTestRequest(18, 0, 2)
+    jRequest["Filter64"] := "MSA9IDE="
+    jChecks["rejectEncodedExpression"] := HTTPTableTestRejected(oTable, oClient, jRequest, "INVALID_REQUEST")
+    FreeObj(@jRequest)
+    jRequest := JSONObject():New()
+    jChecks["rejectMissingPage"] := HTTPTableTestRejected(oTable, oClient, jRequest, "INVALID_PAGE")
+    FreeObj(@jRequest)
+
+    HTTPTableTestQueue(oClient, HTTPTableTestFailure())
+    jRequest := HTTPTableTestRequest(19, 0, 2)
+    jResponse := oTable:Handle(jRequest)
+    jChecks["serviceFailureHasSafeEnvelope"] := !jResponse["success"] .and. ;
+        jResponse["code"] == "QUERY_FAILED" .and. jResponse["draw"] == 19 .and. ;
+        Len(jResponse["data"]) == 0 .and. jResponse["recordsTotal"] == 0 .and. ;
+        !("private_table" $ jResponse:ToJSON()) .and. !("secret" $ jResponse:ToJSON())
+    FreeObj(@jResponse)
+    HTTPTableTestQueue(oClient, HTTPTableTestResult(90, 1, 1, 2, 1, .F.))
+    jResponse := oTable:Handle(jRequest)
+    jChecks["successAfterServiceFailure"] := jResponse["success"] .and. ;
+        jResponse["data"][1]["ID"] == 90 .and. jResponse["recordsTotal"] == 1
+    FreeObj(@jRequest)
+    FreeObj(@jResponse)
+
+    HTTPTableTestQueue(oClient, HTTPTableTestResult(10, 1, 1, 2, 1, .F., .F.))
+    jRequest := HTTPTableTestRequest(20, 0, 2)
+    jResponse := oTable:Handle(jRequest)
+    jChecks["missingTotalsAreVisible"] := !jResponse["success"] .and. ;
+        jResponse["code"] == "TOTALS_REQUIRED" .and. Len(jResponse["data"]) == 0
+    FreeObj(@jRequest)
+    FreeObj(@jResponse)
+
+    HTTPTableTestQueue(oClient, HTTPTableTestResult(10, 1, 1, 2, 1, .F.))
+    HTTPTableTestQueue(oClient, HTTPTableTestFailure())
+    jRequest := HTTPTableTestRequest(21, 0, 2)
+    jRequest["search"] := "row"
+    jResponse := oTable:Handle(jRequest)
+    jChecks["countFailureClearsPartialPage"] := !jResponse["success"] .and. ;
+        jResponse["code"] == "QUERY_FAILED" .and. Len(jResponse["data"]) == 0 .and. ;
+        jResponse["recordsFiltered"] == 0 .and. jResponse["recordsTotal"] == 0
+    FreeObj(@jResponse)
+    HTTPTableTestQueue(oClient, HTTPTableTestResult(10, 1, 1, 2, 1, .F.))
+    HTTPTableTestQueue(oClient, HTTPTableTestResult(10, 1, 1, 1, 8, .T., .F.))
+    jResponse := oTable:Handle(jRequest)
+    jChecks["countMissingTotalsClearsPartialPage"] := !jResponse["success"] .and. ;
+        jResponse["code"] == "TOTALS_REQUIRED" .and. Len(jResponse["data"]) == 0
+    FreeObj(@jRequest)
+    FreeObj(@jResponse)
+
+    jFixture := HTTPTableTestResult(10, 1, 1, 2, 1, .F.)
+    jFixture["header"] := JSONObject():New()
+    jFixture["header"]["ID"] := HTTPTableTestHeader(1, "N")
+    HTTPTableTestQueue(oClient, jFixture)
+    jRequest := HTTPTableTestRequest(22, 0, 2)
+    jResponse := oTable:Handle(jRequest)
+    jChecks["missingMappedColumn"] := !jResponse["success"] .and. ;
+        jResponse["code"] == "INVALID_RESULT" .and. Len(jResponse["data"]) == 0
+    FreeObj(@jResponse)
+    jFixture := HTTPTableTestResult(10, 1, 1, 2, 1, .F.)
+    jFixture["rows"]["1"] := JSONObject():New()
+    jFixture["rows"]["1"]["ID"] := 10
+    HTTPTableTestQueue(oClient, jFixture)
+    jResponse := oTable:Handle(jRequest)
+    jChecks["missingMappedRowValue"] := !jResponse["success"] .and. ;
+        jResponse["code"] == "INVALID_RESULT" .and. Len(jResponse["data"]) == 0
+    FreeObj(@jRequest)
+    FreeObj(@jResponse)
+
+    jFields := HTTPTableTestFields()
+    oInvalid := HBBridge.Examples.HBBridgeHTTPTable():New("", cSQL, jFields, "ID", oClient)
+    jRequest := HTTPTableTestRequest(23, 0, 2)
+    jChecks["rejectEmptyProfile"] := HTTPTableTestRejected(oInvalid, oClient, jRequest, "INVALID_CONFIGURATION")
+    oInvalid:Close()
+    FreeObj(@oInvalid)
+    oInvalid := HBBridge.Examples.HBBridgeHTTPTable():New("opaque/profile", cSQL, jFields, "SECRET", oClient)
+    jChecks["rejectUnmappedUniqueKey"] := HTTPTableTestRejected(oInvalid, oClient, jRequest, "INVALID_CONFIGURATION")
+    oInvalid:Close()
+    FreeObj(@oInvalid)
+    jFields["NAME"]["type"] := "D"
+    oInvalid := HBBridge.Examples.HBBridgeHTTPTable():New("opaque/profile", cSQL, jFields, "ID", oClient)
+    jChecks["rejectUnsupportedLogicalType"] := HTTPTableTestRejected(oInvalid, oClient, jRequest, "INVALID_CONFIGURATION")
+    oInvalid:Close()
+    FreeObj(@oInvalid)
+    FreeObj(@jFields)
+    nCalls := oClient:CallCount()
+    oTable:Close()
+    jChecks["closeDisablesConsumer"] := HTTPTableTestRejected(oTable, oClient, jRequest, "INVALID_CONFIGURATION")
+    jChecks["injectedClientRemainsOwnedByCaller"] := oClient:CallCount() == nCalls
+    FreeObj(@jRequest)
+
+    aChecks := jChecks:GetNames()
+    for nCheck := 1 to Len(aChecks)
+        lOk := jChecks[aChecks[nCheck]] .and. lOk
+        ConOut("hbBridge HTTP table check " + aChecks[nCheck] + ": " + ;
+            if(jChecks[aChecks[nCheck]], "PASS", "FAILED"))
+    next
+    ConOut("hbBridge HTTP table checks: " + tlpp.ToStr(Len(aChecks)) + "; " + ;
+        if(lOk, "OK", "FAILED"))
+
+    FreeObj(@oTable)
+    oClient:Close()
+    FreeObj(@oClient)
+    FreeObj(@jChecks)
+
+return
+
+static function HTTPTableTestFields() as json
+
+    local jFields := JSONObject():New() as json
+
+    jFields:FromJSON('{"ID":{"type":"N","title":"ID"},"NAME":{"type":"C","title":"Name"},"AMOUNT":{"type":"N","title":"Amount"}}')
+
+return(jFields)
+
+static function HTTPTableTestRequest(nDraw as numeric, nStart as numeric, nLength as numeric) as json
+
+    local jRequest := JSONObject():New() as json
+
+    jRequest["draw"] := nDraw
+    jRequest["start"] := nStart
+    jRequest["length"] := nLength
+
+return(jRequest)
+
+static function HTTPTableTestRejected(oTable as object, oClient as object, ;
+    jRequest as json, cCode as character) as logical
+
+    local nCalls := oClient:CallCount() as numeric
+    local jResponse := oTable:Handle(jRequest) as json
+    local lPassed := !jResponse["success"] .and. jResponse["code"] == cCode .and. ;
+        Len(jResponse["data"]) == 0 .and. jResponse["recordsTotal"] == 0 .and. ;
+        jResponse["recordsFiltered"] == 0 .and. oClient:CallCount() == nCalls as logical
+
+    FreeObj(@jResponse)
+
+return(lPassed)
+
+static procedure HTTPTableTestQueue(oClient as object, jResponse as json)
+
+    oClient:Queue(jResponse)
+    FreeObj(@jResponse)
+
+return
+
+static function HTTPTableTestHeader(nPosition as numeric, cType as character) as json
+
+    local jField := JSONObject():New() as json
+
+    jField["position"] := nPosition
+    jField["type"] := cType
+    jField["length"] := 40
+    jField["decimals"] := if(cType == "N", 2, 0)
+
+return(jField)
+
+static function HTTPTableTestResult(nFirstID as numeric, nRows as numeric, ;
+    nPage as numeric, nSize as numeric, nTotal as numeric, lHasNext as logical, lTotals as logical) as json
+
+    local jResult := JSONObject():New() as json
+    local jHeader := JSONObject():New() as json
+    local jRows := JSONObject():New() as json
+    local jRow as json
+    local jPage := JSONObject():New() as json
+    local nRow := 0, nID := 0 as numeric
+
+    DEFAULT lTotals := .T.
+    jHeader["ID"] := HTTPTableTestHeader(1, "N")
+    jHeader["NAME"] := HTTPTableTestHeader(2, "C")
+    jHeader["AMOUNT"] := HTTPTableTestHeader(3, "N")
+    jHeader["SECRET"] := HTTPTableTestHeader(4, "C")
+    for nRow := 1 to nRows
+        nID := nFirstID + (nRow - 1) * 10
+        jRow := JSONObject():New()
+        jRow["ID"] := nID
+        jRow["NAME"] := "row" + tlpp.ToStr(nID)
+        jRow["AMOUNT"] := 12.5
+        jRow["SECRET"] := "server-only"
+        jRows[tlpp.ToStr(nRow)] := jRow
+    next
+    jPage["number"] := nPage
+    jPage["size"] := nSize
+    jPage["hasNext"] := lHasNext
+    jPage["firstRow"] := if(nRows == 0, 0, (nPage - 1) * nSize + 1)
+    jPage["lastRow"] := if(nRows == 0, 0, (nPage - 1) * nSize + nRows)
+    jResult["success"] := .T.
+    jResult["resultVersion"] := 1
+    jResult["rowCount"] := nRows
+    jResult["header"] := jHeader
+    jResult["rows"] := jRows
+    jResult["page"] := jPage
+    if lTotals
+        jResult["totalRows"] := nTotal
+        jResult["totalPages"] := Int(nTotal / nSize) + if(Mod(nTotal, nSize) == 0, 0, 1)
+    endif
+
+return(jResult)
+
+static function HTTPTableTestFailure() as json
+
+    local jResponse := JSONObject():New() as json
+
+    jResponse["success"] := .F.
+    jResponse["code"] := "PRIVATE_BACKEND_ERROR"
+    jResponse["error"] := "SELECT * FROM private_table; credential=secret"
+
+return(jResponse)

@@ -1,0 +1,399 @@
+/* Released to Public Domain. */
+#include "totvs.ch"
+#include "tlpp-core.th"
+
+namespace HBBridge.Examples
+
+procedure U_HBBridgeHTTPTable()
+    if ((FindClass("FWWebEx.Tools.FWExampleTools")).and.(FindClass("FWWebEx.WebExControl")))
+        FWWebEx.Tools.FWExampleTools():Execute({||HBBridge.Examples.HBBridgeHTTPTableExample():Show(.F.)},"HBBridgeHTTPTable",.T.)
+    endif
+return
+
+procedure U_HBBridgeHTTPTableSX5()
+    local cProfile as character
+    local aFWGetTopInfo as array
+    if ((FindClass("FWWebEx.Tools.FWExampleTools")).and.(FindClass("FWWebEx.WebExControl")))
+        aFWGetTopInfo:=FWGetTopInfo()
+        cProfile:=(aFWGetTopInfo[4]+"/"+aFWGetTopInfo[5])
+        FWFreeArray(@aFWGetTopInfo)
+        FWWebEx.Tools.FWExampleTools():Execute({||HBBridge.Examples.HBBridgeHTTPTableExample():Show(.T., cProfile/*, cURL, cToken, nTimeoutSeconds*/)},"HBBridgeHTTPTableSX5",.T.)
+    endif
+return
+
+// FWWebEx is an optional RPO dependency of this consumer, not of hbBridge.
+// Direct class calls require no copied FWWebEx headers or example helpers.
+class HBBridgeHTTPTableExample
+    static method Show(lUseSX5 as logical, cProfile as character, cURL as character, cToken as character, nTimeoutSeconds as numeric)
+    static method Definition(lUseSX5 as logical) as json
+    static method Page(jDefinition as json, cInstance as character, nWaitMs as numeric, cFile as character) as logical
+    static method Callback(oChannel as object, cType as character, cContent as character, cInstance as character, oAdapter as object, bPrevious as codeblock)
+    static method PreInitScript(cInstance as character, nWaitMs as numeric, jTypes as json) as character
+    static method AjaxScript() as character
+    static method CellRenderer() as character
+endclass
+
+static method Show(lUseSX5, cProfile, cURL, cToken, nTimeoutSeconds) class HBBridgeHTTPTableExample
+
+    local cFile := "", cNavigate := "" as character
+    local cInstance := UUIDRandomSeq() as character
+    local cIniFile := GetSrvIniName() as character
+    local nWaitSeconds := 30 as numeric
+    local nWaitMs := 0 as numeric
+    local jDefinition as json
+    local oClient as object
+    local oAdapter as object
+    local oChannel as object
+    local oDialog as object
+    local oEngine as object
+    local oError as object
+    local bPrevious as codeblock
+
+    if ValType(cProfile) == "U"
+        cProfile := GetPvProfString("hbBridge", "SQLProfile", "", cIniFile)
+    endif
+    if ValType(cProfile) != "C"
+        MsgStop("Supply a SQL profile or configure [hbBridge] SQLProfile.", "hbBridge HTTP table")
+        return
+    endif
+    if Empty(cProfile)
+        MsgStop("Supply a SQL profile or configure [hbBridge] SQLProfile.", "hbBridge HTTP table")
+        return
+    endif
+    if ValType(nTimeoutSeconds) == "N"
+        nWaitSeconds := nTimeoutSeconds
+    else
+        nWaitSeconds := Val(GetPvProfString("hbBridge", "HTTPTimeoutSeconds", "30", cIniFile))
+    endif
+    // A filtered draw can make two HTTP calls. This UI wait is not cancellation.
+    nWaitMs := Min(2147483647, Max(10000, (2 * nWaitSeconds + 10) * 1000))
+
+    try
+        jDefinition := HBBridgeHTTPTableExample():Definition(lUseSX5)
+        oClient := HBBridge.Client.HBBridgeHTTPClient():New(cURL, cToken, nTimeoutSeconds)
+        oAdapter := HBBridge.Examples.HBBridgeHTTPTable():New(cProfile, jDefinition["sql"], jDefinition["fields"], "ID", oClient)
+        if HBBridgeHTTPTableExample():Page(jDefinition, cInstance, nWaitMs, @cFile)
+            cNavigate := CpyF2Web(cFile, .F., .F., .F., .F.)
+            if Empty(cNavigate)
+                MsgStop("Unable to publish the table page.", "hbBridge HTTP table")
+            else
+                oChannel := FWWebEx.WebApp():GetTWebChannel()
+                bPrevious := oChannel:bJSToAdvPL
+                oChannel:bJSToAdvPL := {|oSender, cType, cContent|HBBridge.Examples.HBBridgeHTTPTableExample():Callback(oSender, cType, cContent, cInstance, oAdapter, bPrevious)}
+                oSize:=FWDefSize():New(.F.,.F.)
+                oSize:lLateral:=.F.
+                oSize:AddObject("TWebEngine",100,100,.T.,.T.)
+                oSize:Process()
+                nTop:=0
+                nLeft:=0
+                nBottom:=530
+                nRight:=1330
+                if (oSize:aWindSize[3]>0)
+                    nTop:=oSize:aWindSize[1]
+                    nLeft:=oSize:aWindSize[2]
+                    nBottom:=oSize:aWindSize[3]
+                    nRight:=oSize:aWindSize[4]
+                endif
+                DEFINE MSDIALOG oDialog TITLE "hbBridge HTTP table" FROM nTop,nLeft TO nBottom,nRight OF GetWndDefault() STATUS PIXEL
+                    if (oSize:aWindSize[3]>0)
+                        nTop:=oSize:GetDimension("TWebEngine","LININI")
+                        nLeft:=oSize:GetDimension("TWebEngine","COLINI")
+                        nBottom:=oSize:GetDimension("TWebEngine","LINEND")
+                        nRight:=oSize:GetDimension("TWebEngine","COLEND")
+                    endif
+                    oEngine:=TWebEngine():New(oDialog,nTop,nLeft,nRight,nBottom,/*cURL*/,oChannel:nPort)
+                    oEngine:Align := CONTROL_ALIGN_ALLCLIENT
+                    oEngine:Navigate(cNavigate)
+                ACTIVATE MSDIALOG oDialog CENTERED
+            endif
+        else
+            MsgStop("Unable to build the table page. Verify the FWWebEx installation.", "hbBridge HTTP table")
+        endif
+    catch oError
+        // Native exception text can contain configuration/SQL. Do not expose it.
+        MsgStop("Unable to open the HTTP table. Verify FWWebEx, the UI and the configured profile.", "hbBridge HTTP table")
+        if (ValType(oError)=="O")
+            ConOut(ProcName()+" Error: "+oError:Description,"")
+            FreeObj(@oError )
+        endif
+    endtry
+
+    if ValType(oChannel) == "O"
+        oChannel:bJSToAdvPL := bPrevious
+    endif
+    if ValType(oAdapter) == "O"
+        oAdapter:Close()
+    endif
+    FreeObj(@oEngine)
+    FreeObj(@oDialog)
+    FreeObj(@oAdapter)
+    FreeObj(@oClient)
+    FreeObj(@jDefinition)
+    if !Empty(cFile)
+        if File(cFile)
+            FErase(cFile)
+        endif
+    endif
+return
+
+static method Definition(lUseSX5) class HBBridgeHTTPTableExample
+
+    local jDefinition := JSONObject():New() as json
+    local jFields := JSONObject():New() as json
+    local cBranch := "" as character
+    local cSQL := "" as character
+
+    // Positional column order is required by the native DataTables interface.
+    if lUseSX5
+        // Protheus resolves physical table, active company and branch context.
+        cBranch := StrTran(xFilial("SX5"), "'", "''")
+        cSQL := "SELECT R_E_C_N_O_ AS ID, X5_FILIAL AS BRANCH, X5_TABELA AS TABLE_CODE, " + ;
+            "X5_CHAVE AS ITEM_CODE, X5_DESCRI AS DESCRIPTION FROM " + RetSQLName("SX5") + ;
+            " WHERE D_E_L_E_T_ = ' ' AND X5_FILIAL = '" + cBranch + "'"
+        jDefinition["columns"] := {"ID", "BRANCH", "TABLE_CODE", "ITEM_CODE", "DESCRIPTION"}
+        jFields["ID"] := {"type":"N", "title":"Record"}
+        jFields["BRANCH"] := {"type":"C", "title":"Branch"}
+        jFields["TABLE_CODE"] := {"type":"C", "title":"Table code"}
+        jFields["ITEM_CODE"] := {"type":"C", "title":"Item code"}
+        jFields["DESCRIPTION"] := {"type":"C", "title":"Description"}
+        jDefinition["title"] := "SX5: HTTP table and filters"
+    else
+        // Constant fixture works with SQLite and MSSQL; no ERP table is read.
+        cSQL := "SELECT 1 AS ID, 'Harbour' AS NAME, 'Runtime' AS CATEGORY " + ;
+            "UNION ALL SELECT 2, 'Protheus', 'Client' " + ;
+            "UNION ALL SELECT 3, 'Zig', 'Runtime' " + ;
+            "UNION ALL SELECT 4, 'C', 'Runtime' " + ;
+            "UNION ALL SELECT 5, 'SQLite', 'Database' " + ;
+            "UNION ALL SELECT 6, 'MSSQL', 'Database' " + ;
+            "UNION ALL SELECT 7, 'O''Brien', 'Text' " + ;
+            "UNION ALL SELECT 8, '100%_done', 'Text' " + ;
+            "UNION ALL SELECT 9, '<b>literal text</b>', 'Text' " + ;
+            "UNION ALL SELECT 10, 'HTTP', 'Transport' " + ;
+            "UNION ALL SELECT 11, 'NETIO', 'Transport' " + ;
+            "UNION ALL SELECT 12, 'TLPP', 'Client'"
+        jDefinition["columns"] := {"ID", "NAME", "CATEGORY"}
+        jFields["ID"] := {"type":"N", "title":"ID"}
+        jFields["NAME"] := {"type":"C", "title":"Name"}
+        jFields["CATEGORY"] := {"type":"C", "title":"Category"}
+        jDefinition["title"] := "hbBridge: HTTP table and filters"
+    endif
+    jDefinition["sql"] := cSQL
+    jDefinition["fields"] := jFields
+return(jDefinition)
+
+static method Page(jDefinition, cInstance, nWaitMs, cFile) class HBBridgeHTTPTableExample
+
+    local oPage := FWWebEx.WebExPage():New(jDefinition["title"]) as object
+    local oBody := FWWebEx.WebExBody():New() as object
+    local oHeading := FWWebEx.WebExControl():New("h1") as object
+    local oNotice := FWWebEx.WebExControl():New("p") as object
+    local oStatus := FWWebEx.WebExControl():New("p") as object
+    local oReset := FWWebEx.WebExControl():New("button") as object
+    local oTable := FWWebEx.WebExDataTable():New(jDefinition["title"], .T.) as object
+    local oFilter as object
+    local oPanel as object
+    local jTableFields := JSONObject():New() as json
+    local jTypes := JSONObject():New() as json
+    local jOptions := JSONObject():New() as json
+    local jColumn as json
+    local cHTML := "", cField := "" as character
+    local nColumn := 0 as numeric
+    local lWritten := .F. as logical
+
+    // FWWebEx requires a native fields array; rows/metadata stay keyed elsewhere.
+    jTableFields["fields"] := {}
+    for nColumn := 1 to Len(jDefinition["columns"])
+        cField := jDefinition["columns"][nColumn]
+        jColumn := JSONObject():New()
+        jColumn["data"] := cField
+        jColumn["title"] := jDefinition["fields"][cField]["title"]
+        jColumn["advplDataType"] := jDefinition["fields"][cField]["type"]
+        jColumn["visible"] := .T.
+        jColumn["bRender"] := {|cID|HBBridge.Examples.HBBridgeHTTPTableExample():CellRenderer()}
+        AAdd(jTableFields["fields"], jColumn)
+        jTypes[cField] := jDefinition["fields"][cField]["type"]
+    next nColumn
+    jOptions["dom"] := "lfrtip"
+    jOptions["pageLength"] := 5
+    jOptions["lengthMenu"] := {5, 10, 25, 50}
+    jOptions["orderMulti"] := .F.
+    jOptions["order"] := {{0, "asc"}}
+    jOptions["searchDelay"] := 350
+    // Empty url suppresses FWWebEx's default Portuguese language asset.
+    jOptions["language"] := {"url":"", "search":"Search:", "emptyTable":"No matching rows", "processing":"Loading..."}
+    oTable:SetFixedID("hbbridge-http-table")
+    oTable:SetDataTableFields(jTableFields)
+    oTable:SetDataTableOptions(jOptions)
+    oTable:SetPreInitJS(HBBridgeHTTPTableExample():PreInitScript(cInstance, nWaitMs, jTypes))
+    oTable:SetAjaxFunction(HBBridgeHTTPTableExample():AjaxScript())
+    oHeading:SetContent(jDefinition["title"])
+    oNotice:SetContent("Search text contains a literal value. Field filters use equality. Clear filters to restore the full result.")
+    oStatus:SetFixedID("hbbridge-http-table-status")
+    oStatus:SetAttr("role", "status")
+    oStatus:SetAttr("aria-live", "polite")
+    oReset:SetAttr("type", "button")
+    oReset:SetAttr("onclick", "const t=$('#hbbridge-http-table').DataTable();t.settings()[0].oInit.FWWebExFilter={};t.settings()[0].oInit.FWWebExPanelFilter={};t.search('').ajax.reload();")
+    oReset:AddClass("btn btn-outline-secondary mb-3")
+    oReset:SetContent("Clear filters / reload")
+    oFilter := FWWebEx.WebExDataTableFilter():New("hbbridge-http-table", jTableFields)
+    oPanel := FWWebEx.WebExDataTableFilterPanel():New("Field filters", "hbbridge-http-table", jTableFields)
+    oBody:AddChild(oHeading)
+    oBody:AddChild(oNotice)
+    oBody:AddChild(oFilter)
+    oBody:AddChild(oPanel)
+    oBody:AddChild(oReset)
+    oBody:AddChild(oStatus)
+    oBody:AddChild(oTable)
+    oPage:SetObjPageBody(oBody)
+    oPage:DisableFooter(.T.)
+    oPage:DisableDarkTheme(.T.)
+    lWritten := FWWebEx.WebFileTools():HTMLFromControl(oPage, oPage:GetFWWebExTmpPath(), @cFile, @cHTML, .T.)
+    oPage:Clean()
+    FreeObj(@oPage)
+    FreeObj(@jTableFields)
+    FreeObj(@jTypes)
+    FreeObj(@jOptions)
+return(lWritten)
+
+static method Callback(oChannel, cType, cContent, cInstance, oAdapter, bPrevious) class HBBridgeHTTPTableExample
+
+    local jEnvelope := JSONObject():New() as json
+    local jResponse as json
+    local oError as object
+    local lValid := .F. as logical
+
+    if cType != "HBBRIDGE_HTTP_TABLE_REQUEST"
+        if ValType(bPrevious) == "B"
+            Eval(bPrevious, oChannel, cType, cContent)
+        endif
+        FreeObj(@jEnvelope)
+        return
+    endif
+    try
+        lValid := ValType(jEnvelope:FromJSON(cContent)) == "U"
+        if lValid
+            lValid := jEnvelope:HasProperty("instance") .and. jEnvelope:HasProperty("request")
+        endif
+        if lValid
+            lValid := ValType(jEnvelope["instance"]) == "C" .and. ValType(jEnvelope["request"]) == "J"
+        endif
+        if lValid
+            // A document from an earlier dialog cannot query the new consumer.
+            lValid := jEnvelope["instance"] == cInstance
+        endif
+        if lValid
+            jResponse := oAdapter:Handle(jEnvelope["request"])
+            jResponse["instance"] := cInstance
+            jResponse:FromJSON(DecodeUTF8(jResponse:ToJSON()))
+            oChannel:AdvPLToJS("HBBRIDGE_HTTP_TABLE_RESPONSE", jResponse:ToJSON())
+        endif
+    catch oError
+        ConOut("hbBridge HTTP table callback failed; no native details were exposed.")
+        if (ValType(oError)=="O")
+            ConOut(ProcName()+" Error: "+oError:Description,"")
+            FreeObj(@oError )
+        endif
+    endtry
+    FreeObj(@jResponse)
+    FreeObj(@jEnvelope)
+return
+
+static method PreInitScript(cInstance, nWaitMs, jTypes) class HBBridgeHTTPTableExample
+
+    local cScript as character
+
+    beginContent var cScript
+        const hbTablePending = new Map();
+        const hbTableInstance = '__INSTANCE__';
+        const hbTableTypes = __TYPES__;
+        const hbTableBridge = FWWebEx.TWebChannel;
+        let hbTableLatestDraw = 0;
+        const hbTableStatus = document.getElementById('hbbridge-http-table-status');
+        function HBTableFinish(draw, response) {
+            const pending = hbTablePending.get(draw);
+            if (!pending) return;
+            hbTablePending.delete(draw);
+            clearTimeout(pending.timer);
+            if (draw === hbTableLatestDraw) {
+                hbTableStatus.textContent = response.success ? '' : (response.code + ': ' + response.error);
+            }
+            // Display errors through textContent; avoid DataTables' default alert.
+            pending.callback({draw, data: response.data || [],
+                recordsTotal: response.recordsTotal || 0, recordsFiltered: response.recordsFiltered || 0});
+        }
+        const hbTableUnsubscribe = hbTableBridge.onAdvplToJs((type, content) => {
+            if (type !== 'HBBRIDGE_HTTP_TABLE_RESPONSE') return false;
+            let response;
+            try { response = typeof content === 'string' ? JSON.parse(content) : content; }
+            catch (error) { return true; }
+            if (!response || response.instance !== hbTableInstance) return true;
+            HBTableFinish(response.draw, response);
+            return true;
+        });
+        function HBTableRequest(data, callback, settings) {
+            const draw = data.draw;
+            hbTableLatestDraw = draw;
+            const fail = (code, error) => HBTableFinish(draw,
+                {success: false, code, error, data: [], recordsTotal: 0, recordsFiltered: 0});
+            const timer = setTimeout(() => fail('UI_TIMEOUT', 'The table response timed out. Reload to retry.'), __WAIT_MS__);
+            hbTablePending.set(draw, {callback, timer});
+            try {
+                if (data.search && data.search.regex) throw new Error('Regular-expression search is not supported.');
+                // settings is valid even during the constructor's initial Ajax draw.
+                const api = new $.fn.dataTable.Api(settings);
+                const state = FWWebExGetDataTableFilters(api, ['FWWebExFilter', 'FWWebExPanelFilter']);
+                const raw = {...state.FWWebExFilter, ...state.FWWebExPanelFilter};
+                const filters = {};
+                Object.keys(raw).forEach(field => {
+                    if (!Object.hasOwn(hbTableTypes, field)) throw new Error('Unknown filter field.');
+                    const value = String(raw[field]);
+                    if (hbTableTypes[field] === 'N') {
+                        if (!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(value.trim()) || !Number.isFinite(Number(value))) {
+                            throw new Error('Numeric filters require a complete numeric value.');
+                        }
+                        filters[field] = Number(value);
+                    } else {
+                        filters[field] = value;
+                    }
+                });
+                const order = data.order && data.order.length ? data.order[0] : {column: 0, dir: 'asc'};
+                const request = {draw, start: data.start, length: data.length,
+                    search: data.search ? data.search.value : '', filters,
+                    orderField: data.columns[order.column].data, orderDirection: order.dir.toUpperCase()};
+                Promise.resolve().then(() => hbTableBridge.send('HBBRIDGE_HTTP_TABLE_REQUEST',
+                    JSON.stringify({instance: hbTableInstance, request}))).catch(() =>
+                    fail('CHANNEL_FAILED', 'Unable to send the table request to Protheus.'));
+            } catch (error) {
+                fail('INVALID_TABLE_REQUEST', error.message);
+            }
+        }
+        window.addEventListener('pagehide', () => {
+            hbTableUnsubscribe();
+            hbTablePending.forEach(pending => clearTimeout(pending.timer));
+            hbTablePending.clear();
+        }, {once: true});
+    endContent
+    cScript := StrTran(cScript, "__INSTANCE__", cInstance)
+    cScript := StrTran(cScript, "__WAIT_MS__", AllTrim(Str(nWaitMs, 15, 0)))
+    cScript := StrTran(cScript, "__TYPES__", jTypes:ToJSON())
+return(cScript)
+
+static method AjaxScript() class HBBridgeHTTPTableExample
+    local cScript as character
+    beginContent var cScript
+        function (data, callback, settings) {
+            HBTableRequest(data, callback, settings);
+        }
+    endContent
+return(cScript)
+
+static method CellRenderer() class HBBridgeHTTPTableExample
+    local cScript as character
+    beginContent var cScript
+        function (data, type) {
+            if (type !== 'display') return data;
+            return String(data == null ? '' : data).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+    endContent
+return(cScript)

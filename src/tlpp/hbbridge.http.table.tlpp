@@ -1,0 +1,487 @@
+/* Released to Public Domain. */
+#include "tlpp-core.th"
+
+namespace HBBridge.Examples
+
+// Optional consumer adapter: the installation supplies the profile, trusted
+// base SELECT, logical fields and unique projected key. Browser input contains
+// values and mapped field names, never SQL, profiles or ERP context.
+class HBBridgeHTTPTable
+
+    private data cProfile as character
+    private data cSQL as character
+    private data cKeyField as character
+    private data jFields as json
+    private data oClient as object
+    private data lOwnClient as logical
+    private data lConfigured as logical
+
+    public method New(cProfile as character, cSQL as character, jFields as json, ;
+        cKeyField as character, oClient as object) as object
+    public method Handle(jRequest as json) as json
+    public method Close()
+
+endclass
+
+method New(cProfile, cSQL, jFields, cKeyField, oClient) class HBBridgeHTTPTable
+
+    local aNames as array
+    local cField := "", cKey := "" as character
+    local jField as json
+    local nField := 0 as numeric
+
+    self:cProfile := ""
+    self:cSQL := ""
+    self:cKeyField := ""
+    self:jFields := JSONObject():New()
+    self:oClient := oClient
+    self:lOwnClient := .F.
+    self:lConfigured := .F.
+
+    if ValType(cProfile) != "C" .or. ValType(cSQL) != "C" .or. ;
+        ValType(cKeyField) != "C" .or. ValType(jFields) != "J"
+        return(self)
+    endif
+    if Empty(AllTrim(cProfile)) .or. Empty(AllTrim(cSQL)) .or. ;
+        !HTTPTableIdentifier(cKeyField) .or. Left(jFields:ToJSON(), 1) != "{"
+        return(self)
+    endif
+
+    // GetNames() is a native array API; retain one array for this validation.
+    aNames := jFields:GetNames()
+    if Empty(aNames)
+        return(self)
+    endif
+    for nField := 1 to Len(aNames)
+        cField := aNames[nField]
+        if !HTTPTableIdentifier(cField)
+            return(self)
+        endif
+        cKey := Upper(cField)
+        if self:jFields:HasProperty(cKey) .or. ValType(jFields[cField]) != "J"
+            return(self)
+        endif
+        jField := jFields[cField]
+        if !jField:HasProperty("type") .or. !jField:HasProperty("title")
+            return(self)
+        endif
+        if ValType(jField["type"]) != "C" .or. ValType(jField["title"]) != "C"
+            return(self)
+        endif
+        if !(jField["type"] == "C" .or. jField["type"] == "N")
+            return(self)
+        endif
+        self:jFields[cKey] := JSONObject():New()
+        self:jFields[cKey]:FromJSON(jField:ToJSON())
+    next
+    self:cKeyField := Upper(cKeyField)
+    if !self:jFields:HasProperty(self:cKeyField)
+        return(self)
+    endif
+
+    self:cProfile := cProfile
+    self:cSQL := AllTrim(cSQL)
+    if Right(self:cSQL, 1) == ";"
+        self:cSQL := RTrim(Left(self:cSQL, Len(self:cSQL) - 1))
+    endif
+    // The caller owns SQL validity, projection and the absence of an outer
+    // ORDER BY. Physical ERP names and business predicates are resolved there.
+    if ValType(self:oClient) == "U"
+        self:oClient := HBBridge.Client.HBBridgeHTTPClient():New()
+        self:lOwnClient := .T.
+    endif
+    self:lConfigured := ValType(self:oClient) == "O"
+
+return(self)
+
+method Handle(jRequest) class HBBridgeHTTPTable
+
+    local aNames as array
+    local aFieldNames as array
+    local cName := "", cField := "", cType := "", cLiteral := "" as character
+    local cSearch := "", cSearchSQL := "", cPredicate := "" as character
+    local cOrderField := "", cDirection := "ASC", cOrder := "" as character
+    local cBase := "", cFiltered := "" as character
+    local jFilters := JSONObject():New() as json
+    local jResponse as json
+    local jSourceRow as json
+    local jRow as json
+    local oDataSet as object
+    local xValue as variant
+    local nDraw := 0, nStart := 0, nLength := 0, nPage := 0 as numeric
+    local nField := 0, nRow := 0, nFiltered := 0, nTotal := 0 as numeric
+    local lFiltered := .F., lValid := .T. as logical
+
+    if ValType(jRequest) != "J"
+        FreeObj(@jFilters)
+        return HTTPTableFailure(0, "INVALID_REQUEST", "Supply a table request object.")
+    endif
+    if Left(jRequest:ToJSON(), 1) != "{"
+        FreeObj(@jFilters)
+        return HTTPTableFailure(0, "INVALID_REQUEST", "Supply a table request object.")
+    endif
+    if jRequest:HasProperty("draw")
+        if HTTPTableInteger(jRequest["draw"])
+            nDraw := jRequest["draw"]
+        endif
+    endif
+    if !self:lConfigured
+        FreeObj(@jFilters)
+        return HTTPTableFailure(nDraw, "INVALID_CONFIGURATION", "The table consumer is not configured.")
+    endif
+
+    aNames := jRequest:GetNames()
+    for nField := 1 to Len(aNames)
+        cName := aNames[nField]
+        if !(cName == "draw" .or. cName == "start" .or. cName == "length" .or. ;
+            cName == "search" .or. cName == "filters" .or. ;
+            cName == "orderField" .or. cName == "orderDirection")
+            FreeObj(@jFilters)
+            return HTTPTableFailure(nDraw, "INVALID_REQUEST", "The table request contains an unsupported property.")
+        endif
+    next
+    if !jRequest:HasProperty("draw") .or. !jRequest:HasProperty("start") .or. ;
+        !jRequest:HasProperty("length")
+        FreeObj(@jFilters)
+        return HTTPTableFailure(nDraw, "INVALID_PAGE", "Supply draw, start and a positive page length.")
+    endif
+    if !HTTPTableInteger(jRequest["draw"]) .or. !HTTPTableInteger(jRequest["start"]) .or. ;
+        !HTTPTableInteger(jRequest["length"])
+        FreeObj(@jFilters)
+        return HTTPTableFailure(nDraw, "INVALID_PAGE", "Page values must be nonnegative exact integers.")
+    endif
+    nStart := jRequest["start"]
+    nLength := jRequest["length"]
+    if nLength < 1 .or. nLength >= 9007199254740991
+        FreeObj(@jFilters)
+        return HTTPTableFailure(nDraw, "INVALID_PAGE", "Select a positive finite page length.")
+    endif
+    if Mod(nStart, nLength) != 0 .or. nStart > 9007199254740991 - nLength - 1
+        FreeObj(@jFilters)
+        return HTTPTableFailure(nDraw, "INVALID_PAGE", "Page start must align with its length and have representable bounds.")
+    endif
+    nPage := Int(nStart / nLength) + 1
+
+    if jRequest:HasProperty("search")
+        if ValType(jRequest["search"]) != "C"
+            FreeObj(@jFilters)
+            return HTTPTableFailure(nDraw, "INVALID_SEARCH", "Search must be text.")
+        endif
+        cSearch := jRequest["search"]
+        if Chr(0) $ cSearch
+            FreeObj(@jFilters)
+            return HTTPTableFailure(nDraw, "INVALID_SEARCH", "Search contains an unsupported character.")
+        endif
+    endif
+    cOrderField := self:cKeyField
+    if jRequest:HasProperty("orderField")
+        if ValType(jRequest["orderField"]) != "C"
+            FreeObj(@jFilters)
+            return HTTPTableFailure(nDraw, "INVALID_ORDER", "Select a configured order field.")
+        endif
+        cOrderField := Upper(jRequest["orderField"])
+    endif
+    if !self:jFields:HasProperty(cOrderField)
+        FreeObj(@jFilters)
+        return HTTPTableFailure(nDraw, "INVALID_ORDER", "Select a configured order field.")
+    endif
+    if jRequest:HasProperty("orderDirection")
+        if ValType(jRequest["orderDirection"]) != "C"
+            FreeObj(@jFilters)
+            return HTTPTableFailure(nDraw, "INVALID_ORDER", "Order direction must be ASC or DESC.")
+        endif
+        cDirection := Upper(jRequest["orderDirection"])
+    endif
+    if !(cDirection == "ASC" .or. cDirection == "DESC")
+        FreeObj(@jFilters)
+        return HTTPTableFailure(nDraw, "INVALID_ORDER", "Order direction must be ASC or DESC.")
+    endif
+    cOrder := cOrderField + " " + cDirection
+    if cOrderField != self:cKeyField
+        cOrder += "," + self:cKeyField + " ASC"
+    endif
+
+    if jRequest:HasProperty("filters")
+        if ValType(jRequest["filters"]) != "J"
+            FreeObj(@jFilters)
+            return HTTPTableFailure(nDraw, "INVALID_FILTER", "Filters must be a field-value object.")
+        endif
+        if Left(jRequest["filters"]:ToJSON(), 1) != "{"
+            FreeObj(@jFilters)
+            return HTTPTableFailure(nDraw, "INVALID_FILTER", "Filters must be a field-value object.")
+        endif
+        jFilters:FromJSON(jRequest["filters"]:ToJSON())
+    endif
+    aNames := jFilters:GetNames()
+    for nField := 1 to Len(aNames)
+        cName := aNames[nField]
+        cField := Upper(cName)
+        if !self:jFields:HasProperty(cField)
+            FreeObj(@jFilters)
+            return HTTPTableFailure(nDraw, "INVALID_FILTER", "Select configured filter fields.")
+        endif
+        cType := self:jFields[cField]["type"]
+        xValue := jFilters[cName]
+        if ValType(xValue) != cType
+            FreeObj(@jFilters)
+            return HTTPTableFailure(nDraw, "INVALID_FILTER", "Filter values must match their configured text or numeric type.")
+        endif
+        if cType == "C"
+            if Chr(0) $ xValue
+                FreeObj(@jFilters)
+                return HTTPTableFailure(nDraw, "INVALID_FILTER", "A filter value contains an unsupported character.")
+            endif
+            cLiteral := HTTPTableTextLiteral(xValue)
+        else
+            cLiteral := HTTPTableNumberLiteral(xValue)
+            if Empty(cLiteral)
+                FreeObj(@jFilters)
+                return HTTPTableFailure(nDraw, "INVALID_FILTER", "Supply a finite numeric filter value.")
+            endif
+        endif
+        cPredicate += if(Empty(cPredicate), "", " AND ") + ;
+            "HBGRID.[" + cField + "] = " + cLiteral
+    next
+    FreeObj(@jFilters)
+
+    aFieldNames := self:jFields:GetNames()
+    if !Empty(cSearch)
+        cLiteral := HTTPTableTextLiteral("%" + HTTPTableLikeText(cSearch) + "%")
+        for nField := 1 to Len(aFieldNames)
+            cField := aFieldNames[nField]
+            if self:jFields[cField]["type"] == "C"
+                cSearchSQL += if(Empty(cSearchSQL), "", " OR ") + ;
+                    "HBGRID.[" + cField + "] LIKE " + cLiteral + " ESCAPE '~'"
+            endif
+        next
+        if Empty(cSearchSQL)
+            return HTTPTableFailure(nDraw, "INVALID_SEARCH", "This table has no searchable text fields.")
+        endif
+        cPredicate += if(Empty(cPredicate), "", " AND ") + "(" + cSearchSQL + ")"
+    endif
+    lFiltered := !Empty(cPredicate)
+    cBase := "SELECT HBGRID.* FROM (" + self:cSQL + ") AS HBGRID"
+    cFiltered := cBase + if(lFiltered, " WHERE " + cPredicate, "")
+
+    oDataSet := HBBridge.RDD.HBBridgeRPCDataSet():New(self:oClient)
+    oDataSet:SetAliasProfile(self:cProfile)
+    if !oDataSet:OpenPage(cFiltered, nPage, nLength, cOrder)
+        oDataSet:Close()
+        FreeObj(@oDataSet)
+        return HTTPTableFailure(nDraw, "QUERY_FAILED", "The table query could not be completed.")
+    endif
+    if !oDataSet:HasTotals()
+        oDataSet:Close()
+        FreeObj(@oDataSet)
+        return HTTPTableFailure(nDraw, "TOTALS_REQUIRED", "The table query must provide complete result totals.")
+    endif
+    for nField := 1 to Len(aFieldNames)
+        if !oDataSet:FieldExist(aFieldNames[nField])
+            lValid := .F.
+            exit
+        endif
+    next
+    if !lValid
+        oDataSet:Close()
+        FreeObj(@oDataSet)
+        return HTTPTableFailure(nDraw, "INVALID_RESULT", "The table query does not provide its configured fields.")
+    endif
+
+    nFiltered := oDataSet:TotalRows()
+    nTotal := nFiltered
+    jResponse := HTTPTableFailure(nDraw, "", "")
+    // DataTables requires a native row array. Retain only this requested page;
+    // GetRow() supplies owned snapshots and Skip() never fetches another page.
+    jResponse["data"] := Array(oDataSet:RowCount())
+    for nRow := 1 to oDataSet:RowCount()
+        jSourceRow := oDataSet:GetRow()
+        jRow := JSONObject():New()
+        for nField := 1 to Len(aFieldNames)
+            cField := aFieldNames[nField]
+            if !jSourceRow:HasProperty(cField)
+                lValid := .F.
+                exit
+            endif
+            jRow[cField] := jSourceRow[cField]
+        next
+        FreeObj(@jSourceRow)
+        if !lValid
+            FreeObj(@jRow)
+            exit
+        endif
+        jResponse["data"][nRow] := jRow
+        oDataSet:Skip()
+    next
+    if !lValid
+        oDataSet:Close()
+        FreeObj(@oDataSet)
+        FreeObj(@jResponse)
+        return HTTPTableFailure(nDraw, "INVALID_RESULT", "A table row does not provide its configured fields.")
+    endif
+
+    if lFiltered
+        // This count uses the same immutable base predicates. A fresh request
+        // avoids stale totals; separate SQL calls do not promise a snapshot.
+        if !oDataSet:OpenPage(cBase, 1, 1, self:cKeyField + " ASC")
+            oDataSet:Close()
+            FreeObj(@oDataSet)
+            FreeObj(@jResponse)
+            return HTTPTableFailure(nDraw, "QUERY_FAILED", "The table total could not be retrieved.")
+        endif
+        if !oDataSet:HasTotals()
+            oDataSet:Close()
+            FreeObj(@oDataSet)
+            FreeObj(@jResponse)
+            return HTTPTableFailure(nDraw, "TOTALS_REQUIRED", "The table query must provide complete result totals.")
+        endif
+        nTotal := oDataSet:TotalRows()
+    endif
+    oDataSet:Close()
+    FreeObj(@oDataSet)
+
+    jResponse["success"] := .T.
+    jResponse["code"] := "OK"
+    jResponse["recordsTotal"] := nTotal
+    jResponse["recordsFiltered"] := nFiltered
+
+return(jResponse)
+
+method Close() class HBBridgeHTTPTable
+
+    local jFields := self:jFields as json
+    local oClient := self:oClient as object
+
+    self:jFields := Nil
+    self:oClient := Nil
+    self:lConfigured := .F.
+    if ValType(jFields) == "J"
+        FreeObj(@jFields)
+    endif
+    if self:lOwnClient .and. ValType(oClient) == "O"
+        FreeObj(@oClient)
+    endif
+    self:lOwnClient := .F.
+
+return
+
+static function HTTPTableFailure(nDraw as numeric, cCode as character, cError as character) as json
+
+    local jResponse := JSONObject():New() as json
+
+    jResponse["success"] := .F.
+    jResponse["code"] := cCode
+    jResponse["error"] := cError
+    jResponse["draw"] := nDraw
+    jResponse["data"] := Array(0)
+    jResponse["recordsTotal"] := 0
+    jResponse["recordsFiltered"] := 0
+
+return(jResponse)
+
+static function HTTPTableInteger(xValue as variant) as logical
+
+    if ValType(xValue) != "N"
+        return(.F.)
+    endif
+
+return(xValue >= 0 .and. xValue <= 9007199254740991 .and. xValue == Int(xValue))
+
+static function HTTPTableIdentifier(cValue as character) as logical
+
+    local nChar := 0 as numeric
+    local cChar := "" as character
+
+    if Empty(cValue)
+        return(.F.)
+    endif
+    for nChar := 1 to Len(cValue)
+        cChar := Upper(SubStr(cValue, nChar, 1))
+        if !(cChar $ "ABCDEFGHIJKLMNOPQRSTUVWXYZ_")
+            if nChar == 1 .or. !(cChar $ "0123456789")
+                return(.F.)
+            endif
+        endif
+    next
+
+return(.T.)
+
+static function HTTPTableTextLiteral(cValue as character) as character
+
+return("'" + StrTran(cValue, "'", "''") + "'")
+
+static function HTTPTableLikeText(cValue as character) as character
+
+    cValue := StrTran(cValue, "~", "~~")
+    cValue := StrTran(cValue, "%", "~%")
+    cValue := StrTran(cValue, "_", "~_")
+    cValue := StrTran(cValue, "[", "~[")
+    cValue := StrTran(cValue, "]", "~]")
+
+return(cValue)
+
+static function HTTPTableNumberLiteral(xValue as numeric) as character
+
+    local jValue := JSONObject():New() as json
+    local cValue := "", cChar := "" as character
+    local nChar := 1, nDigits := 0 as numeric
+
+    // Use JSON's locale-independent numeric spelling; do not invent a decimal
+    // scale from ODBC metadata or turn exact decimal text into a double.
+    jValue["value"] := xValue
+    cValue := jValue:ToJSON()
+    FreeObj(@jValue)
+    cValue := AllTrim(SubStr(cValue, At(":", cValue) + 1))
+    cValue := AllTrim(Left(cValue, Len(cValue) - 1))
+    if Left(cValue, 1) == "-"
+        nChar++
+    endif
+    do while nChar <= Len(cValue)
+        cChar := SubStr(cValue, nChar, 1)
+        if !(cChar $ "0123456789")
+            exit
+        endif
+        nDigits++
+        nChar++
+    enddo
+    if nDigits == 0
+        return("")
+    endif
+    if SubStr(cValue, nChar, 1) == "."
+        nChar++
+        nDigits := 0
+        do while nChar <= Len(cValue)
+            cChar := SubStr(cValue, nChar, 1)
+            if !(cChar $ "0123456789")
+                exit
+            endif
+            nDigits++
+            nChar++
+        enddo
+        if nDigits == 0
+            return("")
+        endif
+    endif
+    if Upper(SubStr(cValue, nChar, 1)) == "E"
+        nChar++
+        cChar := SubStr(cValue, nChar, 1)
+        if cChar == "+" .or. cChar == "-"
+            nChar++
+        endif
+        nDigits := 0
+        do while nChar <= Len(cValue)
+            cChar := SubStr(cValue, nChar, 1)
+            if !(cChar $ "0123456789")
+                exit
+            endif
+            nDigits++
+            nChar++
+        enddo
+        if nDigits == 0
+            return("")
+        endif
+    endif
+    if nChar <= Len(cValue)
+        return("")
+    endif
+
+return(cValue)
