@@ -60,8 +60,8 @@ declarations remain independent. TLPP class/file pairs are:
 `HBBridgeConfig`/`hbbridge.config.tlpp`,
 `HBBridgeTime`/`hbbridge.time.tlpp`,
 `HBBridgeRPCDataSet`/`hbbridge.rpc.dataset.tlpp`.
-Functions, procedures, methods, namespaces and classes use PascalCase by the
-owner's explicit decision. Preserve required native/public API spellings; see
+Functions, procedures, methods, namespaces and classes use PascalCase as an
+established project convention. Preserve required native/public API spellings; see
 [standards](standards.md).
 
 Harbour counterparts follow the same basename convention; extensions identify

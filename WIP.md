@@ -12,11 +12,11 @@ acceptance records verified results; ChangeLog and Git preserve history.
 | Item | Current value |
 | --- | --- |
 | ID | `001-mssql-acceptance` |
-| Opened / updated | 2026-10-07 / 2026-10-12 |
+| Opened / updated | 2026-10-07 / 2026-10-13 |
 | Status | Native MSSQL accepted: 92 checks; Protheus TCP: 29 and HTTP: 13 each for MSSQL/SQLite. Package remains open. |
 | Goal | Accept the existing RPCRDD.Query/dataset against an identified real MSSQL database through Harbour, Protheus TCP and Protheus HTTP. |
 | Product reference | Published code `50e1c65`; checkout at package opening `bce52d2` includes the clone badge update. |
-| Next task | Owner-requested dataset API acceptance and UTF-8/FLOAT integrity corrections below; then resume M06. |
+| Next task | Requested dataset API acceptance and UTF-8/FLOAT integrity corrections below; then resume M06. |
 
 ### Decisions already made
 
@@ -30,7 +30,7 @@ acceptance records verified results; ChangeLog and Git preserve history.
 - Use a private complete ODBC string or the structured MSSQL configuration
   keys, with explicit SQL/integrated authentication. Portable encrypted credentials/CLI remain a later package;
   their implementation is not a prerequisite for this acceptance.
-- The owner clarified on 2026-10-07 that SQL credentials are stable; automatic
+- Clarified on 2026-10-07: SQL credentials are stable; automatic
   database password rotation is outside the selected scope. OpenBao KV storage
   needs no dynamic MSSQL plugin. Vault token renewal is a separate lifecycle.
 - Preserve the shared SQL lifecycle mutex. Verify isolation/cleanup under
@@ -41,12 +41,12 @@ acceptance records verified results; ChangeLog and Git preserve history.
 ### Verified starting point
 
 - Harbour suite: **487 checks, zero failures, no skips**, repeated 2026-10-07.
-- Operator SQLite acceptance: **29 dataset/page checks**, repeated 2026-10-07,
+- Manual AppServer SQLite acceptance: **29 dataset/page checks**, repeated 2026-10-07,
   thread 27136, profile `sqlite_demo`.
 - Revised client configuration: **16 checks**, 2026-10-07, thread 30596.
-- Operator TCP: clock, Health, ADDON and both exact 200000-byte Echo calls
+- Manual AppServer TCP: clock, Health, ADDON and both exact 200000-byte Echo calls
   passed, 2026-10-07, thread 27084.
-- Operator TLPP HTTP acceptance: **13 checks**, repeated 2026-10-07,
+- Manual AppServer TLPP HTTP acceptance: **13 checks**, repeated 2026-10-07,
   threads 27296 and 25456 after the reported recompilation.
   Its SQL profile/backend was not supplied; it does not certify MSSQL.
 - Native THREAD STATIC probe: **31 assertions**; worker state differs from
@@ -55,7 +55,7 @@ acceptance records verified results; ChangeLog and Git preserve history.
 
 ### Explicit preparatory change: Harbour source extension
 
-On 2026-10-07 the owner authorized adopting native `.hb` for all project-owned
+On 2026-10-07 adoption of native `.hb` was authorized for all project-owned
 Harbour sources. This bounded organization change precedes M01 and does not
 replace package 001, reset its progress or certify MSSQL.
 
@@ -70,16 +70,29 @@ Evidence: 487 Harbour checks, zero failures/no skips; isolated product build
 and help/configuration smoke checks; all three commit gates for 141 files;
 61 documents' local links and whitespace passed. Logs/details are in
 [acceptance](docs/acceptance.md#native-harbour-source-extension-on-2026-10-07).
-The operator reported recompilation and subsequently supplied passing TCP,
+Recompilation was reported, followed by passing manual AppServer TCP,
 SQLite, revised configuration and HTTP runs. Evidence:
 `tmp/protheus-http-hb-operator-20261007.log` and
 `tmp/protheus-suite-hb-operator-20261007.log`; see [acceptance](docs/acceptance.md).
 The preparatory TLPP regression is accepted for the exercised cases. Resume M01;
 do not redo the completed extension migration or infer MSSQL acceptance.
 
+<a id="preparatory-http-table-example-operator-acceptance"></a>
+
+### Preparatory HTTP table example: manual validation
+
+- [x] **F01 — Accept the FWWebEx HTTP table example.** Validation was confirmed
+  as OK on 2026-10-13, with six screenshots of the constant fixture and SX5.
+  Visible results cover 5/10-row displays, global search, a Description equality
+  filter, filtered/unfiltered totals and literal text rendering. See the
+  [example evidence](src/tlpp/tests/protheus/hbbridge.http.table.test/README.md)
+  and [acceptance](docs/acceptance.md#fwwebex-http-table-validation-confirmed-on-2026-10-13).
+  This requested preparation is complete for the demonstrated views. D02/D03
+  retain their specific mock execution and data-integrity acceptance tasks.
+
 ### Work in order
 
-The owner expanded the analysis on 2026-10-08 after the accepted HTTP runs:
+The analysis was expanded on 2026-10-08 after the accepted HTTP runs:
 dataset header access/automatic page traversal, encoding/collation and logical
 field sizes/decimals. A constant probe revealed a raw FLOAT JSON precision
 defect, and source inspection found a TCP codepage inconsistency. These are
@@ -88,7 +101,7 @@ new acceptance findings, not reasons to repeat the completed inventory.
 - [x] **D01 — Review the consumer interface.** Inspect the supplied local
   FileRead/FileNavigator examples; adopt explicit `MoreToRead()` and metadata
   methods while preserving page-local `Eof()`/`Skip()`. Current canonical
-  metadata API is `Header()`; the owner removed `DSStruct()` afterwards.
+  metadata API is `Header()`; `DSStruct()` was removed afterwards.
 - [ ] **D02 — Accept the TLPP dataset extension.** Compile and exercise
   header/field/row copies, column order, automatic traversal, repeated checks,
   empty/closed state and page failure/recovery. The new mock tests use no ERP data.
@@ -152,9 +165,10 @@ new acceptance findings, not reasons to repeat the completed inventory.
 Close this package only when M01–M09 are checked with attributable evidence:
 identified real MSSQL/backend/configuration, successful Harbour/TCP/HTTP calls,
 values/pages, failure recovery, resource isolation/release and relevant
-regressions. Checkbox completion must distinguish implemented code, agent runs
-and operator runs. Record concrete limitations and follow-ups without claiming
-HTTPS, Linux, other drivers or unsupported types from this Windows acceptance.
+regressions. Checkbox completion must distinguish implemented code, local
+automated checks and manual AppServer runs. Record concrete limitations and
+follow-ups without claiming HTTPS, Linux, other drivers or unsupported types
+from this Windows acceptance.
 Any change to required scope/criteria must be recorded explicitly before closing.
 
 ### Current prerequisites and resume note
@@ -166,17 +180,17 @@ Microsoft ODBC Driver 18 for SQL Server is installed, product version
 **18.6.2.1**, x64; Driver 17 is also present. The console identity is
 `DNA-TECH-01\marin`; service identities remain separate acceptance work.
 
-The operator selected a private INI to fill, rather than a ready connection.
+A private INI was selected for local completion; no ready connection was supplied.
 `C:/tmp/hbBridge.ini` initially contained only `sqlite_demo` as an SQL profile.
 On 2026-10-08 a commented `MSSQL/pData` template was appended with a private
 backup and byte-for-byte preservation of existing settings. It uses the
 installed `pData` DSN, explicit `Authentication=sql` and empty `Username`/
-`Password` fields for the operator to fill locally and uncomment. Its explicit
+`Password` fields for local completion and uncommenting. Its explicit
 local `Encrypt=optional` policy follows that development DSN; deployed TLS
 settings require their own certificate configuration. No SQL credential was
 read from DBAccess, changed in ODBC or stored in the repository.
 
-The operator enabled the profile and filled credentials during this work.
+The profile was enabled and credentials were filled locally during this work.
 Its structured configuration validated without displaying values. A read-only
 `System.Data.Odbc` probe using those private credentials and SQL authentication
 connected to **SQL Server 16.0.1200.5**, database **pData**, on 2026-10-08.
@@ -209,20 +223,20 @@ timeout and broader profile isolation remain. M08 still needs TCP/HTTP and memor
 The default regression passed **566 checks, zero failures/no skips**:
 `tmp/tests-f84004277a8d4cc2905131f706a1e181/results.log`.
 
-The operator supplied TCP runs on 2026-10-08, São Paulo time:
+Manual AppServer TCP runs were reported on 2026-10-08, São Paulo time:
 `U_HBBridgeQueryTestMSSQL`, 10:06:10, thread 660, profile `MSSQL/pData`, and
 `U_HBBridgeQueryTestSQLite`, 10:06:43, thread 3192, profile `sqlite_demo`.
-Both reports contain all 29 checks true. The operator added those wrappers
+Both reports contain all 29 checks true. Those wrappers were added
 to the existing TLPP test; their defaults remain test-only, without changing
 the product's optional SQL alias. Evidence:
 `tmp/protheus-mssql-sqlite-operator-20261008.log`. M04 is accepted for those
 cases; no new compiler log or server artifact hash was supplied.
 
-The operator also supplied HTTP runs on 2026-10-08, São Paulo time:
+Manual AppServer HTTP runs were also reported on 2026-10-08, São Paulo time:
 `U_HBBridgeHTTPTestMSSQL`, program 10:33:32, thread 25976, body 10:33:33–34,
 and `U_HBBridgeHTTPTestSQLite`, program 10:34:06, thread 9916, body 10:34:07.
 Both contain all 13 checks true/PASS and Health HTTP 200. The inspected
-operator-added wrappers default explicitly to `MSSQL/pData` and `sqlite_demo`,
+added wrappers default explicitly to `MSSQL/pData` and `sqlite_demo`,
 respectively, and forward to the common HTTP test; library defaults are unchanged.
 Evidence: `tmp/protheus-http-mssql-sqlite-operator-20261008.log`.
 M05 is accepted for those cases. Reported elapsed 1 s/0 s has whole-second
@@ -230,8 +244,8 @@ resolution and does not replace M08 measurements. No compiler log, explicit
 call arguments or server artifact hash was supplied. HTTPS, wider native type
 transport and Linux remain separate acceptance tasks.
 
-Progress/evidence: P01/P02 and M01–M05 complete for the exercised fixtures.
-Handle D02/D03 from the owner's new request before resuming M06 with controlled
+Progress/evidence: P01/P02/F01 and M01–M05 complete for the exercised cases.
+Handle D02/D03 from the new request before resuming M06 with controlled
 unavailable-connection/native-timeout cases, sanitized errors and recovery;
 invalid SQL/unknown-profile recovery already has native and TCP evidence.
 Do not repeat accepted migrations, inventory or native/TCP/HTTP cases without
@@ -239,7 +253,7 @@ new evidence requiring it. M07–M09 and the package completion criteria remain.
 
 ## Following packages: reserved direction
 
-Owner observation on 2026-10-12: [evaluate SQL connection reuse](docs/sql-connections.md)
+Observation recorded on 2026-10-12: [evaluate SQL connection reuse](docs/sql-connections.md)
 after measuring its actual cost, using M08's baseline as input. Compare ODBC
 pooling and host-owned per-profile reuse; distinguish database persistence from
 RPC transport persistence. This note does not authorize an implementation choice
@@ -262,7 +276,7 @@ remain pending. UTF-8/FLOAT and encrypted credentials are not resolved by this r
 | Later | Jobs/batches/progress/cancellation and useful native extensions. |
 
 These are priorities, not completed specifications or tasks in package 001.
-The operator's OpenBao RFC was reviewed on 2026-10-07 in
+The supplied OpenBao RFC was reviewed on 2026-10-07 in
 [credentials](docs/credentials.md#optional-openbao-provider-rfc-review-on-2026-10-07).
 It remains a future optional provider for stable credentials. Automatic SQL
 password rotation and dynamic database plugins are outside the initial package

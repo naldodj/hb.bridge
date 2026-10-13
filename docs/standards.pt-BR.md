@@ -5,7 +5,7 @@
 Use quatro espaços nos fontes próprios. Os utilitários Harbour importados e
 os cabeçalhos zlib preservam sua formatação e seus avisos. Identificadores são
 em inglês. Arquivos ficam em minúsculas; funções, procedures, métodos,
-namespaces e classes usam PascalCase, conforme esclarecimento explícito do responsável.
+namespaces e classes usam PascalCase.
 Nomes convencionais Git e o sufixo `.pt-BR` são exceções às minúsculas.
 
 Os fontes separam palavras minúsculas por pontos, como
@@ -14,6 +14,11 @@ Os fontes separam palavras minúsculas por pontos, como
 Erros, logs e rótulos próprios usam inglês; textos externos e fixtures
 intencionais de acentos/codificação preservam seu idioma. A documentação
 portuguesa permanece nos arquivos pareados `.pt-BR`.
+
+Redija documentação de forma impessoal. Registre decisões e resultados como
+"Validação confirmada" ou "Validação registrada", com datas e artefatos.
+Descreva execuções manuais no AppServer e verificações automatizadas locais
+pelo método e pelas evidências, preservando escopo, limitações e aceites pendentes.
 
 Módulos Harbour próprios, testes e addons usam `.hb`; fontes upstream
 importados mantêm `.prg`. Entradas `.prg` externas/do runtime continuam

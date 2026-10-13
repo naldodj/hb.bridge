@@ -3,20 +3,20 @@
 O serviço [hbbridge.query.hb](../src/hb/services/hbbridge.query.hb) consulta bancos
 pela implementação nativa `rddsql`/`SQLMIX` do Harbour. O produto vincula
 `sddsqlt3` para SQLite e `sddodbc` para MSSQL via ODBC. Não há um RDD próprio.
-SQLite e o cliente dataset/paginação foram homologados no AppServer pelo
-operador em 04/10/2026, às 00:40:06, com 29 verificações verdadeiras.
+SQLite e o cliente dataset/paginação foram homologados em execução manual no
+AppServer em 04/10/2026, às 00:40:06, com 29 verificações verdadeiras.
 MSSQL ainda não havia sido homologado naquela rodada inicial. Esse aceite antecede a nova leitura
 de `[hbBridge]` no AppServer. Em novo relato manual registrado na sessão de
-2026-10-04, o operador confirmou essa leitura com os 13 checks do teste de
+2026-10-04, essa leitura foi confirmada com os 13 checks do teste de
 configuração cliente, além de relógio, Health, ADDON, Echo e novamente os
 29 checks de Query `sqlite_demo`. O aceite cobre os testes executados no
 Windows alvo; não demonstrava MSSQL nem destinos não padrão.
 
 Em 2026-10-08, a rota nativa MSSQL passou em **92 checks, zero falhas e nenhum
 skip** com SQL Server `16.0.1200.5`, banco `pData`, ODBC Driver `18.6.2.1`,
-Windows x64 e Harbour `UTF8EX`. Separadamente, o operador passou nos
+Windows x64 e Harbour `UTF8EX`. Separadamente, execuções manuais no AppServer passaram nos
 **29 checks TCP e 13 HTTP de cada backend**, MSSQL (`MSSQL/pData`) e SQLite
-(`sqlite_demo`). São resultados delimitados nativos e do operador; cenários
+(`sqlite_demo`). São resultados delimitados nativos e manuais no AppServer; cenários
 ampliados de falha/tipos/recursos/desempenho, HTTPS, identidades de serviço e
 Linux continuam previstos. A nova solicitação de dataset e os problemas
 reproduzidos de UTF-8/FLOAT estão registrados como **D02/D03 antes de retomar M06**
@@ -304,22 +304,23 @@ INI e dois SQL adicionais sobre aliases. Esse resultado precede os ajustes
 PascalCase/HTTP de 2026-10-06 e não substitui seu aceite nem a homologação
 Protheus dos novos nomes e dos 16 checks de configuração revisados.
 
-A tentativa inicial de `scripts/build-totvs.cmd` não chegou à compilação:
-a parada dos processos TOTVS falhou. Log: `tmp/marco3-totvs-build.log`.
-Posteriormente, o operador executou `U_HBBridgeQueryTest` no AppServer em
+A tentativa automatizada local inicial de `scripts/build-totvs.cmd` não chegou
+à compilação: a parada dos processos TOTVS falhou. Log: `tmp/marco3-totvs-build.log`.
+Posteriormente, `U_HBBridgeQueryTest` foi executado manualmente no AppServer em
 04/10/2026 às 00:40:06, thread `41228`, perfil `sqlite_demo`: todos os 29 checks
 retornaram `true`. Isso aceita os campos, navegação, erros/recuperação e
 paginação SQLite daquela revisão.
 
-Na rodada manual posterior registrada na sessão de 2026-10-04, o operador
-confirmou novamente os 29 checks de Query no perfil `sqlite_demo` e os 13
-checks de `U_HBBridgeConfigTest`, incluindo `activeAppServerIni`. Também
-confirmou Health, ADDON, dois Echo de 200.000 bytes idênticos, gzip da
+Na rodada manual AppServer posterior registrada na sessão de 2026-10-04, foram
+confirmados novamente os 29 checks de Query no perfil `sqlite_demo` e os 13
+checks de `U_HBBridgeConfigTest`, incluindo `activeAppServerIni`. Também foram
+confirmados Health, ADDON, dois Echo de 200.000 bytes idênticos, gzip da
 requisição variada de 152.964 bytes e relógio Windows: `Unix=false`,
 delta `1097.692700`, tempo normalizado `1097.773500 ms` após `Sleep(1000)`,
 `result=OK`. Isso aceita os novos testes TLPP e supera a pendência histórica
-de execução que o bloqueio de parada deixou ao agente. Não foram informados
-horário, thread, hash, argumentos de chamada ou log de compilação dessa rodada.
+de execução causada pelo bloqueio de parada na tentativa automatizada local.
+Não foram informados horário, thread, hash, argumentos de chamada ou log de
+compilação dessa rodada.
 Esse relato histórico não homologava MSSQL; os resultados nativos, TCP e HTTP
 posteriores estão registrados acima. Destinos diferentes dos padrões,
 timeout/falhas/envios parciais forçados e outras plataformas permanecem pendentes, conforme

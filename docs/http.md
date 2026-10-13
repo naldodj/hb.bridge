@@ -109,8 +109,9 @@ The [TLPP example](../examples/http/README.md) uses
 `HBBridge.Client.HBBridgeHTTPClient` and `U_HBBridgeHTTPTest`, built with the
 same `src/tlpp/` tree. FWRest issues GET/POST with the service bearer, while
 `HBBridgeRPCDataSet` reuses its existing SQL page contract over HTTP.
-The operator accepted 13 checks on 2026-10-07 without identifying that SQL
-backend. On 2026-10-08, `U_HBBridgeHTTPTestMSSQL()` and
+Manual AppServer validation accepted 13 checks on 2026-10-07 without
+identifying that SQL backend. In manual AppServer runs on 2026-10-08,
+`U_HBBridgeHTTPTestMSSQL()` and
 `U_HBBridgeHTTPTestSQLite()` separately passed **13 checks each**, using
 fixture defaults `MSSQL/pData` and `sqlite_demo`. MSSQL ran on thread 25976
 at 10:33:33–10:33:34; SQLite ran on thread 9916 at 10:34:07, São Paulo time.
@@ -186,10 +187,10 @@ It covered byte-exact HTTP framing under UTF8EX, accents/CJK/supplementary
 characters, BMP escapes and surrogate pairs, SQLite text, native Unicode
 execution, credential bytes and malformed-input rejection. It tested plain
 HTTP; it did not cover direct HTTPS, Linux or MSSQL Unicode. The 2026-10-08
-native MSSQL suite later accepted the exercised Unicode types and the
-operator's HTTP entries accepted their 13 common checks per backend.
+native MSSQL suite later accepted the exercised Unicode types. Manual
+AppServer runs of the HTTP entries accepted their 13 common checks per backend.
 Broader SQL Unicode/types through Protheus HTTP, HTTPS, Linux and controlled
-failure/resource/performance cases remain pending. The operator reports
+failure/resource/performance cases remain pending. The manual AppServer results
 do not replace the native **92 MSSQL** or **566 default regression** checks.
 Resume M06 in [WIP](../WIP.md) for controlled failures/recovery.
 

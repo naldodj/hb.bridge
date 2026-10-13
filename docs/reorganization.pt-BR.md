@@ -63,7 +63,7 @@ declarações de namespace são independentes. Os pares classe/arquivo TLPP são
 `HBBridgeClient`/`hbbridge.client.tlpp`, `HBBridgeConfig`/`hbbridge.config.tlpp`,
 `HBBridgeTime`/`hbbridge.time.tlpp` e
 `HBBridgeRPCDataSet`/`hbbridge.rpc.dataset.tlpp`. Funções, procedures, métodos,
-namespaces e classes usam PascalCase por decisão explícita do responsável.
+namespaces e classes usam PascalCase como convenção estabelecida do projeto.
 APIs nativas conservam sua grafia exigida. Veja [padrões](standards.pt-BR.md).
 
 O Harbour segue a mesma convenção de nomes-base; a extensão identifica a

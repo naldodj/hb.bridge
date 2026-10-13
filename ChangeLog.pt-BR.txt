@@ -5,6 +5,19 @@
    Caminhos antigos descrevem os arquivos existentes na época.
  */
 
+2026-10-13 11:11 UTC naldodj (Adotar redação impessoal na documentação)
+  * Padronizar registros de validação e decisões com foco em resultados,
+    métodos e evidências; preservar datas, escopo e execução manual/automatizada.
+  + Registrar a convenção nos guias AGENTS e padrões EN/PT.
+
+2026-10-13 11:04 UTC naldodj (Registrar validação da tabela HTTP FWWebEx)
+  * Descrever as seis capturas preservadas nos guias EN/PT do exemplo.
+    Registrar telas fixture/SX5, 5/10 linhas, pesquisa/filtro por igualdade,
+    totais exibidos e texto literal como evidências de execução manual.
+  * Marcar preparação F01 homologada no WIP e vincular nos catálogos de
+    consumidores/testes. Mocks dataset/helper/tabela e UTF-8/FLOAT separados.
+  ; Apenas documentação; runtime, serviços, configuração e índice preservados.
+
 2026-10-12 19:49 UTC naldodj (Registrar análise futura de reuso de conexões SQL)
   + Adicionar guias EN/PT de conexões SQL, vinculados ao TODO, WIP e índice.
     Comparar ciclo atual, pooling ODBC e reuso por perfil através de medições
@@ -56,7 +69,7 @@
     + U_HBBridgeDataSetTest isolado prepara 45 checks e 17 chamadas simuladas
       para metadados, varredura, verificações repetidas e recuperação de falha.
     ! Declarar contagem de campos e inicializar contador de registros no teste
-      do operador; preservar SQL informado e navegação manual.
+      interativo; preservar SQL informado e navegação manual.
   ! Prova MSSQL somente de constantes revelou FLOAT nativo 123.4567 enviado
     como JSON 123; TCP também não seleciona UTF8EX explicitamente como HTTP.
     Registrar correções pendentes e separar armazenamento SQL, definição
@@ -71,17 +84,17 @@
   ; Três validadores/convenções aprovados em 150 arquivos; links locais em
     63 documentos e whitespace passaram; suíte nativa completa não repetida.
 
-2026-10-08 13:35 UTC naldodj (Homologar HTTP MSSQL e SQLite do operador)
-  * Registros de aceite EN/PT para os wrappers HTTP do operador
+2026-10-08 13:35 UTC naldodj (Homologar HTTP MSSQL e SQLite em execução manual)
+  * Registros de aceite EN/PT para os wrappers HTTP executados manualmente
     + MSSQL MSSQL/pData: 13 checks true/PASS, Health HTTP 200,
       2026-10-08 10:33:33-10:33:34 Sao Paulo, thread 25976, duração 1 s.
     + SQLite sqlite_demo: 13 checks true/PASS, Health HTTP 200,
       10:34:07, thread 9916, duração 0 s com resolução de um segundo.
     + Registrar transcrição fornecida e homologar M05 nos casos HTTP/dataset
       comuns exercitados; próxima tarefa são falhas/timeout controlados.
-  ; Evidência de execução do operador, sem log do compilador ou hashes;
+  ; Evidência de execução manual, sem log do compilador ou hashes;
     não é benchmark nem aceite HTTPS/Linux ou de tipos SQL ampliados.
-  ; Preservados wrappers TLPP do operador e histórico de homologação;
+  ; Preservados wrappers TLPP existentes e histórico de homologação;
     somente documentação, sem builds nem alterações do host/configuração.
   ; Três validadores/convenções passaram em 146 arquivos; links locais em
     61 documentos e whitespace aprovados; regressões nativas não repetidas.
@@ -99,7 +112,7 @@
   * Ampliar fixture MSSQL opt-in do núcleo compartilhado e guias EN/PT
     + MSSQL nativo: 92 checks, zero falhas/sem skips; SQL Server 16.0.1200.5,
       banco pData, ODBC Driver 18.6.2.1 x64, autenticação SQL, UTF8EX.
-    + TCP do operador: 29 checks MSSQL/pData e 29 sqlite_demo verdadeiros,
+    + TCP manual: 29 checks MSSQL/pData e 29 sqlite_demo verdadeiros,
       2026-10-08, threads 660/3192; preservados seus wrappers de teste TLPP.
     + Referência nativa: 1000 linhas, três execuções, 31/32/31 ms; memória não
       medida. WIP M01-M04 concluídas; próximo aceite é HTTP MSSQL explícito.
@@ -160,7 +173,7 @@
     explícitos, status HTTP e contrato comum de serviços.
   + U_HBBridgeHTTPTest: Health, descoberta, Echo 200000 bytes/acentos, addon,
     erros 401/403/404, recuperação e páginas SQL com o dataset existente.
-  ! Preservados ajustes do operador: comparação DecodeUTF8 no campo acentuado,
+  ! Preservados ajustes existentes: comparação DecodeUTF8 no campo acentuado,
     fallback Unauthorized e saída do teste. Motivo interno inicializado e
     código UNAUTHORIZED garantido para 401 sem mensagem interna.
   + Exemplos HTTP EN/PT e chaves HTTPURL/HTTPToken/HTTPTimeoutSeconds no template
@@ -280,7 +293,7 @@
     host/porta/timeout/budgets/chunk/SQLProfile; explícitos têm prioridade.
     Valores inválidos são rejeitados antes da rede. Testes/configuração cliente.
   ; Seção local acrescentada com backup e bytes originais preservados. Parada
-    TOTVS bloqueou compilação do agente; novo aceite cliente então pendente.
+    TOTVS bloqueou compilação local; novo aceite cliente então pendente.
   + 26 checks INI e três rejeições SQL estritas; comparação prefixada Harbour
     foi corrigida. Suíte 412 checks/zero falhas/sem skips, candidato/INI/página
     via launcher passaram, sem substituir executável instalado.
@@ -369,7 +382,7 @@
   ! Utility TOTVS corrige caminho/árvore/includes, aborta parada falha, preserva
     status de compilação, evita pausa no reinício; listas temporárias ignoradas.
   ; Usuário confirmou manualmente, logs: três fontes/três sucessos/zero erros,
-    Health/ADDON/Echo e 200000 caracteres íntegros. Reinício pelo agente negado
+    Health/ADDON/Echo e 200000 caracteres íntegros. Tentativa de reinício local negada
     por permissões Windows; execução e compilação bem-sucedidas foram do usuário.
 
 2026-10-03 10:29 UTC naldodj (Runtime nativo e documentação dos marcos)

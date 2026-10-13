@@ -5,7 +5,7 @@
 Use four spaces in project-owned source. Imported Harbour maintenance tools
 and zlib headers keep their upstream formatting and notices. Use English
 identifiers. Files are lowercase; functions, procedures, methods, namespaces
-and classes use PascalCase, following the owner's explicit clarification. Conventional
+and classes use PascalCase. Conventional
 Git filenames and the `.pt-BR` locale suffix are exceptions to lowercase.
 
 Source basenames separate lowercase words with dots, for example
@@ -14,6 +14,11 @@ name `HBBridgeRPCDataSet`. This word segmentation does not change namespaces.
 Own error messages, logs and UI labels are English; external text and intentional
 accent/encoding fixtures retain their original language. Portuguese documentation
 uses its paired `.pt-BR` files.
+
+Write documentation in an impersonal style. Record decisions and results as
+"Validation confirmed" or "Validation recorded", supported by dates and
+artifacts. Describe manual AppServer runs and local automated checks by their
+method and evidence, preserving scope, limitations and pending acceptance.
 
 Project-owned Harbour modules, tests and addons use `.hb`; imported upstream
 sources retain `.prg`. External/runtime `.prg` inputs remain supported. This
@@ -69,7 +74,7 @@ that existed at the time; current instructions use the new names.
 
 ## Active work packages
 
-The user-requested `WIP.md` and `WIP.pt-BR.md` are explicit uppercase filename
+The agreed `WIP.md` and `WIP.pt-BR.md` names are explicit uppercase filename
 exceptions. [WIP](../WIP.md) contains one active package's objective, ordered
 tasks, established decisions, prerequisites, progress, evidence and completion
 criteria. TODO remains the complete roadmap; acceptance and ChangeLog record

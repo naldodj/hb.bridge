@@ -4,7 +4,7 @@
 
 Acceptance of the earlier structural reorganization was confirmed.
 This document identifies the development environment and separates historical
-results, operator reports and agent-run regressions.
+results, reported manual AppServer runs and local automated regressions.
 It does not certify other versions or subsequent changes automatically.
 
 ## Reference environment
@@ -63,9 +63,9 @@ This accepted the Milestone 1 adapter/core, not fragmentation, low-compressibili
 data, MAXSTRINGSIZE, future codecs or every planned service.
 
 [build-totvs.cmd](../scripts/build-totvs.cmd) uses the project source root and
-tmp/totvs-compile.log. An agent attempt received Access denied stopping the
+tmp/totvs-compile.log. A local build attempt received Access denied stopping the
 elevated AppServer and ended before compilation. The successful run above was
-performed by the operator.
+manual.
 [WebApp test](https://localhost:4321/webapp/?p=U_HBBridgeConnectionTest&e=PROTHEUS).
 
 MSSQL/SQLite identify SQL integration targets. AppServer version does not
@@ -96,9 +96,11 @@ Compressed-output/zlib guards and isolated build/help/invalid config passed.
 GetTickCount64 was exercised; POSIX CLOCK_MONOTONIC compiled without runtime
 acceptance.
 
-### Operator RPC confirmation on 2026-10-03
+<a id="operator-rpc-confirmation-on-2026-10-03"></a>
 
-The operator supplied:
+### Manual RPC confirmation on 2026-10-03
+
+Reported manual AppServer output:
 
 ~~~text
 hbBridge Health Protheus OK: {"success":true,"message":"hbBridge Zig Engine Active"}
@@ -108,11 +110,12 @@ hbBridge Echo fragmented Protheus OK: 200000 bytes, conteudo identico; gzip requ
 hbBridge RPC Protheus OK: todos os testes solicitados passaram.
 ~~~
 
-These are verbatim operator logs; Portuguese output is intentionally preserved.
+These are verbatim manual AppServer logs; Portuguese output is intentionally
+preserved.
 They confirm complete payload comparison and normal completion, with varied
 request gzip 152,964 > default 65536-byte buffer.
-The agent did not execute that round; execution time/arguments/binary hash
-were not supplied.
+That round was not repeated during local validation; execution time/arguments/
+binary hash were not supplied.
 
 Clock values were absent from that earlier report and supplied later.
 The current static HBBridgeTime uses TimeCounter and validates normalized
@@ -135,7 +138,7 @@ ROW_NUMBER/BETWEEN pages were produced in SQL, with compound/descending order,
 gapped IDs, first/last/empty pages, sentinel/hidden ordinal and arithmetic limits.
 NETIO/TCP returned equal simple/paged results.
 
-Dataset/test implementation preceded an agent build attempt blocked during
+Dataset/test implementation preceded a local build attempt blocked during
 TOTVS shutdown: tmp/marco3-totvs-build.log. No compilation/new AppServer execution
 occurred in that attempt. Missing-DSN testing proved only sanitized ODBC errors,
 not real MSSQL or DBAccess use.
@@ -148,13 +151,13 @@ The active canonical installation was not replaced.
 
 ### Failed SQL attempt at 00:27:04
 
-Operator U_HBBridgeQueryTest, thread 30460, returned
+The reported manual U_HBBridgeQueryTest run, thread 30460, returned
 SERVICE_NOT_FOUND; Servico nao suportado.
 This proves test entry/dispatcher response, not SQL execution.
 A subsequent Service.List probe at 127.0.0.1:1512 found six basic services, no
 RPCRDD.Query: tmp/sql-service-discovery.json.
 The canonical executable's help already supported SQL; active process CLI was
-not accessible to the agent.
+not accessible during local inspection.
 
 Registration requires nonempty sqlProfiles.
 Guidance was to restart the current product with the SQLite configuration and
@@ -170,12 +173,13 @@ acceptance.
 
 ### SQLite acceptance at 00:40:06
 
-Operator U_HBBridgeQueryTest, AppServer thread 41228, PROTHEUS/sqlite_demo:
+Reported manual U_HBBridgeQueryTest run, AppServer thread 41228, PROTHEUS/sqlite_demo:
 **29 checks true**. Accepted named/decimal values, navigation/EOF, close,
 empty, SQL/profile errors/recovery, first/next/last pages, gaps, localEOF,
 hidden ordinal and invalid page/order rejection.
 
-Time is the operator's São Paulo log time. The agent did not execute the test.
+Time is the reported São Paulo log time. The test was manual and was not
+repeated during local validation.
 Server hash and corresponding compile log were not supplied.
 This covers SQLite/client revision used then, not MSSQL, expanded SQL types/
 codepages or later client changes.
@@ -195,7 +199,7 @@ Coverage: equivalent INI/JSON, precedence, relative paths, BOM/CRLF,
 password/ODBC punctuation, automatic loading and malformed-file rejection.
 
 AppServer [hbBridge] reading followed the 00:40:06 test and received its own later
-operator acceptance below. HBBridgeConfig selects GetSrvIniName/GetPvProfString.
+manual acceptance below. HBBridgeConfig selects GetSrvIniName/GetPvProfString.
 No-argument clients/tests now read the seven template keys.
 Client and Harbour config files must be aligned separately; a WebApp URL without
 arguments may select values different from launcher output.
@@ -208,14 +212,17 @@ SHA256: F51BE0E77B64CAA94B0C12016E24BB49153035A1B2EE680A24FCE26ADBE9CF5B.
 MSSQL metadata validation is not an ODBC/DSN/database query.
 
 The local AppServer section was appended preserving prior bytes, with tmp backup.
-Agent compile was blocked before compiler during process stop:
+A local build attempt was blocked before compiler during process stop:
 tmp/ini-totvs-build.log. U_HBBridgeConfigTest was prepared and subsequently
-accepted by the operator.
+accepted in a reported manual AppServer run.
 
-### Later operator configuration/clock/SQLite confirmation
+<a id="later-operator-configurationclocksqlite-confirmation"></a>
+
+### Later manual configuration/clock/SQLite confirmation
 
 Reported in the **2026-10-04 session**, after client-configuration changes.
-This round was manual; the agent did not compile/execute those AppServer tests.
+This round was manual; those AppServer tests were not compiled or executed
+during local validation.
 
 | Entry | Report |
 | --- | --- |
@@ -272,7 +279,7 @@ MSSQL, Linux and later changes need separately recorded validation.
 ## PascalCase and native HTTP validation on 2026-10-06
 
 The final targeted Windows Harbour/Zig HTTP run passed **65 checks, zero
-failures, no skips**. The agent executed it using the managed
+failures, no skips**. It ran locally using the managed
 toolchain. Log: `tmp/http-tests-f3476462dfbb4fe6b64d63b0de1c1149/results.log`;
 wrapper log: `tmp/http-target-test.log`; dependency preparation log:
 `tmp/http-prepare.log`. These logs contain the final run, replacing the
@@ -360,10 +367,13 @@ Automatic external OpenSSL resolution, Zig HTTP and SQL materialization remain
 design work. This candidate does not add HTTPS/Linux/MSSQL or AppServer
 acceptance to the earlier records.
 
-## TLPP HTTP operator acceptance on 2026-10-07
+<a id="tlpp-http-operator-acceptance-on-2026-10-07"></a>
 
-The operator adjusted the accent comparison and FWRest unauthorized handling,
-then reported `U_HBBridgeHTTPTest` running in **PROTHEUS**, thread **25672**.
+## TLPP HTTP manual acceptance on 2026-10-07
+
+The accent comparison and FWRest unauthorized handling were adjusted,
+followed by a reported manual `U_HBBridgeHTTPTest` run in **PROTHEUS**,
+thread **25672**.
 Program start: **15:16:12 São Paulo**; test **15:16:14–15:16:15**, elapsed
 **00:00:01**. The reported RPO stack contained `tttm120.rpo`, `tlpp.rpo` and
 `custom.rpo`. The report shows Health's Zig message and HTTP **200**.
@@ -385,10 +395,10 @@ its own acceptance. A subsequent defensive initialization also handles a
 native 401 with an empty internal reason, without changing the tested path.
 That alternate branch has not been exercised on another LIB.
 
-This is operator runtime acceptance, not an agent-run test or a supplied
-compiler-success log. An earlier agent build attempt returned -1073740791;
-its log identified an include-directory value as the environment. It did
-not establish successful compilation. The operator's run supersedes that
+This is reported manual AppServer runtime acceptance, without a local test run
+or a supplied compiler-success log. An earlier local build attempt returned
+-1073740791; its log identified an include-directory value as the environment. It did
+not establish successful compilation. The reported manual run supersedes that
 execution gap for the exercised HTTP sources; logs remain at
 `tmp/totvs-http-build-run.log` and `tmp/totvs-compile.log`.
 
@@ -397,15 +407,15 @@ or server executable hash. It therefore does not add real MSSQL, HTTPS,
 Linux, full Unicode, alternative configuration or the 16-check client config
 test to this acceptance. See [the example](../examples/http/README.md).
 
-The agent's final working-tree gate passed **139 files** with `check.hb`,
+The final local working-tree gate passed **139 files** with `check.hb`,
 `commit.hb`, `3rdpatch.hb` and project conventions; log:
 `tmp/commit-gate-tlpp-http-20261007.log`. Working-tree/index whitespace and
-all local links across 59 documents passed. The existing user-staged snapshot
+all local links across 59 documents passed. The existing staged snapshot
 was preserved; these validations did not create a commit or publication.
 
 ## Native Harbour source extension on 2026-10-07
 
-The owner authorized `.hb` for project-owned Harbour sources. All **26** files
+Adoption of `.hb` was authorized for project-owned Harbour sources. All **26** files
 under `src/hb/`, `tests/` and `addons/` were renamed, and product/test HBP/HBM,
 fixture scripts, sample addon paths and current documentation were updated.
 Comparison against HEAD confirmed preserved Harbour implementation bodies,
@@ -430,7 +440,7 @@ convention cases and xBase Git attributes passed.
 
 The two TLPP test source changes only replace the sample addon path with
 `examples/hbbridgesampleaddon.hb`. They were not recompiled or executed in the
-AppServer during the agent's migration run. Subsequent operator recompilation
+AppServer during the local migration work. Subsequent manual recompilation
 and runtime reports below supersede that pending regression status. Earlier
 RPO acceptance used the `.prg` sample path. Package 001 MSSQL milestones remain pending.
 
@@ -439,10 +449,12 @@ The full working-tree gate passed **141 files** with `check.hb`, `commit.hb`,
 `tmp/hb-extension-commit-gate-20261007.log`. Local links across **61 documents**
 and `git diff --check` passed. The index was preserved; no commit was created.
 
-## Post-migration Protheus operator acceptance on 2026-10-07
+<a id="post-migration-protheus-operator-acceptance-on-2026-10-07"></a>
 
-The operator confirmed recompilation after the `.hb` migration and supplied
-HTTP output in chat, followed by Query/configuration/TCP/HTTP output in
+## Post-migration Protheus manual acceptance on 2026-10-07
+
+Recompilation after the `.hb` migration was confirmed, with manual AppServer
+HTTP output reported in chat, followed by Query/configuration/TCP/HTTP output in
 `F:/tmp/hbridge.news.txt`. The supplied reports are preserved in
 `tmp/protheus-http-hb-operator-20261007.log` and
 `tmp/protheus-suite-hb-operator-20261007.log`; the original attachment copy,
@@ -465,9 +477,10 @@ configuration test covers the optional SQL alias without forcing a demo
 profile. Both HTTP runs include addon execution, rejected credentials,
 forbidden/unknown services, recovery and first/next/last-page values.
 
-These are operator executions, not agent-run AppServer tests or a supplied
-compiler-success log. They supersede the pending renamed-TLPP/16-check
-configuration regression status for the exercised cases. The addon sources
+These are reported manual AppServer executions, without local AppServer test
+runs or a supplied compiler-success log. They supersede the pending
+renamed-TLPP/16-check configuration regression status for the exercised cases.
+The addon sources
 now default to `.hb`; the reports do not echo the actual module argument,
 connection arguments or server executable hash. Query explicitly identifies
 SQLite; HTTP does not identify its SQL backend, so its results do not certify
@@ -480,9 +493,11 @@ commit validators for **141 files**; log:
 documents** and whitespace passed. This documentation update did not rerun
 the native suite or access an OpenBao/MSSQL server.
 
-## Protheus TCP MSSQL and SQLite operator acceptance on 2026-10-08
+<a id="protheus-tcp-mssql-and-sqlite-operator-acceptance-on-2026-10-08"></a>
 
-The operator supplied runtime output from the two Query wrappers. The
+## Protheus TCP MSSQL and SQLite manual acceptance on 2026-10-08
+
+Manual AppServer runtime output from the two Query wrappers was reported. The
 transcript is preserved at `tmp/protheus-mssql-sqlite-operator-20261008.log`.
 Times below are São Paulo on 2026-10-08; the log identifies `marin` on
 `DNA-TECH-01` and the `tttm120.rpo`, `tlpp.rpo`, `custom.rpo` stack.
@@ -495,10 +510,11 @@ Times below are São Paulo on 2026-10-08; the log identifies `marin` on
 The checks cover named fields and decimals, missing fields, EOF/close, empty
 results, invalid SQL, unknown profiles, subsequent recovery, first/next/last/
 empty pages, hidden ordinals, invalid page/order and page cleanup. This records
-operator runtime acceptance of the existing TCP dataset/page contract with
+manual AppServer runtime acceptance of the existing TCP dataset/page contract with
 the explicit MSSQL alias, plus the repeated SQLite regression. The report
-contains no compiler-success log or artifact hashes; the agent did not run
-these AppServer calls. Native extended fixtures retain their separate evidence.
+contains no compiler-success log or artifact hashes; these AppServer calls
+were not repeated during local validation. Native extended fixtures retain
+their separate evidence.
 
 HTTP acceptance with the MSSQL profile subsequently passed on 2026-10-08;
 see the [identified HTTP wrapper runs](#protheus-http-mssql-and-sqlite-operator-acceptance-on-2026-10-08).
@@ -507,7 +523,7 @@ scope.
 
 ## Native MSSQL acceptance on 2026-10-08
 
-The agent-run opt-in Harbour acceptance passed **92 checks, zero failures,
+The locally executed opt-in Harbour acceptance passed **92 checks, zero failures,
 no skips** against the real SQL Server database. Evidence:
 `tmp/mssql-tests-b3d676f0daaf470a97af605a98a9681c/results.log` and
 `tmp/mssql-native-normalized-20261008.log`.
@@ -565,15 +581,17 @@ All three commit validators and project conventions passed **146 files**:
 whitespace passed. No commit or publication was performed.
 
 This supplies the native SQL value/type evidence for M03 alongside the separate
-operator TCP result above. The [operator HTTP runs below](#protheus-http-mssql-and-sqlite-operator-acceptance-on-2026-10-08)
+manual AppServer TCP result above. The [manual AppServer HTTP runs below](#protheus-http-mssql-and-sqlite-operator-acceptance-on-2026-10-08)
 accept M05 for the 13 exercised cases. Controlled unavailable-connection/
 native-timeout cases (M06), broader profile/resource
 isolation (M07), transport/memory baselines (M08) and remaining AppServer/final
 package evidence (M09) retain their pending work; package 001 is not complete.
 
-## Protheus HTTP MSSQL and SQLite operator acceptance on 2026-10-08
+<a id="protheus-http-mssql-and-sqlite-operator-acceptance-on-2026-10-08"></a>
 
-The operator supplied runtime output from both HTTP test wrappers. Evidence:
+## Protheus HTTP MSSQL and SQLite manual acceptance on 2026-10-08
+
+Manual AppServer runtime output from both HTTP test wrappers was reported. Evidence:
 `tmp/protheus-http-mssql-sqlite-operator-20261008.log`. The report identifies
 `marin` on `DNA-TECH-01` and the same `tttm120.rpo`, `tlpp.rpo`, `custom.rpo`
 stack. Times below are São Paulo on 2026-10-08.
@@ -583,7 +601,7 @@ stack. Times below are São Paulo on 2026-10-08.
 | `U_HBBridgeHTTPTestMSSQL` / `MSSQL/pData` | Program 10:33:32, thread 25976; test 10:33:33–10:33:34 | All 13 checks true/PASS, Health HTTP 200; elapsed 00:00:01. |
 | `U_HBBridgeHTTPTestSQLite` / `sqlite_demo` | Program 10:34:06, thread 9916; test 10:34:07–10:34:07 | All 13 checks true/PASS, Health HTTP 200; elapsed 00:00:00. |
 
-The operator's [HTTP wrappers](../src/tlpp/tests/protheus/hbbridge.http.test/hbbridge.http.test.tlpp)
+The supplied [HTTP wrappers](../src/tlpp/tests/protheus/hbbridge.http.test/hbbridge.http.test.tlpp)
 default the SQL alias explicitly and forward to the common test. They retain
 the existing URL/token/timeout resolution for omitted transport arguments.
 Both runs passed `healthGet`, `healthPost`, `servicesGet`, `echo`, `addon`,
@@ -592,9 +610,10 @@ Both runs passed `healthGet`, `healthPost`, `servicesGet`, `echo`, `addon`,
 This accepts M05 for those 13 exercised cases with `MSSQL/pData`, including
 the common dataset's HTTP page values, and repeats the SQLite HTTP regression.
 
-These are operator AppServer executions, without a supplied compiler-success
-log or artifact hashes; the agent did not execute these HTTP calls. The
-reported elapsed times have one-second resolution and are not performance
+These are reported manual AppServer executions, without a supplied
+compiler-success log or artifact hashes; these HTTP calls were not repeated
+during local validation. The reported elapsed times have one-second resolution
+and are not performance
 benchmarks. They establish neither HTTPS/Linux acceptance nor expanded SQL
 type/Unicode coverage beyond the exercised HTTP fixture. Earlier HTTP reports
 without an identified backend remain historical evidence. Controlled failures
@@ -609,7 +628,7 @@ results above were not rerun for this documentation update.
 
 ## Dataset extension and integrity findings on 2026-10-08
 
-The owner requested easier field access and sequential page traversal after
+Easier field access and sequential page traversal were requested after
 the accepted runs above. The TLPP dataset now includes `MoreToRead()`,
 `Header()`, its compatibility alias `DSStruct()`, `FieldInfo()`, `FieldCount()`,
 `FieldName()` and `GetRow()`. `Eof()`/`Skip()` retain page-local behavior;
@@ -621,16 +640,16 @@ The new isolated [U_HBBridgeDataSetTest](../src/tlpp/tests/protheus/hbbridge.dat
 uses a mock client, without SQL, credentials, network calls or ERP data.
 Its expected successful report is **45 checks and 17 mock calls**, covering
 metadata ordering/copies, automatic traversal, repeated checks, closed/empty
-state, invalid metadata and failure/recovery. The agent attempted compilation
+state, invalid metadata and failure/recovery. A local compilation attempt ran
 with `scripts/build-totvs.cmd` on 2026-10-08 at 16:31:40 São Paulo, thread
 36788. It returned exit 1, `COMPILEERROR-300 Failed to open repository`:
 `custom.rpo` was in use by one user. The compiler reported total/success/errors
 `0/0/0`, so it did not compile these sources. Log: `tmp/totvs-compile.log`.
 No stop/start scripts were configured, and the active AppServer was not stopped.
-The new runtime test remains unexecuted; prior operator reports do not accept
+The new runtime test remains unexecuted; prior manual AppServer reports do not accept
 these methods. D02 in [WIP](../WIP.md) tracks that acceptance.
 
-A separate agent-run, read-only constant MSSQL probe reproduced a numeric
+A separate local read-only constant MSSQL probe reproduced a numeric
 serialization defect: `CAST(123.4567 AS FLOAT)` retained its fractional value
 natively but emitted `123` in JSON. `DECIMAL(15,4)` emitted `123.4567`, and
 `DECIMAL(16,2)` emitted `123.46`. Evidence:
@@ -659,7 +678,7 @@ native regression was repeated for the TLPP/navigation and documentation work.
 
 ## Source, examples and extension review on 2026-10-12
 
-Reviewed owner commits through `344c86b`, including dotted module names,
+Reviewed commits through `344c86b`, including dotted module names,
 client-side browse/filter/SQL helpers and grouped Protheus tests. Updated
 current paths/API examples while retaining the earlier acceptance records.
 `Header()` is canonical; configure `SetAliasProfile()` before SQL-only
@@ -687,15 +706,16 @@ generates a recursive file list in the documented single-line, semicolon-
 terminated TOTVS format. Final compilation: **24 sources, 24 successes,
 zero errors**, `custom.rpo` updated 2026-10-12 16:18:59 São Paulo, thread 3112.
 Log: `tmp/review-totvs-accepted-20261012-build.log`. Admin stop/start used the
-owner's scripts; startup returned zero. The compiler process still exited
+supplied scripts; startup returned zero. The compiler process still exited
 with **0xC0000409 after the completed build**; a clean process exit is not
 claimed. Earlier partial attempts are not acceptance of the whole source tree.
 
 The new dataset mock expects **67 checks/31 calls**; the helper test expects
 **12 checks**. They were compiled, not executed in this review. Interactive
-SRA/SX5 browse/filter/seek, field types and cleanup require operator acceptance.
+SRA/SX5 browse/filter/seek, field types and cleanup require manual AppServer
+acceptance.
 The query fixture runs constant SELECTs by default; its fifth argument
-explicitly enables the owner's ERP examples. No personnel rows were read by
+explicitly enables the supplied ERP examples. No personnel rows were read by
 this review.
 
 The [brainstorming review](extensions-review.md) records SQLRDD, Duktape and
@@ -706,5 +726,30 @@ credential encryption and the remaining package criteria stay pending in WIP.
 All three validators passed for **170 files**; local links across **67
 documents** and whitespace passed. Log:
 `tmp/review-commit-gate-final-20261012.log`. Restart readiness was independently
-verified on local ports **5555, 7890, 1234 and 4321**. The user's staged index
+verified on local ports **5555, 7890, 1234 and 4321**. The existing staged index
 was preserved; this review did not commit or publish.
+
+## FWWebEx HTTP table: validation confirmed on 2026-10-13
+
+Validation of the interactive HTTP table example was confirmed as OK, with
+six screenshots in the [example README](../src/tlpp/tests/protheus/hbbridge.http.table.test/README.md).
+The artifacts were inspected locally; they record a reported manual AppServer run.
+
+| Visible scenario | Recorded result |
+| --- | --- |
+| SX5 unfiltered | 11,764 entries; displays of 5 and 10 rows with pagination controls. |
+| SX5 global search | `TIPOS DE IMPOSTOS`: 1 entry, filtered from 11,764. |
+| SX5 field equality | Description `TIPOS DE IMPOSTOS`: 1 entry, filtered from 11,764. |
+| Constant fixture | 10 displayed rows out of 12; `O'Brien`, `100%_done` and `<b>literal text</b>` rendered as text. |
+| Fixture global search | `Harbour`: 1 entry, filtered from 12. |
+
+The SX5 descriptions also display accented text in these samples. This does
+not close the broader UTF-8/FLOAT correction in WIP D03. Protheus resolves
+the SX5 profile/table/branch context; hbBridge remains the generic executor.
+
+This accepts preparatory WIP F01 for the demonstrated views. Specific mock
+execution remains pending: dataset 67 checks/31 calls, helpers 12 checks and
+HTTP table 62 checks/19 queued responses. The table example does not exercise
+the automatic traversal/copy/failure cases required by D02. The screenshots
+do not identify the actual profile/backend, execution time, compiler build or
+server artifact; no new claim for those attributes or M06–M09 follows.

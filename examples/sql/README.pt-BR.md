@@ -176,9 +176,9 @@ vazias e NULLs sem teto de payload da aplicação. A referência selecionou 1000
 linhas três vezes em 31/32/31 ms (total 94 ms, concorrência um); a memória não
 foi medida e o resultado não é garantia de desempenho.
 
-Separadamente, o operador passou nos **29 checks TCP para MSSQL**, thread 660,
-e repetiu os **29 para SQLite**, thread 3192, em
-2026-10-08. Depois, o operador passou nos **13 checks HTTP de cada backend**
+Execuções manuais separadas no AppServer passaram nos **29 checks TCP para MSSQL**,
+thread 660, e nos **29 para SQLite**, thread 3192, em
+2026-10-08. Depois, execuções manuais passaram nos **13 checks HTTP de cada backend**
 por `U_HBBridgeHTTPTestMSSQL()` e `U_HBBridgeHTTPTestSQLite()`, threads 25976 e
 9916. Essas entradas selecionam os perfis locais de exemplo e reutilizam o
 teste HTTP comum e o dataset. HTTPS, Linux, identidades integrada/de serviço e
@@ -199,7 +199,7 @@ skips, incluindo a leitura INI. A validação gerenciada posterior de 2026-10-04
 passou em **416 verificações**, zero falhas e nenhum skip; o log fica em
 `tmp/tests-d1b829ff332c414f816a6e70748152d1/results.log`. Esses resultados
 precedem os ajustes PascalCase/HTTP de 2026-10-06.
-O operador homologou SQLite no AppServer em
+SQLite foi homologado manualmente no AppServer em
 04/10/2026 às 00:40:06, com as 29 verificações do dataset e paginação verdadeiras.
 Naquela rodada, MSSQL real ainda estava pendente. Esse aceite antecede a nova leitura da seção
 `[hbBridge]` no AppServer. A nova configuração cliente foi aceita em relato

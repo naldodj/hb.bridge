@@ -126,8 +126,8 @@ identidade Windows ou Kerberos Linux para autenticação integrada, ou login
 SQL privado. Veja [credenciais](credentials.pt-BR.md) e
 [exemplo SQL](../examples/sql/README.pt-BR.md).
 
-Compilar Protheus exige AppServer licenciado, includes, ambiente e RPO do
-operador. [build-totvs.cmd](../scripts/build-totvs.cmd) aceita argumentos ou
+Compilar Protheus exige AppServer licenciado, includes, ambiente e RPO da
+instalação. [build-totvs.cmd](../scripts/build-totvs.cmd) aceita argumentos ou
 `HBBRIDGE_TOTVS_APPSERVER_DIR`, `HBBRIDGE_TOTVS_INCLUDES`,
 `HBBRIDGE_TOTVS_ENV`. Caminhos de scripts de parada/início são opcionais e
 explícitos. hbBridge não baixa nem presume instalação fixa TOTVS. Compile

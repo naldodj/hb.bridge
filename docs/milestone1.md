@@ -26,7 +26,7 @@ and normalized before listeners. Use absolute paths for supervised deployment.
 JSON keys/CLI options are case-sensitive, INI keys/sections are not.
 Automatic adjacent hbbridge.ini and sanitized --config-info are documented in
 [configuration](configuration.md), including the AppServer client section.
-The operator later accepted 13 TLPP configuration checks and clock/RPC/SQLite.
+Later manual validation passed 13 TLPP configuration checks and clock/RPC/SQLite.
 
 | JSON field | CLI | Default |
 | --- | --- | --- |
@@ -161,8 +161,8 @@ native NETIO/VF IO, admin, addon failure and stop/restart/rollback tests.
 Historical Milestone 1 acceptance on 2026-10-03:
 **159 checks, zero failures, no skips**, including 12 concurrent native calls
 and invalid admin credentials. Isolated product/help/invalid CLI passed.
-The operator compiled three TLPP sources without errors and accepted WebApp
-Health/ADDON/Echo, preserving all 200,000 Echo characters.
+Manual compilation of three TLPP sources completed without errors; WebApp
+Health/ADDON/Echo validation passed, preserving all 200,000 Echo characters.
 See [acceptance](acceptance.md).
 
 TRPCFunction description/handler separation served as a design reference.

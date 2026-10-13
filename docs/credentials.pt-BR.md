@@ -85,7 +85,7 @@ explicitamente, sem enviar o texto cifrado como senha nem recorrer
 silenciosamente à cópia em texto aberto. São critérios futuros; esta análise
 não acrescenta criptografia ao runtime.
 
-Na instalação Protheus atual do operador, senhas de banco raramente mudam,
+Na instalação Protheus de referência, senhas de banco raramente mudam,
 e uma mudança exige coordenação manual do acesso ao banco e das configurações
 ODBC e DBAccess. Essa restrição define o desenho inicial: armazenar e resolver
 com segurança uma credencial SQL estável. Rotação automática da senha SQL
@@ -149,13 +149,13 @@ para impedir sua troca entre registros. Base64 apenas codifica. Não invente
 cifra nem reutilize nonce fixo. Antes do aceite, teste adulteração, chave
 incorreta, truncamento, senhas não ASCII e suporte à troca opcional da chave
 mestra de criptografia. Verifique APIs de entropia e limpeza de memória no Zig
-fixado; não presuma APIs de outra versão. Se o operador decidir trocar essa
-chave mestra, a mesma senha SQL será cifrada novamente; isso não muda a senha
+fixado; não presuma APIs de outra versão. Na troca explícita dessa chave
+mestra, a mesma senha SQL será cifrada novamente; isso não muda a senha
 no banco nem exige rotação da senha SQL.
 
 ## Provedor OpenBao opcional: análise da RFC em 2026-10-07
 
-A RFC do operador em `hbridge.news.txt` é viável como **provedor de credenciais**
+A RFC registrada em `hbridge.news.txt` é viável como **provedor de credenciais**
 opcional para ler credenciais SQL estáveis do KV v2 OpenBao, junto da
 autenticação integrada, INI cifrado com chave externa e provedores do SO.
 Entra no pacote 003 do [WIP](../WIP.pt-BR.md). OpenBao, mecanismo de segredos
@@ -311,11 +311,12 @@ homologação.
 Em 2026-10-08, o perfil privado preenchido com autenticação SQL passou em
 **92 checks nativos, zero falhas e nenhum skip** com SQL Server `16.0.1200.5`,
 banco `pData`, ODBC Driver `18.6.2.1`, Windows x64 e Harbour `UTF8EX`.
-Separadamente, o operador passou nos **29 checks TCP Protheus para MSSQL** e
-repetiu os **29 checks SQLite**, threads 660 e 3192 respectivamente. Mais
-tarde no mesmo dia, passou nos **13 checks HTTP de cada entrada**
+Separadamente, execuções manuais no AppServer passaram nos **29 checks TCP
+Protheus para MSSQL** e repetiram os **29 checks SQLite**, threads 660 e
+3192 respectivamente. Mais tarde no mesmo dia, execuções manuais passaram
+nos **13 checks HTTP de cada entrada**
 `U_HBBridgeHTTPTestMSSQL()` e `U_HBBridgeHTTPTestSQLite()`, threads 25976 e
-9916. Essas execuções separadas do operador homologam as rotas TCP/HTTP
+9916. Essas execuções manuais separadas no AppServer homologam as rotas TCP/HTTP
 exercitadas; autenticação integrada, identidades de serviço Windows/Linux,
 HTTPS, gerenciamento de credenciais cifradas e cenários ampliados de falha/tipos
 continuam pendentes. Veja [homologação](acceptance.pt-BR.md) para evidências

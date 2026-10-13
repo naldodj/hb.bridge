@@ -42,7 +42,7 @@ Harbour/hb_compile/Zig do próprio projeto, sem caminhos pessoais fixos.
 
 O [exemplo HTTP TLPP](../examples/http/README.pt-BR.md) apresenta cliente
 FWRest, configuração AppServer, bearer, RPC genérico e dataset SQL paginado,
-com 13 checks homologados pelo operador em 2026-10-07.
+com 13 checks homologados manualmente no AppServer em 2026-10-07.
 
 [Dataset](dataset.pt-BR.md) descreve acesso a campos/header, varredura com
 `MoreToRead()` e as correções de integridade UTF-8/FLOAT ainda pendentes.
@@ -67,8 +67,8 @@ contrato único `HBBRIDGE/1`, JSON e gzip. A rodada manual AppServer de 2026-10-
 confirmou Health, ADDON.Execute e dois Echo de 200.000 bytes idênticos,
 incluindo gzip de requisição de 152.964 bytes. Handshake, blocos e compressão
 negociada virão depois; homologação de timeout/falhas TLPP permanece pendente.
-Na nova rodada manual registrada na sessão de 2026-10-04, o operador
-confirmou novamente esse fluxo e o relógio Windows normalizado após
+Na nova rodada manual AppServer registrada na sessão de 2026-10-04, foram
+confirmados novamente esse fluxo e o relógio Windows normalizado após
 `Sleep(1000)`, com `result=OK`.
 
 ## Contrato implementado no produto
@@ -83,8 +83,8 @@ MSSQL/SQLite TCP e HTTP de 2026-10-08 e as limitações de tipos ainda pendentes
 [Configuração](configuration.pt-BR.md) descreve INI/JSON, arquivo padrão ao lado do
 executável, precedência CLI, seções/perfis e metadados sem credenciais.
 Também descreve `[hbBridge]` no INI do AppServer para os padrões do cliente
-Protheus. O operador aceitou a nova leitura TLPP na sessão de 2026-10-04,
-com todos os 13 checks de configuração verdadeiros, incluindo
+Protheus. A nova leitura TLPP foi aceita em validação manual AppServer na
+sessão de 2026-10-04, com todos os 13 checks de configuração verdadeiros, incluindo
 `activeAppServerIni`, junto de Health, ADDON, Echo e Query `sqlite_demo`.
 O relato não informa argumentos das chamadas nem log de compilação; destinos
 diferentes dos padrões continuam pendentes, conforme a matriz de homologação.
@@ -135,7 +135,8 @@ O TLPP passou a usar `TimeCounter()` pelos métodos estáticos da classe
 com regressão expirando o orçamento e teste de escala/espera no AppServer.
 A normalização Unix × 1000 corrige a diferença de unidades reproduzida na
 [issue #12](https://github.com/naldodj/totvs-protheus-open-issues/issues/12).
-O operador confirmou o adapter no Windows alvo na sessão de 2026-10-04:
+A validação manual AppServer confirmou o adapter no Windows alvo na sessão
+de 2026-10-04:
 `Unix=false`, delta `1097.692700` e `1097.773500 ms` normalizados após
 `Sleep(1000)`, com resultado `OK`. Outras plataformas permanecem pendentes.
 

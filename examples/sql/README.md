@@ -79,9 +79,9 @@ field values; adapt their physical names and formatting in Protheus. They
 have separate acceptance from the constant regression and do not add ERP
 rules to the bridge core. See [test calls](../../tests/README.md).
 
-Operator SQLite acceptance: 2026-10-04 00:40:06, thread 41228, all 29 checks
-true, later reconfirmed with the client INI acceptance. The operator reconfirmed all 29 SQLite
-checks on 2026-10-07, thread 27136, after reported recompilation of the renamed
+Manual SQLite AppServer acceptance: 2026-10-04 00:40:06, thread 41228, all 29 checks
+true, later reconfirmed with the client INI acceptance. All 29 SQLite checks
+were reconfirmed manually on 2026-10-07, thread 27136, after reported recompilation of the renamed
 TLPP classes. Changing only a server profile requires no further TLPP build.
 See [milestone 3](../../docs/milestone3-sql.md),
 [acceptance](../../docs/acceptance.md) and [tests](../../tests/README.md).
@@ -154,9 +154,9 @@ payload ceiling. The baseline selected 1000 rows three times in 31/32/31 ms
 (94 ms total, concurrency one); memory was not measured and this is no speed
 guarantee.
 
-The operator separately passed **29 TCP checks for MSSQL**, thread 660, and
-repeated **29 for SQLite**, thread 3192, on
-2026-10-08. The operator subsequently passed **13 HTTP checks per backend**
+Separate manual AppServer runs passed **29 TCP checks for MSSQL**, thread 660,
+and **29 for SQLite**, thread 3192, on
+2026-10-08. Subsequent manual runs passed **13 HTTP checks per backend**
 through `U_HBBridgeHTTPTestMSSQL()` and `U_HBBridgeHTTPTestSQLite()`, threads
 25976 and 9916. These entries select the local example profiles while reusing
 the common HTTP test and dataset. HTTPS, Linux, integrated/service identities

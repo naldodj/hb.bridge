@@ -102,7 +102,7 @@ method Handle(jRequest) class HBBridgeHTTPTable
     local cSearch := "", cSearchSQL := "", cPredicate := "" as character
     local cOrderField := "", cDirection := "ASC", cOrder := "" as character
     local cBase := "", cFiltered := "" as character
-    local jFilters := JSONObject():New() as json
+    local jFilters as json
     local jResponse as json
     local jSourceRow as json
     local jRow as json
@@ -113,11 +113,9 @@ method Handle(jRequest) class HBBridgeHTTPTable
     local lFiltered := .F., lValid := .T. as logical
 
     if ValType(jRequest) != "J"
-        FreeObj(@jFilters)
         return HTTPTableFailure(0, "INVALID_REQUEST", "Supply a table request object.")
     endif
     if Left(jRequest:ToJSON(), 1) != "{"
-        FreeObj(@jFilters)
         return HTTPTableFailure(0, "INVALID_REQUEST", "Supply a table request object.")
     endif
     if jRequest:HasProperty("draw")
@@ -126,7 +124,6 @@ method Handle(jRequest) class HBBridgeHTTPTable
         endif
     endif
     if !self:lConfigured
-        FreeObj(@jFilters)
         return HTTPTableFailure(nDraw, "INVALID_CONFIGURATION", "The table consumer is not configured.")
     endif
 
@@ -136,64 +133,53 @@ method Handle(jRequest) class HBBridgeHTTPTable
         if !(cName == "draw" .or. cName == "start" .or. cName == "length" .or. ;
             cName == "search" .or. cName == "filters" .or. ;
             cName == "orderField" .or. cName == "orderDirection")
-            FreeObj(@jFilters)
             return HTTPTableFailure(nDraw, "INVALID_REQUEST", "The table request contains an unsupported property.")
         endif
     next
     if !jRequest:HasProperty("draw") .or. !jRequest:HasProperty("start") .or. ;
         !jRequest:HasProperty("length")
-        FreeObj(@jFilters)
         return HTTPTableFailure(nDraw, "INVALID_PAGE", "Supply draw, start and a positive page length.")
     endif
     if !HTTPTableInteger(jRequest["draw"]) .or. !HTTPTableInteger(jRequest["start"]) .or. ;
         !HTTPTableInteger(jRequest["length"])
-        FreeObj(@jFilters)
         return HTTPTableFailure(nDraw, "INVALID_PAGE", "Page values must be nonnegative exact integers.")
     endif
     nStart := jRequest["start"]
     nLength := jRequest["length"]
     if nLength < 1 .or. nLength >= 9007199254740991
-        FreeObj(@jFilters)
         return HTTPTableFailure(nDraw, "INVALID_PAGE", "Select a positive finite page length.")
     endif
     if Mod(nStart, nLength) != 0 .or. nStart > 9007199254740991 - nLength - 1
-        FreeObj(@jFilters)
         return HTTPTableFailure(nDraw, "INVALID_PAGE", "Page start must align with its length and have representable bounds.")
     endif
     nPage := Int(nStart / nLength) + 1
 
     if jRequest:HasProperty("search")
         if ValType(jRequest["search"]) != "C"
-            FreeObj(@jFilters)
             return HTTPTableFailure(nDraw, "INVALID_SEARCH", "Search must be text.")
         endif
         cSearch := jRequest["search"]
         if Chr(0) $ cSearch
-            FreeObj(@jFilters)
             return HTTPTableFailure(nDraw, "INVALID_SEARCH", "Search contains an unsupported character.")
         endif
     endif
     cOrderField := self:cKeyField
     if jRequest:HasProperty("orderField")
         if ValType(jRequest["orderField"]) != "C"
-            FreeObj(@jFilters)
             return HTTPTableFailure(nDraw, "INVALID_ORDER", "Select a configured order field.")
         endif
         cOrderField := Upper(jRequest["orderField"])
     endif
     if !self:jFields:HasProperty(cOrderField)
-        FreeObj(@jFilters)
         return HTTPTableFailure(nDraw, "INVALID_ORDER", "Select a configured order field.")
     endif
     if jRequest:HasProperty("orderDirection")
         if ValType(jRequest["orderDirection"]) != "C"
-            FreeObj(@jFilters)
             return HTTPTableFailure(nDraw, "INVALID_ORDER", "Order direction must be ASC or DESC.")
         endif
         cDirection := Upper(jRequest["orderDirection"])
     endif
     if !(cDirection == "ASC" .or. cDirection == "DESC")
-        FreeObj(@jFilters)
         return HTTPTableFailure(nDraw, "INVALID_ORDER", "Order direction must be ASC or DESC.")
     endif
     cOrder := cOrderField + " " + cDirection
@@ -201,48 +187,44 @@ method Handle(jRequest) class HBBridgeHTTPTable
         cOrder += "," + self:cKeyField + " ASC"
     endif
 
+    // GetNames() requires a native array. Borrow the original filter object;
+    // validation must precede any JSON round-trip that could lose NUL bytes.
+    aNames := Array(0)
     if jRequest:HasProperty("filters")
         if ValType(jRequest["filters"]) != "J"
-            FreeObj(@jFilters)
             return HTTPTableFailure(nDraw, "INVALID_FILTER", "Filters must be a field-value object.")
         endif
         if Left(jRequest["filters"]:ToJSON(), 1) != "{"
-            FreeObj(@jFilters)
             return HTTPTableFailure(nDraw, "INVALID_FILTER", "Filters must be a field-value object.")
         endif
-        jFilters:FromJSON(jRequest["filters"]:ToJSON())
+        jFilters := jRequest["filters"]
+        aNames := jFilters:GetNames()
     endif
-    aNames := jFilters:GetNames()
     for nField := 1 to Len(aNames)
         cName := aNames[nField]
         cField := Upper(cName)
         if !self:jFields:HasProperty(cField)
-            FreeObj(@jFilters)
             return HTTPTableFailure(nDraw, "INVALID_FILTER", "Select configured filter fields.")
         endif
         cType := self:jFields[cField]["type"]
         xValue := jFilters[cName]
         if ValType(xValue) != cType
-            FreeObj(@jFilters)
             return HTTPTableFailure(nDraw, "INVALID_FILTER", "Filter values must match their configured text or numeric type.")
         endif
         if cType == "C"
             if Chr(0) $ xValue
-                FreeObj(@jFilters)
                 return HTTPTableFailure(nDraw, "INVALID_FILTER", "A filter value contains an unsupported character.")
             endif
             cLiteral := HTTPTableTextLiteral(xValue)
         else
             cLiteral := HTTPTableNumberLiteral(xValue)
             if Empty(cLiteral)
-                FreeObj(@jFilters)
                 return HTTPTableFailure(nDraw, "INVALID_FILTER", "Supply a finite numeric filter value.")
             endif
         endif
         cPredicate += if(Empty(cPredicate), "", " AND ") + ;
             "HBGRID.[" + cField + "] = " + cLiteral
     next
-    FreeObj(@jFilters)
 
     aFieldNames := self:jFields:GetNames()
     if !Empty(cSearch)

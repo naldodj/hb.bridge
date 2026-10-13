@@ -94,14 +94,14 @@ programming.
 | Capability | Delivered state |
 | --- | --- |
 | TCP server | Multithreaded, configurable; default bind `0.0.0.0:1512`. Local clients use `127.0.0.1`. |
-| Protheus client | `HBBridgeClient`, `HBBRIDGE/1`, JSON and memory gzip in both directions; one connection per call. AppServer `[hbBridge]` defaults with explicit argument overrides. Revised 16 configuration checks accepted by the operator on 2026-10-07, including explicit/empty/invalid profile selection. |
+| Protheus client | `HBBridgeClient`, `HBBRIDGE/1`, JSON and memory gzip in both directions; one connection per call. AppServer `[hbBridge]` defaults with explicit argument overrides. Revised 16 configuration checks manually accepted on 2026-10-07, including explicit/empty/invalid profile selection. |
 | Services | Shared versioned registry: `Health`, `Echo`, `ADDON.Execute`, `Core.Upper`, `Core.Version`, `Service.List`, `Admin.Status`, and `RPCRDD.Query` when SQL profiles exist. |
 | Protheus RPC | Health, ADDON and two identical 200,000-byte Echo results accepted on 2026-10-03 and reconfirmed on 2026-10-04 and 2026-10-07; fragmented request gzip: 152,964 bytes. Windows clock test passed. |
 | Addons | In-memory `.prg`/`.hb` compilation and `.hrb` execution through `ADDON.Execute`, receiving `module`/`params`. |
 | NETIO | Embedded native listener `0.0.0.0:2941`, filtered RPC and Harbour serialization. `HB_EXTERN` enabled; registered services only. |
 | HTTP/REST | Embedded `hbhttpd`, optional and disabled by default. JSON service calls and authenticated web status share the core; service/admin credentials are separate. Direct HTTPS requires an OpenSSL-enabled build and its own acceptance. |
-| Protheus HTTP client | `HBBridgeHTTPClient` uses native FWRest, bearer authentication and the shared JSON contract. Operator accepted 13 checks each for MSSQL and SQLite on 2026-10-08, including SQL pagination; wrappers select `MSSQL/pData` and `sqlite_demo`. |
-| SQL | SQLMIX with SQLite/MSSQL-ODBC, named results and database-side pages. On 2026-10-08: 92 native MSSQL checks passed; operator accepted 29 Protheus TCP and 13 HTTP checks each for `MSSQL/pData` and `sqlite_demo`. Wider failure/type/platform acceptance remains. |
+| Protheus HTTP client | `HBBridgeHTTPClient` uses native FWRest, bearer authentication and the shared JSON contract. Manual AppServer acceptance passed 13 checks each for MSSQL and SQLite on 2026-10-08, including SQL pagination; wrappers select `MSSQL/pData` and `sqlite_demo`. |
+| SQL | SQLMIX with SQLite/MSSQL-ODBC, named results and database-side pages. On 2026-10-08: 92 native MSSQL checks passed; manual Protheus acceptance passed 29 TCP and 13 HTTP checks each for `MSSQL/pData` and `sqlite_demo`. Wider failure/type/platform acceptance remains. |
 | DBF | Native RDD access over NETIO planned; not integrated yet. |
 | VF IO | Harbour `hb_vf*` with NETIO has binary read/write tests; TLPP facade pending. |
 | C/Zig | C API/ABI bridge in Health; Zig library and toolchain required. |
@@ -124,15 +124,15 @@ automatic OpenSSL resolution and SQL materialization are still pending.
 
 [Acceptance](docs/acceptance.md) records AppServer `24.3.1.5`, LIB `20260706`,
 RPO/dictionary `12.1.2510`, and the Harbour/Zig reference build. The earlier
-2026-10-04 operator report covered 13 configuration checks. On 2026-10-07,
-after reported recompilation following the `.hb` migration, the operator
-accepted renamed TLPP, all 16 revised configuration checks, clock/RPC,
+2026-10-04 manual report covered 13 configuration checks. On 2026-10-07,
+after reported recompilation following the `.hb` migration, manual acceptance
+covered renamed TLPP, all 16 revised configuration checks, clock/RPC,
 29 paginated SQLite checks and 13 HTTP checks. Times/threads identify this
 Windows regression; no compilation log, call arguments, effective destination
 or artifact hashes were supplied for that report. On 2026-10-08, native MSSQL
 acceptance passed 92 checks against SQL Server `16.0.1200.5`, database `pData`,
-ODBC Driver `18.6.2.1` x64 and SQL authentication. The operator also accepted
-29 TCP and 13 HTTP checks each for `MSSQL/pData` and `sqlite_demo`; HTTP
+ODBC Driver `18.6.2.1` x64 and SQL authentication. Manual AppServer acceptance
+also passed 29 TCP and 13 HTTP checks each for `MSSQL/pData` and `sqlite_demo`; HTTP
 threads 25976/9916 used the backend-specific wrappers. Nondefault destinations,
 HTTPS, broader failure/type cases and Linux require their own acceptance.
 
@@ -481,7 +481,7 @@ are multiplied by 1,000. A counter regression expires the budget.
 The test checks scale/advance over `Sleep(1000)`, including detecting a future
 runtime unit correction.
 
-The 2026-10-04 Windows operator report recorded raw `1097.692700`, normalized
+The 2026-10-04 manual Windows report recorded raw `1097.692700`, normalized
 `1097.773500 ms`, result `OK`. The 2026-10-07 run at 16:14:31, thread 27084,
 reconfirmed `OK`: raw `1089.987500`, normalized `1090.088100 ms`.
 Full monotonic/wrap behavior and Linux remain pending. Harbour uses
@@ -641,7 +641,7 @@ under `src/tlpp/` for compilation together.
 Own source uses **four spaces**, English identifiers and lowercase filenames
 with dots separating words.
 **Functions, procedures, methods, namespaces and classes use PascalCase**,
-explicitly chosen by the project owner:
+according to the established naming convention:
 `HBBridgeClient` ↔ `hbbridge.client.tlpp`. Removing dots from the basename
 produces the lowercase class name; dots separate file words and do not change
 namespace declarations.

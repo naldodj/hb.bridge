@@ -24,7 +24,7 @@ barra e maiúsculas são preservadas sem dedução de
 driver, empresa ou filial. O teste sem alias/SQLProfile retorna PROFILE_REQUIRED
 antes da rede. Drivers atuais: sqlite e mssql; Oracle exige conector e aceite
 próprios. A configuração revisada e as classes renomeadas foram homologadas
-pelo operador em 2026-10-07: os 16 checks passaram após recompilação informada
+manualmente em 2026-10-07: os 16 checks passaram após recompilação informada
 na migração para `.hb`.
 
 O build usa dependências fixadas próprias em .deps/, resolvidas por
@@ -188,7 +188,7 @@ arquivos e a validação sobre a revisão de referência `b45595b`.
 - [x] Reexecutar o teste TLPP real no AppServer após a reorganização, conforme
   homologação ; ambiente registrado na [matriz](docs/acceptance.pt-BR.md).
 - [x] Recompilar e homologar classes TLPP renomeadas e seleção de perfil revisada:
-  recompilação informada pelo operador após `.hb`; Query/Config/Connection/HTTP
+  recompilação informada após `.hb`; Query/Config/Connection/HTTP
   passaram em 2026-10-07. Os 16 checks de configuração foram verdadeiros às
   16:14:06, thread 30596; log real do compilador e hashes não fornecidos.
 
@@ -308,11 +308,11 @@ Depuração concorrente só será anunciada após suporte e testes dos workers.
 - [x] Ler `[hbBridge]` do INI ativo do AppServer por classe estática com namespace;
   usar IP/porta/timeout, políticas de transferência e alias SQL como padrões
   do cliente e dos testes, com argumentos explícitos prioritários.
-- [x] Homologar a nova configuração TLPP no AppServer: o operador confirmou
+- [x] Homologar a nova configuração TLPP no AppServer: execução manual confirmada de
   `U_HBBridgeConfigTest` com 13 checks verdadeiros, relógio/RPC e
   `U_HBBridgeQueryTest` com 29 checks verdadeiros em 2026-10-04.
-  A tentativa de compilação pelo agente ficou bloqueada na parada dos
-  processos; o aceite posterior é da execução manual informada pelo operador.
+  A tentativa de compilação local ficou bloqueada na parada dos
+  processos; o aceite posterior é da execução manual informada.
 - [x] Homologar a configuração revisada e as classes TLPP renomeadas em 2026-10-07
   após recompilação informada: 16 checks verdadeiros, incluindo explicitProfile,
   noForcedProfile e invalidProfile; regressões Query/relógio/RPC/HTTP passaram.
@@ -341,7 +341,7 @@ Depuração concorrente só será anunciada após suporte e testes dos workers.
 - [x] Recompilar `src/tlpp/` e homologar Health, Echo e ADDON do marco 1
   no AppServer : 3 fontes compilados sem erros e teste
   real com sucesso, confirmado pelos logs em 2026-10-03.
-  Classes renomeadas e perfil revisado aceitos pelo operador na regressão de
+  Classes renomeadas e perfil revisado aceitos manualmente na regressão de
   2026-10-07 após recompilação informada.
 
 **Aceite:** cliente Harbour remoto conecta-se ao listener NETIO em 2941 e
@@ -397,7 +397,7 @@ continuam pendentes.
   como fundamento da normalização Unix × 1000.
 - [x] Homologar escala/avanço do `TimeCounter()` no Windows: `Unix=false`,
   delta bruto `1097.692700`, normalizado `1097.773500` ms após `Sleep(1000)`;
-  teste de relógio `OK` informado pelo operador em 2026-10-04.
+  teste de relógio `OK` registrado na execução manual de 2026-10-04.
   Reconfirmado em 2026-10-07 às 16:14:31, thread 27084: delta bruto
   `1089.987500`, normalizado `1090.088100 ms`, `OK`; Health/ADDON e os dois
   Echo exatos de 200.000 bytes também passaram, com gzip de 152.964 bytes.
@@ -406,7 +406,7 @@ continuam pendentes.
   no build alvo para manter o contorno compatível com futuras correções.
 - [x] Homologar manualmente Health, ADDON.Execute e dois Echo no AppServer:
   conteúdo integral de 200.000 bytes, gzip de requisição de 152.964 bytes e
-  conclusão normal das chamadas, confirmados pelo operador em 2026-10-03.
+  conclusão normal das chamadas, confirmados em execução manual de 2026-10-03.
 - [ ] Homologar timeout/falhas de socket e envio parcial positivo forçado no
   TLPP; registrar o artefato exato do servidor. Os valores do teste de relógio
   Windows já foram informados e registrados.
@@ -535,9 +535,9 @@ testado; somente versões e capacidades efetivamente implementadas são anunciad
 - [x] Homologar conexão/consulta/paginação MSSQL nativa: 92 checks em 2026-10-08,
   SQL Server 16.0.1200.5, banco/DSN pData, ODBC Driver 18.6.2.1 x64,
   autenticação SQL; textos/binários longos, vazio/nulo, Unicode e liberação.
-- [x] Homologação Protheus TCP MSSQL e SQLite pelo operador: 29 checks cada,
+- [x] Homologação manual Protheus TCP MSSQL e SQLite: 29 checks cada,
   2026-10-08, perfis `MSSQL/pData` e `sqlite_demo`.
-- [x] Homologação HTTP Protheus MSSQL/SQLite explícita pelo operador: 13 checks
+- [x] Homologação manual HTTP Protheus MSSQL/SQLite explícita: 13 checks
   cada, 2026-10-08, wrappers `MSSQL/pData`/`sqlite_demo`, threads 25976/9916.
 - [ ] Casos restantes de falha/timeout, isolamento e baseline de transporte/
   memória do [WIP](WIP.pt-BR.md).
@@ -565,7 +565,7 @@ testado; somente versões e capacidades efetivamente implementadas são anunciad
   no AppServer; perfil desconhecido não comprova falha do conector.
 - [x] Integrar regressões com SQLite em arquivo, chamadas concorrentes e o
   mesmo serviço por cliente Harbour NETIO e TCP/JSON.
-- [x] Registrar o aceite SQLite Protheus informado pelo operador, distinguindo-o
+- [x] Registrar o aceite manual SQLite Protheus informado, distinguindo-o
   da regressão Harbour. MSSQL nativo/TCP homologado em 2026-10-08;
   HTTP MSSQL/SQLite homologado com 13 checks cada no mesmo dia;
   demais plataformas/tipos mantêm seus próprios aceites.
@@ -714,7 +714,7 @@ disponibilidade consultável, sem alterar os transportes para cada extensão.
 ### HTTP/REST e administração web
 
 - [x] Cliente/exemplo HTTP TLPP com INI ativo do AppServer, FWRest nativo,
-  GET/POST/bearer, erros JSON e dataset SQL existente. Operador homologou os
+  GET/POST/bearer, erros JSON e dataset SQL existente. Homologação manual dos
   13 checks em 2026-10-07, inicialmente thread 25672; reconfirmados nas threads
   27296 (16:10:44–16:10:45) e 25456 (16:15:03–16:15:04), cada uma em um segundo,
   horário de São Paulo; backend SQL dessas execuções não identificado.

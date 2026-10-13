@@ -2,7 +2,7 @@
 
 [English](sql-connections.md) · [Contrato SQL](milestone3-sql.pt-BR.md) · [Roadmap](../TODO.pt-BR.md)
 
-Observação registrada em 2026-10-12 a pedido do responsável. É um item para
+Observação registrada em 2026-10-12 para avaliação futura. É um item para
 análise futura, sem pooling implementado, padrão aprovado ou novas chaves INI.
 O pacote WIP mantém suas tarefas e critérios de conclusão atuais.
 

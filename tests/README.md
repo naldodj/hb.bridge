@@ -110,7 +110,7 @@ Compile all src/tlpp, including tests/protheus. Public product APIs are
 namespaced classes: HBBridgeClient, HBBridgeConfig, HBBridgeTime and
 HBBridgeRPCDataSet. Existing procedure U_ entry points are retained; the
 preprocessor also generates U_ from User Function, so no conversion is needed.
-Renamed classes and optional-profile changes were accepted by the operator
+Renamed classes and optional-profile changes were manually accepted
 on 2026-10-07 after reported recompilation following the `.hb` migration.
 No compiler log or artifact hashes were supplied. The configurable
 [build utility](../scripts/build-totvs.cmd) requires the licensed SDK.
@@ -124,6 +124,7 @@ subdirectories under [tests/protheus](../src/tlpp/tests/protheus):
 | `hbbridge.config.test/` | `U_HBBridgeConfigTest`. |
 | `hbbridge.dataset.test/` | `U_HBBridgeDataSetTest` and its mock client. |
 | `hbbridge.http.test/` | Shared HTTP test and explicit MSSQL/SQLite wrappers. |
+| `hbbridge.http.table.test/` | FWWebEx fixture/SX5 examples (manual acceptance confirmed) and separate `U_HBBridgeHTTPTableTest` mock (execution pending); [evidence](../src/tlpp/tests/protheus/hbbridge.http.table.test/README.md). |
 | `hbbridge.query.test/` | Shared Query test, SQLite wrapper and caller-side `FWGetTopInfo()` wrapper. |
 | `hbbridge.browse.data.test/` | Generic browse example and caller-prepared SX5/SRA examples. |
 
@@ -186,7 +187,7 @@ U_HBBridgeQueryTest("MSSQL/pData", "127.0.0.1", 1512, 30000, .T.)
 Those examples use installation-specific physical table names and print field
 values. Protheus prepares their SQL and dictionary formatting; this does not
 make the bridge a Protheus dictionary/business-rule resolver. The examples
-require separate operator acceptance and suitable caller-prepared inputs.
+require separate manual acceptance and suitable caller-prepared inputs.
 
 Use the [WebApp entry](https://localhost:4321/webapp/?p=U_HBBridgeQueryTest&e=PROTHEUS)
 without arguments only with an appropriate optional SQLProfile configured.
@@ -213,7 +214,7 @@ defensive copies; `FieldCount()`/`FieldName()` column order; `GetRow()` copies;
 empty/closed state, malformed metadata and page failure/recovery. It also
 covers selected-profile preservation/change, page snapshots, backward pages
 and validated, unknown, empty and malformed row/page totals.
-The agent's 2026-10-08 compile attempt returned exit 1,
+The local 2026-10-08 compile attempt returned exit 1,
 `COMPILEERROR-300 Failed to open repository`, because `custom.rpo` was in use;
 total/success/errors were `0/0/0`, without source compilation. Log:
 `tmp/totvs-compile.log`. The active AppServer was not stopped. That attempt
@@ -228,7 +229,7 @@ See [dataset API and integrity findings](../docs/dataset.md).
 `HBBridgeHTTPClient` with GET Health/discovery, POST Health/Echo/addon,
 unknown/forbidden services, invalid bearer and recovery. It reuses the existing
 dataset for optional first/next/last SQL pages. See [HTTP setup and calls](../examples/http/README.md).
-The operator first reported **13 checks passed** on 2026-10-07, thread 25672.
+The first manual report recorded **13 checks passed** on 2026-10-07, thread 25672.
 Two later runs passed all 13 checks: thread 27296 (program start 16:10:40,
 test 16:10:44–16:10:45) and thread 25456 (program start 16:15:02,
 test 16:15:03–16:15:04), each in one second. Times are São Paulo local time.
@@ -236,7 +237,7 @@ This is AppServer evidence separate from the Harbour runner. None of these
 2026-10-07 HTTP reports identifies its SQL profile/backend or establishes
 HTTPS/broader Unicode; the identified 2026-10-08 runs are recorded below.
 
-Operator report 2026-10-03: normal Health/ADDON/two Echo calls passed with
+Manual AppServer report 2026-10-03: normal Health/ADDON/two Echo calls passed with
 200000 identical bytes; varied request gzip 152964 bytes. Earlier milestone1
 logs recorded three compiled sources without errors and successful RPC.
 Initial SQLite/page acceptance: 2026-10-04 00:40:06, thread 41228,
@@ -245,9 +246,9 @@ sqlite_demo, all 29 checks true.
 Later report recorded in the 2026-10-04 session reconfirmed those 29 checks,
 RPC and all 13 client configuration checks, including activeAppServerIni.
 Windows clock: Unix=false, raw delta 1097.692700, normalized 1097.773500 ms
-after Sleep(1000), result OK. This is operator execution, not the Harbour
-runner. It supplied no execution time/thread/hash/arguments/compile log and
-does not prove nondefault destination selection. Earlier agent stopping of
+after Sleep(1000), result OK. This is a manual AppServer run, separate from the
+Harbour runner. It supplied no execution time/thread/hash/arguments/compile log and
+does not prove nondefault destination selection. Earlier local stopping of
 elevated TOTVS processes failed before compilation; manual acceptance superseded
 that old execution gap, with history retained in the acceptance matrix.
 
@@ -258,26 +259,26 @@ thread 27084 passed Health, ADDON and both exact 200000-byte Echo calls;
 varied request gzip was 152964 bytes. Clock: `Unix=false`, raw
 `1089.987500`, normalized `1090.088100 ms` after `Sleep(1000)`, `OK`.
 With HTTP thread 25456 above, this accepts renamed TLPP and the `.hb` addon
-paths after operator-reported recompilation. It supplies times/threads,
+paths after reported recompilation. It supplies times/threads,
 but no actual compiler log, artifact hashes, arguments or effective destination.
-The agent did not run these AppServer tests.
+These AppServer tests were not run through local automation.
 
-On 2026-10-08 the operator supplied **29 passing
+On 2026-10-08 a manual AppServer report recorded **29 passing
 MSSQL TCP checks**, thread 660, and **29 passing SQLite TCP checks**, thread
 3192. The convenience entries `U_HBBridgeQueryTestMSSQL()` and
 `U_HBBridgeQueryTestSQLite()` select the local example aliases; the generic
-client retains no forced profile. This operator result is separate from the
+client retains no forced profile. This manual result is separate from the
 92 native MSSQL checks above.
 
-The operator then passed **13 HTTP checks for each backend** on 2026-10-08:
+Subsequent manual AppServer runs passed **13 HTTP checks for each backend** on 2026-10-08:
 `U_HBBridgeHTTPTestMSSQL`, thread 25976, program start 10:33:32, test
 10:33:33–10:33:34 (one second); `U_HBBridgeHTTPTestSQLite`, thread 9916,
 program start 10:34:06, test 10:34:07 (zero displayed seconds). São Paulo
 times. Both include the shared dataset's first/next pages and values; the
-entrypoint defaults select `MSSQL/pData` and `sqlite_demo`. These are operator
+entrypoint defaults select `MSSQL/pData` and `sqlite_demo`. These are manual
 AppServer runs, separate from native automation. Transcript:
 `tmp/protheus-http-mssql-sqlite-operator-20261008.log`.
-See [acceptance](../docs/acceptance.md). The owner's new dataset request and
+See [acceptance](../docs/acceptance.md). The new dataset request and
 UTF-8/FLOAT findings take priority as D02/D03 in [WIP](../WIP.md), before M06
 controlled failures/recovery. No new native run is inferred from these reports.
 

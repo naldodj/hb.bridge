@@ -11,6 +11,7 @@ em subpastas de [tests/protheus](../src/tlpp/tests/protheus):
 | `hbbridge.config.test/` | `U_HBBridgeConfigTest`. |
 | `hbbridge.dataset.test/` | `U_HBBridgeDataSetTest` e seu cliente simulado. |
 | `hbbridge.http.test/` | Teste HTTP comum e wrappers explícitos MSSQL/SQLite. |
+| `hbbridge.http.table.test/` | Exemplos FWWebEx fixture/SX5 (homologação manual confirmada) e mock separado `U_HBBridgeHTTPTableTest` (execução pendente); [evidências](../src/tlpp/tests/protheus/hbbridge.http.table.test/README.pt-BR.md). |
 | `hbbridge.query.test/` | Teste Query comum, wrapper SQLite e wrapper `FWGetTopInfo()` no chamador. |
 | `hbbridge.browse.data.test/` | Exemplo de browse genérico e exemplos SX5/SRA preparados pelo chamador. |
 
@@ -50,24 +51,24 @@ O teste verifica `success` e compara integralmente a mensagem e os 200.000
 caracteres `X` de `largePayload`. O Marco 2 acrescenta um segundo Echo com
 ASCII variado e exige previamente gzip maior que 65.535 bytes. O conteúdo
 retornado também é comparado integralmente. Os logs resumem resultado e
-tamanho. O operador confirmou a execução manual em 2026-10-03: Health,
+tamanho. A execução manual foi confirmada em 2026-10-03: Health,
 ADDON.Execute e os dois Echo passaram, com 200.000 bytes idênticos e gzip
 de requisição de 152.964 bytes no caso variado. Timeout/falhas e a medição
 detalhada do relógio ficaram pendentes naquela rodada. No novo relato manual
-registrado na sessão de 2026-10-04, o operador confirmou novamente Health,
+registrado na sessão de 2026-10-04, foram reconfirmados Health,
 ADDON.Execute e os dois Echo, com os mesmos tamanhos e conteúdo idêntico.
 O teste do relógio também passou: `Unix=false`, delta bruto `1097.692700`,
 tempo normalizado `1097.773500 ms` após `Sleep(1000)` e `result=OK`.
 Isso aceita a medição normalizada no Windows alvo; outras plataformas e
 timeout/falhas provocados continuam na matriz de homologação.
-Em 2026-10-07 às 16:14:31, thread 27084, o operador reconfirmou Health,
+Em 2026-10-07 às 16:14:31, thread 27084, foram reconfirmados Health,
 ADDON e os dois Echo exatos de 200.000 bytes, com gzip de 152.964 bytes.
 Relógio `OK`: `Unix=false`, delta bruto `1089.987500`, normalizado
 `1090.088100 ms` após `Sleep(1000)`.
 
 O resultado aparece no console do Protheus. `Health` ainda depende da
 biblioteca Zig demonstrativa do build atual. A execução do teste TLPP
-no AppServer alvo foi confirmada pelos relatos manuais do operador; essa
+no AppServer alvo foi confirmada pelos relatos manuais; essa
 execução não integra o runner Harbour.
 
 ## SQL e páginas
@@ -77,7 +78,7 @@ O [teste HTTP TLPP](../src/tlpp/tests/protheus/hbbridge.http.test/hbbridge.http.
 POST Health/Echo/addon, serviços inexistentes/proibidos, bearer inválido e
 recuperação. Reaproveita o dataset para páginas SQL opcionais.
 Veja [configuração e chamadas](../examples/http/README.pt-BR.md).
-O operador homologou **13 checks** em 2026-10-07, thread 25672. As rodadas
+Foram homologados manualmente **13 checks** em 2026-10-07, thread 25672. As rodadas
 posteriores passaram nos 13: thread 27296 (programa às 16:10:40, teste
 16:10:44–16:10:45) e thread 25456 (programa às 16:15:02, teste
 16:15:03–16:15:04), cada uma em um segundo. Horários locais de São Paulo.
@@ -93,9 +94,9 @@ IDs com lacunas e parâmetros de paginação inválidos. Compile toda a árvore
 e execute da raiz `.\examples\sql\run.ps1` para usar `sqlite_demo`, padrão
 da entrada. O [launcher SQL](../examples/sql/README.pt-BR.md) valida o perfil e
 informa a chamada de teste; a execução ocorre separadamente no AppServer.
-O operador homologou SQLite no AppServer em 04/10/2026 às 00:40:06,
+SQLite foi homologado manualmente no AppServer em 04/10/2026 às 00:40:06,
 thread `41228`, perfil `sqlite_demo`, com todos os 29 checks verdadeiros.
-Na nova rodada manual registrada na sessão de 2026-10-04, confirmou novamente
+Na nova rodada manual registrada na sessão de 2026-10-04, foram reconfirmados
 os 29 checks verdadeiros no perfil `sqlite_demo`, junto do novo teste de
 configuração cliente. Em 2026-10-07 às 16:13:33, thread 27136, o log
 reconfirmou todos os 29 checks verdadeiros com `profile=sqlite_demo`.
@@ -129,7 +130,7 @@ U_HBBridgeQueryTest("MSSQL/pData", "127.0.0.1", 1512, 30000, .T.)
 Esses exemplos usam nomes físicos da instalação e imprimem valores dos campos.
 Protheus prepara SQL e formatação do dicionário; a ponte não passa a resolver
 dicionário ou regras de negócio do Protheus. Os exemplos exigem homologação
-separada pelo operador e entradas preparadas para a instalação.
+manual separada e entradas preparadas para a instalação.
 INI e JSON são aceitos; para INI, recompile o produto que fornece
 `--config-info`, usado pelo launcher para validar metadados sem iniciar o host.
 
@@ -153,9 +154,9 @@ Inclui 26 verificações INI e três rejeições adicionais de driver/direção 
 das 383 anteriores. O INI exercita equivalência com JSON, precedência,
 BOM/CRLF, pontuação de senhas/ODBC, caminhos e rejeição de entradas inválidas.
 O registro inicial de build TLPP interrompido é histórico: o aceite SQLite
-posterior foi informado pelo operador. A nova configuração cliente `[hbBridge]`
-também passou na rodada manual posterior descrita abaixo; o agente não executou
-esses testes no AppServer.
+posterior foi informado em relato manual. A nova configuração cliente `[hbBridge]`
+também passou na rodada manual posterior descrita abaixo; esses testes no AppServer
+não foram executados pela automação local.
 
 A validação gerenciada posterior de 2026-10-04 passou em **416 verificações,
 zero falhas e nenhum skip**, com o Harbour/Zig do próprio projeto. Log:
@@ -168,7 +169,7 @@ oferece `U_HBBridgeConfigTest()` para defaults, INI, argumentos prioritários,
 destino inválido, números malformados, budgets zero/negativo/fracionário e
 capacidade nativa de chunk. A leitura do INI ativo também é verificada;
 complemente com Health/Query sem argumentos para confirmar o destino efetivo.
-O operador informou execução bem-sucedida desse teste na sessão de 2026-10-04,
+Foi informada execução manual bem-sucedida desse teste na sessão de 2026-10-04,
 com todos os **13 checks verdadeiros**: `missingSectionDefaults`, `iniValues`,
 `wildcardIsNotDestination`, `invalidIniNumber`, `explicitOverridesInvalidIni`,
 `explicitZeroDisablesBudget`, `invalidExplicitPort`, `invalidTimeout`,
@@ -179,32 +180,32 @@ Não foram informados horário de execução, thread, hash do build, argumentos
 das chamadas ou log de compilação. A leitura do INI ativo foi aceita; esse
 relato não demonstra conexão com destino diferente dos padrões.
 
-A tentativa anterior do agente via `build-totvs.cmd`, interrompida antes do
+A tentativa local anterior via `build-totvs.cmd`, interrompida antes do
 compilador ao parar os processos TOTVS, permanece como histórico em
 `tmp/ini-totvs-build.log`. O aceite manual posterior supera a pendência de
 execução dos novos testes. A [matriz](../docs/acceptance.pt-BR.md) distingue esse
 resultado dos cenários ainda não homologados. A versão revisada acrescenta
 `explicitProfile`, `noForcedProfile` e `invalidProfile`, totalizando 16 checks.
-Em 2026-10-07 às 16:14:06, thread 30596, todos os 16 passaram. O operador
-informou recompilação após a migração para `.hb`; os quatro testes Query,
+Em 2026-10-07 às 16:14:06, thread 30596, todos os 16 passaram. Foi
+informada recompilação após a migração para `.hb`; os quatro testes Query,
 Config, Connection e HTTP aceitam a regressão das classes/namespace TLPP
 renomeados e dos novos caminhos de addon `.hb` no Windows alvo.
 O log fornece horários/threads; não foram fornecidos log real do compilador,
-hashes, argumentos ou destino efetivo. O agente não executou esses testes.
-Em 2026-10-08, o operador forneceu **29 checks TCP
+hashes, argumentos ou destino efetivo. Esses testes não foram executados pela automação local.
+Em 2026-10-08, o relato manual AppServer registrou **29 checks TCP
 MSSQL aprovados**, thread 660, e **29 checks TCP SQLite aprovados**, thread
 3192. As entradas de conveniência `U_HBBridgeQueryTestMSSQL()` e
 `U_HBBridgeQueryTestSQLite()` selecionam aliases locais de exemplo; o cliente
-genérico continua sem perfil forçado. Esse resultado do operador é separado
+genérico continua sem perfil forçado. Esse resultado manual é separado
 dos 92 checks MSSQL nativos abaixo.
 
-Depois, o operador passou nos **13 checks HTTP de cada backend**, em 2026-10-08:
+Depois, execuções manuais AppServer passaram nos **13 checks HTTP de cada backend**, em 2026-10-08:
 `U_HBBridgeHTTPTestMSSQL`, thread 25976, início do programa 10:33:32, teste
 10:33:33–10:33:34 (um segundo); `U_HBBridgeHTTPTestSQLite`, thread 9916,
 início do programa 10:34:06, teste 10:34:07 (zero segundos exibidos). Horários
 de São Paulo. Ambos incluem primeira/próxima página e valores do dataset
 comum; os padrões das entradas selecionam `MSSQL/pData` e `sqlite_demo`.
-São execuções AppServer do operador, separadas da automação nativa. Transcrição:
+São execuções manuais AppServer, separadas da automação nativa. Transcrição:
 `tmp/protheus-http-mssql-sqlite-operator-20261008.log`.
 Veja [homologação](../docs/acceptance.pt-BR.md). A nova solicitação de dataset e
 as falhas UTF-8/FLOAT têm prioridade como D02/D03 no [WIP](../WIP.pt-BR.md),
@@ -246,7 +247,7 @@ linhas; `Eof()`/`Skip()` locais à página preservados; cópias independentes de
 `FieldName()`; cópia em `GetRow()`; estado vazio/fechado, metadados inválidos
 e falha/recuperação de página. Também cobre preservação/troca do perfil,
 cópias da página, navegação para trás e totais de linhas/páginas validados,
-desconhecidos, vazios e inválidos. A tentativa de compilação do agente em
+desconhecidos, vazios e inválidos. A tentativa de compilação local em
 2026-10-08 retornou exit 1, `COMPILEERROR-300 Failed to open repository`, pois
 `custom.rpo` estava em uso; total/sucessos/erros foram `0/0/0`, sem compilação dos
 fontes. Log: `tmp/totvs-compile.log`. O AppServer ativo não foi parado. Aquela

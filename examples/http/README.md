@@ -67,7 +67,7 @@ physical table names, tenant, company and branch rules explicitly.
 ## Compile and run the example
 
 Compile the complete `src/tlpp/` tree, including the client and test, with
-the operator's TOTVS SDK configuration:
+the installation-specific TOTVS SDK configuration:
 
 ```powershell
 $env:HBBRIDGE_TOTVS_APPSERVER_DIR = '<your-appserver-directory>'
@@ -171,10 +171,12 @@ The same client can back the existing paginated dataset:
 `NextPage()` and `HasNextPage()` retain the existing dataset contract.
 The query above is a constant SELECT, with no Protheus table writes.
 
-## Operator acceptance
+<a id="operator-acceptance"></a>
 
-On **2026-10-07**, the operator compiled/adjusted the sources and ran
-`U_HBBridgeHTTPTest` on AppServer thread **25672**. The program started at
+## Manual AppServer acceptance
+
+On **2026-10-07**, compilation/source adjustments and a manual run of
+`U_HBBridgeHTTPTest` on AppServer thread **25672** were reported. The program started at
 15:16:12 and the test ran from **15:16:14 to 15:16:15**. All **13 checks**
 were true: GET/POST Health, service discovery, 200,000-byte Echo with the
 accent comparison, addon execution, unknown service (404), forbidden
@@ -187,16 +189,17 @@ pagination for the selected profile and does not establish MSSQL acceptance.
 Broader Unicode/codepage coverage, HTTPS and alternative client configurations
 remain pending. See [the acceptance record](../../docs/acceptance.md).
 
-After reporting recompilation following the Harbour `.hb` migration, the
-operator repeated all **13 checks successfully** on the same date: thread
+After reported recompilation following the Harbour `.hb` migration,
+manual runs repeated all **13 checks successfully** on the same date: thread
 **27296**, test **16:10:44–16:10:45**, and thread **25456**, test
 **16:15:03–16:15:04**. Times are São Paulo; both runs took one second and
 reported Health HTTP 200, addon execution and paginated values. These are
-operator reports, not agent AppServer runs or a supplied compiler log.
+manual AppServer reports; these runs were not executed through local automation,
+and no compiler log was supplied.
 The accompanying Query test identifies `sqlite_demo`; those 2026-10-07 HTTP
 reports do not identify their own SQL backend or actual module argument.
 
-On **2026-10-08**, the operator passed all **13 checks per backend** through
+On **2026-10-08**, manual AppServer runs passed all **13 checks per backend** through
 the dedicated entries above. MSSQL: thread **25976**, program start
 **10:33:32**, test **10:33:33–10:33:34**, displayed duration one second.
 SQLite: thread **9916**, program start **10:34:06**, test **10:34:07**,
@@ -205,7 +208,7 @@ passed Health, discovery, Echo/accent, addon, failure/recovery and the
 shared dataset's first/next pages and values. Entrypoint defaults identify
 `MSSQL/pData` and `sqlite_demo`; the generic client still has no forced alias.
 
-These are operator AppServer runs, separate from the **92 native MSSQL** and
+These are manual AppServer runs, separate from the **92 native MSSQL** and
 **566 default Harbour regression** checks already recorded. Transcript:
 `tmp/protheus-http-mssql-sqlite-operator-20261008.log`. HTTPS, Linux, broader
 SQL Unicode/types, controlled network/driver failures, resource isolation and

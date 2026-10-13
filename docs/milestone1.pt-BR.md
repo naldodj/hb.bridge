@@ -197,8 +197,8 @@ Na homologação histórica do Marco 1 em 2026-10-03, a execução completou
 **159 verificações, zero falhas e sem skips**,
 incluindo 12 chamadas nativas concorrentes e recusa de credencial admin incorreta.
 Build isolado do executável e CLI `--help`/configuração inválida também passaram.
-No AppServer, os três fontes TLPP foram compilados sem erros e executou
-Health/ADDON/Echo pelo WebApp. Os logs confirmam sucesso e preservação integral
+No AppServer, a compilação manual dos três fontes TLPP terminou sem erros;
+confirmada a validação de Health/ADDON/Echo pelo WebApp. Os logs confirmam sucesso e preservação integral
 dos 200.000 caracteres do Echo, conforme a [matriz](acceptance.pt-BR.md).
 
 O modelo descrição/handler avaliado em `TRPCFunction` foi aproveitado como

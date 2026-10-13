@@ -5,19 +5,31 @@
 namespace HBBridge.Examples
 
 procedure U_HBBridgeHTTPTable()
+    local bExecute as codeblock
     if ((FindClass("FWWebEx.Tools.FWExampleTools")).and.(FindClass("FWWebEx.WebExControl")))
-        FWWebEx.Tools.FWExampleTools():Execute({||HBBridge.Examples.HBBridgeHTTPTableExample():Show(.F.)},"HBBridgeHTTPTable",.T.)
+        bExecute:={||HBBridge.Examples.HBBridgeHTTPTableExample():Show(.F.)}
+        if (!FWIsInCallStack("Execute"))
+            FWWebEx.Tools.FWExampleTools():Execute(bExecute,"HBBridgeHTTPTable",.T.)
+        else
+            Eval(bExecute)
+        endif
     endif
 return
 
 procedure U_HBBridgeHTTPTableSX5()
+    local bExecute as codeblock
     local cProfile as character
     local aFWGetTopInfo as array
     if ((FindClass("FWWebEx.Tools.FWExampleTools")).and.(FindClass("FWWebEx.WebExControl")))
         aFWGetTopInfo:=FWGetTopInfo()
         cProfile:=(aFWGetTopInfo[4]+"/"+aFWGetTopInfo[5])
         FWFreeArray(@aFWGetTopInfo)
-        FWWebEx.Tools.FWExampleTools():Execute({||HBBridge.Examples.HBBridgeHTTPTableExample():Show(.T., cProfile/*, cURL, cToken, nTimeoutSeconds*/)},"HBBridgeHTTPTableSX5",.T.)
+        bExecute:={||HBBridge.Examples.HBBridgeHTTPTableExample():Show(.T., cProfile/*, cURL, cToken, nTimeoutSeconds*/)}
+        if (!FWIsInCallStack("Execute"))
+            FWWebEx.Tools.FWExampleTools():Execute(bExecute,"HBBridgeHTTPTableSX5",.T.)
+        else
+            Eval(bExecute)
+        endif
     endif
 return
 
@@ -35,19 +47,24 @@ endclass
 
 static method Show(lUseSX5, cProfile, cURL, cToken, nTimeoutSeconds) class HBBridgeHTTPTableExample
 
+    local bPrevious as codeblock
+
     local cFile := "", cNavigate := "" as character
     local cInstance := UUIDRandomSeq() as character
     local cIniFile := GetSrvIniName() as character
-    local nWaitSeconds := 30 as numeric
-    local nWaitMs := 0 as numeric
+
     local jDefinition as json
+
+    local nWaitMs := 0 as numeric
+    local nWaitSeconds := 30 as numeric
+
+    local oError as object
+    local oSize as object
     local oClient as object
+    local oEngine as object
+    local oDialog as object
     local oAdapter as object
     local oChannel as object
-    local oDialog as object
-    local oEngine as object
-    local oError as object
-    local bPrevious as codeblock
 
     if ValType(cProfile) == "U"
         cProfile := GetPvProfString("hbBridge", "SQLProfile", "", cIniFile)
@@ -101,6 +118,7 @@ static method Show(lUseSX5, cProfile, cURL, cToken, nTimeoutSeconds) class HBBri
                         nBottom:=oSize:GetDimension("TWebEngine","LINEND")
                         nRight:=oSize:GetDimension("TWebEngine","COLEND")
                     endif
+                    FreeObj(@oSize)
                     oEngine:=TWebEngine():New(oDialog,nTop,nLeft,nRight,nBottom,/*cURL*/,oChannel:nPort)
                     oEngine:Align := CONTROL_ALIGN_ALLCLIENT
                     oEngine:Navigate(cNavigate)
@@ -118,10 +136,10 @@ static method Show(lUseSX5, cProfile, cURL, cToken, nTimeoutSeconds) class HBBri
         endif
     endtry
 
-    if ValType(oChannel) == "O"
+    if ((ValType(oChannel)=="O").and.(ValType(bPrevious)=="B"))
         oChannel:bJSToAdvPL := bPrevious
     endif
-    if ValType(oAdapter) == "O"
+    if (ValType(oAdapter)=="O")
         oAdapter:Close()
     endif
     FreeObj(@oEngine)
@@ -129,7 +147,7 @@ static method Show(lUseSX5, cProfile, cURL, cToken, nTimeoutSeconds) class HBBri
     FreeObj(@oAdapter)
     FreeObj(@oClient)
     FreeObj(@jDefinition)
-    if !Empty(cFile)
+    if (!Empty(cFile))
         if File(cFile)
             FErase(cFile)
         endif
@@ -138,13 +156,14 @@ return
 
 static method Definition(lUseSX5) class HBBridgeHTTPTableExample
 
-    local jDefinition := JSONObject():New() as json
-    local jFields := JSONObject():New() as json
-    local cBranch := "" as character
     local cSQL := "" as character
+    local cBranch := "" as character
+
+    local jFields := JSONObject():New() as json
+    local jDefinition := JSONObject():New() as json
 
     // Positional column order is required by the native DataTables interface.
-    if lUseSX5
+    if (lUseSX5)
         // Protheus resolves physical table, active company and branch context.
         cBranch := StrTran(xFilial("SX5"), "'", "''")
         cSQL := "SELECT R_E_C_N_O_ AS ID, X5_FILIAL AS BRANCH, X5_TABELA AS TABLE_CODE, " + ;
@@ -183,22 +202,26 @@ return(jDefinition)
 
 static method Page(jDefinition, cInstance, nWaitMs, cFile) class HBBridgeHTTPTableExample
 
-    local oPage := FWWebEx.WebExPage():New(jDefinition["title"]) as object
-    local oBody := FWWebEx.WebExBody():New() as object
-    local oHeading := FWWebEx.WebExControl():New("h1") as object
-    local oNotice := FWWebEx.WebExControl():New("p") as object
-    local oStatus := FWWebEx.WebExControl():New("p") as object
-    local oReset := FWWebEx.WebExControl():New("button") as object
-    local oTable := FWWebEx.WebExDataTable():New(jDefinition["title"], .T.) as object
-    local oFilter as object
-    local oPanel as object
-    local jTableFields := JSONObject():New() as json
-    local jTypes := JSONObject():New() as json
-    local jOptions := JSONObject():New() as json
-    local jColumn as json
     local cHTML := "", cField := "" as character
-    local nColumn := 0 as numeric
+
+    local jTypes := JSONObject():New() as json
+    local jColumn as json
+    local jOptions := JSONObject():New() as json
+    local jTableFields := JSONObject():New() as json
+
     local lWritten := .F. as logical
+
+    local oBody := FWWebEx.WebExBody():New() as object
+    local oPage := FWWebEx.WebExPage():New(jDefinition["title"]) as object
+    local oPanel as object
+    local oTable := FWWebEx.WebExDataTable():New(jDefinition["title"], .T.) as object
+    local oReset := FWWebEx.WebExControl():New("button") as object
+    local oFilter as object
+    local oStatus := FWWebEx.WebExControl():New("p") as object
+    local oNotice := FWWebEx.WebExControl():New("p") as object
+    local oHeading := FWWebEx.WebExControl():New("h1") as object
+
+    local nColumn := 0 as numeric
 
     // FWWebEx requires a native fields array; rows/metadata stay keyed elsewhere.
     jTableFields["fields"] := {}
@@ -259,8 +282,10 @@ static method Callback(oChannel, cType, cContent, cInstance, oAdapter, bPrevious
 
     local jEnvelope := JSONObject():New() as json
     local jResponse as json
-    local oError as object
+
     local lValid := .F. as logical
+
+    local oError as object
 
     if cType != "HBBRIDGE_HTTP_TABLE_REQUEST"
         if ValType(bPrevious) == "B"

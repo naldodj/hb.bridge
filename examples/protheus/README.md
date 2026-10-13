@@ -14,7 +14,12 @@ has its own dotted directory; this guide does not duplicate those sources.
 | `U_HBBridgeHelperTest` | SQL aliasing, replacement and filter-expression checks. | No connection or ERP reads; expected 12 checks, runtime acceptance pending. |
 | `U_HBBridgeQueryTest`, `U_HBBridgeQueryTestSQLite`, `U_HBBridgeQueryTestTopInfo` | Constant query/page fixture. | Explicit remote SQL profile; TopInfo resolves its alias on Protheus. |
 | `U_HBBridgeHTTPTest`, `U_HBBridgeHTTPTestMSSQL`, `U_HBBridgeHTTPTestSQLite` | HTTP services and paginated SQL. | Enabled HTTP endpoint, client token and configured profile. |
+| `U_HBBridgeHTTPTable`, `U_HBBridgeHTTPTableSX5` | FWWebEx HTTP table, search, field filters and totals. | FWWebEx/DataTable/example tools in the RPO, UI and HTTP/SQL settings; validation confirmed for the demonstrated views on 2026-10-13. |
 | `U_HBBridgeBrowseDataTestSRA`, `U_HBBridgeBrowseDataTestSX5` | Interactive native browse, seek/filter and record view. | Protheus UI, dictionary/context and the example tables/profile. |
+
+The [HTTP table guide and screenshots](../../src/tlpp/tests/protheus/hbbridge.http.table.test/README.md)
+record the fixture/SX5 validation. The separate
+`U_HBBridgeHTTPTableTest()` mock has no reported execution acceptance.
 
 ## Dataset consumer
 
@@ -64,7 +69,7 @@ helpers do not add business rules to the Harbour server.
 
 The query test defaults to constant fixtures. Its optional fifth argument,
 `lRunERPExamples := .T.`, explicitly enables the local SX5/SRA/SX3 examples
-and their field output. Browse examples are operator-driven; they are not
+and their field output. Browse examples are interactive; they are not
 executed by the Harbour regression or pure TLPP mock tests.
 
 ## Compilation and acceptance
@@ -72,7 +77,7 @@ executed by the Harbour regression or pure TLPP mock tests.
 Use [build-totvs.cmd](../../scripts/build-totvs.cmd) with your vendor includes.
 It generates an explicit recursive `.tlpp` list, avoiding dotted directories
 being interpreted as source files by the AppServer directory expander.
-The local operator workflow requires an elevated terminal and the configured
+The local compilation workflow requires an elevated terminal and the configured
 TOTVS stop/start scripts, with restart attempted after compiler failure too.
 The temporary `__rpo-legacy-cleanup` module only replaces an obsolete RPO
 class module; it is not a parallel product implementation.
@@ -80,5 +85,5 @@ class module; it is not a parallel product implementation.
 Compile success does not accept UI interactions. Exercise page boundaries,
 empty/error results, text/numeric/date seek, quotes in filters and repeated
 open/close in the actual AppServer. [Acceptance](../../docs/acceptance.md)
-distinguishes native runs, compilation and operator results. UTF-8/FLOAT and
+distinguishes native runs, compilation and manual-run records. UTF-8/FLOAT and
 encrypted credential corrections remain in [WIP](../../WIP.md).

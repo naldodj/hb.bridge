@@ -85,7 +85,7 @@ secrets. Missing decryption support must fail explicitly rather than pass the
 ciphertext as a password or silently fall back to a plaintext copy. These are
 future acceptance criteria; this review introduces no runtime cryptography.
 
-For the operator's current Protheus deployment, database passwords rarely
+For the referenced Protheus deployment, database passwords rarely
 change, and a change requires manual coordination of database access, ODBC
 and DBAccess settings. This deployment constraint defines the initial design:
 securely store and resolve a stable SQL credential. Automatic SQL-password
@@ -153,13 +153,13 @@ wrong key, truncated data, non-ASCII passwords and support for optional
 encryption master-key replacement before marking this feature complete.
 Random-number and zeroization APIs must be verified against the pinned Zig
 release, not assumed from another version.
-If an operator chooses to replace this master key, the same SQL password is
+When this master key is explicitly replaced, the same SQL password is
 re-encrypted; this does not change the database password or require
 SQL-password rotation.
 
 ## Optional OpenBao provider: RFC review on 2026-10-07
 
-The operator's RFC in `hbridge.news.txt` is feasible as a future optional
+The RFC recorded in `hbridge.news.txt` is feasible as a future optional
 **credential provider** that reads stable SQL credentials from OpenBao KV v2,
 alongside integrated authentication, encrypted INI with an external key and
 OS providers. It belongs to package 003 in [WIP](../WIP.md). Neither OpenBao
@@ -311,12 +311,12 @@ writes out of this acceptance step.
 
 On 2026-10-08, the filled private SQL-authentication profile passed **92 native
 checks, zero failures and no skips** against SQL Server `16.0.1200.5`, database
-`pData`, ODBC Driver `18.6.2.1`, Windows x64 and Harbour `UTF8EX`. The operator
-separately passed all **29 Protheus TCP checks for MSSQL** and repeated all
-**29 SQLite checks**, threads 660 and 3192 respectively. Later the same day,
-the operator passed **13 HTTP checks each** through
+`pData`, ODBC Driver `18.6.2.1`, Windows x64 and Harbour `UTF8EX`. Separate
+manual AppServer runs passed all **29 Protheus TCP checks for MSSQL** and
+repeated all **29 SQLite checks**, threads 660 and 3192 respectively. Later the same day,
+manual AppServer runs passed **13 HTTP checks each** through
 `U_HBBridgeHTTPTestMSSQL()` and `U_HBBridgeHTTPTestSQLite()`, threads 25976 and
-9916. These separate operator runs accept the exercised TCP/HTTP routes;
+9916. These separate manual AppServer runs accept the exercised TCP/HTTP routes;
 integrated authentication, Windows/Linux service identities, HTTPS, encrypted
 credential management and broader failure/type cases remain pending. See
 [acceptance](acceptance.md) for attributable evidence and remaining work.

@@ -12,7 +12,7 @@ registra resultados verificados; ChangeLog e Git preservam o histórico.
 | Item | Valor atual |
 | --- | --- |
 | ID | `001-mssql-acceptance` |
-| Abertura / atualização | 2026-10-07 / 2026-10-12 |
+| Abertura / atualização | 2026-10-07 / 2026-10-13 |
 | Situação | MSSQL nativo homologado: 92 checks; Protheus TCP: 29 e HTTP: 13 em cada banco MSSQL/SQLite. Pacote permanece aberto. |
 | Objetivo | Homologar RPCRDD.Query/dataset existentes em banco MSSQL real identificado, por Harbour, TCP Protheus e HTTP Protheus. |
 | Referência do produto | Código publicado `50e1c65`; checkout na abertura `bce52d2` inclui atualização do badge de clones. |
@@ -31,7 +31,7 @@ registra resultados verificados; ChangeLog e Git preservam o histórico.
   autenticação SQL/integrada explícita. Credenciais
   cifradas/CLI portáveis ficam para pacote posterior; sua implementação não é
   pré-requisito deste aceite.
-- O responsável esclareceu em 2026-10-07 que as credenciais SQL são estáveis;
+- Esclarecido em 2026-10-07: as credenciais SQL são estáveis;
   rotação automática da senha do banco fica fora do escopo escolhido. KV OpenBao
   dispensa plugin MSSQL dinâmico. Renovação do token do cofre tem ciclo separado.
 - Preservar o mutex compartilhado do ciclo SQL. Verificar isolamento/limpeza
@@ -42,12 +42,12 @@ registra resultados verificados; ChangeLog e Git preservam o histórico.
 ### Ponto de partida verificado
 
 - Suíte Harbour: **487 checks, zero falhas e nenhum skip**, repetida em 2026-10-07.
-- Aceite SQLite do operador: **29 checks de dataset/páginas**, repetido em
+- Aceite SQLite manual no AppServer: **29 checks de dataset/páginas**, repetido em
   2026-10-07, thread 27136, perfil `sqlite_demo`.
 - Configuração cliente revisada: **16 checks**, 2026-10-07, thread 30596.
-- TCP do operador: relógio, Health, ADDON e os dois Echo exatos de 200000 bytes
+- TCP manual no AppServer: relógio, Health, ADDON e os dois Echo exatos de 200000 bytes
   aprovados em 2026-10-07, thread 27084.
-- Aceite HTTP TLPP do operador: **13 checks**, repetido em 2026-10-07,
+- Aceite HTTP TLPP manual no AppServer: **13 checks**, repetido em 2026-10-07,
   threads 27296 e 25456 após a recompilação informada.
   Perfil/backend SQL não informado; esse resultado não homologa MSSQL.
 - Prova nativa THREAD STATIC: **31 asserções**; estado de worker difere do
@@ -56,7 +56,7 @@ registra resultados verificados; ChangeLog e Git preservam o histórico.
 
 ### Ajuste preparatório explícito: extensão dos fontes Harbour
 
-Em 2026-10-07 o responsável autorizou adotar `.hb` nativo para todos os fontes
+Em 2026-10-07 foi autorizada a adoção de `.hb` nativo para todos os fontes
 Harbour próprios. Este ajuste delimitado de organização antecede M01 e não
 substitui o pacote 001, reinicia seu progresso nem homologa MSSQL.
 
@@ -72,16 +72,29 @@ Evidências: 487 verificações Harbour, zero falhas/sem skips; build isolado do
 produto e verificações de ajuda/configuração; três validadores para 141 arquivos;
 links locais em 61 documentos e whitespace aprovados. Logs/detalhes estão na
 [homologação](docs/acceptance.pt-BR.md#extensão-nativa-dos-fontes-harbour-em-2026-10-07).
-O operador informou recompilação e apresentou execuções aprovadas de TCP,
-SQLite, configuração revisada e HTTP. Evidências:
+Informada a recompilação, seguida de execuções manuais aprovadas no AppServer
+de TCP, SQLite, configuração revisada e HTTP. Evidências:
 `tmp/protheus-http-hb-operator-20261007.log` e
 `tmp/protheus-suite-hb-operator-20261007.log`; veja a [homologação](docs/acceptance.pt-BR.md).
 A regressão TLPP preparatória está homologada nos casos exercitados. Retomar M01;
 não repetir a migração concluída nem deduzir homologação MSSQL.
 
+<a id="exemplo-preparatório-de-tabela-http-aceite-do-operador"></a>
+
+### Exemplo preparatório de tabela HTTP: validação manual
+
+- [x] **F01 — Homologar o exemplo de tabela HTTP FWWebEx.** Confirmada a
+  validação como OK em 2026-10-13, com seis capturas da fixture constante e SX5.
+  Resultados visíveis abrangem telas de 5/10 linhas, pesquisa global, filtro
+  por igualdade em Description, totais filtrados/gerais e texto literal.
+  Veja as [evidências](src/tlpp/tests/protheus/hbbridge.http.table.test/README.pt-BR.md)
+  e a [homologação](docs/acceptance.pt-BR.md#tabela-http-fwwebex-validação-confirmada-em-2026-10-13).
+  A preparação solicitada está concluída nas telas demonstradas. D02/D03
+  mantêm suas tarefas específicas de execução mock e integridade dos dados.
+
 ### Trabalho em ordem
 
-O responsável ampliou a análise em 2026-10-08 após os aceites HTTP: acesso ao
+Ampliada a análise em 2026-10-08 após os aceites HTTP: acesso ao
 header/varredura automática do dataset, encoding/collation e tamanhos/decimais
 lógicos. Uma prova com constantes revelou perda numérica FLOAT no JSON e a
 inspeção dos fontes encontrou inconsistência de codepage TCP. São novas
@@ -90,7 +103,7 @@ constatações de aceite, sem motivo para repetir o inventário concluído.
 - [x] **D01 — Revisar a interface consumidora.** Conferir exemplos locais
   FileRead/FileNavigator fornecidos; adotar `MoreToRead()` e métodos de metadados,
   preservando `Eof()`/`Skip()` locais à página. A API canônica atual é
-  `Header()`; o responsável removeu `DSStruct()` depois.
+  `Header()`; `DSStruct()` foi removido depois.
 - [ ] **D02 — Homologar a extensão TLPP do dataset.** Compilar/exercitar cópias
   de cabeçalho/campo/linha, ordem das colunas, varredura automática, verificações
   repetidas, vazio/fechado e falha/recuperação de página. Novos mocks sem dados ERP.
@@ -153,9 +166,10 @@ constatações de aceite, sem motivo para repetir o inventário concluído.
 Encerrar somente com M01–M09 marcadas e evidências atribuíveis: MSSQL/backend/
 configuração reais identificados, chamadas Harbour/TCP/HTTP bem-sucedidas,
 valores/páginas, recuperação de falhas, isolamento/liberação e regressões
-pertinentes. Cada marcação distingue código implementado, execução do agente
-e execução do operador. Registrar limitações e próximos trabalhos sem deduzir
-HTTPS, Linux, outros drivers ou tipos não suportados deste aceite Windows.
+pertinentes. Cada marcação distingue código implementado, verificações locais
+automatizadas e execução manual no AppServer. Registrar limitações e próximos
+trabalhos sem deduzir HTTPS, Linux, outros drivers ou tipos não suportados deste
+aceite Windows.
 Qualquer alteração do escopo/critério obrigatório deve ser registrada antes do encerramento.
 
 ### Pré-requisitos atuais e nota para retomada
@@ -166,17 +180,18 @@ para `(local)` e banco `pData`. Microsoft ODBC Driver 18 for SQL Server instalad
 do produto **18.6.2.1**, x64; Driver 17 também disponível. Identidade do console:
 `DNA-TECH-01\marin`; identidades de serviço exigem homologação separada.
 
-O operador escolheu preencher um INI privado, sem conexão pronta.
+Selecionado um INI privado para preenchimento local, sem conexão pronta.
 `C:/tmp/hbBridge.ini` continha inicialmente apenas o perfil SQL `sqlite_demo`.
 Em 2026-10-08 foi acrescentado um modelo comentado `MSSQL/pData`, com backup
 privado e preservação byte a byte das configurações existentes. Ele usa DSN
 `pData` instalado, `Authentication=sql` explícita e campos `Username`/`Password`
-vazios para preenchimento local e remoção dos comentários pelo operador. A
+vazios para preenchimento local e remoção dos comentários. A
 política local explícita `Encrypt=optional` acompanha o DSN de desenvolvimento;
 TLS de uma instalação exige sua configuração de certificado. Nenhuma credencial
 SQL foi lida do DBAccess, alterada no ODBC ou guardada no repositório.
 
-O operador habilitou o perfil e preencheu as credenciais durante este trabalho.
+O perfil foi habilitado e as credenciais foram preenchidas localmente durante
+este trabalho.
 A configuração estruturada foi validada sem exibir valores. Uma prova somente
 de leitura com `System.Data.Odbc`, as credenciais privadas e autenticação SQL
 conectou ao **SQL Server 16.0.1200.5**, banco **pData**, em 2026-10-08.
@@ -210,20 +225,21 @@ indisponível/timeout nativo controlados e isolamento ampliado de perfis faltam.
 M08 ainda exige TCP/HTTP e memória. A regressão padrão passou em **566 checks,
 zero falhas/sem skips**: `tmp/tests-f84004277a8d4cc2905131f706a1e181/results.log`.
 
-O operador forneceu execuções TCP em 2026-10-08, horário de São Paulo:
+Informadas execuções TCP manuais no AppServer em 2026-10-08, horário de São Paulo:
 `U_HBBridgeQueryTestMSSQL`, 10:06:10, thread 660, perfil `MSSQL/pData`, e
 `U_HBBridgeQueryTestSQLite`, 10:06:43, thread 3192, perfil `sqlite_demo`.
-Ambos os relatos contêm os 29 checks verdadeiros. O operador acrescentou esses
+Ambos os relatos contêm os 29 checks verdadeiros. Acrescentados esses
 wrappers ao teste TLPP existente; seus padrões continuam somente nos testes,
 sem alterar o alias SQL opcional do produto. Evidência:
 `tmp/protheus-mssql-sqlite-operator-20261008.log`. M04 homologada nos casos
 exercitados; sem novo log de compilador ou hash do artefato servidor fornecido.
 
-O operador também forneceu execuções HTTP em 2026-10-08, horário de São Paulo:
+Informadas também execuções HTTP manuais no AppServer em 2026-10-08, horário
+de São Paulo:
 `U_HBBridgeHTTPTestMSSQL`, programa 10:33:32, thread 25976, corpo 10:33:33–34,
 e `U_HBBridgeHTTPTestSQLite`, programa 10:34:06, thread 9916, corpo 10:34:07.
 Ambas contêm os 13 checks true/PASS e Health HTTP 200. Os wrappers acrescentados
-pelo operador e conferidos no fonte definem `MSSQL/pData` e `sqlite_demo`,
+e conferidos no fonte definem `MSSQL/pData` e `sqlite_demo`,
 respectivamente, encaminhando ao teste HTTP comum; padrões da biblioteca preservados.
 Evidência: `tmp/protheus-http-mssql-sqlite-operator-20261008.log`.
 M05 homologada nesses casos. A duração informada de 1 s/0 s tem resolução de
@@ -231,7 +247,7 @@ segundos inteiros e não substitui as medições de M08. Sem log de compilador,
 argumentos explícitos da chamada ou hash do artefato servidor fornecidos.
 HTTPS, transporte ampliado de tipos nativos e Linux têm aceites separados.
 
-Progresso/evidência: P01/P02 e M01–M05 concluídas nos casos exercitados.
+Progresso/evidência: P01/P02/F01 e M01–M05 concluídas nos casos exercitados.
 Tratar D02/D03 da nova solicitação antes de retomar M06 com conexão
 indisponível/timeout nativo controlados, erros sanitizados e recuperação;
 SQL inválido/perfil desconhecido já têm evidências no núcleo e TCP.
@@ -240,7 +256,7 @@ casos nativos/TCP/HTTP homologados. M07–M09 e critérios do pacote permanecem.
 
 ## Pacotes seguintes: direção reservada
 
-Observação do responsável em 2026-10-12: [avaliar reuso de conexões SQL](docs/sql-connections.pt-BR.md)
+Observação registrada em 2026-10-12: [avaliar reuso de conexões SQL](docs/sql-connections.pt-BR.md)
 após medir seu custo real, aproveitando a referência de M08. Comparar pooling
 ODBC e reuso por perfil gerenciado pelo host; distinguir persistência do banco
 e do transporte RPC. A anotação não decide implementação nem altera a próxima
@@ -263,7 +279,7 @@ não resolve UTF-8/FLOAT nem implementa credenciais cifradas.
 | Posteriores | Jobs/batches/progresso/cancelamento e extensões nativas úteis. |
 
 São prioridades, sem especificações concluídas nem tarefas do pacote 001.
-A RFC OpenBao do operador foi analisada em 2026-10-07 em
+A RFC OpenBao fornecida foi analisada em 2026-10-07 em
 [credenciais](docs/credentials.pt-BR.md#provedor-openbao-opcional-análise-da-rfc-em-2026-10-07).
 Continua como provedor futuro opcional para credenciais estáveis. Rotação
 automática de senha SQL e plugins dinâmicos de banco ficam fora do escopo

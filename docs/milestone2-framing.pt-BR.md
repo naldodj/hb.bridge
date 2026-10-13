@@ -190,14 +190,14 @@ O teste também verifica a escala de `TimeCounter`, avanço durante espera e
 aritmética do orçamento, incluindo expiração, frações, regressão e prazo maior
 que 24 horas. Compile o novo `hbbridge.time.tlpp` junto dos demais fontes TLPP.
 
-**Confirmado pelo operador em 2026-10-03:** Health, ADDON.Execute e os dois
-Echo passaram no Protheus, com 200.000 bytes idênticos e gzip de requisição
+**Validação manual AppServer confirmada em 2026-10-03:** Health, ADDON.Execute
+e os dois Echo passaram no Protheus, com 200.000 bytes idênticos e gzip de requisição
 de 152.964 bytes no caso variado. O registro completo está em
 [acceptance.pt-BR.md](acceptance.pt-BR.md). Aquele trecho não informa os valores
 do relógio nem o hash do binário usado.
 
-Na confirmação manual recebida em 2026-10-04, o operador repetiu Health,
-ADDON e os dois Echo com sucesso, junto ao teste de configuração INI com
+Na confirmação manual AppServer recebida em 2026-10-04, Health,
+ADDON e os dois Echo passaram novamente, junto ao teste de configuração INI com
 13 checks e ao SQL SQLite com 29. O relógio também passou: `Unix=false`,
 delta `1097.692700`, normalizado `1097.773500` ms após `Sleep(1000)`.
 Isso aceita escala/avanço no Windows nessa rodada; não determina resolução,
@@ -210,9 +210,10 @@ trata retorno zero sem erro como fechamento normal e qualquer retorno
 negativo como falha. O fechamento normal foi aceito nesta execução;
 timeout/falhas e envio parcial positivo forçado ainda exigem testes no ambiente.
 
-Na rodada anterior, o agente compilou um binário isolado em `tmp/marco2-product/hbbridge.exe`;
-`out/hbbridge.exe` não foi substituído pelo agente. A sessão
-do agente não tem permissão para parar esse processo elevado nem o AppServer.
+Na rodada local anterior, foi compilado um binário isolado em
+`tmp/marco2-product/hbbridge.exe`; `out/hbbridge.exe` não foi substituído.
+A sessão local não tinha permissão para parar esse processo elevado nem o
+AppServer.
 Para atualizar a instalação, encerrar o hbBridge ativo, compilar o produto,
 reiniciá-lo e usar [build-totvs.cmd](../scripts/build-totvs.cmd) no contexto
 administrativo já usado na homologação anterior. Depois executar

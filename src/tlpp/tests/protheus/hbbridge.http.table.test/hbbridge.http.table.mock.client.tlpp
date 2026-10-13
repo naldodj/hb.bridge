@@ -8,12 +8,16 @@ class HBBridgeHTTPTableMockClient
     private data jResponses as json
     private data jRequests as json
     private data nResponses as numeric
+    private data nResponsesRead as numeric
     private data nCalls as numeric
+    private data nUnexpectedCalls as numeric
 
     public method New() as object
     public method Queue(jResponse as json)
     public method CallService(cService as character, jParams as json) as json
     public method CallCount() as numeric
+    public method UnexpectedCallCount() as numeric
+    public method PendingResponseCount() as numeric
     public method Request(nCall as numeric) as json
     public method Close()
 
@@ -24,7 +28,9 @@ method New() class HBBridgeHTTPTableMockClient
     self:jResponses := JSONObject():New()
     self:jRequests := JSONObject():New()
     self:nResponses := 0
+    self:nResponsesRead := 0
     self:nCalls := 0
+    self:nUnexpectedCalls := 0
 
 return(self)
 
@@ -40,13 +46,18 @@ method CallService(cService, jParams) class HBBridgeHTTPTableMockClient
 
     local jResponse := JSONObject():New() as json
     local cKey := "" as character
+    local cResponseKey := "" as character
 
     self:nCalls++
     cKey := tlpp.ToStr(self:nCalls)
     self:jRequests[cKey] := jParams:ToJSON()
-    if cService == "RPCRDD.Query" .and. self:jResponses:HasProperty(cKey)
-        jResponse:FromJSON(self:jResponses[cKey])
+    cResponseKey := tlpp.ToStr(self:nResponsesRead + 1)
+    // Unexpected calls remain failures without skipping a future fixture.
+    if cService == "RPCRDD.Query" .and. self:jResponses:HasProperty(cResponseKey)
+        jResponse:FromJSON(self:jResponses[cResponseKey])
+        self:nResponsesRead++
     else
+        self:nUnexpectedCalls++
         jResponse["success"] := .F.
         jResponse["code"] := "MOCK_RESPONSE_MISSING"
         jResponse["error"] := "No table result was queued for this call."
@@ -57,6 +68,14 @@ return(jResponse)
 method CallCount() class HBBridgeHTTPTableMockClient
 
 return(self:nCalls)
+
+method UnexpectedCallCount() class HBBridgeHTTPTableMockClient
+
+return(self:nUnexpectedCalls)
+
+method PendingResponseCount() class HBBridgeHTTPTableMockClient
+
+return(self:nResponses - self:nResponsesRead)
 
 method Request(nCall) class HBBridgeHTTPTableMockClient
 

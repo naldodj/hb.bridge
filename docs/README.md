@@ -20,7 +20,7 @@ the intended architecture; [TODO](../TODO.md) tracks delivery and acceptance.
 | [TLPP HTTP example](../examples/http/README.md) | FWRest client, AppServer settings, bearer, generic RPC and paginated SQL dataset. |
 | [Protheus consumers](../examples/protheus/README.md) | Reorganized tests, pure dataset/helper checks and interactive SRA/SX5 examples. |
 | [Extension review](extensions-review.md) | SQLRDD reference, optional Duktape modules and CCHarbour agents; implementation pending. |
-| [Acceptance](acceptance.md) | Operator/environment evidence, historical builds and pending scenarios. |
+| [Acceptance](acceptance.md) | Manual AppServer/environment evidence, historical local builds and pending scenarios. |
 | [VF IO/TRPC](harbour-vfio-trpc.md) | Native file API and selective upstream design reuse. |
 | [Transports/sessions/security](transports-sessions-security.md) | Persistence/context, TLS/JWT, gRPC restrictions and optional AMQP. |
 | [Reorganization](reorganization.md) | Source responsibility map and before/after evidence. |
@@ -65,8 +65,8 @@ Server deadlines/uptime use `HBBridgeMonotonicMs()`; TLPP uses static
 `HBBridge.Client.HBBridgeTime` and normalized `TimeCounter()`.
 [Issue #12](https://github.com/naldodj/totvs-protheus-open-issues/issues/12)
 reproduces Unix seconds versus Windows milliseconds.
-The operator confirmed Windows raw 1097.692700 / normalized 1097.773500 ms
-after Sleep(1000), result OK. Linux/extended wrap behavior remains pending.
+Manual AppServer validation confirmed Windows raw 1097.692700 / normalized
+1097.773500 ms after Sleep(1000), result OK. Linux/extended wrap behavior remains pending.
 TOTVS whole-string gzip still depends on MAXSTRINGSIZE/memory; decompression
 does not expose an allocation bound. JSON is fully materialized; logical
 blocks, handshake, negotiated none/gzip and failure acceptance remain pending.

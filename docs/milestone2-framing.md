@@ -147,9 +147,10 @@ Optional fourth nLargePayloadBytes selects an additional Echo; zero skips it.
 Clock budget tests cover expiry, fractions, regression and >24-hour values.
 Compile hbbridge.time.tlpp with the entire TLPP tree.
 
-Operator confirmation on 2026-10-03: Health/ADDON and both 200,000-byte Echo
+Manual AppServer validation on 2026-10-03: Health/ADDON and both 200,000-byte Echo
 passed, varied request gzip 152,964 bytes; clock values/artifact hash absent.
-The later session of 2026-10-04 repeated them with 13 configuration and 29
+The later manual AppServer results recorded in the 2026-10-04 session
+repeated them with 13 configuration and 29
 SQLite checks, plus Unix=false, raw 1097.692700, normalized 1097.773500 ms
 after Sleep(1000), OK. That accepts Windows scale/advance, not resolution,
 real wrap or Linux. Time/thread/arguments/hashes were not supplied.
@@ -161,7 +162,7 @@ and forced positive partial sends remain pending.
 Large transfer tests alone do not force a positive partial return from every
 Send implementation.
 
-The agent historically built isolated tmp candidates without replacing the
+Historical local builds produced isolated tmp candidates without replacing the
 canonical elevated product or stopping AppServer. Updating the installation
 requires stopping the old host, building/restarting, and compiling TLPP via
 [build-totvs.cmd](../scripts/build-totvs.cmd) in an authorized administrative

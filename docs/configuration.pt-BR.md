@@ -167,8 +167,9 @@ perfil incorreto ou conexão indisponível retornam status de pré-requisito
 Em 2026-10-08, a rota nativa passou em **92 checks, zero falhas e nenhum skip**
 com SQL Server `16.0.1200.5`, banco `pData`, ODBC Driver `18.6.2.1`, Windows x64
 e Harbour `UTF8EX`, usando o perfil privado `MSSQL/pData` com autenticação SQL.
-Separadamente, o operador passou nos **29 checks TCP de cada backend**,
-MSSQL e SQLite. Mais tarde no mesmo dia, `U_HBBridgeHTTPTestMSSQL()` e
+Separadamente, execuções manuais no AppServer passaram nos **29 checks TCP
+de cada backend**, MSSQL e SQLite. Mais tarde no mesmo dia, execuções
+manuais de `U_HBBridgeHTTPTestMSSQL()` e
 `U_HBBridgeHTTPTestSQLite()` passaram nos **13 checks HTTP cada**, threads
 25976 e 9916. Seus padrões de conveniência selecionam `MSSQL/pData` e
 `sqlite_demo` sem alterar os padrões do cliente genérico. Identidades
@@ -313,9 +314,10 @@ executar SQL. O launcher do servidor não altera o INI do AppServer.
 A seção foi acrescentada ao `appserver.ini` local com cópia anterior em
 `tmp`, preservando os bytes já existentes. A compilação via
 `scripts/build-totvs.cmd` não começou porque a parada dos processos TOTVS
-falhou naquela tentativa do agente. Posteriormente, o operador informou
-sucesso nos três testes na sessão de 2026-10-04: configuração com 13 checks
-verdadeiros, incluindo `activeAppServerIni`; relógio Windows/Health/ADDON/Echo;
+falhou naquela tentativa automatizada local. Posteriormente, resultados
+manuais AppServer registrados na sessão de 2026-10-04 indicaram sucesso nos
+três testes: configuração com 13 checks verdadeiros, incluindo
+`activeAppServerIni`; relógio Windows/Health/ADDON/Echo;
 e SQLite paginado com 29 checks verdadeiros. O aceite da configuração
 cliente está registrado em [homologação](acceptance.pt-BR.md).
 
@@ -327,7 +329,7 @@ própria. As 412 verificações Harbour daquela rodada permanecem um resultado
 independente. A validação gerenciada posterior teve 416 checks em 2026-10-04;
 esse resultado permanece separado do aceite AppServer.
 
-A recompilação informada pelo operador após a migração para `.hb` e o log
+A recompilação manual relatada após a migração para `.hb` e o log AppServer
 fornecido de 2026-10-07 (horários de São Paulo) aceitam as classes TLPP
 renomeadas e os 16 checks de configuração revisados às 16:14:06, thread 30596,
 incluindo `explicitProfile`, `noForcedProfile` e `invalidProfile`.
@@ -335,10 +337,11 @@ Query às 16:13:33, thread 27136, reconfirmou os 29 checks com
 `profile=sqlite_demo`; Connection às 16:14:31, thread 27084, reconfirmou
 relógio/Health/ADDON e os dois Echo exatos de 200.000 bytes. HTTP às
 16:15:03–16:15:04, thread 25456, passou nos 13 checks em um segundo,
-sem identificar o backend SQL. A execução do operador fornece horários/threads,
+sem identificar o backend SQL. A execução manual fornece horários/threads,
 mas não log real do compilador, hashes, argumentos ou Host/Port efetivos.
-O agente não executou os testes AppServer. Os resultados nativos MSSQL e TCP/HTTP
-do operador posteriores, de 2026-10-08, estão registrados acima e em
+Esses resultados AppServer provêm de execuções manuais, separadas da validação
+automatizada local. Os resultados MSSQL nativos e TCP/HTTP manuais no AppServer
+posteriores, de 2026-10-08, estão registrados acima e em
 [homologação](acceptance.pt-BR.md). Destino alternativo
 com argumentos omitidos, Linux e falhas/relógio/tipos ampliados permanecem pendentes.
 
@@ -364,7 +367,7 @@ protegido no Windows/Linux e provedores opcionais de ambiente/cofre/SO.
 Usar criptografia autenticada de biblioteca existente e auditada, com versão,
 salt/nonce, tag de autenticação e identidade explícita da chave. Chaves fixas
 embutidas e ofuscação reversível não protegem senhas. O desenho usa credenciais
-SQL estáveis: na instalação Protheus atual do operador, mudanças de senha de
+SQL estáveis: na instalação Protheus de referência, mudanças de senha de
 banco são raras e exigem coordenação manual ODBC/DBAccess. OpenBao KV v2 opcional
 armazenaria com segurança a credencial instalada e permitiria sua leitura.
 OpenBao, mecanismo de segredos de banco, credenciais dinâmicas e plugin MSSQL

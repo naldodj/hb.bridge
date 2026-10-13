@@ -10,13 +10,17 @@
 - Use four spaces per indentation level in project-owned sources. Preserve
   upstream formatting, copyright and license notices in third-party files.
 - Use English identifiers. Files are lowercase. Functions, procedures,
-  methods, namespaces and classes use PascalCase, as explicitly agreed with
-  the project owner. Source basenames use lowercase words separated by dots:
+  methods, namespaces and classes use PascalCase. Source basenames use
+  lowercase words separated by dots:
   `HBBridgeClient` lives in `hbbridge.client.tlpp`. Removing the dots must
   yield the class name in lowercase; dots do not denote namespace segments.
 - Write project-owned error messages, logs and UI labels in English. Preserve
   external API text and intentional language/encoding test data. Portuguese
   documentation remains in the paired `.pt-BR` files.
+- Write documentation in an impersonal style, focused on decisions, results
+  and evidence. Prefer "Validation confirmed" or "Validation recorded".
+  Distinguish manual AppServer execution from local automated checks through
+  the validation method and artifacts, preserving dates, scope and status.
 - Use the same module naming convention for Harbour, TLPP, C and Zig;
   extensions identify the language. Product modules start with `hbbridge`.
 - Use `.hb` for project-owned Harbour sources, tests and addons. Preserve

@@ -65,7 +65,7 @@ Duktape and CCHarbour as future packages, without adding runtime dependencies.
 - [x] Protheus Health/ADDON/two 200,000-byte Echo calls manually accepted;
   varied request gzip 152,964 bytes, identical complete result.
 - [x] SQLMIX/SQLite/MSSQL-ODBC Query, keyed dataset and database-side pagination.
-  Operator accepted 29 SQLite checks on 2026-10-04, reconfirmed on 2026-10-07
+  Manual AppServer acceptance passed 29 SQLite checks on 2026-10-04, reconfirmed on 2026-10-07
   at 16:13:33, thread 27136, `profile=sqlite_demo`. On 2026-10-08, native MSSQL
   passed 92 checks; Protheus TCP passed 29 and HTTP 13 each for MSSQL/SQLite.
 - [x] Syslog UDP module exists; integration into call lifecycle is pending.
@@ -118,14 +118,14 @@ test-fixture fixes from implementation changes.
 - [x] Pin and resolve project-owned hb_compile, Harbour and checksum-verified Zig;
   compile the required runtime/tools/contribs rather than depend on local SDKs.
 - [x] Parameterize proprietary TOTVS SDK directories/environment and optional
-  operator stop/start scripts. Pair English/Portuguese docs and document setup.
+  installation-specific stop/start scripts. Pair English/Portuguese docs and document setup.
 - [ ] Delegate selected external contrib dependencies, including OpenSSL, to
   hb_compile; consume generated environment, deploy runtime artifacts and
   validate cache receipts by capabilities/triplet/versions. No duplicate resolver.
 - [ ] Resolve the pinned hb_compile native-Linux gap upstream or declare a
   supported WSL/Docker route; pin external package baselines/checksums as well.
 - [x] Recompile/run renamed TLPP classes and revised optional-profile checks
-  on the AppServer: operator-reported recompilation after `.hb` migration;
+  on the AppServer: reported recompilation after `.hb` migration;
   Query/Config/Connection/HTTP passed on 2026-10-07. All 16 configuration
   checks were true at 16:14:06, thread 30596. No compiler log/hashes supplied.
 - [ ] Execute Linux bootstrap/build/runtime acceptance and other architectures;
@@ -140,7 +140,7 @@ profile. Keep Harbour debug metadata distinct from native C/Zig `-debug`.
   documented activation/source paths. Apply it to PRG/HB compilation and HRB
   preparation, preserving module/source/line identity.
 - [ ] Breakpoint/step/stack/locals/resume in a handler and addon, returning the
-  correct RPC response. Start with a controlled request/worker and terminal owner.
+  correct RPC response. Start with a controlled request/worker and exclusive terminal control.
 - [ ] Specify other-worker behavior during pause, debug timeouts and client
   disconnect without replaying side effects.
 - [ ] Load/unload/fault/resume/stop cleanup without stale debug state; normal
@@ -195,10 +195,10 @@ VS Code extension, with cleanup and documented capabilities/limitations.
   config-relative directories, executable-adjacent hbbridge.ini and --config-info.
 - [x] Read active AppServer INI through namespaced static HBBridgeConfig:
   settings and optional SQLProfile, explicit overrides first. No demo default.
-- [x] Earlier operator acceptance: 13 configuration checks, clock/RPC and 29 SQLite
-  checks in report recorded 2026-10-04. Prior agent stop-process failure is
+- [x] Earlier manual acceptance: 13 configuration checks, clock/RPC and 29 SQLite
+  checks in report recorded 2026-10-04. Prior local stop-process failure is
   historical; that 2026-10-04 report supplied no compiler log/time/thread/hash.
-- [x] Revised operator acceptance on 2026-10-07 after reported recompilation:
+- [x] Revised manual acceptance on 2026-10-07 after reported recompilation:
   renamed TLPP and all 16 configuration checks, including explicitProfile,
   noForcedProfile and invalidProfile; Query/clock/RPC/HTTP regressions passed.
   Times/threads supplied; actual compiler log, artifact hashes, call arguments
@@ -219,7 +219,7 @@ VS Code extension, with cleanup and documented capabilities/limitations.
   blocks and live pointers. Test admin/filter/credentials/VF IO/shutdown.
 - [ ] Cross-codepage/runtime serialization compatibility and session resource IDs.
 - [x] Prior milestone 1 TLPP compile/RPC accepted 2026-10-03:3sources without
-  compiler errors; renamed TLPP/profile behavior accepted by the operator
+  compiler errors; renamed TLPP/profile behavior manually accepted
   in the 2026-10-07 regression after reported recompilation.
 
 Acceptance: native remote/core service, continued Protheus Health/Echo/addons,
@@ -251,7 +251,7 @@ negotiated compression remain pending. See [milestone 2](docs/milestone2-framing
 - [x] Preserve U_HBBridgeConnectionTest and namespaced static utility APIs;
   [issue12](https://github.com/naldodj/totvs-protheus-open-issues/issues/12)
   documents reproduced units.
-- [x] Windows operator clock acceptance:Unix=false, delta1097.692700,
+- [x] Manual Windows clock acceptance:Unix=false, delta1097.692700,
   normalized1097.773500ms after Sleep(1000), OK2026-10-04.
   Reconfirmed 2026-10-07 16:14:31, thread 27084: raw 1089.987500,
   normalized 1090.088100ms, OK.
@@ -350,15 +350,15 @@ per-value limits; tested slow-consumer/invalid-decode/disconnect behavior.
   errors/EOF/close, common SQL/minimal launchers and alternate profile/config.
 - [x] SQL aliases are opaque/case-sensitive, including MSSQL/pData; multiple
   profiles coexist. Optional client default is empty; explicit call wins.
-- [x] SQLite file/concurrency/NETIO-vs-TCP regressions; operator 29-check dataset/
+- [x] SQLite file/concurrency/NETIO-vs-TCP regressions; manual 29-check dataset/
   pagination acceptance 2026-10-04 00:40:06 and later reconfirmations,
   latest 2026-10-07 16:13:33, thread 27136, profile=sqlite_demo.
 - [x] Native MSSQL connect/query/page acceptance: 92 checks on 2026-10-08,
   SQL Server 16.0.1200.5, database/DSN pData, ODBC Driver 18.6.2.1 x64,
   SQL authentication; long text/binary, null/empty, Unicode and cleanup.
-- [x] Operator Protheus TCP MSSQL and SQLite acceptance: all 29 checks each,
+- [x] Manual Protheus TCP MSSQL and SQLite acceptance: all 29 checks each,
   2026-10-08, profiles `MSSQL/pData` and `sqlite_demo`.
-- [x] Operator explicit MSSQL/SQLite Protheus HTTP acceptance: 13 checks each,
+- [x] Manual explicit MSSQL/SQLite Protheus HTTP acceptance: 13 checks each,
   2026-10-08, wrappers select `MSSQL/pData`/`sqlite_demo`, threads 25976/9916.
 - [ ] Remaining package 001 failure/timeout, isolation and transport/memory
   baseline cases in [WIP](WIP.md).
@@ -471,7 +471,7 @@ and Oracle require their own evidence.
 
 - [x] TLPP HTTP client/example with active AppServer INI settings, native
   FWRest, GET/POST/bearer, JSON service errors and the existing SQL dataset.
-  Operator accepted all 13 checks on 2026-10-07, initially thread 25672;
+  Manual acceptance passed all 13 checks on 2026-10-07, initially thread 25672;
   reconfirmed threads 27296 (16:10:44–16:10:45) and 25456 (16:15:03–16:15:04),
   each in one second, São Paulo time; their SQL backend was unidentified.
   On 2026-10-08 the MSSQL/SQLite wrappers each passed 13 checks, threads

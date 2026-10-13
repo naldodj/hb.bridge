@@ -2,7 +2,7 @@
 
 [Português](sql-connections.pt-BR.md) · [SQL contract](milestone3-sql.md) · [Roadmap](../TODO.md)
 
-Observation recorded on 2026-10-12 at the owner's request. This is a future
+Observation recorded on 2026-10-12 for future evaluation. This is an
 analysis item, not implemented pooling, an approved default or new INI keys.
 The active WIP package retains its current tasks and completion criteria.
 

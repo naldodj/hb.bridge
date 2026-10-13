@@ -2,7 +2,7 @@
 
 [Português](extensions-review.pt-BR.md) · [Roadmap](../TODO.md) · [Active package](../WIP.md)
 
-Reviewed on 2026-10-12 from the owner's `hbBridge_Braimstorming.txt` and the
+Reviewed on 2026-10-12 from `hbBridge_Braimstorming.txt` and the
 primary sources below. These are future extension decisions, not delivered
 services or dependencies. Package 001 remains open; its dataset, encoding and
 numeric integrity work comes first.

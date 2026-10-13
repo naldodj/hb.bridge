@@ -111,8 +111,9 @@ O [exemplo TLPP](../examples/http/README.pt-BR.md) usa
 `HBBridge.Client.HBBridgeHTTPClient` e `U_HBBridgeHTTPTest`, compilados com
 a mesma árvore `src/tlpp/`. FWRest faz GET/POST com bearer do serviço, e
 `HBBridgeRPCDataSet` reaproveita seu contrato de páginas SQL pelo HTTP.
-O operador homologou 13 checks em 2026-10-07 sem identificar aquele backend
-SQL. Em 2026-10-08, `U_HBBridgeHTTPTestMSSQL()` e
+A validação manual AppServer homologou 13 checks em 2026-10-07 sem identificar
+aquele backend SQL. Em execuções manuais AppServer de 2026-10-08,
+`U_HBBridgeHTTPTestMSSQL()` e
 `U_HBBridgeHTTPTestSQLite()` passaram separadamente nos **13 checks cada**,
 com os padrões de fixture `MSSQL/pData` e `sqlite_demo`. MSSQL executou na
 thread 25976 às 10:33:33–10:33:34; SQLite, na thread 9916 às 10:34:07,
@@ -189,11 +190,12 @@ Cobriu framing HTTP por bytes sob UTF8EX, acentos/CJK/caracteres
 suplementares, escapes BMP e pares surrogate, texto SQLite, execução Unicode
 nativa, bytes das credenciais e rejeição de entradas malformadas. Foi testado
 HTTP aberto; não cobriu HTTPS direto, Linux ou Unicode MSSQL. A suíte nativa
-MSSQL de 2026-10-08 homologou posteriormente os tipos Unicode exercitados e
-as entradas HTTP do operador homologaram seus 13 checks comuns por backend.
+MSSQL de 2026-10-08 homologou posteriormente os tipos Unicode exercitados.
+Execuções manuais das entradas HTTP no AppServer homologaram seus 13 checks
+comuns por backend.
 Unicode/tipos SQL ampliados pelo HTTP Protheus, HTTPS, Linux e cenários
-controlados de falha/recursos/desempenho continuam pendentes. Os relatos do
-operador não substituem os **92 checks MSSQL nativos** nem as **566 regressões
+controlados de falha/recursos/desempenho continuam pendentes. Os resultados manuais
+AppServer não substituem os **92 checks MSSQL nativos** nem as **566 regressões
 padrão**. Retome M06 no [WIP](../WIP.pt-BR.md) para falhas controladas/recuperação.
 
 Parsing e timeouts nativos do hbhttpd diferem do adaptador Protheus. Seus

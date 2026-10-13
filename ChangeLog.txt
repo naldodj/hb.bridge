@@ -5,6 +5,19 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Standardize hbBridge naming and paging)"
  */
 
+2026-10-13 11:11 UTC naldodj (Adopt impersonal documentation)
+  * Standardize validation and decision records around results, methods and
+    evidence; preserve dates, scope and manual versus automated execution.
+  + Record the writing convention in paired AGENTS and standards guides.
+
+2026-10-13 11:04 UTC naldodj (Record validation of the FWWebEx HTTP table)
+  * Describe the six preserved screenshot artifacts in paired example guides.
+    Record fixture/SX5 views, 5/10-row displays, search/equality filters,
+    exact displayed totals and literal text rendering as manual-run evidence.
+  * Mark preparatory WIP F01 accepted and link the example from consumer/tests
+    catalogs. Dataset/helper/table mocks and UTF-8/FLOAT remain separate work.
+  ; Documentation only; no runtime, service, configuration or index changes.
+
 2026-10-12 19:49 UTC naldodj (Record future SQL connection reuse analysis)
   + Add paired SQL connection analysis guides, linked from TODO, WIP and
     the documentation index. Compare the current lifecycle, ODBC pooling
@@ -55,7 +68,7 @@
       FieldCount/FieldName cache and expose original SQL column order.
     + Isolated U_HBBridgeDataSetTest prepares 45 checks and 17 mock calls
       for metadata, traversal, repeated checks and failed-page recovery.
-    ! Declare the operator query sample's field count and initialize its
+    ! Declare the interactive query sample's field count and initialize its
       record counter; preserve the supplied SQL and manual navigation.
   ! Read-only MSSQL constant probe found native FLOAT 123.4567 serialized
     as JSON 123; TCP also lacks HTTP's explicit UTF8EX execution.
@@ -71,17 +84,17 @@
   ; Three commit validators/conventions passed for 150 files; local links
     across 63 documents and whitespace passed; full native suite not repeated.
 
-2026-10-08 13:35 UTC naldodj (Accept operator MSSQL and SQLite HTTP tests)
-  * Paired acceptance records for the operator's HTTP test wrappers
+2026-10-08 13:35 UTC naldodj (Accept manual MSSQL and SQLite HTTP tests)
+  * Paired acceptance records for the manually executed HTTP test wrappers
     + MSSQL MSSQL/pData: all 13 checks true/PASS, Health HTTP 200,
       2026-10-08 10:33:33-10:33:34 Sao Paulo, thread 25976, elapsed 1 s.
     + SQLite sqlite_demo: all 13 checks true/PASS, Health HTTP 200,
       10:34:07, thread 9916, elapsed 0 s at one-second resolution.
     + Record the supplied transcript and accept WIP M05 for the exercised
       common HTTP/dataset cases; controlled failure/timeout work is next.
-  ; Operator runtime evidence without compiler log or artifact hashes;
+  ; Manual runtime evidence without compiler log or artifact hashes;
     no performance benchmark, HTTPS/Linux or expanded SQL-type claim.
-  ; Preserve the operator's TLPP wrappers and historical acceptance;
+  ; Preserve the existing TLPP wrappers and historical acceptance;
     documentation only, without builds or host/configuration changes.
   ; Three commit validators/conventions passed for 146 files; local links
     across 61 documents and whitespace passed; native regressions not repeated.
@@ -99,8 +112,8 @@
   * Extend the opt-in shared-core MSSQL fixture and paired EN/PT guides
     + Native MSSQL: 92 checks, zero failures/no skips; SQL Server 16.0.1200.5,
       database pData, ODBC Driver 18.6.2.1 x64, SQL authentication, UTF8EX.
-    + Operator TCP: all 29 checks for MSSQL/pData and all 29 for sqlite_demo,
-      2026-10-08, threads 660/3192; preserve the operator's TLPP test wrappers.
+    + Manual TCP run: all 29 checks for MSSQL/pData and all 29 for sqlite_demo,
+      2026-10-08, threads 660/3192; preserve the existing TLPP test wrappers.
     + Native baseline: 1000 rows, three executions, 31/32/31 ms; memory not
       measured. Mark WIP M01-M04 complete; explicit MSSQL HTTP is next.
   ; Full regression: 566 checks, zero failures/no skips; isolated product
@@ -111,7 +124,7 @@
 
 2026-10-07 23:37 UTC naldodj (Scope credential management to stable SQL passwords)
   * Paired credential/configuration design, TODO and WIP
-    + Record the owner's operational requirement: stable SQL credentials,
+    + Record the operational requirement: stable SQL credentials,
       protected storage and manual updates without automatic password rotation.
     + Optional OpenBao KV access does not require a dynamic MSSQL plugin;
       distinguish vault token renewal and encryption keys from SQL passwords.
@@ -120,7 +133,7 @@
 
 2026-10-07 23:30 UTC naldodj (Record post-migration Protheus acceptance and OpenBao review)
   * WIP, acceptance, README/TODO and paired configuration/test/HTTP guides
-    + Operator-reported recompilation and 2026-10-07 runs: SQLite Query 29
+    + Confirmed recompilation and manual 2026-10-07 runs: SQLite Query 29
       checks (thread 27136), revised config 16 (30596), clock/RPC (27084),
       HTTP 13 (27296 and 25456). Preserve transcripts and historical evidence.
     ! Close pending renamed-TLPP/config regression status for exercised cases;
@@ -165,16 +178,16 @@
   + src/tlpp/hbbridgehttpclient.tlpp
     + Namespaced HBBridgeHTTPClient with native FWRest GET/POST, bearer,
       active INI/explicit settings, HTTP status and shared service results.
-    ! Preserve the operator's Unauthorized compatibility fallback; initialize
+    ! Preserve the existing Unauthorized compatibility fallback; initialize
       the reason and provide UNAUTHORIZED when a native 401 has no reason.
   + src/tlpp/tests/protheus/hbbridgehttptest.tlpp
     + Health, discovery, 200000-byte/accent Echo, addon, 401/403/404 errors,
       recovery and the existing dataset's optional SQL pages.
-    ! Preserve operator DecodeUTF8 field comparison and test output changes.
+    ! Preserve the existing DecodeUTF8 field comparison and test output changes.
   + examples/http/README.md and README.pt-BR.md
   * config/examples/protheus-appserver.ini and paired product/test/docs guides
     + HTTPURL, HTTPToken and HTTPTimeoutSeconds; SQLProfile remains optional.
-  ; Operator acceptance: 2026-10-07 15:16 Sao Paulo, thread 25672, 13 checks
+  ; Manual acceptance: 2026-10-07 15:16 Sao Paulo, thread 25672, 13 checks
     passed. No SQL backend supplied; no MSSQL/HTTPS/full-Unicode claim.
   ; All three commit validators/conventions passed for 139 files; local links
     and working-tree/index whitespace passed. User-staged snapshot preserved.
@@ -317,7 +330,7 @@
       5443466A05A5206D7E6E1BC53F86DB604059EEF8F687A0C1B22973CFB7A76B18.
       Run log: tmp/tests-d1b829ff332c414f816a6e70748152d1/results.log.
     ; Renamed TLPP/revised 16-check configuration test, real MSSQL, Linux and
-      credential editor are pending; previous operator acceptance is preserved.
+      credential editor are pending; previous manual acceptance is preserved.
 
 
 2026-10-04 10:34 UTC naldodj (Record Protheus INI, clock and SQLite acceptance)
@@ -332,7 +345,7 @@
   * tests/README.md
   * scripts/README.md
   * examples/sql/README.md
-    ; Record the operator's new manual acceptance: all 13 client configuration
+    ; Record the new manual acceptance: all 13 client configuration
       checks and 29 SQLite query checks true, plus Health/ADDON/two Echo calls.
     ; Record Windows clock OK: raw delta 1097.692700 and normalized 1097.773500
       ms after Sleep(1000), Unix=false. Keep Linux and expanded clock validation
@@ -356,7 +369,7 @@
     ; Record FileSig matching the upstream hbnetio utility and the documented
       StopWatch adaptation as provenance items to resolve before formalization.
     ; Preserve existing source notices. No project-wide license was adopted
-      and no runtime sources were changed; operator tests can continue.
+      and no runtime sources were changed; manual tests can continue.
 
 2026-10-04 10:18 UTC naldodj (Add server INI and AppServer client configuration)
   + src/hb/host/ini.prg
@@ -404,7 +417,7 @@
     ; Full Harbour runner: 412 checks, zero failures, no skips.
       Isolated product rebuild, INI metadata and paginated SQLite query
       through the INI launcher passed. Installed executable was not replaced.
-    ; Operator accepted the earlier SQLite Protheus client on 2026-10-04
+    ; Manual validation confirmed the earlier SQLite Protheus client on 2026-10-04
       at 00:40:06 local time: all 29 checks true, thread 41228. MSSQL and
       the new AppServer client configuration still require acceptance.
   * README.md
@@ -450,7 +463,7 @@
       distinguish a missing named SQL profile.
   * docs/marco3-sql.md
   * docs/homologacao.md
-    ; Record operator's 2026-10-04 00:27:04 Protheus attempt and live discovery
+    ; Record the manual 2026-10-04 00:27:04 Protheus attempt and live discovery
       without RPCRDD.Query. SQL acceptance remains pending; start the updated
       host with config/examples/sqlite.json before repeating the test.
     ; Isolated product rebuild and paginated SQL request passed with the
@@ -496,7 +509,7 @@
   * scripts/README.md
   * tests/README.md
     * Document SQL/paging contracts, dependencies and outstanding acceptance.
-    ; Record operator-confirmed Protheus Health/ADDON/two Echo acceptance:
+    ; Record confirmed manual Protheus Health/ADDON/two Echo acceptance:
       200000 identical bytes, fragmented-case request gzip of 152964 bytes.
 
 2026-10-03 21:49 UTC naldodj (Prefer keyed structures for named project data)
@@ -512,7 +525,7 @@
   * src/tlpp/clock.tlpp
   * src/tlpp/thbbridgeclient.tlpp
   * src/tlpp/tests/protheus/hbbridgeconnectiontest.tlpp
-    * Keep the user's HBBridgeTime class in namespace hbBridge.client.
+    * Keep the existing HBBridgeTime class in namespace hbBridge.client.
     ! Bind client and tests to its static methods, replacing removed function
       calls and references to the nonexistent HBBridgeRemaining class.
     * Preserve procedure U_HBBridgeConnectionTest: the Protheus preprocessor
@@ -679,11 +692,11 @@
   * scripts/README.md
   * docs/marco1.md
   * docs/homologacao.md
-    + Record the user's confirmed compilation and real WebApp test, corroborated
+    + Record the confirmed manual compilation and real WebApp test, corroborated
       by local logs: 3 sources, 3 successes, 0 compile errors; Health/ADDON/Echo
       succeeded and Echo returned all 200,000 characters unchanged.
-    ; The agent's restart attempt was denied by Windows process permissions;
-      successful compilation and test were performed by the user.
+    ; The local restart attempt was denied by Windows process permissions;
+      successful compilation and test were performed manually.
 
 2026-10-03 10:29 UTC naldodj (Validate native runtime and align milestone documentation)
   * src/hb/host/config.prg
@@ -713,12 +726,12 @@
   * src/hb/transports/netio/README.md
     * Document implemented registry/NETIO/admin/VF IO capabilities and pending
       AppServer validation; align links to src/tlpp/tests/protheus and English
-      identifiers, including the user's ExecuteAddonHRB rename.
+      identifiers, including the ExecuteAddonHRB rename.
   * .gitignore
     + Ignore runtime data and the local installation configuration.
     ; Harbour 3.2.1dev r2608271822 / Zig 0.16.0 / Windows x64:
       159 checks, 0 failures, no skips. Isolated product build and CLI passed.
-    ; Pre-Marco-1 Protheus homologation was confirmed by the user; the new
+    ; Manual pre-Marco-1 Protheus homologation was confirmed; the new
       functional changes still require a run on the documented AppServer.
 
 2026-10-02 10:03 UTC naldodj (Add native service registry and host runtime)

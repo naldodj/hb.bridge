@@ -14,7 +14,12 @@ tem seu diretório com nome pontuado; este guia não duplica os fontes.
 | `U_HBBridgeHelperTest` | Alias SQL, substituição e expressões de filtro. | Sem conexão/leitura ERP; esperados 12 checks, aceite de execução pendente. |
 | `U_HBBridgeQueryTest`, `U_HBBridgeQueryTestSQLite`, `U_HBBridgeQueryTestTopInfo` | Fixture constante de query/páginas. | Perfil SQL remoto explícito; TopInfo resolve o alias no Protheus. |
 | `U_HBBridgeHTTPTest`, `U_HBBridgeHTTPTestMSSQL`, `U_HBBridgeHTTPTestSQLite` | Serviços HTTP e SQL paginado. | Endpoint HTTP ativo, token cliente e perfil configurado. |
+| `U_HBBridgeHTTPTable`, `U_HBBridgeHTTPTableSX5` | Tabela HTTP FWWebEx, pesquisa, filtros por campo e totais. | FWWebEx/DataTable/ferramentas de exemplos no RPO, interface e configurações HTTP/SQL; validação confirmada nas telas demonstradas em 2026-10-13. |
 | `U_HBBridgeBrowseDataTestSRA`, `U_HBBridgeBrowseDataTestSX5` | Browse nativo, busca/filtro e visualização. | Interface Protheus, dicionário/contexto e tabelas/perfil dos exemplos. |
+
+O [guia da tabela HTTP e capturas](../../src/tlpp/tests/protheus/hbbridge.http.table.test/README.pt-BR.md)
+registra a validação da fixture/SX5. O mock separado
+`U_HBBridgeHTTPTableTest()` ainda não tem homologação de execução informada.
 
 ## Consumidor do dataset
 
@@ -64,7 +69,7 @@ regras de negócio ao servidor Harbour.
 
 O teste query usa fixtures constantes por padrão. O quinto argumento opcional,
 `lRunERPExamples := .T.`, habilita explicitamente exemplos SX5/SRA/SX3 locais
-e a impressão de seus campos. Browses dependem de execução pelo operador;
+e a impressão de seus campos. Browses dependem de execução interativa;
 não são executados pela regressão Harbour nem pelos mocks TLPP puros.
 
 ## Compilação e homologação
@@ -80,5 +85,5 @@ implementação do produto.
 Compilar não homologa interações de interface. Exercitar limites de página,
 vazio/erro, buscas textuais/numéricas/datas, aspas nos filtros e abrir/fechar
 repetidamente no AppServer real. A [homologação](../../docs/acceptance.pt-BR.md)
-separa testes nativos, compilação e relatos do operador. Correções UTF-8/FLOAT
+separa testes nativos, compilação e registros de execução manual. Correções UTF-8/FLOAT
 e credenciais cifradas continuam no [WIP](../../WIP.pt-BR.md).

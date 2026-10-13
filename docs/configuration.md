@@ -159,9 +159,10 @@ wrong profile type or unavailable connection exits with prerequisite status
 On 2026-10-08, the native route passed **92 checks, zero failures and no skips**
 against SQL Server `16.0.1200.5`, database `pData`, ODBC Driver `18.6.2.1`,
 Windows x64 and Harbour `UTF8EX`, using the private SQL-authentication profile
-`MSSQL/pData`. The operator separately passed **29 TCP checks per backend**
-for MSSQL and SQLite. Later that day, `U_HBBridgeHTTPTestMSSQL()` and
-`U_HBBridgeHTTPTestSQLite()` passed **13 HTTP checks each**, threads 25976 and
+`MSSQL/pData`. Separate manual AppServer runs passed **29 TCP checks per
+backend** for MSSQL and SQLite. Later that day, manual
+`U_HBBridgeHTTPTestMSSQL()` and `U_HBBridgeHTTPTestSQLite()` runs passed
+**13 HTTP checks each**, threads 25976 and
 9916. Their convenience defaults select `MSSQL/pData` and `sqlite_demo` without
 changing generic client defaults. Integrated/service identities, HTTPS, Linux
 and broader failure/type cases remain pending; see [acceptance](acceptance.md).
@@ -293,8 +294,9 @@ section, including SQL alias. `U_HBBridgeConfigTest()` checks resolution/errors
 without executing SQL. The server launcher does not edit AppServer INI.
 
 The local section was appended with a backup under `tmp`, preserving previous
-bytes. An agent compilation attempt could not stop the elevated TOTVS processes.
-The operator later reported all three tests successful in the 2026-10-04 session:
+bytes. A local automated compilation attempt could not stop the elevated
+TOTVS processes. Later manual AppServer results recorded in the 2026-10-04
+session indicated success in all three tests:
 13 configuration checks including `activeAppServerIni`, Windows clock/RPC,
 and 29 paginated SQLite checks. See [acceptance](acceptance.md).
 
@@ -303,17 +305,18 @@ artifact hashes or a compilation log. The active-INI check confirms valid
 reading; nondefault destinations/no-argument behavior require an identified run.
 The 412 Harbour checks remain independent evidence.
 
-The operator-reported recompilation after the `.hb` migration and supplied
-2026-10-07 São Paulo log accept renamed TLPP and all 16 revised configuration
-checks at 16:14:06, thread 30596, including `explicitProfile`, `noForcedProfile`
+The reported manual recompilation after the `.hb` migration and supplied
+2026-10-07 São Paulo AppServer log accept renamed TLPP and all 16 revised
+configuration checks at 16:14:06, thread 30596, including `explicitProfile`, `noForcedProfile`
 and `invalidProfile`. Query at 16:13:33, thread 27136 reconfirmed all 29 checks
 with `profile=sqlite_demo`; Connection at 16:14:31, thread 27084 reconfirmed
 clock/Health/ADDON/two exact 200000-byte Echo calls. HTTP at 16:15:03–16:15:04,
 thread 25456 passed all 13 checks in one second, without identifying its SQL
-backend. This operator execution supplies times/threads, but no actual compiler
-log, hashes, call arguments or effective Host/Port. The agent did not execute
-the AppServer tests. The later 2026-10-08 native MSSQL and operator TCP/HTTP
-results are recorded above and in [acceptance](acceptance.md).
+backend. This manual execution supplies times/threads, but no actual compiler
+log, hashes, call arguments or effective Host/Port. These AppServer results
+come from manual runs, separately from local automated validation. The
+2026-10-08 native MSSQL and manual AppServer TCP/HTTP results are recorded
+above and in [acceptance](acceptance.md).
 Nondefault destination/no-argument behavior, Linux and broader
 failure/clock/type scenarios remain pending.
 
@@ -339,7 +342,7 @@ and optional environment/vault/OS providers. Use authenticated encryption from
 an existing audited library, with version, salt/nonce, authentication tag and
 explicit key identity. Fixed embedded keys and reversible obfuscation are not
 password protection. The credential design targets stable SQL credentials:
-in the operator's current Protheus deployment, database-password changes are
+in the referenced Protheus deployment, database-password changes are
 rare and require manual ODBC/DBAccess coordination. Optional OpenBao KV v2
 would securely store and provide read access to that installed credential.
 OpenBao, a database secrets engine, dynamic credentials and an MSSQL plugin

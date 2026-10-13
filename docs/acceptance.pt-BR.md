@@ -75,8 +75,8 @@ Marco 1. Não comprova fragmentação TCP, dados pouco compressíveis,
 O utilitário [build-totvs.cmd](../scripts/build-totvs.cmd) usa o caminho do
 projeto para os fontes e grava `tmp/totvs-compile.log` nas próximas execuções.
 Ele chama os scripts locais de parada/reinício TOTVS; para encerrar processos
-que rodam elevados, execute-o com permissão administrativa. A tentativa da
-sessão do agente encontrou **Acesso negado** ao parar o AppServer e foi
+que rodam elevados, execute-o com permissão administrativa. A tentativa local
+encontrou **Acesso negado** ao parar o AppServer e foi
 interrompida antes de recompilar. A compilação bem-sucedida registrada acima
 foi realizada com sucesso e os testes executados OK.
 
@@ -130,7 +130,7 @@ leituras repetidas, espera e oito threads concorrentes. O servidor usa
 
 ### Confirmação manual Protheus em 2026-10-03
 
-O operador informou o seguinte resultado do teste ampliado:
+Informado o seguinte resultado manual no AppServer para o teste ampliado:
 
 ```text
 hbBridge Health Protheus OK: {"success":true,"message":"hbBridge Zig Engine Active"}
@@ -143,7 +143,8 @@ hbBridge RPC Protheus OK: todos os testes solicitados passaram.
 Isso confirma os serviços Health e ADDON.Execute, os dois Echo com comparação
 integral e a conclusão normal das chamadas. O caso ASCII variado produziu
 gzip de requisição de 152.964 bytes, acima do buffer padrão de 65.536 bytes.
-A evidência foi fornecida pelo operador; esta rodada não foi executada pelo agente.
+A evidência corresponde à execução manual no AppServer; esta rodada não foi
+repetida na validação local.
 O horário de execução, os argumentos e o hash do binário não foram informados.
 
 O novo `hbbridgetime.tlpp`, com a classe `HBBridge.Client.HBBridgeTime` e seus métodos
@@ -198,7 +199,7 @@ SHA-256 do candidato:
 
 ### Tentativa Protheus às 00:27:04 de 2026-10-04
 
-O operador informou a execução de `U_HBBridgeQueryTest`, thread `30460`,
+Informada a execução manual de `U_HBBridgeQueryTest`, thread `30460`,
 com retorno `SERVICE_NOT_FOUND; Servico nao suportado`. Isso confirma a
 entrada do teste e o retorno do dispatcher; não certifica consulta SQL.
 Uma sondagem posterior de `Service.List` em `127.0.0.1:1512` encontrou os
@@ -227,15 +228,15 @@ Isso verifica a preparação do host, sem acrescentar aceite no AppServer.
 
 ### Confirmação SQLite Protheus às 00:40:06 de 2026-10-04
 
-O operador informou a execução de `U_HBBridgeQueryTest`, thread AppServer
+Informada a execução manual de `U_HBBridgeQueryTest`, thread AppServer
 `41228`, ambiente `PROTHEUS`, perfil `sqlite_demo`, com **29 checks `true`**.
 O resultado aceita o dataset por nome, valores decimais, navegação/EOF,
 fechamento, resultado vazio, erros SQL/perfil e recuperação após falhas.
 Também aceita primeira/próxima/última página, IDs com lacunas, EOF local,
 ordinal oculto e rejeição dos parâmetros de paginação/ordenação inválidos.
 
-O horário é o do log informado pelo operador, no fuso de São Paulo. Essa
-execução foi manual; não foi executada pelo agente. Não foram informados o
+O horário é o do log informado, no fuso de São Paulo. Essa
+execução foi manual e não foi repetida na validação local. Não foram informados o
 hash do executável do servidor nem um log de compilação correspondente.
 O aceite cobre SQLite e a revisão cliente usada nessa execução; não comprova
 MSSQL real, outras codepages/tipos SQL ou as alterações posteriores do cliente.
@@ -260,7 +261,7 @@ precedência, caminhos, BOM/CRLF, pontuação de senhas e strings ODBC,
 autoload e rejeição de arquivos inválidos.
 
 A nova leitura de `[hbBridge]` no AppServer é uma alteração posterior ao
-teste das 00:40:06. O operador confirmou seus testes em nova rodada manual,
+teste das 00:40:06. Confirmados os testes em nova rodada manual no AppServer,
 registrada abaixo. MSSQL real permanece pendente. As 412 verificações são
 da suíte Harbour, separadas do aceite dessa configuração no AppServer.
 `HBBridge.Client.HBBridgeConfig():Read()` seleciona o INI por `GetSrvIniName()`
@@ -283,16 +284,17 @@ Log: `tmp/ini-launcher-smoke.log`; SHA-256:
 Validar metadados MSSQL não executa consulta nem certifica DSN/driver/banco.
 
 A seção `[hbBridge]` foi adicionada ao AppServer local preservando os bytes
-anteriores e guardando uma cópia em `tmp`. A tentativa de compilação pelo agente
+anteriores e guardando uma cópia em `tmp`. A tentativa local de compilação
 foi bloqueada antes do compilador porque os processos TOTVS não puderam ser
 encerrados: `tmp/ini-totvs-build.log`. Foi preparado `U_HBBridgeConfigTest`
-para resolução/precedência/erros; o operador informou sucesso posteriormente.
+para resolução/precedência/erros; informado sucesso posteriormente em execução
+manual no AppServer.
 
 ### Confirmação Protheus de configuração INI, relógio e SQLite
 
-Resultado informado pelo operador na sessão de **2026-10-04**, após a
-alteração da configuração cliente. A rodada foi manual; o agente não
-executou nem compilou esses testes no AppServer.
+Resultado manual no AppServer informado na sessão de **2026-10-04**, após a
+alteração da configuração cliente. Esses testes não foram
+executados nem compilados durante a validação local.
 
 | Entrada | Resultado informado |
 | --- | --- |
@@ -351,8 +353,8 @@ validação registrada separadamente.
 ## PascalCase e HTTP nativo em 2026-10-06
 
 A rodada HTTP específica final no Windows Harbour/Zig passou em **65
-verificações, zero falhas e nenhum skip**. O agente
-executou os testes com o toolchain gerenciado. Log:
+verificações, zero falhas e nenhum skip**. Os testes foram
+executados localmente com o toolchain gerenciado. Log:
 `tmp/http-tests-f3476462dfbb4fe6b64d63b0de1c1149/results.log`; log do script:
 `tmp/http-target-test.log`; preparação das dependências:
 `tmp/http-prepare.log`. Esses logs contêm a rodada final, substituindo as
@@ -441,10 +443,12 @@ Resolução automática OpenSSL externo, HTTP Zig e materialização SQL continu
 desenhos. Esse candidato não acrescenta aceite HTTPS/Linux/MSSQL/AppServer
 aos registros anteriores.
 
-## Homologação HTTP TLPP pelo operador em 2026-10-07
+<a id="homologação-http-tlpp-pelo-operador-em-2026-10-07"></a>
 
-O operador ajustou a comparação de acentos e o tratamento Unauthorized do
-FWRest e informou `U_HBBridgeHTTPTest` executado em **PROTHEUS**, thread
+## Homologação HTTP TLPP manual em 2026-10-07
+
+Após o ajuste da comparação de acentos e do tratamento Unauthorized do
+FWRest, informada execução manual de `U_HBBridgeHTTPTest` em **PROTHEUS**, thread
 **25672**. Programa iniciado às **15:16:12 São Paulo**; teste às
 **15:16:14–15:16:15**, duração **00:00:01**. A pilha RPO informada contém
 `tttm120.rpo`, `tlpp.rpo` e `custom.rpo`. Health retornou a mensagem Zig
@@ -466,10 +470,10 @@ Uma inicialização defensiva posterior também trata 401 nativo sem motivo
 interno, preservando o caminho homologado. O ramo alternativo não foi
 exercitado em outra LIB.
 
-Esse é aceite de execução pelo operador, sem teste executado pelo agente
-nem log de sucesso do compilador fornecido. A tentativa anterior do agente
+Esse é aceite de execução manual informada no AppServer, sem teste local
+nem log de sucesso do compilador fornecido. A tentativa local anterior
 retornou -1073740791, e o log interpretou um diretório de includes como
-ambiente; não comprova compilação bem-sucedida. A execução do operador
+ambiente; não comprova compilação bem-sucedida. A execução manual informada
 supera essa lacuna nos fontes HTTP exercitados. Logs históricos:
 `tmp/totvs-http-build-run.log` e `tmp/totvs-compile.log`.
 
@@ -481,12 +485,12 @@ cliente com 16 checks. Veja o [exemplo](../examples/http/README.pt-BR.md).
 O crivo final da árvore de trabalho passou para **139 arquivos** com `check.hb`,
 `commit.hb`, `3rdpatch.hb` e convenções; log:
 `tmp/commit-gate-tlpp-http-20261007.log`. Whitespace da árvore/índice e links
-locais em 59 documentos passaram. O índice preparado pelo usuário foi
+locais em 59 documentos passaram. O índice existente foi
 preservado; essas validações não criaram commit nem publicação.
 
 ## Extensão nativa dos fontes Harbour em 2026-10-07
 
-O responsável autorizou `.hb` para os fontes Harbour próprios. Foram renomeados
+Autorizada a adoção de `.hb` para os fontes Harbour próprios. Foram renomeados
 os **26** arquivos em `src/hb/`, `tests/` e `addons/`; atualizados HBP/HBM do
 produto/testes, scripts de fixtures, caminhos do addon e documentação atual.
 A comparação com HEAD confirmou os corpos da implementação Harbour preservados,
@@ -510,7 +514,7 @@ PowerShell, oito casos positivos/negativos das convenções e os atributos xBase
 
 Nos dois testes TLPP, somente o caminho do addon de exemplo foi alterado para
 `examples/hbbridgesampleaddon.hb`. Eles não foram recompilados nem executados
-no AppServer durante a migração executada pelo agente. Os relatos posteriores
+no AppServer durante a migração local. Os relatos posteriores
 de recompilação/execução abaixo superam essa pendência de regressão. O aceite
 anterior do RPO usava `.prg`. Os marcos MSSQL do pacote 001 continuam pendentes.
 
@@ -519,10 +523,12 @@ O crivo completo da árvore passou para **141 arquivos** com `check.hb`,
 `tmp/hb-extension-commit-gate-20261007.log`. Links locais em **61 documentos**
 e `git diff --check` passaram. O índice foi preservado; nenhum commit criado.
 
-## Homologação Protheus pelo operador após a migração em 2026-10-07
+<a id="homologação-protheus-pelo-operador-após-a-migração-em-2026-10-07"></a>
 
-O operador confirmou recompilação após a migração `.hb` e forneceu saída HTTP
-no chat, seguida de Query/configuração/TCP/HTTP em `F:/tmp/hbridge.news.txt`.
+## Homologação Protheus manual após a migração em 2026-10-07
+
+Confirmada a recompilação após a migração `.hb`, com saída HTTP manual do AppServer
+informada no chat, seguida de Query/configuração/TCP/HTTP em `F:/tmp/hbridge.news.txt`.
 Relatos preservados em `tmp/protheus-http-hb-operator-20261007.log` e
 `tmp/protheus-suite-hb-operator-20261007.log`; a cópia do anexo original,
 incluindo a RFC OpenBao separada, está em `tmp/hbridge-news-20261007.txt`.
@@ -544,7 +550,7 @@ configuração revisado cobre alias SQL opcional sem forçar perfil de demonstra
 As duas execuções HTTP incluem addon, credencial rejeitada, serviços proibido/
 desconhecido, recuperação e valores das páginas inicial/seguinte/final.
 
-São execuções do operador, sem teste AppServer executado pelo agente nem log
+São execuções manuais informadas no AppServer, sem teste AppServer local nem log
 de sucesso do compilador fornecido. Superam a pendência dos renomes TLPP e
 dos 16 checks de configuração nos casos exercitados. Os fontes agora usam
 addon `.hb` por padrão; os relatos não mostram o argumento real do módulo,
@@ -559,10 +565,12 @@ de commit para **141 arquivos**; log:
 documentos** e whitespace aprovados. Esta atualização documental não repetiu
 a suíte nativa nem acessou servidor OpenBao/MSSQL.
 
-## Homologação TCP Protheus MSSQL e SQLite pelo operador em 2026-10-08
+<a id="homologação-tcp-protheus-mssql-e-sqlite-pelo-operador-em-2026-10-08"></a>
 
-O operador forneceu saída de execução dos dois wrappers Query. A transcrição
-está preservada em `tmp/protheus-mssql-sqlite-operator-20261008.log`.
+## Homologação TCP Protheus MSSQL e SQLite manual em 2026-10-08
+
+Informada saída de execução manual no AppServer dos dois wrappers Query.
+A transcrição está preservada em `tmp/protheus-mssql-sqlite-operator-20261008.log`.
 Os horários abaixo são de São Paulo em 2026-10-08; o log identifica `marin`
 em `DNA-TECH-01` e a pilha `tttm120.rpo`, `tlpp.rpo`, `custom.rpo`.
 
@@ -574,11 +582,12 @@ em `DNA-TECH-01` e a pilha `tttm120.rpo`, `tlpp.rpo`, `custom.rpo`.
 Os checks cobrem campos nomeados e decimais, campos ausentes, EOF/close,
 resultados vazios, SQL inválido, perfis desconhecidos, recuperação posterior,
 páginas inicial/seguinte/final/vazia, ordinais ocultos, página/ordenação
-inválidas e limpeza da paginação. O registro homologa a execução pelo operador
+inválidas e limpeza da paginação. O registro homologa a execução manual no AppServer
 do contrato TCP existente de dataset/páginas com alias MSSQL explícito,
 além da regressão SQLite repetida. O relato não inclui log de sucesso do
-compilador nem hashes de artefatos; o agente não executou essas chamadas
-AppServer. As fixtures nativas ampliadas mantêm suas evidências separadas.
+compilador nem hashes de artefatos; essas chamadas AppServer não foram
+repetidas na validação local. As fixtures nativas ampliadas mantêm suas
+evidências separadas.
 
 O aceite HTTP com perfil MSSQL passou posteriormente em 2026-10-08; veja as
 [execuções HTTP com wrappers identificados](#homologação-http-protheus-mssql-e-sqlite-pelo-operador-em-2026-10-08).
@@ -587,7 +596,7 @@ histórico.
 
 ## Homologação MSSQL nativa em 2026-10-08
 
-O aceite Harbour opt-in executado pelo agente passou com **92 checks, zero
+O aceite Harbour opt-in executado localmente passou com **92 checks, zero
 falhas e nenhum skip** no banco SQL Server real. Evidências:
 `tmp/mssql-tests-b3d676f0daaf470a97af605a98a9681c/results.log` e
 `tmp/mssql-native-normalized-20261008.log`.
@@ -645,15 +654,17 @@ Os três validadores e as convenções passaram em **146 arquivos**:
 whitespace aprovados. Nenhum commit ou publicação efetuado.
 
 Isso fornece a evidência nativa de valores/tipos SQL de M03, junto do aceite
-TCP separado do operador acima. As [execuções HTTP abaixo](#homologação-http-protheus-mssql-e-sqlite-pelo-operador-em-2026-10-08)
+TCP manual separado acima. As [execuções HTTP abaixo](#homologação-http-protheus-mssql-e-sqlite-pelo-operador-em-2026-10-08)
 homologam M05 nos 13 casos exercitados. Permanecem pendentes conexão
 indisponível controlada/timeout nativo (M06), isolamento mais
 amplo de perfis/recursos (M07), referências de transportes/memória (M08) e
 evidências AppServer/finais restantes (M09); o pacote 001 não está concluído.
 
-## Homologação HTTP Protheus MSSQL e SQLite pelo operador em 2026-10-08
+<a id="homologação-http-protheus-mssql-e-sqlite-pelo-operador-em-2026-10-08"></a>
 
-O operador forneceu saída de execução dos dois wrappers de teste HTTP.
+## Homologação HTTP Protheus MSSQL e SQLite manual em 2026-10-08
+
+Informada saída de execução manual no AppServer dos dois wrappers de teste HTTP.
 Evidência: `tmp/protheus-http-mssql-sqlite-operator-20261008.log`. O relato
 identifica `marin` em `DNA-TECH-01` e a mesma pilha `tttm120.rpo`, `tlpp.rpo`,
 `custom.rpo`. Os horários abaixo são de São Paulo em 2026-10-08.
@@ -663,7 +674,7 @@ identifica `marin` em `DNA-TECH-01` e a mesma pilha `tttm120.rpo`, `tlpp.rpo`,
 | `U_HBBridgeHTTPTestMSSQL` / `MSSQL/pData` | Programa 10:33:32, thread 25976; teste 10:33:33–10:33:34 | Todos os 13 checks true/PASS, Health HTTP 200; duração 00:00:01. |
 | `U_HBBridgeHTTPTestSQLite` / `sqlite_demo` | Programa 10:34:06, thread 9916; teste 10:34:07–10:34:07 | Todos os 13 checks true/PASS, Health HTTP 200; duração 00:00:00. |
 
-Os [wrappers HTTP do operador](../src/tlpp/tests/protheus/hbbridge.http.test/hbbridge.http.test.tlpp)
+Os [wrappers HTTP fornecidos](../src/tlpp/tests/protheus/hbbridge.http.test/hbbridge.http.test.tlpp)
 definem explicitamente o alias SQL padrão e encaminham ao teste comum.
 Mantêm a resolução existente de URL/token/timeout quando os argumentos de
 transporte são omitidos. Ambos passaram em `healthGet`, `healthPost`,
@@ -673,8 +684,9 @@ transporte são omitidos. Ambos passaram em `healthGet`, `healthPost`,
 com `MSSQL/pData`, incluindo os valores das páginas HTTP do dataset comum,
 e repete a regressão HTTP SQLite.
 
-São execuções AppServer do operador, sem log de sucesso do compilador nem
-hashes de artefatos fornecidos; o agente não executou essas chamadas HTTP.
+São execuções manuais informadas no AppServer, sem log de sucesso do compilador
+nem hashes de artefatos fornecidos; essas chamadas HTTP não foram repetidas na
+validação local.
 As durações informadas têm resolução de um segundo e não são benchmarks.
 Não homologam HTTPS/Linux nem ampliam a cobertura de tipos SQL/Unicode além
 da fixture HTTP exercitada. Relatos HTTP anteriores sem backend identificado
@@ -689,7 +701,7 @@ regressão nativos acima não foram repetidos nesta atualização documental.
 
 ## Extensão do dataset e falhas de integridade em 2026-10-08
 
-Após os aceites acima, o responsável solicitou acesso mais simples aos campos
+Após os aceites acima, solicitado acesso mais simples aos campos
 e varredura sequencial das páginas. O dataset TLPP agora inclui `MoreToRead()`,
 `Header()`, seu alias de compatibilidade `DSStruct()`, `FieldInfo()`,
 `FieldCount()`, `FieldName()` e `GetRow()`. `Eof()`/`Skip()` mantêm o comportamento
@@ -701,17 +713,17 @@ O novo [U_HBBridgeDataSetTest](../src/tlpp/tests/protheus/hbbridge.dataset.test/
 isolado usa cliente simulado, sem SQL, credenciais, rede ou dados ERP.
 Seu relatório esperado de sucesso contém **45 checks e 17 chamadas simuladas**,
 cobrindo ordem/cópias de metadados, varredura automática, verificações repetidas,
-estado fechado/vazio, metadados inválidos e falha/recuperação. O agente tentou
-compilar com `scripts/build-totvs.cmd` em 2026-10-08 às 16:31:40 de São Paulo,
+estado fechado/vazio, metadados inválidos e falha/recuperação. A tentativa local
+de compilação usou `scripts/build-totvs.cmd` em 2026-10-08 às 16:31:40 de São Paulo,
 thread 36788. Retornou exit 1, `COMPILEERROR-300 Failed to open repository`:
 `custom.rpo` estava em uso por um usuário. O compilador informou
 total/sucessos/erros `0/0/0`, portanto não compilou esses fontes. Log:
 `tmp/totvs-compile.log`. Não havia scripts de parada/início configurados e o
 AppServer ativo não foi parado. O novo teste de execução continua pendente;
-relatos anteriores do operador não homologam esses métodos. D02 no
+relatos manuais anteriores do AppServer não homologam esses métodos. D02 no
 [WIP](../WIP.pt-BR.md) acompanha esse aceite.
 
-Uma prova separada do agente, com constantes MSSQL somente para leitura,
+Uma prova local separada, com constantes MSSQL somente para leitura,
 reproduziu falha na serialização numérica: `CAST(123.4567 AS FLOAT)` preservou
 a fração nativamente, mas emitiu `123` no JSON. `DECIMAL(15,4)` emitiu
 `123.4567`, e `DECIMAL(16,2)` emitiu `123.46`. Evidência:
@@ -742,7 +754,7 @@ foi repetida para este trabalho de navegação TLPP e documentação.
 
 ## Revisão de fontes, exemplos e extensões em 2026-10-12
 
-Revisados commits do responsável até `344c86b`, incluindo nomes pontuados,
+Revisados commits até `344c86b`, incluindo nomes pontuados,
 helpers browse/filtro/SQL no cliente e grupos de testes Protheus. Caminhos e
 exemplos de API atuais foram alinhados, preservando registros anteriores.
 `Header()` é canônico; configurar `SetAliasProfile()` antes de `OpenSQL()`/
@@ -754,7 +766,7 @@ seguros de erros/JSON, totais e perfil do dataset, cópias das linhas do browse,
 busca/filtro tipados e escapados, callbacks e erros de compilação dos helpers/
 exemplos. A seleção original era válida: `dbSelectArea(0)` escolhe uma área
 livre, não a área anterior do chamador. Preservados contagem real, cálculo
-constante de páginas e `COUNT_BIG` MSSQL já corrigidos pelo responsável.
+constante de páginas e `COUNT_BIG` MSSQL já corrigidos.
 
 Regressão nativa: **583 checks, zero falhas**,
 `tmp/tests-79526806a38f44a6a2a34c8e0feb2202/results.log`;
@@ -770,16 +782,16 @@ no formato TOTVS: linha única separada e terminada por ponto e vírgula.
 Compilação final: **24 fontes, 24 sucessos, zero erros**, `custom.rpo` atualizado
 em 2026-10-12 16:18:59 São Paulo, thread 3112. Log:
 `tmp/review-totvs-accepted-20261012-build.log`. Parada/partida administrativas
-usaram os scripts do responsável; partida retornou zero. O processo do
+usaram os scripts fornecidos; partida retornou zero. O processo do
 compilador continua encerrando com **0xC0000409 após concluir o build**;
 não se afirma encerramento limpo. Tentativas parciais anteriores não homologam
 toda a árvore.
 
 O mock dataset espera **67 checks/31 chamadas**; o teste helper espera **12
 checks**. Foram compilados, sem execução nesta revisão. Browse/filtro/busca
-SRA/SX5, tipos e liberação exigem aceite do operador. A fixture query executa
+SRA/SX5, tipos e liberação exigem aceite manual no AppServer. A fixture query executa
 SELECTs constantes por padrão; o quinto argumento habilita explicitamente os
-exemplos ERP do responsável. Esta análise não leu registros de funcionários.
+exemplos ERP fornecidos. Esta análise não leu registros de funcionários.
 
 A [análise do brainstorming](extensions-review.pt-BR.md) registra SQLRDD,
 Duktape e CCHarbour como candidatos futuros com fontes primárias. Nenhum motor,
@@ -789,5 +801,30 @@ credenciais cifradas e demais critérios do pacote continuam pendentes no WIP.
 Os três validadores passaram em **170 arquivos**; links locais em **67
 documentos** e whitespace aprovados. Log:
 `tmp/review-commit-gate-final-20261012.log`. Disponibilidade após partida
-verificada nas portas locais **5555, 7890, 1234 e 4321**. Índice preparado pelo
-usuário preservado; esta revisão não efetuou commit/publicação.
+verificada nas portas locais **5555, 7890, 1234 e 4321**. Índice existente
+preservado; esta revisão não efetuou commit/publicação.
+
+## Tabela HTTP FWWebEx: validação confirmada em 2026-10-13
+
+Confirmada a validação do exemplo interativo de tabela HTTP como OK, com
+seis capturas no [README do exemplo](../src/tlpp/tests/protheus/hbbridge.http.table.test/README.pt-BR.md).
+Os artefatos foram conferidos localmente; registram execução manual informada no AppServer.
+
+| Cenário visível | Resultado registrado |
+| --- | --- |
+| SX5 sem filtro | 11.764 registros; telas de 5 e 10 linhas com controles de paginação. |
+| Pesquisa global SX5 | `TIPOS DE IMPOSTOS`: 1 registro, filtrado de 11.764. |
+| Igualdade por campo SX5 | Description `TIPOS DE IMPOSTOS`: 1 registro, filtrado de 11.764. |
+| Fixture constante | 10 linhas exibidas de 12; `O'Brien`, `100%_done` e `<b>literal text</b>` apresentados como texto. |
+| Pesquisa global na fixture | `Harbour`: 1 registro, filtrado de 12. |
+
+As descrições SX5 também mostram acentos nesses exemplos. Isso não conclui
+a correção UTF-8/FLOAT mais ampla de D03. Protheus resolve perfil/tabela/
+filial da SX5; hbBridge permanece executor genérico.
+
+F01 preparatório do WIP está homologado nas telas demonstradas. Execução
+específica dos mocks continua pendente: dataset 67 checks/31 chamadas,
+helpers 12 checks e tabela HTTP 62 checks/19 respostas enfileiradas. O exemplo
+não exercita varredura automática/cópias/falhas exigidas em D02. As capturas
+não identificam perfil/backend efetivos, horário, build de compilação ou
+artefato do servidor; não são novos aceites desses atributos nem de M06–M09.

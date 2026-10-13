@@ -77,7 +77,7 @@ $env:HBBRIDGE_TOTVS_ENV = 'PROTHEUS'
 Arguments are AppServer directory, semicolon-separated include directories
 and environment (default PROTHEUS). Project includes are added automatically.
 Optional `HBBRIDGE_TOTVS_STOP_SCRIPT` and `HBBRIDGE_TOTVS_START_SCRIPT` use
-operator-configured service scripts; no fixed installation or elevated-process
+installation-specific service scripts; no fixed installation or elevated-process
 stop is assumed. A failed configured stop aborts compilation. Startup is
 attempted after the compiler and preserves its failure status. The log is
 `tmp/totvs-compile.log`. Compile the entire `src/tlpp/` tree including tests.
@@ -85,7 +85,7 @@ attempted after the compiler and preserves its failure status. The log is
 `.tlpp` files. TOTVS requires a single semicolon-separated line with a trailing
 separator; supplying dotted test directories as sources caused seven errors
 and omitted their children in the 2026-10-12 review. The corrected list included
-all 24 sources. In the owner's local installation, use an elevated terminal
+all 24 sources. In the documented local installation, use an elevated terminal
 and `C:\totvs\stop-totvs.bat` / `C:\totvs\start-totvs.bat`, ensuring startup
 after failures. Quote semicolon-separated include arguments in PowerShell.
 Renamed classes require a new compile; previous acceptance does not cover
@@ -134,8 +134,8 @@ Technical capacities reported by `HBBridgeRuntimeLimits()` are validated
 separately. TLPP has a positive default timeout and AppServer limits including
 MAXSTRINGSIZE; logical block transfer/negotiation remain pending.
 
-The operator accepted INI's 13 checks, Windows clock, normal RPC and SQLite's
-29 checks in the report recorded on 2026-10-04. Earlier failed TOTVS stopping
+The manual AppServer report recorded on 2026-10-04 confirmed INI's 13 checks,
+Windows clock, normal RPC and SQLite's 29 checks. Earlier failed TOTVS stopping
 attempts remain historical; no later compiler log was supplied. Forced socket
 failures/partial sends, nondefault destinations, MSSQL and Linux remain pending.
 The [credentials proposal](../docs/credentials.md) covers portable storage;

@@ -25,7 +25,7 @@ sqlite_demo pertence apenas ao exemplo SQLite. Cada dataset seleciona com
 driver, empresa ou filial. O teste sem alias/SQLProfile retorna PROFILE_REQUIRED
 antes da rede. Drivers atuais: sqlite e mssql; Oracle exige conector e aceite
 próprios. A configuração revisada e as classes renomeadas foram homologadas
-pelo operador em 2026-10-07: os 16 checks passaram após recompilação informada
+manualmente em 2026-10-07: os 16 checks passaram após recompilação informada
 na migração para `.hb`.
 
 O build usa dependências fixadas próprias em .deps/, resolvidas por
@@ -144,14 +144,14 @@ Harbour, preservando a programação xBase na camada de serviços.
 | Recurso | Situação no código atual |
 | --- | --- |
 | Servidor TCP | Multithread, bind/porta configuráveis, padrão `0.0.0.0:1512`; cliente local usa `127.0.0.1`. |
-| Cliente Protheus | `HBBridgeClient`, contrato único `HBBRIDGE/1` com JSON e gzip em memória nos dois sentidos; uma conexão por chamada. Configuração em `[hbBridge]` do INI AppServer, com argumentos explícitos prioritários; 16 checks revisados homologados pelo operador em 2026-10-07, incluindo perfil explícito/vazio/inválido. |
+| Cliente Protheus | `HBBridgeClient`, contrato único `HBBRIDGE/1` com JSON e gzip em memória nos dois sentidos; uma conexão por chamada. Configuração em `[hbBridge]` do INI AppServer, com argumentos explícitos prioritários; 16 checks revisados homologados manualmente em 2026-10-07, incluindo perfil explícito/vazio/inválido. |
 | Serviços | Registro versionado comum: `Health`, `Echo`, `ADDON.Execute`, `Core.Upper`, `Core.Version`, `Service.List`, `Admin.Status` e `RPCRDD.Query` quando há perfis SQL. |
 | Teste Protheus | Health, ADDON.Execute e dois Echo homologados manualmente em 2026-10-03 e repetidos com sucesso em 2026-10-04 e 2026-10-07; 200.000 bytes idênticos e gzip de 152.964 bytes. Teste de relógio Windows também passou. |
 | Módulos Harbour | Compilação em memória de `.prg`/`.hb` e carregamento de `.hrb` pelo serviço `ADDON.Execute`, com `module` e `params`. |
 | hbnetio | Listener nativo incorporado em `0.0.0.0:2941`, RPC filtrado e serialização Harbour. `HB_EXTERN` habilitado; gateway usa somente serviços registrados. |
 | HTTP/REST | `hbhttpd` incorporado, opcional e desativado por padrão. Chamadas JSON e status web autenticado usam o núcleo comum; credenciais de serviço/administração separadas. HTTPS direto exige build com OpenSSL e homologação própria. |
-| Cliente HTTP Protheus | `HBBridgeHTTPClient` usa FWRest nativo, bearer e contrato JSON compartilhado. Operador homologou 13 checks em cada banco MSSQL e SQLite em 2026-10-08, incluindo paginação SQL; wrappers selecionam `MSSQL/pData` e `sqlite_demo`. |
-| Dados SQL | `RPCRDD.Query` usa SQLMIX com SQLite e MSSQL/ODBC; suporta páginas no SGBD e resultados por chave. Em 2026-10-08 passaram 92 checks MSSQL nativos; operador homologou 29 checks Protheus TCP e 13 HTTP em cada perfil, `MSSQL/pData` e `sqlite_demo`. Falhas/tipos/plataformas ampliados mantêm seus aceites. |
+| Cliente HTTP Protheus | `HBBridgeHTTPClient` usa FWRest nativo, bearer e contrato JSON compartilhado. Homologação manual no AppServer com 13 checks aprovados em cada banco MSSQL e SQLite em 2026-10-08, incluindo paginação SQL; wrappers selecionam `MSSQL/pData` e `sqlite_demo`. |
+| Dados SQL | `RPCRDD.Query` usa SQLMIX com SQLite e MSSQL/ODBC; suporta páginas no SGBD e resultados por chave. Em 2026-10-08 passaram 92 checks MSSQL nativos; homologação manual Protheus com 29 checks TCP e 13 HTTP aprovados em cada perfil, `MSSQL/pData` e `sqlite_demo`. Falhas/tipos/plataformas ampliados mantêm seus aceites. |
 | Dados DBF | Acesso por RDDs nativos via NETIO previsto; ainda não integrado ao hbBridge. |
 | VF IO | Cliente Harbour usa `hb_vf*` com provedor NETIO; leitura/escrita binária testadas. Fachada de arquivos para TLPP permanece pendente. |
 | C e Zig | Ponte pela API C do Harbour e ABI C do Zig integrada ao `Health`; biblioteca Zig e toolchain exigidos pelo build atual. |
@@ -173,14 +173,14 @@ Protheus: configuração com 13 checks, relógio/RPC e SQLite com 29 checks,
 incluindo paginação. A leitura do INI ativo foi aceita pelo teste de
 configuração; destino diferente dos padrões ainda precisa de rodada própria.
 
-Em 2026-10-07, após recompilação informada pelo operador na migração para `.hb`,
+Em 2026-10-07, após recompilação informada na migração para `.hb`,
 passaram as classes TLPP renomeadas, os 16 checks de configuração revisados,
 relógio/RPC, 29 checks SQLite e 13 checks HTTP. Os horários/threads identificam
 essa regressão Windows; não foram fornecidos log de compilação, argumentos,
 destino efetivo nem hashes dos artefatos. O backend SQL HTTP não foi identificado.
 Em 2026-10-08 passaram 92 checks MSSQL nativos em SQL Server `16.0.1200.5`,
-banco `pData`, ODBC Driver `18.6.2.1` x64 e autenticação SQL. O operador também
-homologou 29 checks TCP e 13 HTTP em cada perfil, `MSSQL/pData` e `sqlite_demo`;
+banco `pData`, ODBC Driver `18.6.2.1` x64 e autenticação SQL. A homologação manual
+no AppServer também aprovou 29 checks TCP e 13 HTTP em cada perfil, `MSSQL/pData` e `sqlite_demo`;
 threads HTTP 25976/9916 usaram os wrappers específicos por backend.
 Destino alternativo, HTTPS, falhas/tipos ampliados e Linux exigem homologação própria.
 
@@ -667,9 +667,9 @@ Windows retorna milissegundos e Linux retorna segundos fracionários.
 Por isso, aplica Unix × 1000. Regressões do contador expiram o orçamento.
 O teste Protheus verifica escala e avanço durante `Sleep(1000)` antes do RPC,
 inclusive para detectar eventual correção dessa diferença em novos builds.
-O operador confirmou esse teste no Windows em 2026-10-04: delta bruto de
+A execução manual desse teste no Windows foi confirmada em 2026-10-04: delta bruto de
 `1097.692700` e normalizado de `1097.773500` ms, resultado `OK`.
-Em 2026-10-07 às 16:14:31, thread 27084, reconfirmou `OK`: delta bruto
+Em 2026-10-07 às 16:14:31, thread 27084, o resultado `OK` foi reconfirmado: delta bruto
 `1089.987500`, normalizado `1090.088100 ms`.
 A documentação não garante monotonicidade/wrap de `TimeCounter`; essa
 validação ampliada e o caminho Linux permanecem pendentes. O servidor usa `HBBridgeMonotonicMs()` para

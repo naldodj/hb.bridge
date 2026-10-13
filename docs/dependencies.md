@@ -127,7 +127,7 @@ runtime driver packages at deployment. Configure Windows identity or Linux
 Kerberos for integrated authentication, or a private SQL login configuration.
 See [credential design](credentials.md) and [SQL example](../examples/sql/README.md).
 
-Protheus compilation requires the operator's licensed AppServer, includes,
+Protheus compilation requires a licensed AppServer, includes,
 environment and RPO. [build-totvs.cmd](../scripts/build-totvs.cmd) accepts paths
 and environment arguments or `HBBRIDGE_TOTVS_APPSERVER_DIR`,
 `HBBRIDGE_TOTVS_INCLUDES`, `HBBRIDGE_TOTVS_ENV`. Optional stop/start script

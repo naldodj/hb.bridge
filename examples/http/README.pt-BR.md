@@ -67,7 +67,7 @@ explicitamente SQL, nomes físicos de tabelas e regras de tenant, empresa e fili
 ## Compilar e executar o exemplo
 
 Compile toda a árvore `src/tlpp/`, incluindo cliente e teste, com
-a configuração do SDK TOTVS definida pelo operador:
+a configuração do SDK TOTVS específica da instalação:
 
 ```powershell
 $env:HBBRIDGE_TOTVS_APPSERVER_DIR = '<your-appserver-directory>'
@@ -172,10 +172,12 @@ O mesmo cliente pode atender ao dataset paginado existente:
 `NextPage()` e `HasNextPage()` mantêm o contrato do dataset existente.
 A query acima é um SELECT de constante, sem escrita em tabelas Protheus.
 
-## Homologação do operador
+<a id="homologação-do-operador"></a>
 
-Em **2026-10-07**, o operador compilou/ajustou os fontes e executou
-`U_HBBridgeHTTPTest` no AppServer, thread **25672**. O programa iniciou às
+## Homologação manual no AppServer
+
+Em **2026-10-07**, foram informados compilação/ajustes dos fontes e execução
+manual de `U_HBBridgeHTTPTest` no AppServer, thread **25672**. O programa iniciou às
 15:16:12 e o teste ocorreu de **15:16:14 a 15:16:15**. Todas as **13 verificações**
 retornaram verdadeiro: Health por GET/POST, descoberta de serviços, Echo de
 200.000 bytes com comparação do acento, addon, serviço inexistente (404),
@@ -188,16 +190,17 @@ paginação no perfil selecionado e não comprova homologação MSSQL.
 Cobertura ampla de Unicode/codepages, HTTPS e configurações alternativas do
 cliente continuam pendentes. Consulte [o registro de homologação](../../docs/acceptance.pt-BR.md).
 
-Após informar recompilação posterior à migração Harbour `.hb`, o operador
-repetiu todas as **13 verificações com sucesso** na mesma data: thread
+Após recompilação informada na migração Harbour `.hb`, execuções manuais
+repetiram todas as **13 verificações com sucesso** na mesma data: thread
 **27296**, teste **16:10:44–16:10:45**, e thread **25456**, teste
 **16:15:03–16:15:04**. Horários de São Paulo; ambas as execuções duraram um
 segundo, com Health HTTP 200, addon e valores paginados aprovados. São relatos
-do operador, sem execução AppServer pelo agente nem log do compilador fornecido.
+manuais AppServer; essas execuções não ocorreram pela automação local,
+e não foi fornecido log do compilador.
 O teste Query acompanhante identifica `sqlite_demo`; aqueles relatos HTTP
 de 2026-10-07 não identificam seu próprio SGBD nem o argumento real do módulo.
 
-Em **2026-10-08**, o operador passou nas **13 verificações de cada backend**
+Em **2026-10-08**, execuções manuais AppServer passaram nas **13 verificações de cada backend**
 pelas entradas dedicadas acima. MSSQL: thread **25976**, início do programa
 **10:33:32**, teste **10:33:33–10:33:34**, duração exibida de um segundo.
 SQLite: thread **9916**, início do programa **10:34:06**, teste **10:34:07**,
@@ -206,7 +209,7 @@ rotas passaram em Health, descoberta, Echo/acento, addon, falha/recuperação e
 primeira/próxima página e valores do dataset comum. Os padrões das entradas
 identificam `MSSQL/pData` e `sqlite_demo`; o cliente genérico continua sem alias forçado.
 
-São execuções AppServer do operador, separadas dos **92 checks nativos MSSQL**
+São execuções manuais AppServer, separadas dos **92 checks nativos MSSQL**
 e das **566 regressões Harbour padrão** já registradas. Transcrição:
 `tmp/protheus-http-mssql-sqlite-operator-20261008.log`. HTTPS, Linux,
 Unicode/tipos SQL ampliados, falhas controladas de rede/driver, isolamento de

@@ -3,7 +3,7 @@
 #include "tlpp-core.th"
 
 // Pure consumer/dataset contract checks: no INI, HTTP or ERP table is read.
-procedure U_HBBridgeHTTPTableTest()
+function U_HBBridgeHTTPTableTest()
 
     local oClient := HBBridge.Tests.HBBridgeHTTPTableMockClient():New() as object
     local jFields := HTTPTableTestFields() as json
@@ -194,6 +194,15 @@ procedure U_HBBridgeHTTPTableTest()
     jRequest["filters"] := JSONObject():New()
     jRequest["filters"]["NAME"] := "x" + Chr(0) + "y"
     jChecks["rejectNulFilter"] := HTTPTableTestRejected(oTable, oClient, jRequest, "INVALID_FILTER")
+    jChecks["nulFilterInputIsPreserved"] := Len(jRequest["filters"]["NAME"]) == 3 .and. ;
+        Asc(SubStr(jRequest["filters"]["NAME"], 2, 1)) == 0 .and. ;
+        Left(jRequest["filters"]["NAME"], 1) == "x" .and. Right(jRequest["filters"]["NAME"], 1) == "y"
+    jRequest["filters"]["NAME"] := Chr(0) + "y"
+    jChecks["rejectLeadingNulFilter"] := HTTPTableTestRejected(oTable, oClient, jRequest, "INVALID_FILTER")
+    jRequest["filters"]["NAME"] := "x" + Chr(0)
+    jChecks["rejectTrailingNulFilter"] := HTTPTableTestRejected(oTable, oClient, jRequest, "INVALID_FILTER")
+    jRequest["filters"]["NAME"] := Chr(0)
+    jChecks["rejectOnlyNulFilter"] := HTTPTableTestRejected(oTable, oClient, jRequest, "INVALID_FILTER")
     jRequest["filters"] := Array(0)
     jChecks["rejectArrayFilters"] := HTTPTableTestRejected(oTable, oClient, jRequest, "INVALID_FILTER")
     FreeObj(@jRequest)
@@ -203,6 +212,12 @@ procedure U_HBBridgeHTTPTableTest()
     jChecks["rejectNumericSearch"] := HTTPTableTestRejected(oTable, oClient, jRequest, "INVALID_SEARCH")
     jRequest["search"] := "x" + Chr(0) + "y"
     jChecks["rejectNulSearch"] := HTTPTableTestRejected(oTable, oClient, jRequest, "INVALID_SEARCH")
+    jRequest["search"] := Chr(0) + "y"
+    jChecks["rejectLeadingNulSearch"] := HTTPTableTestRejected(oTable, oClient, jRequest, "INVALID_SEARCH")
+    jRequest["search"] := "x" + Chr(0)
+    jChecks["rejectTrailingNulSearch"] := HTTPTableTestRejected(oTable, oClient, jRequest, "INVALID_SEARCH")
+    jRequest["search"] := Chr(0)
+    jChecks["rejectOnlyNulSearch"] := HTTPTableTestRejected(oTable, oClient, jRequest, "INVALID_SEARCH")
     FreeObj(@jRequest)
 
     jRequest := HTTPTableTestRequest(18, 0, 2)
@@ -301,6 +316,8 @@ procedure U_HBBridgeHTTPTableTest()
     jChecks["closeDisablesConsumer"] := HTTPTableTestRejected(oTable, oClient, jRequest, "INVALID_CONFIGURATION")
     jChecks["injectedClientRemainsOwnedByCaller"] := oClient:CallCount() == nCalls
     FreeObj(@jRequest)
+    jChecks["noUnexpectedMockCalls"] := oClient:UnexpectedCallCount() == 0
+    jChecks["allQueuedResponsesConsumed"] := oClient:PendingResponseCount() == 0 .and. oClient:CallCount() == 19
 
     aChecks := jChecks:GetNames()
     for nCheck := 1 to Len(aChecks)
@@ -316,7 +333,8 @@ procedure U_HBBridgeHTTPTableTest()
     FreeObj(@oClient)
     FreeObj(@jChecks)
 
-return
+// The same U_ entry can run in WebApp or native -run batch mode.
+return(if(lOk, 0, 1))
 
 static function HTTPTableTestFields() as json
 
@@ -345,6 +363,11 @@ static function HTTPTableTestRejected(oTable as object, oClient as object, ;
         Len(jResponse["data"]) == 0 .and. jResponse["recordsTotal"] == 0 .and. ;
         jResponse["recordsFiltered"] == 0 .and. oClient:CallCount() == nCalls as logical
 
+    if !lPassed
+        // Diagnose rejection/queue errors without printing SQL or filter values.
+        ConOut("hbBridge HTTP table rejection: expected=" + cCode + "; actual=" + jResponse["code"] + ;
+            "; callsBefore=" + tlpp.ToStr(nCalls) + "; callsAfter=" + tlpp.ToStr(oClient:CallCount()))
+    endif
     FreeObj(@jResponse)
 
 return(lPassed)

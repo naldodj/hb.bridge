@@ -2,7 +2,7 @@
 
 [English](extensions-review.md) · [Roadmap](../TODO.pt-BR.md) · [Pacote ativo](../WIP.pt-BR.md)
 
-Análise de 2026-10-12 a partir de `hbBridge_Braimstorming.txt` do responsável
+Análise de 2026-10-12 a partir de `hbBridge_Braimstorming.txt`
 e das fontes primárias abaixo. São decisões para extensões futuras, sem novos
 serviços ou dependências entregues. O pacote 001 permanece aberto; dataset,
 codificação e integridade numérica têm prioridade.

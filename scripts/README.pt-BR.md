@@ -82,7 +82,7 @@ $env:HBBRIDGE_TOTVS_ENV = 'PROTHEUS'
 Os argumentos são diretório AppServer, diretórios de include separados por
 ponto e vírgula e ambiente, cujo padrão é PROTHEUS. Includes do projeto são
 acrescentados automaticamente. `HBBRIDGE_TOTVS_STOP_SCRIPT` e
-`HBBRIDGE_TOTVS_START_SCRIPT` opcionais indicam scripts do operador; não
+`HBBRIDGE_TOTVS_START_SCRIPT` opcionais indicam scripts da instalação; não
 se presume instalação fixa nem parada de processos elevados. Falha de
 parada configurada interrompe a compilação. O reinício é tentado após o
 compilador, preservando seu resultado. O log fica em `tmp/totvs-compile.log`.
@@ -90,7 +90,7 @@ compilador, preservando seu resultado. O log fica em `tmp/totvs-compile.log`.
 TOTVS exige uma linha separada e terminada por ponto e vírgula. Diretórios
 pontuados tratados como fontes causaram sete erros e omitiram seus filhos na
 análise de 2026-10-12; a lista corrigida incluiu os 24 fontes. Na instalação
-local do responsável, usar terminal administrativo e `C:\totvs\stop-totvs.bat`
+local documentada, usar terminal administrativo e `C:\totvs\stop-totvs.bat`
 / `C:\totvs\start-totvs.bat`, reiniciando também após falhas. Colocar argumentos
 de includes com ponto e vírgula entre aspas no PowerShell.
 Compile toda a árvore `src/tlpp/`, incluindo testes. Classes renomeadas
@@ -147,8 +147,8 @@ incluindo MAXSTRINGSIZE; blocos lógicos e negociação permanecem pendentes.
 O Protheus resolve tenant/empresa/filial/xFilial/tabelas e envia parâmetros
 explícitos; o hbBridge permanece executor genérico.
 
-O operador aceitou os 13 checks INI, relógio Windows, RPC normal e os 29
-checks SQLite no relato registrado em 2026-10-04. Tentativas anteriores de
+O relato manual AppServer registrado em 2026-10-04 confirmou os 13 checks INI,
+relógio Windows, RPC normal e os 29 checks SQLite. Tentativas anteriores de
 parada TOTVS permanecem históricas; não houve log posterior de compilação
 informado. Novos nomes e os 16 checks revisados precisam de novo aceite.
 Falhas/envios parciais forçados, destinos não padrão, MSSQL e Linux continuam

@@ -5,7 +5,7 @@
 [The SQL service](../src/hb/services/hbbridge.query.hb) uses native Harbour
 rddsql/SQLMIX, linked sddsqlt3 for SQLite and sddodbc for MSSQL/ODBC; it does
 not implement a new RDD.
-Operator SQLite dataset/page acceptance: 2026-10-04 00:40:06, all 29 checks.
+Manual AppServer SQLite dataset/page acceptance: 2026-10-04 00:40:06, all 29 checks.
 MSSQL had not yet been accepted in that initial run. A later report in the same session accepted all
 13 AppServer-INI client configuration checks, clock/RPC and SQLite again.
 These reports concern the Windows target, not new renames/Linux/nondefault
@@ -13,11 +13,11 @@ destinations.
 
 On 2026-10-08, the native MSSQL route passed **92 checks, zero failures and no
 skips** against SQL Server `16.0.1200.5`, database `pData`, ODBC Driver
-`18.6.2.1`, Windows x64 and Harbour `UTF8EX`. The operator separately passed
+`18.6.2.1`, Windows x64 and Harbour `UTF8EX`. Separate manual AppServer runs passed
 **29 TCP and 13 HTTP checks for each backend**, MSSQL (`MSSQL/pData`) and
-SQLite (`sqlite_demo`). These are bounded native and operator results;
+SQLite (`sqlite_demo`). These are bounded native and manual AppServer results;
 broader failure/type/resource/performance cases, HTTPS, service identities
-and Linux remain work. The owner's new dataset request and reproduced
+and Linux remain work. The new dataset request and reproduced
 UTF-8/FLOAT findings are now tracked as **D02/D03 before resuming M06** in
 [WIP](../WIP.md); see [acceptance](acceptance.md) for attributable evidence.
 
@@ -270,10 +270,11 @@ tmp/tests-d1b829ff332c414f816a6e70748152d1/results.log. It adds two INI
 and two SQL alias checks. This predates the PascalCase/HTTP changes of
 2026-10-06 and does not replace their validation or Protheus acceptance.
 
-The agent's TOTVS attempt stopped before compilation because process shutdown
-failed (tmp/marco3-totvs-build.log).
-The operator accepted Query at 00:40:06, thread 41228, sqlite_demo, all 29 true.
-Later they confirmed all 29 again, 13 configuration checks, Health/ADDON/two
+The local automated TOTVS attempt stopped before compilation because process
+shutdown failed (tmp/marco3-totvs-build.log).
+Manual AppServer Query validation passed at 00:40:06, thread 41228,
+sqlite_demo, all 29 true. Later manual results confirmed all 29 again,
+13 configuration checks, Health/ADDON/two
 200,000-byte Echo results, varied gzip 152,964 bytes, Windows clock raw
 1097.692700/normalized 1097.773500 ms after Sleep(1000), OK.
 Time/thread/artifact hashes/call arguments/build log were not provided for that

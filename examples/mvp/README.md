@@ -55,7 +55,7 @@ in the AppServer. `sqlite_demo` is an example alias, never a library default.
 normal Health/ADDON/two Echo Protheus acceptance. Payload/wire caps are
 optional and default off; chunks are buffers, not total message limits.
 [Milestone 3](../../docs/milestone3-sql.md) implements SQLite/pages and ODBC
-MSSQL for acceptance. Operator acceptance on 2026-10-04: 29 SQLite checks,
+MSSQL for acceptance. Manual validation on 2026-10-04: 29 SQLite checks,
 later 13 client configuration checks, Windows clock and normal RPC. Renamed
 classes and revised optional-profile checks require renewed TLPP acceptance.
 VF IO TLPP facade, OS service, negotiation and debugging remain in
