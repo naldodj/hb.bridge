@@ -460,8 +460,11 @@ return
 
 static function BuildCustomFilder(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as character,jHBBridgeDataSetPage as json,cFilterExpr as character) as array
 
+    local aField as array
     local aHeader as array
     local aFields as array
+    local aTamSX3 as array
+    local aFWBrwData as array
     local aCustomFilter as array
 
     local cField as character
@@ -473,7 +476,9 @@ static function BuildCustomFilder(oHBBridgeDataSet as object,cHBBridgeDataSetSQL
     local jHeader as json
     local jCustomFilter as json
     local jFilter as json
-    local aFWBrwData as array
+
+    local lTamSX3 as logical
+
     local nField,nFields as numeric
     local nFilter,nFilters as numeric
 
@@ -497,10 +502,16 @@ static function BuildCustomFilder(oHBBridgeDataSet as object,cHBBridgeDataSetSQL
         endif
         // FWTemporaryTable's native schema is positional. Resolve logical
         // Protheus sizes/types locally rather than treating ODBC as SX3.
-        aAdd(aFields,{cField,;
-            if(Empty(GetSX3Cache(cField,"X3_TIPO")),__GetFieldType(jHeader[cField]["type"]),GetSX3Cache(cField,"X3_TIPO")),;
-            if(Empty(GetSX3Cache(cField,"X3_TAMANHO")),jHeader[cField]["length"],GetSX3Cache(cField,"X3_TAMANHO")),;
-            if(Empty(GetSX3Cache(cField,"X3_TIPO")),jHeader[cField]["decimals"],GetSX3Cache(cField,"X3_DECIMAL"))})
+        aField:=Array(DBS_ALEN)
+        aField[DBS_NAME]:=cField
+        aTamSX3:=TamSX3(cField)
+        lTamSX3:=(!Empty(aTamSX3))
+        aField[DBS_TYPE]:=if(lTamSX3,aTamSX3[3],__GetFieldType(jHeader[cField]["type"]))
+        aField[DBS_LEN]:=if(lTamSX3,aTamSX3[1],jHeader[cField]["length"])
+        aField[DBS_DEC]:=if(lTamSX3,aTamSX3[2],jHeader[cField]["length"])
+        FWFreeArray(@aTamSX3)
+        aAdd(aFields,aClone(aField))
+        FWFReeArray(@aField)
         cF3:=GetSX3Cache(cField,"X3_F3")
         if (!Empty(cF3))
             jF3[cField]:=cF3//Adicione + Field:F3 se necessario. Ex.: {"B1_COD":"SB1","B1_GRUPO":"SBM","B1_CODGRU":"SZ4Pro"}
