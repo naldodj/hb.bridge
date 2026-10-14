@@ -1,6 +1,8 @@
 #include "totvs.ch"
 #include "tbiconn.ch"
 
+namespace HBBridge.Examples
+
 procedure U_HBBridgeBrowseDataTestSRA()
     local cAliasTmp as character
     local jParameters:=JSONObject():New() as json

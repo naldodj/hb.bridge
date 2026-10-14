@@ -1,6 +1,8 @@
 #include "totvs.ch"
 #include "tbiconn.ch"
 
+namespace HBBridge.Examples
+
 procedure U_HBBridgeBrowseDataTest(jParameters as json)
     if ((ValType(jParameters)=="J").and.(!Empty(jParameters:GetNames())))
         HBBridgeBrowseDataTest(jParameters)
@@ -122,7 +124,7 @@ static procedure __Execute(jParameters as json)
                     );
                     ,nil;
                 );
-                ,if(oDataSet:FieldExist(cATRecNoMsMGet),HBBridge.Client.HBBridgeMsMGetEx():ViewData(cAlias,aFWBrwData[oFWBrowse:AT()][cATRecNoMsMGet],"HBBridge.Client.HBBridgeBrowseData",nil,aAcho),nil);
+                ,if(oDataSet:FieldExist(cATRecNoMsMGet),MsAguarde({||HBBridge.Client.HBBridgeMsMGetEx():ViewData(cAlias,aFWBrwData[oFWBrowse:AT()][cATRecNoMsMGet],"HBBridge.Client.HBBridgeBrowseData",nil,aAcho)},"HBBridgeMsMGetEx","Wait..."),nil);
             }
 
             aCustomButtons:=Array(1,7)

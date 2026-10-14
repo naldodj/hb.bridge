@@ -1,6 +1,8 @@
 #include "totvs.ch"
 #include "tbiconn.ch"
 
+namespace HBBridge.Examples
+
 procedure U_HBBridgeBrowseDataTestSX5()
     local cAlias:="SX5" as character
     local lOwnArea:=(Select(cAlias)==0) as logical
