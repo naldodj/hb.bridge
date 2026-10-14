@@ -1,0 +1,6 @@
+-main=MSSQLFailureTests
+-gtstd
+-ohbbridge.mssql.failure.test
+hbbridge.mssql.failure.test.hb
+hbbridge.http.test.hb
+../../../hbbridge.hbm

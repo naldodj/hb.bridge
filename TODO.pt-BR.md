@@ -539,8 +539,15 @@ testado; somente versões e capacidades efetivamente implementadas são anunciad
   2026-10-08, perfis `MSSQL/pData` e `sqlite_demo`.
 - [x] Homologação manual HTTP Protheus MSSQL/SQLite explícita: 13 checks
   cada, 2026-10-08, wrappers `MSSQL/pData`/`sqlite_demo`, threads 25976/9916.
-- [ ] Casos restantes de falha/timeout, isolamento e baseline de transporte/
-  memória do [WIP](WIP.pt-BR.md).
+- [x] M06 com falhas MSSQL reais controladas, timeout nativo e recuperação:
+  46 checks nativos, AppServer CLI automatizado 38 TCP/51 HTTP, zero falhas,
+  2026-10-14. Passaram regressão padrão de 636 e regressão MSSQL de 92 checks.
+  [Evidências](docs/acceptance.pt-BR.md#sql-native-timeouts-and-appserver-recovery-on-2026-10-14).
+  Confirmada a validação manual AppServer às 14:30:50 São Paulo, thread 13796:
+  todos os 38 TCP/51 HTTP checks passaram, resolvendo as sete falhas anteriores
+  por transporte. [Evidências manuais](docs/acceptance.pt-BR.md#manual-protheus-failure-recovery-on-2026-10-14).
+- [ ] Casos restantes de isolamento e baseline de transporte/memória M07–M09
+  do [WIP](WIP.pt-BR.md).
 - [ ] Avaliar `hbodbc`/`hbsqlit3` quando a operação exigir a API direta.
 - [x] Implementar `RPCRDD.Query` no registro/dispatcher, com perfil lógico,
   `alias`, `sql`, metadados e retorno por chave com contagem/versão explícitas.
@@ -583,13 +590,17 @@ testado; somente versões e capacidades efetivamente implementadas são anunciad
   usar CP437 Harbour e a prova de 2026-10-08 perdeu fração FLOAT no JSON.
   Separar metadados SQL nativos, definições lógicas do chamador e valores no
   transporte; SX3/TOP_FIELD resolvidos no Protheus. [Análise](docs/dataset.pt-BR.md).
+- [ ] Adiado: addon opcional de metadados Protheus ou reescritor TLPP da projeção
+  SQL usando JSON explícito para CAST automático. Avaliar gramática restrita,
+  mapeamento completo de colunas/aliases e preservação semântica antes de implementar;
+  Zig após medições. Manter CAST no chamador enquanto M06 avança. [Decisão](docs/dataset.pt-BR.md#addon-de-metadados-e-reescrita-sql-adiados).
 - [x] Homologação manual AppServer de mocks Header, FieldInfo/FieldCount/FieldName,
   FieldExist/GetRow/GetRows, totais e navegação anterior/próxima/MoreToRead,
   incluindo falha/recuperação de página: 67 checks/31 chamadas simuladas,
   zero falhas, em 2026-10-13 às 17:56:23 São Paulo, thread 32332. Helpers puros
   passaram nos 12 checks às 17:56:45, thread 28300. O escopo de mocks de D02
-  está homologado; a integridade UTF-8/FLOAT de D03 é a próxima tarefa, com
-  M06–M09 abertos. Essas rodadas não exercitam transporte, backend SQL nem
+  está homologado; integridade UTF-8/FLOAT de D03 permanece pendente. M06 tem
+  aceite isolado posterior, com M07–M09 abertos. Essas rodadas não exercitam transporte, backend SQL nem
   tabela ERP. [Evidência](docs/dataset.pt-BR.md).
 
 - [ ] Adicionar parâmetros SQL e metadados de tipo, tamanho, precisão e nulos,

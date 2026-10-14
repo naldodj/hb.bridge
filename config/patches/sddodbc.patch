@@ -1,5 +1,4 @@
 diff --git a/sddodbc/core.c b/sddodbc/core.c
-index 3f08975..e2c9949 100755
 --- a/sddodbc/core.c
 +++ b/sddodbc/core.c
 @@ -49,6 +49,7 @@
@@ -10,7 +9,207 @@ index 3f08975..e2c9949 100755
  #include "hbset.h"
  #include "hbvm.h"
 
-@@ -688,6 +689,171 @@ static HB_ERRCODE odbcClose( SQLBASEAREAP pArea )
+@@ -109,6 +110,8 @@
+ {
+    SQLHENV hEnv;
+    SQLHDBC hConn;
++   HB_BOOL fQueryTimeout;
++   SQLULEN ulQueryTimeout;
+ } SDDCONN;
+
+ typedef struct
+@@ -218,12 +221,108 @@
+
+
+ /* --- SDD METHODS --- */
++/* hbBridge's optional timeout slots keep NIL/missing distinct from zero.
++ * SQLULEN follows native pointer capacity; JSON integers must remain exact.
++ */
++static double odbcTimeoutMax( HB_BOOL fLogin )
++{
++   return fLogin || sizeof( SQLULEN ) <= sizeof( SQLUINTEGER ) ?
++          ( double ) ( ( SQLUINTEGER ) -1 ) : 9007199254740991.0;
++}
++
++HB_FUNC( HBBRIDGEODBCTIMEOUTMAX )
++{
++   hb_retnint( ( HB_MAXINT ) odbcTimeoutMax( hb_parl( 1 ) ) );
++}
++
++static HB_BOOL odbcTimeoutNumber( PHB_ITEM pValue, HB_BOOL fLogin, SQLULEN * pulValue )
++{
++   double dValue;
++   *pulValue = 0;
++   if( ! pValue || ! HB_IS_NUMERIC( pValue ) )
++      return HB_FALSE;
++   dValue = hb_itemGetND( pValue );
++   if( ! ( dValue >= 0 && dValue <= odbcTimeoutMax( fLogin ) ) ||
++       dValue != ( double ) hb_itemGetNInt( pValue ) )
++      return HB_FALSE;
++   *pulValue = ( SQLULEN ) hb_itemGetNInt( pValue );
++   return HB_TRUE;
++}
++
++HB_FUNC( HBBRIDGEODBCTIMEOUTVALID )
++{
++   SQLULEN ulValue;
++   hb_retl( odbcTimeoutNumber( hb_param( 1, HB_IT_ANY ), hb_parl( 2 ), &ulValue ) );
++}
++
++static HB_BOOL odbcTimeoutValue( PHB_ITEM pArray, HB_SIZE nSlot, HB_BOOL fLogin,
++                                SQLULEN * pulValue, HB_BOOL * pfPresent )
++{
++   PHB_ITEM pValue = hb_arrayGetItemPtr( pArray, nSlot );
++   *pfPresent = pValue && ! HB_IS_NIL( pValue );
++   *pulValue = 0;
++   return ! *pfPresent || odbcTimeoutNumber( pValue, fLogin, pulValue );
++}
++
++static HB_BOOL odbcLoginTimeoutMatches( SQLHDBC hConn, SQLULEN ulValue )
++{
++   SQLULEN ulEffective = 0;
++#if ODBCVER >= 0x0300
++   return SQL_SUCCEEDED( SQLGetConnectAttr( hConn, SQL_ATTR_LOGIN_TIMEOUT, &ulEffective,
++                                           sizeof( ulEffective ), NULL ) ) && ulEffective == ulValue;
++#else
++   return SQL_SUCCEEDED( SQLGetConnectOption( hConn, SQL_LOGIN_TIMEOUT, &ulEffective ) ) &&
++          ulEffective == ulValue;
++#endif
++}
++
++static HB_BOOL odbcLoginTimeout( SQLHDBC hConn, SQLULEN ulValue )
++{
++#if ODBCVER >= 0x0300
++   if( ! SQL_SUCCEEDED( SQLSetConnectAttr( hConn, SQL_ATTR_LOGIN_TIMEOUT,
++                                         ( SQLPOINTER ) ( HB_PTRUINT ) ulValue, SQL_IS_UINTEGER ) ) )
++      return HB_FALSE;
++#else
++   if( ! SQL_SUCCEEDED( SQLSetConnectOption( hConn, SQL_LOGIN_TIMEOUT, ulValue ) ) )
++      return HB_FALSE;
++#endif
++   return odbcLoginTimeoutMatches( hConn, ulValue );
++}
++
++static HB_BOOL odbcQueryTimeout( SDDCONN * pConn, SQLHSTMT hStmt )
++{
++   SQLULEN ulEffective = 0;
++   if( ! pConn->fQueryTimeout )
++      return HB_TRUE;
++#if ODBCVER >= 0x0300
++   if( ! SQL_SUCCEEDED( SQLSetStmtAttr( hStmt, SQL_ATTR_QUERY_TIMEOUT,
++                                      ( SQLPOINTER ) ( HB_PTRUINT ) pConn->ulQueryTimeout, SQL_IS_UINTEGER ) ) )
++      return HB_FALSE;
++   return SQL_SUCCEEDED( SQLGetStmtAttr( hStmt, SQL_ATTR_QUERY_TIMEOUT, &ulEffective,
++                                        sizeof( ulEffective ), NULL ) ) && ulEffective == pConn->ulQueryTimeout;
++#else
++   if( ! SQL_SUCCEEDED( SQLSetStmtOption( hStmt, SQL_QUERY_TIMEOUT, pConn->ulQueryTimeout ) ) )
++      return HB_FALSE;
++   return SQL_SUCCEEDED( SQLGetStmtOption( hStmt, SQL_QUERY_TIMEOUT, &ulEffective ) ) &&
++          ulEffective == pConn->ulQueryTimeout;
++#endif
++}
++
+ static HB_ERRCODE odbcConnect( SQLDDCONNECTION * pConnection, PHB_ITEM pItem )
+ {
+    SQLHENV    hEnv     = NULL;
+    SQLHDBC    hConnect = NULL;
+    char *     szError;
+    HB_ERRCODE errCode;
++   SQLULEN    ulLoginTimeout, ulQueryTimeout;
++   HB_BOOL    fLoginTimeout, fQueryTimeout;
++
++   if( ! odbcTimeoutValue( pItem, 3, HB_TRUE, &ulLoginTimeout, &fLoginTimeout ) ||
++       ! odbcTimeoutValue( pItem, 4, HB_FALSE, &ulQueryTimeout, &fQueryTimeout ) )
++   {
++      hb_rddsqlSetError( 0, "HY024 Invalid native ODBC timeout.", NULL, NULL, 0 );
++      return HB_FAILURE;
++   }
+
+ #if ODBCVER >= 0x0300
+    if( SQL_SUCCEEDED( SQLAllocHandle( SQL_HANDLE_ENV, SQL_NULL_HANDLE, &hEnv ) ) )
+@@ -246,6 +345,19 @@
+          HB_SIZE           nConnLen;
+          SQLTCHAR          cBuffer[ 1024 ];
+          SQLSMALLINT       iLen = HB_SIZEOFARRAY( cBuffer );
++
++         if( fLoginTimeout && ! odbcLoginTimeout( hConnect, ulLoginTimeout ) )
++         {
++            hb_rddsqlSetError( 0, "HY024 Could not apply the native ODBC login timeout.", NULL, NULL, 0 );
++#if ODBCVER >= 0x0300
++            SQLFreeHandle( SQL_HANDLE_DBC, hConnect );
++            SQLFreeHandle( SQL_HANDLE_ENV, hEnv );
++#else
++            SQLFreeConnect( hConnect );
++            SQLFreeEnv( hEnv );
++#endif
++            return HB_FAILURE;
++         }
+
+          cBuffer[ 0 ] = '\0';
+          pchConStr = O_HB_ARRAYGETSTR( pItem, 2, &hConnStr, &nConnLen );
+@@ -260,9 +372,24 @@
+                                               SQL_DRIVER_NOPROMPT ) ) )
+          {
+             hb_strfree( hConnStr );
++            if( fLoginTimeout && ! odbcLoginTimeoutMatches( hConnect, ulLoginTimeout ) )
++            {
++               SQLDisconnect( hConnect );
++#if ODBCVER >= 0x0300
++               SQLFreeHandle( SQL_HANDLE_DBC, hConnect );
++               SQLFreeHandle( SQL_HANDLE_ENV, hEnv );
++#else
++               SQLFreeConnect( hConnect );
++               SQLFreeEnv( hEnv );
++#endif
++               hb_rddsqlSetError( 0, "HY024 Driver changed the native ODBC login timeout.", NULL, NULL, 0 );
++               return HB_FAILURE;
++            }
+             pConnection->pSDDConn = hb_xgrab( sizeof( SDDCONN ) );
+             ( ( SDDCONN * ) pConnection->pSDDConn )->hConn = hConnect;
+             ( ( SDDCONN * ) pConnection->pSDDConn )->hEnv  = hEnv;
++            ( ( SDDCONN * ) pConnection->pSDDConn )->fQueryTimeout = fQueryTimeout;
++            ( ( SDDCONN * ) pConnection->pSDDConn )->ulQueryTimeout = ulQueryTimeout;
+             return HB_SUCCESS;
+          }
+          else
+@@ -338,6 +465,17 @@
+       szError = odbcGetError( pSDDConn->hEnv, pSDDConn->hConn, SQL_NULL_HSTMT, &errCode );
+       hb_errRT_ODBCDD( EG_OPEN, ESQLDD_STMTALLOC, szError, hb_itemGetCPtr( pItem ), errCode );
+       hb_xfree( szError );
++      return HB_FAILURE;
++   }
++
++   if( ! odbcQueryTimeout( pSDDConn, hStmt ) )
++   {
++#if ODBCVER >= 0x0300
++      SQLFreeHandle( SQL_HANDLE_STMT, hStmt );
++#else
++      SQLFreeStmt( hStmt, SQL_DROP );
++#endif
++      hb_rddsqlSetError( 0, "HY024 Could not apply the native ODBC query timeout.", NULL, NULL, 0 );
+       return HB_FAILURE;
+    }
+
+@@ -401,6 +539,18 @@
+       szError = odbcGetError( pSDDConn->hEnv, pSDDConn->hConn, SQL_NULL_HSTMT, &errCode );
+       hb_errRT_ODBCDD( EG_OPEN, ESQLDD_STMTALLOC, szError, pArea->szQuery, errCode );
+       hb_xfree( szError );
++      return HB_FAILURE;
++   }
++
++   if( ! odbcQueryTimeout( pSDDConn, hStmt ) )
++   {
++#if ODBCVER >= 0x0300
++      SQLFreeHandle( SQL_HANDLE_STMT, hStmt );
++#else
++      SQLFreeStmt( hStmt, SQL_DROP );
++#endif
++      hb_errRT_ODBCDD( EG_OPEN, ESQLDD_INVALIDQUERY,
++                       "HY024 Could not apply the native ODBC query timeout.", NULL, 0 );
+       return HB_FAILURE;
+    }
+
+@@ -688,6 +838,171 @@
  }
 
 
@@ -182,7 +381,7 @@ index 3f08975..e2c9949 100755
  static HB_ERRCODE odbcGoTo( SQLBASEAREAP pArea, HB_ULONG ulRecNo )
  {
     SQLHSTMT  hStmt;
-@@ -704,11 +870,17 @@ static HB_ERRCODE odbcGoTo( SQLBASEAREAP pArea, HB_ULONG ulRecNo )
+@@ -704,10 +1019,16 @@
 
     while( ulRecNo > pArea->ulRecCount && ! pArea->fFetched )
     {
@@ -192,16 +391,15 @@ index 3f08975..e2c9949 100755
        {
           pArea->fFetched = HB_TRUE;
           break;
-       }
++      }
 +      if( ! SQL_SUCCEEDED( res ) )
 +      {
 +         hb_errRT_ODBCDD( EG_READ, ESQLDD_FETCH, "Could not fetch SQL data", pArea->szQuery, 0 );
 +         return HB_FAILURE;
-+      }
+       }
 
        pArray = hb_itemArrayNew( pArea->area.uiFieldCount );
-       pItem  = NULL;
-@@ -720,49 +892,7 @@ static HB_ERRCODE odbcGoTo( SQLBASEAREAP pArea, HB_ULONG ulRecNo )
+@@ -720,49 +1041,7 @@
           switch( pField->uiType )
           {
              case HB_FT_STRING:
@@ -252,7 +450,7 @@ index 3f08975..e2c9949 100755
                 break;
 
              case HB_FT_INTEGER:
-@@ -840,9 +970,14 @@ static HB_ERRCODE odbcGoTo( SQLBASEAREAP pArea, HB_ULONG ulRecNo )
+@@ -840,9 +1119,14 @@
              }
           }
 

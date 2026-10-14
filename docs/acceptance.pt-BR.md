@@ -879,3 +879,211 @@ reais; D03 ainda exige correções e homologação UTF-8/FLOAT nativas. O log
 também registra handshake com erro 10054 na thread 34420; o helper termina OK.
 Esses testes não diagnosticam a condição da conexão/TLS. Retomar D03 e depois
 M06–M09; o pacote 001 permanece aberto.
+
+## Falhas e recuperação SQL nos transportes em 2026-10-13
+
+Após o adiamento explícito de addons de metadados/políticas decimais automáticas,
+M06 foi retomada de forma independente. Reescrita SQL para CAST opcional permanece
+como proposta registrada; CAST no chamador mantido e D03 UTF-8/FLOAT sem homologação.
+
+O runner Harbour isolado no Windows passou em **615 checks, zero falhas, sem
+skips**, acrescentando **32 asserções** à regressão anterior de 583 checks:
+
+- SQL inválido, perfil desconhecido, banco SQLite ausente e DSN ODBC sintético
+  ausente por NETIO nativo, TCP/JSON e ambas as rotas HTTP RPC/REST.
+- Envelope exato de quatro campos em inglês, sem dataset parcial, SQL,
+  caminhos ou credenciais fictícias de conexão. Erros HTTP mantêm status 500.
+- SELECT constante aprovado imediatamente após cada falha, incluindo reuso
+  da mesma conexão NETIO; HTTP RPC/REST recuperam em suas próprias rotas.
+- Checks defensivos do resultado de recuperação registram respostas malformadas
+  como falhas das asserções.
+
+Log final: `tmp/tests-fa36c9bc67ca4f0089f3b49edc2642b7/results.log`;
+wrapper de compilação: `tmp/review-m06-final-20261013.log`, saída 0. Data da
+rodada: 2026-10-13 São Paulo / 2026-10-14 UTC. Revisão preliminar passou em
+611 checks; rodada final acrescenta recuperação RPC imediata e checks de estrutura.
+
+Fixtures usam diretórios de teste próprios, listeners locais efêmeros e
+credenciais fictícias. A rodada não inclui conexão MSSQL real, serviços
+instalados nem execução AppServer. DSN ausente comprova falha de conexão no
+Driver Manager, sem simular indisponibilidade de um SQL Server real. Naquela
+revisão, M06 continuava aberta para MSSQL real e AppServer controlados, e o
+SDDODBC gerenciado não configurava timeout de login/statement nem API de
+cancelamento. Orçamento de socket não comprovava cancelamento SQL. O registro
+seguinte de [2026-10-14](#sql-native-timeouts-and-appserver-recovery-on-2026-10-14)
+acrescenta timeouts nativos e aceite AppServer real; desconexão durante leitura
+continua como evolução separada.
+
+<a id="sql-native-timeouts-and-appserver-recovery-on-2026-10-14"></a>
+
+## Timeouts SQL nativos e recuperação AppServer em 2026-10-14
+
+M06 homologada para SQL inválido, perfil desconhecido, conexão indisponível
+controlada, timeout nativo aplicável, erros sanitizados e recuperação imediata
+nas rotas Windows escolhidas. D03 UTF-8/FLOAT bruto continua aberta;
+addons de metadados e reescrita automática SQL para CAST permanecem adiados.
+O pacote 001 prossegue com M07, verificação de recursos/concorrência.
+
+| Execução | Resultado / evidência |
+| --- | --- |
+| Regressão Harbour padrão isolada | **636 checks, zero falhas**, saída 0; `tmp/tests-12c300f8399948e3bb3c20ee13eacc2d/results.log`, wrapper `tmp/review-m06-regression-20261014.log`. |
+| Falhas MSSQL reais opt-in | **46 checks, zero falhas/sem skips**, saída 0; `tmp/mssql-tests-e22aaf15b69e44ad806a5316060438ec/results.log`, wrapper `tmp/review-m06-mssql-verified-20261014.log`. |
+| Nova rodada do aceite MSSQL existente | **92 checks, zero falhas/sem skips**, saída 0; `tmp/mssql-tests-c49ac62b333d4c9d8e94aabf5134cb1b/results.log`. |
+| Recompilação completa TLPP | Relatório do compilador AppServer: **30 fontes, 30 sucessos, zero erros**, 08:23:38 São Paulo, thread **32272**; `tmp/totvs-compile.log`. |
+| AppServer local CLI TCP | **38 checks, zero falhas**, saída 0, 08:28:56–08:29:12 São Paulo, thread **29120**; `tmp/m06-protheus-tcp-clean-output-20261014.log`. |
+| AppServer local CLI HTTP | **51 checks, zero falhas**, saída 0, 08:28:13–08:28:29 São Paulo, thread **21392**; `tmp/m06-protheus-http-output-20261014.log`. |
+
+As execuções TLPP reais usam `-run=U_HBBridgeFailureCLI -env=PROTHEUS`, com
+argumentos explícitos de transporte/perfil contra uma fixture Harbour isolada.
+Executam as classes cliente reais no AppServer/RPO e **21 chamadas de serviço
+por transporte**, incluindo chamadas do dataset. É execução local por CLI,
+separada das execuções manuais WebApp informadas anteriormente. O AppServer
+identifica **24.3.1.5**, build **7.00.240223P-20260211**, x64. Veja o
+[guia dos testes de falha](../src/tlpp/tests/protheus/hbbridge.failure.test/README.pt-BR.md)
+para entradas reproduzíveis.
+
+A nova rodada dos 92 checks identifica SQL Server **16.0.1210.3**, banco
+**pData**, Harbour `UTF8EX`, com perfil privado `MSSQL/pData`. A versão SQL
+Server difere do relato histórico de 2026-10-08 (`16.0.1200.5`); ambas as
+observações datadas permanecem registradas. O conector escolhido é
+**Microsoft ODBC Driver 18 for SQL Server**, x64; o driver instalado
+identificado durante o pacote é **18.6.2.1**. Credenciais permanecem na
+configuração privada, ausentes do repositório e da saída de homologação.
+
+### Fixture de falhas controladas e comportamento observado
+
+- Um `SELECT 77 AS RECOVERY_ID` constante comprova a conexão MSSQL real antes
+  das asserções de falha. Cada falha de serviço/dataset é seguida por uma
+  consulta constante bem-sucedida.
+- `m06/refused` usa porta TCP efêmera loopback mantida reservada por socket
+  vinculado sem escutar, Driver 18 explícito, credenciais fictícias e opções
+  nativas de login/consulta de um segundo. Comprova recusa de conexão controlada
+  sem parar SQL Server nem alterar DSN/credencial existente; não testa queda
+  efetiva de SQL Server nem expiração de login sem resposta.
+- `m06/query-timeout` copia o perfil funcional com timeout nativo de consulta
+  de um segundo. O lote SQL usa `WAITFOR DELAY '00:00:04'` antes do SELECT
+  constante; um orçamento cliente de pelo menos sete segundos distingue
+  o limite SQL nativo do timeout de transporte.
+- Uma instrução nativa direta com timeout de consulta `0` explícito conclui
+  o controle limitado de quatro segundos. Com timeout `1`, ODBC nativo
+  informa `HYT00` e termina antes daquele controle. Asserções local/NETIO/TCP/HTTP
+  confirmam a falha temporizada e recuperação seguinte. Os dois transportes
+  TLPP reais também aprovam o check de prazo nativo (pelo menos 500 ms e abaixo
+  de 4000 ms).
+- Envelopes exatos de quatro campos em inglês preservam erros fixos do serviço
+  e diagnósticos numéricos seguros. Omitem SQL, credenciais, caminhos de dados
+  e cabeçalhos/linhas/totais parciais. Falhas HTTP retornam 500; consultas
+  recuperadas retornam 200. Datasets com falha removem resultados/metadados/
+  paginação anteriores e encerram `MoreToRead()`; reabrir retorna a constante.
+  O teste real não conta/simula chamadas cliente para provar ausência de
+  tentativas automáticas; essa asserção mantém a evidência anterior do mock
+  de dataset com 67 checks.
+
+### Opções nativas e procedência dos artefatos
+
+`LoginTimeoutSeconds`/`QueryTimeoutSeconds` no perfil MSSQL (JSON
+`loginTimeoutSeconds`/`queryTimeoutSeconds`) são opcionais. A omissão preserva
+o padrão do driver; zero explícito desativa o timeout nativo correspondente.
+Os 21 checks adicionais da regressão padrão aceitam omissão/zero/máximos
+nativos e rejeitam tipos inválidos, frações, negativos e overflow nas duas
+formas de configuração. Veja as [faixas exatas e a configuração](configuration.pt-BR.md#native-mssql-timeouts).
+
+O [patch SDDODBC gerenciado](../config/patches/sddodbc.patch), verificado por
+checksum, define e lê de volta os atributos ODBC explícitos: login antes da
+conexão e novamente depois dela; consulta antes de cada instrução. Falha na
+definição/leitura ou substituição pelo driver provoca falha e liberação dos
+handles. Inclui os caminhos de abertura de consulta/execução nativa; busca
+da página e sua contagem separada recebem, cada uma, seu timeout de consulta.
+O checkout Harbour fixado permanece intacto. O registro gerenciado da primeira rodada homologada identifica
+revisão Harbour `6deac9cf3ad977ae829e5bca543d553b92dd4b6d`, SHA256 do patch
+`90B2B1EA3C6C895B677C3ACC42AD256C58734DD7ECE3D1C381E7BE6FE812F5F1`
+e SHA256 da biblioteca
+`01871BF984468CE83230901302FB8CE2B2CEE9B053839A99667222E554164FBB`.
+SHA256 do executável homologado com 46 checks:
+`FB89E787D12991D70717900646C55F3D12D085158264F674F3BE06F274FFED17`.
+Detalhes do staging/registro estão em [dependências](dependencies.pt-BR.md).
+
+O driver aplica cada timeout nativo de instrução. Conexão, espera pelo mutex
+SQL, instruções separadas, materialização, JSON e transferência de rede não
+compartilham um prazo de requisição. Timeout/desconexão do cliente sozinho
+não comprova cancelamento SQL; API explícita de cancelamento hbBridge e aceite
+de desconexão durante leitura continuam futuros. O mutex do ciclo de vida SQL
+permanece preservado. Esses resultados Windows loopback não acrescentam aceite
+GUI, HTTPS, Linux, outros drivers nem correção de FLOAT bruto.
+
+### Rodada informada no host comum e pré-requisitos da fixture
+
+O log fornecido registra `U_HBBridgeTCPAndHTTPFailureTest` em 2026-10-14
+às 12:06:05 São Paulo, thread 4728: TCP **38 checks / sete falhas** e
+HTTP **51 checks / sete falhas**. Outra rodada CLI, thread 42740, também
+informa TCP 38/sete. Essas rodadas não estão homologadas. Usam o host comum
+nas portas 1512/8080 em vez do launcher isolado de falhas. O INI privado
+contém apenas `sqlite_demo` e `MSSQL/pData`; consultas HTTP constantes aos
+aliases `m06/refused` e `m06/query-timeout` retornaram **500 / PROFILE_NOT_FOUND**
+em ambos. Alias ausente não exercita conexão recusada nem timeout nativo de
+consulta; as sete asserções falham por esse pré-requisito ausente. Evidência
+sanitizada: `tmp/protheus-failure-reported-20261014.log`; o original permanece
+fora do Git e o token HTTP foi ocultado na cópia local.
+
+Repetir com `-Failures -Serve`, driver explícito e endpoints TCP/HTTP informados
+pelo launcher. A fixture cria os aliases em memória e reserva a porta recusada
+sem escutar. Não copiar credenciais SQL reais para perfis de demonstração nem
+presumir que o host comum tenha esses aliases exclusivos do teste. O
+[guia](../src/tlpp/tests/protheus/hbbridge.failure.test/README.pt-BR.md)
+registra o comando completo. O teste revisado informa diagnóstico fixo de
+pré-requisito quando falta um alias obrigatório da fixture. A entrada combinada
+foi preservada; removidos reflexão/dumps de parâmetros para não imprimir o token.
+
+Após esses ajustes de fonte, os **30 fontes TLPP compilaram com zero erros
+de fonte** em 2026-10-14 às 13:09:29, thread 24144. As novas rodadas CLI passaram:
+TCP **38/zero**, 13:10:46–13:11:02, thread 41452, e HTTP **51/zero**,
+13:11:59–13:12:14, thread 10404; ambas com saída 0. Evidências:
+`tmp/m06-protheus-tcp-updated-output-20261014.log` e
+`tmp/m06-protheus-http-updated-output-20261014.log`. O processo do compilador
+encerra com **0xC0000409 após o relatório concluído de build**, como na rodada
+anterior; compilação dos fontes e execução posterior do RPO não homologam
+saída normal do processo compilador. O reinício TOTVS configurado terminou
+com saída 0 e porta 4321 disponível.
+
+O gate final de commit aprova **186 arquivos** nos três validadores. Os
+marcadores vazios de contexto do patch SDDODBC foram normalizados para atender
+o check de espaços finais. O patch normalizado aplica com sucesso e produz
+o mesmo fonte C testado após normalização das quebras de linha. O registro
+gerenciado final tem SHA256 do patch
+`4E8F24D6482A93585AD021DD7EEC9631C472A4BDA225240206F83C5302C4B9BE`
+e da biblioteca
+`68D9B00215ED11AA8DEEFD4F59C252E181B03659ABED06E35C4805FC45A85651`.
+Os hashes anteriores identificam os artefatos da primeira rodada homologada.
+
+<a id="manual-protheus-failure-recovery-on-2026-10-14"></a>
+
+## Validação manual Protheus de falhas/recuperação em 2026-10-14
+
+Confirmada a execução manual no AppServer de `U_HBBridgeTCPAndHTTPFailureTest`
+em **2026-10-14 às 14:30:50 São Paulo**, thread **13796**. O log fornecido
+contém **38 checks TCP PASS e 51 HTTP PASS**, correspondentes aos dois resumos
+`failures=0; OK`. Homologada a execução manual dos casos M06 listados, resolvendo
+as sete falhas por transporte da rodada anterior no host comum. As rodadas
+anteriores sem aprovação permanecem como evidência histórica.
+
+Os checks homologados abrangem SQL inválido, perfil desconhecido, conexão
+indisponível, timeout nativo de consulta, envelopes de erro seguros, ausência
+de resultado parcial, recuperação do serviço, limpeza/parada/reabertura do
+dataset e filtragem de diagnósticos. HTTP também verifica status de erro e
+recuperação. Os dois checks `queryTimeoutNativeDeadline` passaram. A rodada
+real não conta requisições na rede; o mock de dataset de 67 checks mantém a
+evidência separada de ausência de novas tentativas automáticas.
+
+Evidência: `tmp/protheus-failure-manual-20261014-143050.log`, cópia exata em bytes do log fornecido.
+O trecho não contém valores de credenciais; diagnósticos nativos e contexto
+local de execução foram preservados no artefato local ignorado pelo Git.
+Registradas nove linhas nativas com erro 10054 e outro diagnóstico SSL
+`onSend`. Sua causa, associação a conexões e resolução não foram estabelecidas;
+os 89 checks hbBridge reportam PASS. Isso não homologa handshake TLS sem
+falhas nem transporte HTTPS.
+
+Não foram fornecidos horário de término do programa, duração precisa, forma
+de acionamento, argumentos explícitos, hash do artefato servidor ou novo
+resultado de compilação. A rodada não homologa concorrência M07, desempenho
+M08 nem integridade UTF-8/FLOAT ampliada. A próxima tarefa do WIP permanece
+**M07**, e integridade D03 continua pendente.

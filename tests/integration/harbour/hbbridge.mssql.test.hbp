@@ -1,5 +1,5 @@
 -Main=MSSQLTests
 -gtstd
 -ohbbridgemssqltest
-hbbridgemssqltest.hb
+hbbridge.mssql.test.hb
 ../../../hbbridge.hbm

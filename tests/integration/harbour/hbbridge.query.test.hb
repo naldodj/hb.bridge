@@ -11,11 +11,13 @@ PROCEDURE M3SQLTests( nFailures, nChecks )
         "missing" => { "driver" => "sqlite", "database" => "sql-query-missing.sqlite3" }, ;
         "memory" => { "driver" => "sqlite", "database" => ":memory:" }, ;
         "db/Case" => { "driver" => "sqlite", "database" => ":memory:" }, ;
-        "odbc_missing" => { "driver" => "mssql", "connectionString" => "DSN=__HBBridgeMissingDSN__;" } }, ;
+        "odbc_missing" => { "driver" => "mssql", ;
+            "connectionString" => "DSN=__HBBridgeMissingDSN__;UID=m06-test-user;PWD=m06-test-secret;" } }, ;
         hb_cwd(), @cError )
     M1Assert( hProfiles != NIL .AND. hProfiles[ "sample" ][ "database" ] == cDatabase .AND. ;
         hProfiles[ "memory" ][ "database" ] == ":memory:", ;
         "SQL profiles normalize file paths and preserve the memory database", @nFailures, @nChecks )
+    M6SQLTimeoutConfigTests( @nFailures, @nChecks )
     hBad := { "missingDriver" => { "database" => "test" }, ;
         "unknownDriver" => { "driver" => "other", "database" => "test" }, ;
         "prefixedDriver" => { "driver" => "mssql_extra", "connectionString" => "DSN=fixture" }, ;
@@ -193,6 +195,7 @@ PROCEDURE M3SQLTests( nFailures, nChecks )
                 hNative[ "rowCount" ] == 1 .AND. hNative[ "page" ][ "hasNext" ] .AND. ;
                 hb_jsonEncode( hNative ) == hb_jsonEncode( hJSON ), ;
                 "native NETIO and Protheus TCP share paginated SQL results", @nFailures, @nChecks )
+            M6SQLNetworkFailures( hHost, pConnection, @nFailures, @nChecks )
             hResult := netio_FuncExec( pConnection, "HBBridge.Call", "Service.List" )
             M1Assert( Len( hResult[ "services" ] ) == 7 .AND. ! ( "DSN=" $ hb_jsonEncode( hResult ) ), ;
                 "SQL service is discoverable without profile credentials", @nFailures, @nChecks )
@@ -211,6 +214,121 @@ PROCEDURE M3SQLTests( nFailures, nChecks )
     ENDIF
 
 RETURN
+
+STATIC PROCEDURE M6SQLNetworkFailures( hHost, pConnection, nFailures, nChecks )
+
+    LOCAL hCases, hCase, hNative, hJSON, hRecovery, cName
+    LOCAL nPort := hHost[ "listeners" ][ "protheus" ][ "port" ]
+
+    /* All connections belong to the isolated fixture. A missing DSN exercises
+     * the real Driver Manager failure without reaching an external server.
+     */
+    hCases := { "invalidSQL" => { "params" => { "alias" => "sample", ;
+            "sql" => "SELECT * FROM m06_private_sql_marker" }, ;
+            "code" => "QUERY_FAILED", "error" => "Could not open or read the SQL query result." }, ;
+        "unknownProfile" => { "params" => { "alias" => "m06_private_profile_marker", "sql" => "SELECT 1" }, ;
+            "code" => "PROFILE_NOT_FOUND", "error" => "Connection profile is not configured." }, ;
+        "missingDatabase" => { "params" => { "alias" => "missing", "sql" => "SELECT 1" }, ;
+            "code" => "CONNECTION_FAILED", "error" => "Database connection is unavailable." }, ;
+        "missingODBC" => { "params" => { "alias" => "odbc_missing", "sql" => "SELECT 1" }, ;
+            "code" => "CONNECTION_FAILED", "error" => "Database connection is unavailable." } }
+    hRecovery := { "alias" => "sample", "sql" => "SELECT 77 AS recovery_id" }
+    FOR EACH hCase IN hCases
+        cName := hCase:__enumKey()
+        hNative := netio_FuncExec( pConnection, "HBBridge.Call", "RPCRDD.Query", hCase[ "params" ] )
+        M1Assert( M6SQLSafeFailure( hNative, hCase ), ;
+            "NETIO SQL failure has a safe envelope without partial data: " + cName, @nFailures, @nChecks )
+        hNative := netio_FuncExec( pConnection, "HBBridge.Call", "RPCRDD.Query", hRecovery )
+        M1Assert( M6SQLRecovered( hNative ), ;
+            "NETIO SQL recovers after each failure on the same connection: " + cName, @nFailures, @nChecks )
+        hJSON := MTRequest( nPort, hb_jsonEncode( { "service" => "RPCRDD.Query", "params" => hCase[ "params" ] } ) )
+        M1Assert( M6SQLSafeFailure( hJSON, hCase ), ;
+            "TCP SQL failure has a safe envelope without partial data: " + cName, @nFailures, @nChecks )
+        hJSON := MTRequest( nPort, hb_jsonEncode( { "service" => "RPCRDD.Query", "params" => hRecovery } ) )
+        M1Assert( M6SQLRecovered( hJSON ), ;
+            "TCP SQL recovers after each failure: " + cName, @nFailures, @nChecks )
+    NEXT
+
+RETURN
+
+STATIC PROCEDURE M6SQLTimeoutConfigTests( nFailures, nChecks )
+
+    LOCAL cError, hProfiles, hInput, hBad, xBad, cKey, hINI, cINI
+    LOCAL hTimeouts := { "loginTimeoutSeconds" => .T., "queryTimeoutSeconds" => .F. }, lLogin
+
+    hInput := { "driver" => "mssql", "connectionString" => "DSN=timeout-test-only;" }
+    hProfiles := HBBridgeSQLProfiles( { "timeout/test" => hInput }, hb_cwd(), @cError )
+    M1Assert( hProfiles != NIL .AND. ! hb_HHasKey( hProfiles[ "timeout/test" ], "loginTimeoutSeconds" ) .AND. ;
+        ! hb_HHasKey( hProfiles[ "timeout/test" ], "queryTimeoutSeconds" ), ;
+        "omitted SQL timeouts retain native defaults", @nFailures, @nChecks )
+    FOR EACH lLogin IN hTimeouts
+        cKey := lLogin:__enumKey()
+        hInput[ cKey ] := 0
+        hProfiles := HBBridgeSQLProfiles( { "timeout/test" => hInput }, hb_cwd(), @cError )
+        M1Assert( hProfiles != NIL .AND. hProfiles[ "timeout/test" ][ cKey ] == 0, ;
+            "explicit zero is preserved for " + cKey, @nFailures, @nChecks )
+        hInput[ cKey ] := HBBridgeODBCTimeoutMax( lLogin )
+        hProfiles := HBBridgeSQLProfiles( { "timeout/test" => hInput }, hb_cwd(), @cError )
+        M1Assert( hProfiles != NIL .AND. hProfiles[ "timeout/test" ][ cKey ] == hInput[ cKey ], ;
+            "SQL timeout accepts its compiled native capacity: " + cKey, @nFailures, @nChecks )
+        hBad := { "negative" => -1, "fractional" => 1.5, "text" => "2", "null" => NIL, ;
+            "logical" => .T., "overflow" => HBBridgeODBCTimeoutMax( lLogin ) + 1 }
+        FOR EACH xBad IN hBad
+            hInput[ cKey ] := xBad
+            M1Assert( HBBridgeSQLProfiles( { "timeout/test" => hInput }, hb_cwd(), @cError ) == NIL, ;
+                "SQL timeout rejects " + xBad:__enumKey() + " for " + cKey, @nFailures, @nChecks )
+        NEXT
+        hInput[ cKey ] := 2
+    NEXT
+    hInput := { "driver" => "mssql", "dsn" => "timeout-test-only", "authentication" => "integrated", ;
+        "loginTimeoutSeconds" => 2, "queryTimeoutSeconds" => 1 }
+    hProfiles := HBBridgeSQLProfiles( { "timeout/test" => hInput }, hb_cwd(), @cError )
+    M1Assert( hProfiles != NIL .AND. hProfiles[ "timeout/test" ][ "loginTimeoutSeconds" ] == 2 .AND. ;
+        hProfiles[ "timeout/test" ][ "queryTimeoutSeconds" ] == 1 .AND. ;
+        ! ( "Timeout" $ hProfiles[ "timeout/test" ][ "connectionString" ] ), ;
+        "structured SQL profiles keep native timeout options outside credentials", @nFailures, @nChecks )
+    M1Assert( HBBridgeSQLProfiles( { "bad" => { "driver" => "sqlite", "database" => ":memory:", ;
+        "queryTimeoutSeconds" => 1 } }, hb_cwd(), @cError ) == NIL, ;
+        "SQLite rejects unsupported ODBC timeout options", @nFailures, @nChecks )
+    cINI := "[SQL/timeout/test]" + hb_eol() + "Driver=mssql" + hb_eol() + ;
+        "ConnectionString=DSN=timeout-test-only;" + hb_eol() + "LoginTimeoutSeconds=2" + hb_eol() + ;
+        "QueryTimeoutSeconds=0" + hb_eol()
+    hINI := HBBridgeConfigINI( cINI, HBBridgeConfig( {} ), @cError )
+    hProfiles := HBBridgeSQLProfiles( hINI[ "sqlProfiles" ], hb_cwd(), @cError )
+    M1Assert( hProfiles != NIL .AND. hProfiles[ "timeout/test" ][ "loginTimeoutSeconds" ] == 2 .AND. ;
+        hProfiles[ "timeout/test" ][ "queryTimeoutSeconds" ] == 0, ;
+        "INI SQL timeouts are typed numbers and preserve explicit zero", @nFailures, @nChecks )
+    M1Assert( HBBridgeConfigINI( StrTran( cINI, "Seconds=0", "Seconds=01" ), HBBridgeConfig( {} ), @cError ) == NIL, ;
+        "INI SQL timeout rejects noncanonical numeric text", @nFailures, @nChecks )
+
+RETURN
+
+STATIC FUNCTION M6SQLSafeFailure( hResult, hCase )
+    IF ! HB_ISHASH( hResult )
+        RETURN .F.
+    ENDIF
+    /* Exactly the public error fields: no rows/header/totals/driver details.
+     * Exact text also excludes fixture SQL, paths and synthetic credentials.
+     */
+RETURN Len( hResult ) == 4 .AND. hb_HGetDef( hResult, "success", .T. ) == .F. .AND. ;
+    hb_HGetDef( hResult, "code", "" ) == hCase[ "code" ] .AND. ;
+    hb_HGetDef( hResult, "error", "" ) == hCase[ "error" ] .AND. ;
+    hb_HGetDef( hResult, "message", NIL ) == ""
+
+STATIC FUNCTION M6SQLRecovered( hResult )
+    IF ! HB_ISHASH( hResult ) .OR. hb_HGetDef( hResult, "success", .F. ) != .T.
+        RETURN .F.
+    ENDIF
+    IF ! HB_ISHASH( hb_HGetDef( hResult, "rows", NIL ) ) .OR. ;
+        ! HB_ISHASH( hb_HGetDef( hResult, "header", NIL ) )
+        RETURN .F.
+    ENDIF
+    IF ! HB_ISHASH( hb_HGetDef( hResult[ "rows" ], "1", NIL ) )
+        RETURN .F.
+    ENDIF
+RETURN hb_HGetDef( hResult, "rowCount", 0 ) == 1 .AND. Len( hResult[ "rows" ] ) == 1 .AND. ;
+    Len( hResult[ "header" ] ) == 1 .AND. ;
+    hb_HGetDef( hResult[ "rows" ][ "1" ], "RECOVERY_ID", NIL ) == 77
 
 STATIC PROCEDURE M3PageTests( hRegistry, hContext, nFailures, nChecks )
 

@@ -126,6 +126,21 @@ Consequently, existing ASCII TCP acceptance does not certify accented text.
 `OemToAnsi(FieldGet(...))` repairing display is consistent with an intermediate
 OEM conversion; it does not establish the original SQL column encoding.
 
+### Presentation observations on 2026-10-13
+
+Correct SX5 presentation over HTTP was reported with
+`jResponse:FromJSON(DecodeUTF8(jResponse:ToJSON()))` in the FWWebEx example.
+Desktop presentation appears to improve with `OemToAnsi()` and still requires
+broader validation. These observations concern the shown text and UI boundary;
+they do not establish source encoding or the complete Unicode/binary contract.
+
+Keep the working sample while testing raw UTF-8, escaped Unicode, text outside
+the target codepage, NUL, null/empty and binary values. The intended client
+policy converts text values once to an explicitly selected target encoding.
+Whole-document recoding/reparsing can change JSON keys/control strings and
+inherits native serializer/parser behavior; it is not the default policy yet.
+`DecodeUTF8()` supports an explicit target encoding; see the TOTVS reference below.
+
 Required correction, **not implemented by the navigation methods**:
 
 1. Use UTF-8 consistently for TCP/HTTP JSON and execute requests under
@@ -187,6 +202,42 @@ FLOAT storage is already approximate; CAST cannot recover earlier loss.
 References: [SQL float](https://learn.microsoft.com/en-us/sql/t-sql/data-types/float-and-real-transact-sql?view=sql-server-ver17),
 [SQL decimal](https://learn.microsoft.com/en-us/sql/t-sql/data-types/decimal-and-numeric-transact-sql?view=sql-server-ver17).
 
+### Business scale and raw FLOAT: analysis on 2026-10-13
+
+`CAST(SRA.RA_SALARIO AS DECIMAL(12,2)) AS RA_SALARIO` is a valid explicit
+business projection when the caller requires that precision/scale and the
+value fits its range. It rounds to the selected decimal scale in SQL. Keep
+the choice on Protheus, including dictionary resolution. SQL precision counts
+digits and must not be confused with a display width that includes formatting.
+
+This does not replace the generic transport correction. The inspected
+SDDODBC retains the FLOAT double but attaches zero decimal-format metadata;
+the JSON encoder then uses that metadata with fixed-point formatting. Raw
+FLOAT must preserve the received approximate value without requiring a CAST
+or assuming that every numeric field has two decimal places.
+
+| Approach | Role / status |
+| --- | --- |
+| Caller SQL CAST to DECIMAL | Available now; defines SQL result scale/rounding. |
+| Correct raw FLOAT serialization | Required generic fix; preserve the received double through encoder/decoder and client parsing. Not implemented. |
+| Explicit caller logical precision/scale | Proposed alternative without changing SQL; apply only the supplied field rule, distinguish representation/rounding from display. Not accepted parameters yet. |
+| Decimal text projected in SQL | Available option for exact decimal digits beyond double capacity; keep the string representation until intentional conversion. |
+
+Harbour's upstream `hb_odbcNumSetLen()` illustrates per-item formatting metadata
+without changing the native numeric value. It belongs to `hbodbc`, which the
+product does not currently link; an equivalent small C wrapper can be evaluated.
+It is not a universal floating-point encoder or a new public hbBridge API.
+Source references: [ODBC numeric metadata helper](https://github.com/harbour/core/blob/6deac9cf3ad977ae829e5bca543d553b92dd4b6d/contrib/hbodbc/odbc.c#L1203),
+[JSON number formatting](https://github.com/harbour/core/blob/6deac9cf3ad977ae829e5bca543d553b92dd4b6d/src/rtl/hbjson.c#L259).
+
+Implementation must test a real general/shortest double formatter and both
+parsers. The pinned Harbour `hb_snprintf()` maps general/scientific specifiers
+to fixed-point formatting; a simple change to `%.17g` there is insufficient.
+Fixed 17 fractional places is not 17 significant digits. Include tiny/large
+magnitudes, scientific notation and values requiring 17 significant digits,
+while preserving declared DECIMAL semantics. FLOAT remains approximate;
+neither a transport fix nor CAST reconstructs precision already absent in storage.
+
 The next versioned result contract must distinguish:
 
 | Metadata group | Meaning |
@@ -198,6 +249,65 @@ The next versioned result contract must distinguish:
 These groups and `targetEncoding` are a design, **not additional parameters
 accepted by the current strict service**. Tests must include fractional FLOAT,
 large DECIMAL, BIGINT beyond `2^53-1`, large-field metadata and TCP/HTTP parity.
+
+### Deferred metadata addon and SQL rewriting
+
+Decision on 2026-10-13: keep Protheus metadata addons and automatic decimal
+policy on hold. Caller SQL CAST remains the available business-scale approach.
+The raw FLOAT transport defect and broader UTF-8 acceptance remain unresolved;
+this choice does not certify them or close D03. Independent M06 work can proceed.
+
+A later optional static method on `HBBridge.SQL.Tools.HBBridgeSqlTools` could
+accept SQL plus a caller-resolved JSON schema and insert numeric CASTs before
+the query is sent. This is a proposal, not an implemented API. Keep dictionary,
+tenant, table names and field mappings on Protheus. A metadata addon would use
+the same explicit inputs rather than become a mandatory part of query execution.
+
+The caller can populate the logical schema with `TamSX3(cField)`: its native
+array exposes length at position 1, decimal places at 2 and type at 3. Direct
+`GetSX3Cache(cField, "X3_TAMANHO"/"X3_DECIMAL"/"X3_TIPO")` calls provide the
+same properties. Copy only required properties into a keyed JSONObject, not
+one metadata lookup per result row. Resolve source table/SQL alias bindings on
+Protheus as well. Dictionary metadata describes the original field; computed
+expressions still need an explicit result rule.
+
+Prefer `TamSX3()`/`GetSX3Cache()` as the metadata provider. A direct SX3 SELECT
+for `X3_TIPO`, `X3_TAMANHO`, `X3_DECIMAL` and `X3_CAMPO` is an explicit fallback
+when the caller resolves the dictionary's physical name and context first,
+including active/unique definitions. `RetSQLName("SX3")` is evaluated on Protheus
+to construct SQL, not executed as a database function. Batch requested fields
+and produce the same logical JSON schema; do not move implicit ERP lookups into
+hbBridge. No timing comparison between these providers has been measured.
+
+[`TCSqlToArr()`](https://tdn.totvs.com/display/tec/TCSqlToArr) is a candidate for
+one batched dictionary SELECT, with bind values and optional result typing.
+Its mandatory result array is a native API boundary: convert once to keyed
+JSONObject. DBAccess return typing does not affect hbBridge's separate ODBC
+query. Compare cold/warm cache access against batch query/conversion cost at
+actual field counts before choosing the faster provider.
+
+Read-only inspection of the supplied local `ApLib070.prw` found `ChangeQuery()`
+using database/context APIs, SQL filters and a dictionary-assisted PostgreSQL
+CAST case. It is a reference for separation of concerns, not a portable parser
+or code adopted into hbBridge. The framework's documented purpose is dialect
+adaptation: [TOTVS query guidance](https://tdn.totvs.com/display/framework/Desenvolvendo%2Bqueries%2Bno%2BProtheus).
+Python `sqlparse.parse()` produces grouped tokens but is intentionally
+non-validating; catalog binding and type/scale decisions remain application work.
+See the [sqlparse introduction](https://sqlparse.readthedocs.io/en/latest/intro.html).
+
+Start any future evaluation with a restricted, opt-in TLPP projection transform:
+explicit source/alias bindings; validated SQL precision/scale distinct from
+xBase display width; ordered complete source columns for `*`/`alias.*`, including
+system fields; existing CAST preservation and repeat-call idempotence. Preserve
+literals, comments and unaffected SQL. Expressions, aggregates, DISTINCT,
+GROUP BY, CTEs, subqueries and UNION require defined semantics or an explicit
+unsupported result; do not guess field rules or silently rewrite them.
+Applying CAST before a calculation can round inputs differently from casting
+its result. Order, duplicates, NULLs and pagination must remain intentional.
+
+Measure schema collection, parsing and complete query execution before adding
+a cache or a Zig implementation. Python is a reference option, not a new runtime
+dependency. This proposal remains deferred alongside the metadata addon.
 
 ## Credential protection
 

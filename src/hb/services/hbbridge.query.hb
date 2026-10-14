@@ -63,7 +63,12 @@ STATIC FUNCTION SQLQueryLocked( cSQL, hProfile, hPage )
         ENDIF
         aConnection := { "SQLITE3", hProfile[ "database" ] }
     ELSE
-        aConnection := { "ODBC", hProfile[ "connectionString" ] }
+        /* NIL retains native defaults; an explicit zero disables that timeout.
+         * These positional slots belong to the managed SDDODBC interface.
+         */
+        aConnection := { "ODBC", hProfile[ "connectionString" ], ;
+            hb_HGetDef( hProfile, "loginTimeoutSeconds", NIL ), ;
+            hb_HGetDef( hProfile, "queryTimeoutSeconds", NIL ) }
     ENDIF
     BEGIN SEQUENCE WITH __BreakBlock()
         nConnection := rddInfo( RDDI_CONNECT, aConnection, "SQLMIX" )
@@ -270,6 +275,7 @@ RETURN { "sqlpage" => cSQLPage, "sql" => cSQL, "number" => nNumber, "size" => nS
 FUNCTION HBBridgeSQLProfiles( hProfiles, cBase, cError )
 
     LOCAL hNormalized := {=>}, hProfile, cName, cKey, cDriver, cValue
+    LOCAL hTimeouts := { "loginTimeoutSeconds" => .T., "queryTimeoutSeconds" => .F. }, lLogin
 
     cError := ""
     IF ! HB_ISHASH( hProfiles )
@@ -318,6 +324,18 @@ FUNCTION HBBridgeSQLProfiles( hProfiles, cBase, cError )
             ENDIF
         ENDIF
         hNormalized[ cName ] := { "driver" => cDriver, cKey => cValue }
+        IF cDriver == "mssql"
+            FOR EACH lLogin IN hTimeouts
+                cKey := lLogin:__enumKey()
+                IF hb_HHasKey( hProfile, cKey )
+                    IF ! SQLTimeoutValid( hProfile[ cKey ], lLogin )
+                        cError := "SQL timeout must be a nonnegative whole number within native capacity."
+                        RETURN NIL
+                    ENDIF
+                    hNormalized[ cName ][ cKey ] := hProfile[ cKey ]
+                ENDIF
+            NEXT
+        ENDIF
     NEXT
 
 RETURN hNormalized
@@ -329,14 +347,19 @@ STATIC FUNCTION SQLMSSQLConnection( hProfile, cError )
 
     LOCAL hAllowed := { "driver" => .T., "authentication" => .T., "dsn" => .T., ;
         "odbcDriver" => .T., "server" => .T., "database" => .T., "username" => .T., ;
-        "password" => .T., "encrypt" => .T., "trustServerCertificate" => .T. }
+        "password" => .T., "encrypt" => .T., "trustServerCertificate" => .T., ;
+        "loginTimeoutSeconds" => .T., "queryTimeoutSeconds" => .T. }
     LOCAL cKey, xValue, cAuthentication, cConnection, cEncrypt
 
     IF hb_HHasKey( hProfile, "connectionString" )
-        IF Len( hProfile ) != 2
-            cError := "SQL connectionString cannot be combined with structured connection keys."
-            RETURN NIL
-        ENDIF
+        FOR EACH xValue IN hProfile
+            cKey := xValue:__enumKey()
+            IF ! ( cKey == "driver" .OR. cKey == "connectionString" .OR. ;
+                cKey == "loginTimeoutSeconds" .OR. cKey == "queryTimeoutSeconds" )
+                cError := "SQL connectionString cannot be combined with structured connection keys."
+                RETURN NIL
+            ENDIF
+        NEXT
         IF ! SQLProfileTextValid( hProfile[ "connectionString" ] )
             cError := "Invalid SQL profile connectionString."
             RETURN NIL
@@ -349,7 +372,12 @@ STATIC FUNCTION SQLMSSQLConnection( hProfile, cError )
             cError := "Unknown structured SQL connection key."
             RETURN NIL
         ENDIF
-        IF cKey == "trustServerCertificate"
+        IF cKey == "loginTimeoutSeconds" .OR. cKey == "queryTimeoutSeconds"
+            IF ! SQLTimeoutValid( xValue, cKey == "loginTimeoutSeconds" )
+                cError := "SQL timeout must be a nonnegative whole number within native capacity."
+                RETURN NIL
+            ENDIF
+        ELSEIF cKey == "trustServerCertificate"
             IF ! HB_ISLOGICAL( xValue )
                 cError := "SQL trustServerCertificate must be logical."
                 RETURN NIL
@@ -439,6 +467,12 @@ STATIC FUNCTION SQLProfileTextValid( xValue, lAllowWhitespace )
     ENDIF
 RETURN Len( xValue ) > 0 .AND. ( lAllowWhitespace .OR. ! Empty( AllTrim( xValue ) ) ) .AND. ;
     ! ( Chr( 0 ) $ xValue ) .AND. ! ( Chr( 13 ) $ xValue ) .AND. ! ( Chr( 10 ) $ xValue )
+
+STATIC FUNCTION SQLTimeoutValid( xValue, lLogin )
+    /* Native casts validate exact integrality without xBase Int's float
+     * compatibility adjustment at the upper exact-number boundary.
+     */
+RETURN HBBridgeODBCTimeoutValid( xValue, lLogin )
 
 /* SQLValidDSN documents the invalid punctuation. Keep the identifier literal
  * and reject whitespace edges/control bytes instead of silently changing it.

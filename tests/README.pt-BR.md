@@ -10,6 +10,7 @@ em subpastas de [tests/protheus](../src/tlpp/tests/protheus):
 | `hbbridge.connection.test/` | `U_HBBridgeConnectionTest`. |
 | `hbbridge.config.test/` | `U_HBBridgeConfigTest`. |
 | `hbbridge.dataset.test/` | `U_HBBridgeDataSetTest` e seu cliente simulado. |
+| `hbbridge.failure.test/` | Testes de falha/recuperação SQL real TCP/HTTP e `U_HBBridgeFailureCLI`; [guia](../src/tlpp/tests/protheus/hbbridge.failure.test/README.pt-BR.md). |
 | `hbbridge.http.test/` | Teste HTTP comum e wrappers explícitos MSSQL/SQLite. |
 | `hbbridge.http.table.test/` | Exemplos FWWebEx fixture/SX5 e mock `U_HBBridgeHTTPTableTest`: validação manual confirmada, 71 checks/zero falhas em 2026-10-13; [evidências](../src/tlpp/tests/protheus/hbbridge.http.table.test/README.pt-BR.md). |
 | `hbbridge.query.test/` | Teste Query comum, wrapper SQLite e wrapper `FWGetTopInfo()` no chamador. |
@@ -208,8 +209,9 @@ comum; os padrões das entradas selecionam `MSSQL/pData` e `sqlite_demo`.
 São execuções manuais AppServer, separadas da automação nativa. Transcrição:
 `tmp/protheus-http-mssql-sqlite-operator-20261008.log`.
 Veja [homologação](../docs/acceptance.pt-BR.md). O aceite do mock dataset de D02
-foi concluído em 2026-10-13; a integridade UTF-8/FLOAT de D03 é a próxima tarefa
-no [WIP](../WIP.pt-BR.md), antes de M06, falhas controladas/recuperação.
+foi concluído em 2026-10-13; a integridade UTF-8/FLOAT de D03 permanece aberta
+no [WIP](../WIP.pt-BR.md); M06, falhas controladas/recuperação independentes,
+tem aceite separado de 2026-10-14 abaixo.
 Esses relatos não implicam nova rodada nativa.
 
 Uma prova posterior de constantes somente para leitura mostrou que
@@ -222,7 +224,7 @@ acentos TCP. As correções e os checks de equivalência dos transportes continu
 pendentes; veja [a análise](../docs/dataset.pt-BR.md).
 
 Continuam pendentes HTTPS, identidades integrada/de serviço, destino
-alternativo com argumentos omitidos, Linux e os cenários de falha/timeout,
+alternativo com argumentos omitidos, Linux e os cenários de falha/timeout de rede,
 precisão/wrap, capacidades e tipos ampliados da [matriz](../docs/acceptance.pt-BR.md).
 
 ## Checks TLPP isolados do dataset
@@ -270,7 +272,9 @@ filtros customizados.
 
 Esses resultados manuais AppServer homologam o escopo de mocks dataset/helpers
 de D02. Não exercitam rede, banco nem dados ERP. O trabalho de integridade
-UTF-8/FLOAT ampliada de D03 é o próximo, seguido de M06–M09; veja [API do dataset
+UTF-8/FLOAT ampliada de D03 permanece aberta; M06, falhas/recuperação
+independentes, tem aceite runtime separado abaixo. Continue as tarefas
+restantes no [WIP](../WIP.pt-BR.md). Veja [API do dataset
 e falhas de integridade](../docs/dataset.pt-BR.md) e
 [homologação](../docs/acceptance.pt-BR.md).
 
@@ -332,6 +336,17 @@ nativos, core, descoberta, addons, VF IO binario, admin separado, filtros RPC,
 credenciais e parada/reinicio/rollback. As portas NETIO/admin dos testes sao
 selecionadas entre portas livres; nao usa nem para os endpoints da instalacao.
 
+Regressão local de falhas/recuperação dos transportes em 2026-10-13 passou em
+**615 checks, zero falhas, sem skips**, incluindo 32 novas asserções de falhas
+SQL/perfil/conexão e recuperação imediata por NETIO, TCP e HTTP RPC/REST.
+Fixtures usam SQLite isolado e DSNs sintéticos ausentes; não homologa queda
+MSSQL real, timeout SQL nativo nem AppServer. Veja [escopo/log](../docs/acceptance.pt-BR.md#falhas-e-recuperação-sql-nos-transportes-em-2026-10-13).
+
+A regressão gerenciada de 2026-10-14 passou em **636 checks, zero falhas e
+nenhum skip**, acrescentando 21 asserções das opções de timeout MSSQL nativo:
+`tmp/tests-12c300f8399948e3bb3c20ee13eacc2d/results.log`. A cobertura de falhas
+MSSQL reais usa a rota opt-in separada abaixo.
+
 ## Homologação MSSQL real do núcleo opt-in
 
 Prepare um perfil privado com as [chaves de credenciais](../docs/configuration.pt-BR.md)
@@ -371,6 +386,52 @@ de payload da aplicação. A referência de 1000 linhas executou três vezes em
 local, não uma garantia de desempenho. Veja [homologação](../docs/acceptance.pt-BR.md)
 para o escopo preciso e os cenários restantes.
 
+A repetição de 2026-10-14 passou em **92 checks, zero falhas, nenhum skip e
+saída 0**, com SQL Server `16.0.1210.3`, banco `pData` e alias explícito
+`MSSQL/pData`: `tmp/mssql-tests-c49ac62b333d4c9d8e94aabf5134cb1b/results.log`.
+Essa repetição confirma a rota de núcleo existente após as mudanças de
+timeout nativo; não acrescenta aceite de FLOAT bruto no JSON ou Unicode
+TCP em geral.
+
+## Falhas MSSQL reais e recuperação opt-in
+
+```powershell
+./scripts/test-hbbridge-mssql.ps1 -Config C:/tmp/hbBridge.ini -Profile MSSQL/pData `
+    -Failures -FailureODBCDriver 'ODBC Driver 18 for SQL Server'
+```
+
+O [alvo de falhas](integration/harbour/hbbridge.mssql.failure.test.hbp)
+verifica SQL inválido, perfis desconhecidos, conexão recusada e timeout
+nativo de instrução pelo núcleo, NETIO, TCP e HTTP. Um SELECT de constante
+bem-sucedido sucede cada falha. Também compara timeout explicitamente zero
+com timeout nativo de 1 segundo usando WAITFOR limitado a 4 segundos.
+Alias funcional e driver instalado são pré-requisitos explícitos; segredos
+permanecem no arquivo privado. O destino recusado reserva uma porta de
+loopback sem escuta e usa credenciais fictícias. Não para o serviço SQL
+Server nem altera tabelas ERP.
+
+Em 2026-10-14 essa rota passou em **46 checks, zero falhas e nenhum skip**:
+`tmp/mssql-tests-e22aaf15b69e44ad806a5316060438ec/results.log`.
+Essa rodada nativa é separada da execução Protheus. Acrescente `-Serve`
+para manter o host isolado disponível por 600 segundos após a aprovação
+dos checks nativos. O runner exibe as portas de teste; o token HTTP da
+fixture é `m06-http-test-only`. O [guia de falhas Protheus](../src/tlpp/tests/protheus/hbbridge.failure.test/README.pt-BR.md)
+documenta compilação, chamadas diretas e flags nomeadas de
+`U_HBBridgeFailureCLI`. A execução automatizada via CLI AppServer em
+2026-10-14 passou em **38 checks TCP** (08:28:56–08:29:12 de São Paulo,
+thread 29120) e **51 checks HTTP** (08:28:13–08:28:29, thread 21392), ambos
+com zero falhas e saída 0, incluindo o perfil opcional de timeout. Logs:
+`tmp/m06-protheus-tcp-clean-output-20261014.log` e
+`tmp/m06-protheus-http-output-20261014.log`. O compilador havia registrado
+30 fontes com sucesso/zero erros às 08:23:38, thread 32272:
+`tmp/totvs-compile.log`. O RPO real compilado foi executado com INI AppServer
+privado separado; esse é o aceite runtime via `-run`, sem homologação manual
+de SmartClient/WebApp ou interface gráfica. Os checks reais do dataset
+verificam estado limpo e `MoreToRead()` após a falha; contagens/ausência de
+novas tentativas têm aceite separado no mock dataset de 67 checks.
+Timeouts nativos se aplicam por instrução, sem
+cancelamento explícito no servidor ou prazo SQL compartilhado da requisição.
+
 ## Proximas verificacoes
 
 - Validar chamadas sequenciais persistentes antes de pool e multiplexacao;
@@ -382,7 +443,7 @@ para o escopo preciso e os cenários restantes.
 - Comparar integralmente os dados recebidos, incluindo acentos, caracteres
   multibyte, valores nulos e estruturas JSON aninhadas.
 - Testar dados pouco compressiveis, fragmentacao TCP e envios parciais.
-- Homologar no AppServer timeout, falhas de conexão e envios parciais forçados,
+- Homologar no AppServer timeout de socket, falhas na conexão ao listener e envios parciais forçados,
   incluindo os retornos de `Receive`/`GetError`; o fluxo normal já foi aceito.
 - Verificar a configuração cliente com destino/porta diferentes dos padrões
   e ampliar MSSQL HTTP, tipos Protheus e outras plataformas na matriz de homologação.
@@ -414,7 +475,7 @@ lento sem renovação do prazo total. Os buffers de leitura são configuráveis;
 não representam o máximo da mensagem. O compressor é exercitado de forma
 incremental, usando os mesmos componentes C do produto.
 O [contrato desta entrega](../docs/milestone2-framing.pt-BR.md) distingue essas
-regressões da homologação TLPP de timeout/falhas ainda pendente.
+regressões da homologação TLPP de timeout/falhas de rede ainda pendente.
 
 Na etapa anterior do contrato único, em 2026-10-03, foram **196 verificações,
 zero falhas, sem skips**, no mesmo toolchain. O build isolado do produto
@@ -429,3 +490,11 @@ Os testes rejeitam assinaturas/formatos fora do contrato e aliases de addons,
 preservando as regressões do produto e as chamadas nativas concorrentes.
 O executavel do produto foi compilado em diretorio isolado; CLI `--help`
 e configuracao numerica invalida foram verificadas separadamente.
+
+## Homologação manual de falhas controladas em 2026-10-14
+
+Confirmada a execução manual de `U_HBBridgeTCPAndHTTPFailureTest` às 14:30:50
+São Paulo, thread 13796: **38 checks TCP e 51 HTTP, zero falhas**. Resolvida
+a falha anterior de pré-requisito no host comum. Evidências e observações
+nativas de handshake estão no
+[registro manual](../docs/acceptance.pt-BR.md#manual-protheus-failure-recovery-on-2026-10-14); M07 permanece próxima.

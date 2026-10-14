@@ -61,6 +61,17 @@ no skips**, log tmp/tests-d1b829ff332c414f816a6e70748152d1/results.log.
 It added two INI and two explicit SQL alias checks. This predates the
 PascalCase/HTTP changes of 2026-10-06 and requires their separate validation.
 
+Local transport failure/recovery regression on 2026-10-13 passed **615 checks,
+zero failures, no skips**, including 32 new assertions for SQL/profile/connection
+failures and immediate recovery through NETIO, TCP and HTTP RPC/REST. Fixtures
+use isolated SQLite and missing synthetic DSNs; this is not real-MSSQL outage,
+native SQL timeout or AppServer acceptance. See [scope/log](../docs/acceptance.md#sql-transport-failures-and-recovery-on-2026-10-13).
+
+The managed regression on 2026-10-14 passed **636 checks, zero failures and
+no skips**, adding 21 assertions for optional MSSQL native timeout settings:
+`tmp/tests-12c300f8399948e3bb3c20ee13eacc2d/results.log`. Real-MSSQL failure
+coverage uses the separate opt-in route below.
+
 ## Opt-in real MSSQL core acceptance
 
 Prepare a private profile using the [credential keys](../docs/configuration.md),
@@ -98,6 +109,52 @@ The 1000-row baseline ran three times in 31/32/31 ms, 94 ms total, concurrency
 one, with memory unmeasured. This is a local reference, not a speed guarantee.
 See [acceptance](../docs/acceptance.md) for precise scope and remaining cases.
 
+A repeat on 2026-10-14 passed **92 checks, zero failures, no skips and
+exit 0**, with SQL Server `16.0.1210.3`, database `pData` and the explicit
+alias `MSSQL/pData`:
+`tmp/mssql-tests-c49ac62b333d4c9d8e94aabf5134cb1b/results.log`.
+This repeat confirms the existing core route after the native-timeout
+changes; it does not add raw FLOAT JSON or general TCP Unicode acceptance.
+
+## Opt-in real MSSQL failures and recovery
+
+```powershell
+./scripts/test-hbbridge-mssql.ps1 -Config C:/tmp/hbBridge.ini -Profile MSSQL/pData `
+    -Failures -FailureODBCDriver 'ODBC Driver 18 for SQL Server'
+```
+
+The [failure target](integration/harbour/hbbridge.mssql.failure.test.hbp)
+verifies invalid SQL, unknown profiles, a refused connection and a native
+statement timeout through the core, NETIO, TCP and HTTP. A successful
+constant SELECT follows each failure. It also compares an explicit zero
+timeout against a 1-second native timeout using a bounded 4-second WAITFOR.
+The working alias and installed driver are explicit prerequisites; secrets
+remain in the private file. The refused endpoint reserves a loopback port
+without listening and uses fictitious credentials. It does not stop the
+SQL Server service or modify ERP tables.
+
+On 2026-10-14 this route passed **46 checks, zero failures and no skips**:
+`tmp/mssql-tests-e22aaf15b69e44ad806a5316060438ec/results.log`.
+This native run is separate from Protheus execution. Add `-Serve` to keep
+the isolated host available for 600 seconds after its native checks pass.
+The runner prints its test ports; the fixture HTTP token is
+`m06-http-test-only`. The [Protheus failure guide](../src/tlpp/tests/protheus/hbbridge.failure.test/README.md)
+documents compilation, direct calls and `U_HBBridgeFailureCLI` named flags.
+Automated AppServer CLI execution on 2026-10-14 passed **38 TCP checks**
+(08:28:56–08:29:12 São Paulo, thread 29120) and **51 HTTP checks**
+(08:28:13–08:28:29, thread 21392), both with zero failures and exit 0,
+including the optional timeout profile. Logs:
+`tmp/m06-protheus-tcp-clean-output-20261014.log` and
+`tmp/m06-protheus-http-output-20261014.log`. The compiler had reported
+30 successful sources/zero errors at 08:23:38, thread 32272:
+`tmp/totvs-compile.log`. The compiled real RPO was executed with a separate
+private AppServer INI; this is runtime acceptance through `-run`, without
+manual SmartClient/WebApp or UI acceptance. The live dataset checks clear
+state and `MoreToRead()` after failure; request counts/no retries have
+separate acceptance in the 67-check dataset mock.
+Native timeouts apply per statement, not as explicit server cancellation or
+a shared request-wide SQL deadline.
+
 ## Protheus compilation and calls
 
 The [consumer catalog](../examples/protheus/README.md) covers the reorganized
@@ -123,6 +180,7 @@ subdirectories under [tests/protheus](../src/tlpp/tests/protheus):
 | `hbbridge.connection.test/` | `U_HBBridgeConnectionTest`. |
 | `hbbridge.config.test/` | `U_HBBridgeConfigTest`. |
 | `hbbridge.dataset.test/` | `U_HBBridgeDataSetTest` and its mock client. |
+| `hbbridge.failure.test/` | Real SQL failure/recovery tests for TCP/HTTP and `U_HBBridgeFailureCLI`; [guide](../src/tlpp/tests/protheus/hbbridge.failure.test/README.md). |
 | `hbbridge.http.test/` | Shared HTTP test and explicit MSSQL/SQLite wrappers. |
 | `hbbridge.http.table.test/` | FWWebEx fixture/SX5 examples and `U_HBBridgeHTTPTableTest` mock: manual validation confirmed, 71 checks/zero failures on 2026-10-13; [evidence](../src/tlpp/tests/protheus/hbbridge.http.table.test/README.md). |
 | `hbbridge.query.test/` | Shared Query test, SQLite wrapper and caller-side `FWGetTopInfo()` wrapper. |
@@ -233,7 +291,9 @@ string replacements and typed custom-filter expressions.
 
 These manual AppServer results accept D02's dataset/helper mock scope. No
 network, database or ERP data is exercised. D03's broader UTF-8/FLOAT integrity
-work remains next, followed by M06–M09; see [dataset API and integrity
+work remains open; independent M06 failure/recovery has separate runtime
+acceptance above. Continue the remaining tasks in [WIP](../WIP.md).
+See [dataset API and integrity
 findings](../docs/dataset.md) and [acceptance](../docs/acceptance.md).
 
 ## Manual acceptance and remaining scenarios
@@ -292,8 +352,9 @@ entrypoint defaults select `MSSQL/pData` and `sqlite_demo`. These are manual
 AppServer runs, separate from native automation. Transcript:
 `tmp/protheus-http-mssql-sqlite-operator-20261008.log`.
 See [acceptance](../docs/acceptance.md). D02's dataset mock acceptance completed
-on 2026-10-13; D03's UTF-8/FLOAT integrity work remains next in
-[WIP](../WIP.md), before M06 controlled failures/recovery. No new native run
+on 2026-10-13; D03's UTF-8/FLOAT integrity work remains open in
+[WIP](../WIP.md); independent M06 controlled failures/recovery has separate
+2026-10-14 acceptance above. No new native run
 is inferred from these reports.
 
 A later read-only constant probe found `CAST(123.4567 AS FLOAT)` remained
@@ -305,10 +366,18 @@ arbitrary precision or accented TCP values. Runtime fixes and transport parity
 checks remain pending; see [the analysis](../docs/dataset.md).
 
 Pending: HTTPS, integrated/service identities, nondefault
-host/port/profile, Linux, clock precision/adjustment/wrap, forced socket
+destinations with omitted arguments, Linux, clock precision/adjustment/wrap, forced socket
 timeout/connection failure/positive partial Send/Receive/GetError,
 MAXSTRINGSIZE, broader Protheus null/nested/multibyte/non-ASCII values, larger/incompressible data
 and Harbour codepage/revision compatibility. Persistent calls/pool/multiplex,
 coalescence/disconnect/replay prevention, explicit-tenant session owner/TTL/
 cleanup, TLS/JWT and optional gRPC/Smartlink/AMQP are roadmap work. Test technical
 capacities separately from optional memory/worker/deadline policies.
+
+## Manual controlled-failure acceptance on 2026-10-14
+
+Confirmed manual `U_HBBridgeTCPAndHTTPFailureTest` execution at 14:30:50
+São Paulo, thread 13796: **38 TCP checks and 51 HTTP checks, zero failures**.
+This resolves the earlier normal-host prerequisite failure. Evidence and
+native handshake observations are recorded in the
+[manual acceptance](../docs/acceptance.md#manual-protheus-failure-recovery-on-2026-10-14); M07 remains next.

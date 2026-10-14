@@ -1,0 +1,94 @@
+/* Released to Public Domain. */
+#include "totvs.ch"
+#include "tlpp-core.th"
+
+// https://tdn.totvs.com/display/tec/Application+Server+-+Command+Line#ApplicationServerCommandLine-Op%C3%A7aoRun
+// .\appserver.exe -ini="hbm06.ini" -run=U_HBBridgeFailureCLI -env=PROTHEUS --transport=tcp --working-profile=MSSQL/pData --unavailable-profile=m06/refused --timeout-profile=m06/query-timeout --host=127.0.0.1 --port=1512 --timeout=7
+function U_HBBridgeFailureCLI(oArguments as variadic)
+return(HBBridge.Test.HBBridgeFailureTest():RunCLI(oArguments:vArgs))
+
+// Omitted transport arguments use the active AppServer [hbBridge] configuration.
+// Both SQL profile aliases must be supplied explicitly; no demo database is selected.
+function U_HBBridgeFailureTest(cWorkingProfile, cUnavailableProfile, cHost, nPort, nTimeout, cTimeoutProfile)
+
+    local aFuncPrm:=GetFuncPrm(ProcName())
+    local jFuncPrm:=JSONObject():New() as json
+    local i as numeric
+
+    for i:=1 to Len(aFuncPrm)
+        cParam:=aFuncPrm[i]
+        jFuncPrm[cParam]:=&(cParam)
+    next i
+
+    ConOut("ProcName: "+ProcName(),"ProcParms: "+jFuncPrm:ToJSON())
+    FWFreeArray(aFuncPrm)
+    FreeObj(@jFuncPrm)
+
+    ConOut("hbBridge TCP controlled failure test starting.")
+
+return(HBBridge.Test.HBBridgeFailureTest():RunTCP(;
+    cWorkingProfile, cUnavailableProfile, cHost, nPort, nTimeout, cTimeoutProfile))
+
+function U_HBBridgeHTTPFailureTest(cWorkingProfile, cUnavailableProfile, cURL, cToken, nTimeoutSeconds, cTimeoutProfile)
+
+    local aFuncPrm:=GetFuncPrm(ProcName())
+    local jFuncPrm:=JSONObject():New() as json
+    local i as numeric
+
+    for i:=1 to Len(aFuncPrm)
+        cParam:=aFuncPrm[i]
+        if (cParam=="CTOKEN")
+            jFuncPrm[cParam]:=RC4Crypt(&(cParam),UUIDRandom(),.T.)
+        else
+            jFuncPrm[cParam]:=&(cParam)
+        endif
+    next i
+
+    ConOut("ProcName: "+ProcName(),"ProcParms: "+jFuncPrm:ToJSON())
+    FWFreeArray(aFuncPrm)
+    FreeObj(@jFuncPrm)
+    ConOut("hbBridge HTTP controlled failure test starting.")
+
+return(HBBridge.Test.HBBridgeFailureTest():RunHTTP(;
+    cWorkingProfile, cUnavailableProfile, cURL, cToken, nTimeoutSeconds, cTimeoutProfile))
+
+procedure U_HBBridgeTCPAndHTTPFailureTest()
+
+    local aFWGetTopInfo as array
+
+    local cToken as character
+    local cIniFile as character
+    local cWorkingProfile as character
+    local cTimeoutProfile as character
+    local cUnavailableProfile as character
+
+    local cTCPHost as character
+    local cHTTPURL as character
+
+    local nTCPPort as numeric
+    local nTimeout as numeric
+    local nTimeoutSeconds as numeric
+
+    cIniFile:=GetSrvIniName()
+    cWorkingProfile:=GetPvProfString("hbBridge","SQLProfile","",cIniFile)
+    if (Empty(cWorkingProfile))
+        // FWGetTopInfo requires a native array; consume it once and release it.
+        aFWGetTopInfo:=FWGetTopInfo()
+        cWorkingProfile:=(aFWGetTopInfo[4]+"/"+aFWGetTopInfo[5])
+        FWFreeArray(@aFWGetTopInfo)
+    endif
+
+    cTimeoutProfile:="m06/query-timeout"
+    cUnavailableProfile:="m06/refused"
+
+    cTCPHost:=GetPvProfString("hbBridge","Host","127.0.0.1",cIniFile)
+    nTCPPort:=Val(GetPvProfString("hbBridge","Port","1512",cIniFile))
+    nTimeout:=Val(GetPvProfString("hbBridge","TimeoutMs","7000",cIniFile))
+    U_HBBridgeFailureTest(cWorkingProfile, cUnavailableProfile, cTCPHost, nTCPPort, nTimeout, cTimeoutProfile)
+
+    cHTTPURL:=GetPvProfString("hbBridge","HTTPURL","127.0.0.1:8080",cIniFile)
+    cToken:=GetPvProfString("hbBridge","HTTPToken","",cIniFile)
+    nTimeoutSeconds:=Val(GetPvProfString("hbBridge","HTTPTimeoutSeconds","7",cIniFile))
+    U_HBBridgeHTTPFailureTest(cWorkingProfile, cUnavailableProfile, cHTTPURL, cToken, nTimeoutSeconds, cTimeoutProfile)
+
+return

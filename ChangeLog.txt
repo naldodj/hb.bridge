@@ -5,6 +5,45 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Standardize hbBridge naming and paging)"
  */
 
+2026-10-14 17:35 UTC naldodj (Accept manual Protheus SQL failure recovery)
+  * Confirm U_HBBridgeTCPAndHTTPFailureTest manual AppServer validation:
+    2026-10-14 14:30:50 Sao Paulo, thread 13796, all 38 TCP/51 HTTP checks
+    PASS, zero failures; resolve the earlier seven failures per transport.
+  * Update paired acceptance, WIP/TODO and test guides; M07 remains next.
+    Preserve native handshake diagnostics without an inferred cause/resolution;
+    D03 integrity and package 001 completion remain pending.
+  ; Documentation/evidence only; no runtime, configuration or index changes.
+
+2026-10-14 16:13 UTC naldodj (Accept native SQL timeouts and AppServer failure recovery)
+  + Add optional per-profile ODBC login/statement timeouts with native numeric
+    validation and exact attribute readback; preserve omitted defaults and zero.
+  + Add isolated opt-in MSSQL failure fixtures and Protheus TCP/HTTP CLI tests.
+  ; Windows: native failure suite 46, default regression 636, MSSQL regression
+    92 and AppServer CLI TCP 38/HTTP 51 checks; zero failures in scoped runs.
+    TLPP: all 30 sources compiled; AppServer then exits 0xC0000409 after its
+    completed build report. Both subsequent CLI test processes exit 0.
+  ! Diagnose seven failures per transport in the reported normal-host run:
+    both fixture aliases were missing; constant probes return PROFILE_NOT_FOUND.
+    Add a safe prerequisite diagnostic and remove parameter/token dumps.
+  * Complete scoped WIP M06; resume M07. D03 integrity remains pending.
+    Record optional sqlparse/Harbour-Python feasibility without adoption.
+
+2026-10-14 02:05 UTC naldodj (Defer metadata automation and cover SQL transport recovery)
+  * Defer optional metadata addons/automatic decimal and CAST rewriting;
+    retain caller CAST and record TamSX3/GetSX3Cache inputs for future analysis.
+  * Reprioritize WIP M06; keep D03 integrity and package completion pending.
+  + Add 32 NETIO/TCP/HTTP RPC/REST failure/recovery assertions with isolated
+    SQLite/missing ODBC DSNs, exact safe envelopes and same-route recovery.
+  ; Windows regression: 615 checks, zero failures/no skips, exit 0.
+    Controlled real-MSSQL/native-timeout/AppServer cases remain open.
+
+2026-10-13 21:15 UTC naldodj (Clarify text presentation and numeric integrity)
+  * Record HTTP text presentation and pending broader desktop validation.
+  * Separate caller-selected DECIMAL business scale from the raw FLOAT
+    serialization defect; explicit logical metadata remains a proposal.
+  * Update paired dataset guides and WIP D03 analysis; implementation and
+    expanded UTF-8/FLOAT acceptance remain pending.
+
 2026-10-13 20:57 UTC naldodj (Accept dataset and helper validation)
   * Confirm manual AppServer results: dataset 67 checks/31 mock calls,
     17:56:23 Sao Paulo, thread 32332; helpers 12 checks, 17:56:45, thread 28300.

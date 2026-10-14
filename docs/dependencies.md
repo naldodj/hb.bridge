@@ -78,7 +78,16 @@ Unicode `SQLGetData` length probe returns `SQL_NO_TOTAL`. The managed
 [sddodbc.patch](../config/patches/sddodbc.patch) corrects this connector path,
 binary field flags and UTF-16 surrogate conversion for UTF-8 codepages,
 preserving embedded NULs and empty/null values across chunks. It imposes no
-payload ceiling. [prepare-odbc.ps1](../scripts/prepare-odbc.ps1)
+payload ceiling. The same managed patch adds optional per-profile native
+ODBC login/query timeouts, C validation against native integer capacity and
+exact attribute readback. Explicit attributes that fail or change are rejected;
+login is verified again after connection and every statement, including a
+separate page count, receives its configured query timeout. Missing attributes
+retain driver defaults and explicit zero disables them. See
+[timeout configuration and scope](configuration.md#native-mssql-timeouts).
+This changes the staged connector interface, not the pinned upstream checkout,
+and does not fix the separately tracked D03 raw FLOAT fractional loss.
+[prepare-odbc.ps1](../scripts/prepare-odbc.ps1)
 checks the manifest's `harbour.odbcPatch` checksum and applies the reviewed
 patch to `.deps/odbc/stage-<id>/sddodbc`, preserving the pinned source checkout.
 It builds only SDDODBC and installs its library/metadata into the selected
@@ -139,3 +148,19 @@ Dependency licenses stay with their sources. Harbour linking exceptions do
 not automatically apply to GPL maintenance utilities; Zig and zlib retain
 their own terms. Global project licensing is still under
 [provenance review](licensing.md).
+
+## Potential upstream contributions
+
+The managed patches are integration artifacts. Generic fixes should be
+proposed separately: HTTP framing by byte length, ODBC binary flags and
+variable-field/fetch-error handling. Additive `Ready`/worker/body APIs require
+separate compatibility review. hbBridge-named timeout helpers, JSON integer
+capacity and strict timeout readback are project policies; an upstream
+timeout interface should be generic. The current Windows/MSSQL evidence
+does not certify other drivers or platforms.
+
+Unconditional `SO_REUSEADDR` needs a separate platform policy: Windows can
+permit competing binds with indeterminate delivery. See [Microsoft's socket
+semantics](https://learn.microsoft.com/en-us/windows/win32/winsock/using-so-reuseaddr-and-so-exclusiveaddruse).
+Keep upstream formatting/notices and follow the [Harbour contribution process](https://github.com/harbour/core/blob/6deac9cf3ad977ae829e5bca543d553b92dd4b6d/README.md#how-to-participate).
+This records candidates; no contribution has been submitted.

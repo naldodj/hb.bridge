@@ -77,6 +77,15 @@ sondagem Unicode de tamanho com `SQLGetData` retorna `SQL_NO_TOTAL`. O patch
 gerenciado [sddodbc.patch](../config/patches/sddodbc.patch) corrige esse caminho,
 flags de campos binários e conversão de pares substitutos UTF-16 para codepages
 UTF-8, preservando NUL embutido e vazio/nulo entre blocos. Sem teto de payload.
+O mesmo patch gerenciado acrescenta timeouts nativos ODBC de login/consulta,
+opcionais por perfil, validação C pela capacidade inteira nativa e leitura
+exata dos atributos. Atributos explícitos que falham ou mudam são rejeitados;
+login é verificado novamente após conectar e toda instrução, inclusive a
+contagem separada da página, recebe seu timeout de consulta configurado.
+A omissão mantém padrões do driver e zero explícito os desativa. Veja
+[configuração e escopo dos timeouts](configuration.pt-BR.md#native-mssql-timeouts).
+Isso altera a interface do conector em staging, sem editar o checkout upstream
+fixado nem corrigir a perda fracionária de FLOAT bruto registrada em D03.
 [prepare-odbc.ps1](../scripts/prepare-odbc.ps1)
 verifica o checksum `harbour.odbcPatch` do manifesto e aplica o patch revisado
 em `.deps/odbc/stage-<id>/sddodbc`, preservando o checkout de fontes fixado.
@@ -137,3 +146,20 @@ aceite do cliente atual.
 Licenças acompanham os fontes das dependências. Exceções de link Harbour não
 se aplicam automaticamente aos utilitários GPL; Zig e zlib mantêm seus termos.
 A licença global do projeto permanece em [análise de procedência](licensing.pt-BR.md).
+
+## Possíveis contribuições ao Harbour
+
+Os patches gerenciados são artefatos de integração. Correções genéricas devem
+ser propostas separadamente: enquadramento HTTP por bytes, flags binárias ODBC
+e leitura variável/tratamento de falhas de leitura. APIs adicionais de
+`Ready`, workers e corpo precisam de revisão própria de compatibilidade.
+Helpers de timeout com nome hbBridge, capacidade inteira JSON e leitura
+estrita de atributos são políticas do projeto; uma interface de timeout no
+Harbour deve ser genérica. Evidências Windows/MSSQL atuais não homologam
+outros drivers nem plataformas.
+
+`SO_REUSEADDR` incondicional precisa de política separada por plataforma:
+Windows pode permitir binds concorrentes com entrega indeterminada. Veja
+a [semântica de sockets Microsoft](https://learn.microsoft.com/en-us/windows/win32/winsock/using-so-reuseaddr-and-so-exclusiveaddruse).
+Preservar formato/avisos do projeto oficial e seguir o [processo de contribuição Harbour](https://github.com/harbour/core/blob/6deac9cf3ad977ae829e5bca543d553b92dd4b6d/README.md#how-to-participate).
+A anotação registra candidatos; nenhuma contribuição foi enviada.

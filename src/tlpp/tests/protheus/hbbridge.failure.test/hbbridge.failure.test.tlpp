@@ -1,0 +1,496 @@
+/* Released to Public Domain. */
+#include "totvs.ch"
+#include "tlpp-core.th"
+
+namespace HBBridge.Test
+
+class HBBridgeFailureTest
+
+    static method RunCLI(aArguments as array) as numeric
+    static method RunTCP(cWorkingProfile as character, cUnavailableProfile as character, ;
+        cHost as character, nPort as numeric, nTimeout as numeric, cTimeoutProfile as character) as numeric
+    static method RunHTTP(cWorkingProfile as character, cUnavailableProfile as character, ;
+        cURL as character, cToken as character, nTimeoutSeconds as numeric, cTimeoutProfile as character) as numeric
+    static method Run(oClient as object, cWorkingProfile as character, ;
+        cUnavailableProfile as character, lHTTP as logical, cTimeoutProfile as character) as numeric
+
+endclass
+
+static method RunCLI(aArguments) class HBBridgeFailureTest
+
+    local jFlags := JSONObject():New() as json
+    local jSeen := JSONObject():New() as json
+    local cArgument := "", cKey := "", cValue := "" as character
+    local nArgument := 0, nEqual := 0, nValue := 0, nResult := 1 as numeric
+    local lValid := .T. as logical
+
+    jFlags["transport"] := "tcp"
+    jFlags["working-profile"] := ""
+    jFlags["unavailable-profile"] := ""
+    jFlags["timeout-profile"] := ""
+    jFlags["host"] := Nil
+    jFlags["port"] := Nil
+    jFlags["url"] := Nil
+    jFlags["token"] := Nil
+    jFlags["timeout"] := 7
+
+    // Borrow Variadic:vArgs from the native CLI entry; do not clone or rebuild it.
+    // AppServer's own arguments are ignored. Never print arbitrary argv or tokens.
+    if ValType(aArguments) != "A"
+        lValid := .F.
+    else
+        for nArgument := 1 to Len(aArguments)
+            if ValType(aArguments[nArgument]) != "C"
+                loop
+            endif
+            cArgument := aArguments[nArgument]
+            if Left(cArgument, 2) != "--"
+                loop
+            endif
+            nEqual := At("=", cArgument)
+            cKey := SubStr(cArgument, 3)
+            if nEqual > 0
+                cKey := SubStr(cArgument, 3, nEqual - 3)
+            endif
+            if !jFlags:HasProperty(cKey)
+                loop
+            endif
+            if nEqual <= 3 .or. jSeen:HasProperty(cKey)
+                lValid := .F.
+                exit
+            endif
+            jSeen[cKey] := .T.
+            cValue := SubStr(cArgument, nEqual + 1)
+            if cKey == "port" .or. cKey == "timeout"
+                nValue := FailureCLIInteger(cValue, IIf(cKey == "port", 65535, 2147483))
+                if nValue < 1
+                    lValid := .F.
+                    exit
+                endif
+                jFlags[cKey] := nValue
+            else
+                if Len(cValue) == 0 .or. At(Chr(0), cValue) > 0 .or. ;
+                    At(Chr(10), cValue) > 0 .or. At(Chr(13), cValue) > 0
+                    lValid := .F.
+                    exit
+                endif
+                jFlags[cKey] := cValue
+            endif
+        next nArgument
+    endif
+
+    if lValid
+        lValid := FailureProfileValid(jFlags["working-profile"]) .and. ;
+            FailureProfileValid(jFlags["unavailable-profile"]) .and. ;
+            (jFlags["transport"] == "tcp" .or. jFlags["transport"] == "http")
+        if Len(jFlags["timeout-profile"]) > 0 .and. jFlags["timeout"] < 7
+            lValid := .F.
+        endif
+    endif
+    if !lValid
+        ConOut("hbBridge controlled failure CLI FAILED: supply valid unique flags, explicit profile aliases and whole numeric values.")
+    elseif jFlags["transport"] == "tcp"
+        nResult := HBBridge.Test.HBBridgeFailureTest():RunTCP(;
+            jFlags["working-profile"], jFlags["unavailable-profile"], ;
+            jFlags["host"], jFlags["port"], jFlags["timeout"] * 1000, jFlags["timeout-profile"])
+    else
+        nResult := HBBridge.Test.HBBridgeFailureTest():RunHTTP(;
+            jFlags["working-profile"], jFlags["unavailable-profile"], ;
+            jFlags["url"], jFlags["token"], jFlags["timeout"], jFlags["timeout-profile"])
+    endif
+    FreeObj(@jSeen)
+    FreeObj(@jFlags)
+
+return(nResult)
+
+static method RunTCP(cWorkingProfile, cUnavailableProfile, cHost, nPort, nTimeout, cTimeoutProfile) class HBBridgeFailureTest
+
+    local oClient := HBBridge.Client.HBBridgeClient():New(cHost, nPort, nTimeout) as object
+    local nResult := HBBridge.Test.HBBridgeFailureTest():Run(;
+        oClient, cWorkingProfile, cUnavailableProfile, .F., cTimeoutProfile) as numeric
+
+    FreeObj(@oClient)
+
+return(nResult)
+
+static method RunHTTP(cWorkingProfile, cUnavailableProfile, cURL, cToken, nTimeoutSeconds, cTimeoutProfile) class HBBridgeFailureTest
+
+    local oClient := HBBridge.Client.HBBridgeHTTPClient():New(cURL, cToken, nTimeoutSeconds) as object
+    local nResult := HBBridge.Test.HBBridgeFailureTest():Run(;
+        oClient, cWorkingProfile, cUnavailableProfile, .T., cTimeoutProfile) as numeric
+
+    FreeObj(@oClient)
+
+return(nResult)
+
+static method Run(oClient, cWorkingProfile, cUnavailableProfile, lHTTP, cTimeoutProfile) class HBBridgeFailureTest
+
+    local cUnknownProfile := "__HBBridgeM06UnknownProfile__" as character
+    local cTransport := IIf(lHTTP, "HTTP", "TCP") as character
+    local jCases := JSONObject():New() as json
+    local jChecks := JSONObject():New() as json
+    local jCase as json
+    local aCases as array
+    local aChecks as array
+    local nCase := 0, nCheck := 0, nFailures := 0 as numeric
+    local cName := "" as character
+
+    // The two configured aliases are required; transport arguments may use INI defaults.
+    // The unavailable alias must point to an isolated, deliberately unreachable MSSQL target.
+    // No production server, credential or ERP table is modified by this test.
+    if !FailureProfileValid(cWorkingProfile) .or. !FailureProfileValid(cUnavailableProfile)
+        ConOut("hbBridge controlled failure test FAILED: supply working and unavailable profile aliases.")
+        FreeObj(@jCases)
+        FreeObj(@jChecks)
+        return 1
+    endif
+    if cWorkingProfile == cUnavailableProfile .or. cWorkingProfile == cUnknownProfile .or. ;
+        cUnavailableProfile == cUnknownProfile
+        ConOut("hbBridge controlled failure test FAILED: profile aliases must be distinct.")
+        FreeObj(@jCases)
+        FreeObj(@jChecks)
+        return 1
+    endif
+    if ValType(cTimeoutProfile) == "U"
+        cTimeoutProfile := ""
+    endif
+    if ValType(cTimeoutProfile) != "C"
+        ConOut("hbBridge controlled failure test FAILED: timeout profile alias must be a string.")
+        FreeObj(@jCases)
+        FreeObj(@jChecks)
+        return 1
+    endif
+    if Len(cTimeoutProfile) > 0
+        if !FailureProfileValid(cTimeoutProfile) .or. cTimeoutProfile == cWorkingProfile .or. ;
+            cTimeoutProfile == cUnavailableProfile .or. cTimeoutProfile == cUnknownProfile
+            ConOut("hbBridge controlled failure test FAILED: timeout profile alias must be valid and distinct.")
+            FreeObj(@jCases)
+            FreeObj(@jChecks)
+            return 1
+        endif
+    endif
+
+    jChecks["baselineRecovery"] := FailureRecovery(oClient, cWorkingProfile)
+    if lHTTP
+        jChecks["baselineHTTPStatus"] := oClient:StatusCode() == 200
+    endif
+
+    // Do not misclassify an installation or transport failure as an accepted SQL failure.
+    if !jChecks["baselineRecovery"]
+        ConOut("hbBridge controlled failure test FAILED: working profile baseline did not return the constant row.")
+        FreeObj(@jCases)
+        FreeObj(@jChecks)
+        return 1
+    endif
+
+    jCases["invalidSQL"] := FailureCase(cWorkingProfile, "SELECT FROM", ;
+        "QUERY_FAILED", "Could not open or read the SQL query result.")
+    jCases["unknownProfile"] := FailureCase(cUnknownProfile, "SELECT 77 AS RECOVERY_ID", ;
+        "PROFILE_NOT_FOUND", "Connection profile is not configured.")
+    jCases["unavailableConnection"] := FailureCase(cUnavailableProfile, "SELECT 77 AS RECOVERY_ID", ;
+        "CONNECTION_FAILED", "Database connection is unavailable.")
+    if Len(cTimeoutProfile) > 0
+        // This isolated profile must have a one-second native SQL query timeout.
+        // Keep the client transport deadline at least seven seconds to distinguish the layers.
+        jCases["queryTimeout"] := FailureCase(cTimeoutProfile, ;
+            "WAITFOR DELAY '00:00:04'; SELECT 77 AS RECOVERY_ID", ;
+            "QUERY_FAILED", "Could not open or read the SQL query result.")
+        jCases["queryTimeout"]["timed"] := .T.
+    endif
+
+    // JSONObject's native GetNames API requires these short-lived arrays.
+    // Cases, metadata and check results remain keyed objects.
+    aCases := jCases:GetNames()
+    for nCase := 1 to Len(aCases)
+        cName := aCases[nCase]
+        jCase := jCases[cName]
+        FailureServiceChecks(oClient, cWorkingProfile, jCase, cName, lHTTP, jChecks)
+        FailureDataSetChecks(oClient, cWorkingProfile, jCase, cName, lHTTP, jChecks)
+    next nCase
+    FWFreeArray(@aCases)
+
+    jChecks["safeNumericDiagnostic"] := FailureDiagnosticSafe("Error SQLMIX/1101 (generic code 20, OS code 0)")
+    jChecks["rejectSQLDiagnostic"] := !FailureDiagnosticSafe("Error SQLMIX/1101 SELECT password")
+    jChecks["rejectSecretDiagnostic"] := !FailureDiagnosticSafe("Error SQLMIX/1101 (generic code PWD=secret, OS code 0)")
+    jChecks["rejectPathDiagnostic"] := !FailureDiagnosticSafe("Error C:\\private/1101 (generic code 20, OS code 0)")
+
+    aChecks := jChecks:GetNames()
+    for nCheck := 1 to Len(aChecks)
+        if !jChecks[aChecks[nCheck]]
+            nFailures++
+        endif
+        ConOut("hbBridge " + cTransport + " failure check " + aChecks[nCheck] + ": " + ;
+            IIf(jChecks[aChecks[nCheck]], "PASS", "FAILED"))
+    next nCheck
+    // Log fixed check labels and booleans only, never SQL, response bodies or native errors.
+    ConOut("hbBridge " + cTransport + " controlled failure checks: " + ;
+        tlpp.ToStr(Len(aChecks)) + "; failures=" + tlpp.ToStr(nFailures) + "; " + ;
+        IIf(nFailures == 0, "OK", "FAILED"))
+    FWFreeArray(@aChecks)
+    FreeObj(@jCases)
+    FreeObj(@jChecks)
+
+return(IIf(nFailures == 0, 0, 1))
+
+static function FailureCLIInteger(cNumber as character, nMaximum as numeric) as numeric
+
+    local nIndex := 0, nDigit := 0, nValue := 0 as numeric
+
+    // Canonical unsigned decimal avoids permissive Val(), fractional or exponent forms.
+    if Len(cNumber) == 0 .or. Left(cNumber, 1) == "0"
+        return -1
+    endif
+    for nIndex := 1 to Len(cNumber)
+        nDigit := Asc(SubStr(cNumber, nIndex, 1)) - Asc("0")
+        if nDigit < 0 .or. nDigit > 9
+            return -1
+        endif
+        if nValue > Int((nMaximum - nDigit) / 10)
+            return -1
+        endif
+        nValue := nValue * 10 + nDigit
+    next nIndex
+
+return(nValue)
+
+static function FailureProfileValid(xProfile as variant) as logical
+
+    if ValType(xProfile) != "C"
+        return .F.
+    endif
+
+return(!Empty(AllTrim(xProfile)) .and. At(Chr(0), xProfile) == 0 .and. ;
+    At(Chr(10), xProfile) == 0 .and. At(Chr(13), xProfile) == 0)
+
+static function FailureCase(cProfile as character, cSQL as character, ;
+    cCode as character, cError as character) as json
+
+    local jCase := JSONObject():New() as json
+
+    jCase["profile"] := cProfile
+    jCase["sql"] := cSQL
+    jCase["code"] := cCode
+    jCase["error"] := cError
+
+return(jCase)
+
+static function FailureCall(oClient as object, cProfile as character, cSQL as character) as json
+
+    local jParams := JSONObject():New() as json
+    local jResponse as json
+
+    jParams["alias"] := cProfile
+    jParams["sql"] := cSQL
+    jResponse := oClient:CallService("RPCRDD.Query", jParams)
+    FreeObj(@jParams)
+
+return(jResponse)
+
+static procedure FailureServiceChecks(oClient, cWorkingProfile, jCase, cName, lHTTP, jChecks)
+
+    local jResponse as json
+    local nStarted := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs() as numeric
+    local nElapsed := 0 as numeric
+
+    jResponse := FailureCall(oClient, jCase["profile"], jCase["sql"])
+    nElapsed := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs() - nStarted
+    if ValType(jResponse) == "J"
+        if jResponse:HasProperty("code")
+            if jResponse["code"] == "PROFILE_NOT_FOUND" .and. jCase["code"] != "PROFILE_NOT_FOUND"
+                ConOut("hbBridge controlled failure prerequisite FAILED: " + cName + ;
+                    " fixture profile is missing. Use the -Failures -Serve runner and its printed endpoint.")
+            endif
+        endif
+    endif
+    if jCase:HasProperty("timed")
+        if jCase["timed"]
+            jChecks[cName + "NativeDeadline"] := nElapsed >= 500 .and. nElapsed < 4000
+        endif
+    endif
+
+    jChecks[cName + "SafeEnvelope"] := FailureEnvelopeSafe(jResponse, jCase["code"], jCase["error"])
+    if lHTTP
+        jChecks[cName + "HTTPStatus"] := oClient:StatusCode() == 500
+    endif
+    if ValType(jResponse) == "J"
+        jChecks[cName + "NoPartialResult"] := !jResponse:HasProperty("rows") .and. ;
+            !jResponse:HasProperty("header") .and. !jResponse:HasProperty("rowCount") .and. ;
+            !jResponse:HasProperty("page") .and. !jResponse:HasProperty("totalRows") .and. ;
+            !jResponse:HasProperty("totalPages")
+        FreeObj(@jResponse)
+    else
+        jChecks[cName + "NoPartialResult"] := .F.
+    endif
+    jChecks[cName + "ServiceRecovery"] := FailureRecovery(oClient, cWorkingProfile)
+    if lHTTP
+        jChecks[cName + "RecoveryHTTPStatus"] := oClient:StatusCode() == 200
+    endif
+
+return
+
+static procedure FailureDataSetChecks(oClient, cWorkingProfile, jCase, cName, lHTTP, jChecks)
+
+    local oDataSet := HBBridge.RDD.HBBridgeRPCDataSet():New(oClient) as object
+    local jHeader as json
+    local jRow as json
+    local lOpened := .F. as logical
+
+    oDataSet:SetAliasProfile(cWorkingProfile)
+    lOpened := oDataSet:OpenSQL("SELECT 77 AS RECOVERY_ID")
+    jChecks[cName + "DataSetSeed"] := lOpened .and. oDataSet:RowCount() == 1 .and. ;
+        oDataSet:FieldGet("RECOVERY_ID") == 77
+    oDataSet:SetAliasProfile(jCase["profile"])
+    lOpened := oDataSet:OpenSQL(jCase["sql"])
+    jChecks[cName + "DataSetFailure"] := !lOpened .and. ;
+        oDataSet:ErrorCode() == jCase["code"] .and. oDataSet:ErrorMessage() == jCase["error"]
+    jHeader := oDataSet:Header()
+    jRow := oDataSet:GetRow()
+    jChecks[cName + "DataSetClearsOldResult"] := oDataSet:Eof() .and. ;
+        oDataSet:RowCount() == 0 .and. oDataSet:FieldCount() == 0 .and. ;
+        jHeader:ToJSON() == "{}" .and. jRow:ToJSON() == "{}" .and. ;
+        ValType(oDataSet:FieldGet("RECOVERY_ID")) == "U" .and. ;
+        !oDataSet:HasNextPage() .and. !oDataSet:HasTotals()
+    jChecks[cName + "DataSetStopsAfterFailure"] := !oDataSet:MoreToRead() .and. ;
+        !oDataSet:MoreToRead() .and. oDataSet:ErrorCode() == jCase["code"]
+    FreeObj(@jHeader)
+    FreeObj(@jRow)
+
+    oDataSet:SetAliasProfile(cWorkingProfile)
+    lOpened := oDataSet:OpenSQL("SELECT 77 AS RECOVERY_ID")
+    jChecks[cName + "DataSetRecovery"] := lOpened .and. oDataSet:RowCount() == 1 .and. ;
+        oDataSet:FieldGet("RECOVERY_ID") == 77 .and. Empty(oDataSet:ErrorCode()) .and. ;
+        Empty(oDataSet:ErrorMessage())
+    if lHTTP
+        jChecks[cName + "DataSetRecoveryHTTPStatus"] := oClient:StatusCode() == 200
+    endif
+    oDataSet:Close()
+    FreeObj(@oDataSet)
+
+return
+
+static function FailureRecovery(oClient as object, cProfile as character) as logical
+
+    local jResponse := FailureCall(oClient, cProfile, "SELECT 77 AS RECOVERY_ID") as json
+    local lValid := .F. as logical
+
+    if ValType(jResponse) != "J"
+        return .F.
+    endif
+    if jResponse:HasProperty("success") .and. jResponse:HasProperty("rowCount") .and. ;
+        jResponse:HasProperty("header") .and. jResponse:HasProperty("rows")
+        if ValType(jResponse["success"]) == "L" .and. ValType(jResponse["rowCount"]) == "N" .and. ;
+            ValType(jResponse["header"]) == "J" .and. ValType(jResponse["rows"]) == "J"
+            if jResponse["success"] .and. jResponse["rowCount"] == 1 .and. ;
+                jResponse["header"]:HasProperty("RECOVERY_ID") .and. jResponse["rows"]:HasProperty("1")
+                if ValType(jResponse["rows"]["1"]) == "J"
+                    if jResponse["rows"]["1"]:HasProperty("RECOVERY_ID")
+                        if ValType(jResponse["rows"]["1"]["RECOVERY_ID"]) == "N"
+                            lValid := jResponse["rows"]["1"]["RECOVERY_ID"] == 77
+                        endif
+                    endif
+                endif
+            endif
+        endif
+    endif
+    FreeObj(@jResponse)
+
+return(lValid)
+
+static function FailureEnvelopeSafe(jResponse as json, cCode as character, cError as character) as logical
+
+    local aNames as array
+    local lValid := .F. as logical
+
+    if ValType(jResponse) != "J"
+        return .F.
+    endif
+    if !jResponse:HasProperty("success") .or. !jResponse:HasProperty("code") .or. ;
+        !jResponse:HasProperty("error") .or. !jResponse:HasProperty("message")
+        return .F.
+    endif
+    if ValType(jResponse["success"]) != "L" .or. ValType(jResponse["code"]) != "C" .or. ;
+        ValType(jResponse["error"]) != "C" .or. ValType(jResponse["message"]) != "C"
+        return .F.
+    endif
+    aNames := jResponse:GetNames()
+    if ValType(aNames) == "A"
+        // Exact known fields plus fixed text/numeric grammar exclude SQL, secrets and paths.
+        lValid := Len(aNames) == 4 .and. !jResponse["success"] .and. ;
+            jResponse["code"] == cCode .and. jResponse["error"] == cError .and. ;
+            FailureDiagnosticSafe(jResponse["message"])
+        FWFreeArray(@aNames)
+    endif
+
+return(lValid)
+
+static function FailureDiagnosticSafe(cMessage as character) as logical
+
+    local cRest := cMessage as character
+    local cSubsystem := "" as character
+    local nSplit := 0 as numeric
+
+    if Len(cRest) == 0
+        return .T.
+    endif
+    do case
+    case Left(cRest, 12) == "Information "
+        cRest := SubStr(cRest, 13)
+    case Left(cRest, 8) == "Warning "
+        cRest := SubStr(cRest, 9)
+    case Left(cRest, 12) == "Fatal error "
+        cRest := SubStr(cRest, 13)
+    case Left(cRest, 6) == "Error "
+        cRest := SubStr(cRest, 7)
+    otherwise
+        return .F.
+    endcase
+    nSplit := At("/", cRest)
+    if nSplit < 2
+        return .F.
+    endif
+    cSubsystem := Left(cRest, nSplit - 1)
+    if At("|", cSubsystem) > 0 .or. ;
+        !(("|" + cSubsystem + "|") $ "|BASE|DBCMD|SQLBASE|SQLMIX|SDDODBC|SDDSQLITE3|SQLITE3|UNKNOWN|")
+        return .F.
+    endif
+    cRest := SubStr(cRest, nSplit + 1)
+    nSplit := At(" (generic code ", cRest)
+    if nSplit < 2
+        return .F.
+    endif
+    if !FailureIntegerText(Left(cRest, nSplit - 1))
+        return .F.
+    endif
+    cRest := SubStr(cRest, nSplit + Len(" (generic code "))
+    nSplit := At(", OS code ", cRest)
+    if nSplit < 2
+        return .F.
+    endif
+    if !FailureIntegerText(Left(cRest, nSplit - 1))
+        return .F.
+    endif
+    cRest := SubStr(cRest, nSplit + Len(", OS code "))
+    if Right(cRest, 1) != ")"
+        return .F.
+    endif
+
+return(FailureIntegerText(Left(cRest, Len(cRest) - 1)))
+
+static function FailureIntegerText(cNumber as character) as logical
+
+    local nIndex := 1, nByte := 0 as numeric
+
+    if Left(cNumber, 1) == "-"
+        nIndex := 2
+    endif
+    if nIndex > Len(cNumber)
+        return .F.
+    endif
+    for nIndex := nIndex to Len(cNumber)
+        nByte := Asc(SubStr(cNumber, nIndex, 1))
+        if nByte < Asc("0") .or. nByte > Asc("9")
+            return .F.
+        endif
+    next nIndex
+
+return(.T.)

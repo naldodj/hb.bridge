@@ -145,14 +145,29 @@ runtime, memória e políticas do transporte continuam aplicáveis. Com `page`,
 o banco devolve no máximo `size + 1` linhas e a resposta mantém até `size`;
 o resultado completo não é buscado para recorte no Harbour/TLPP. O banco ainda
 pode ordenar/percorrer muitas linhas, principalmente em páginas profundas.
-Cursores, cancelamento e timeout de execução SQL ainda não estão implementados.
-O timeout de rede não interrompe uma consulta bloqueante no conector.
+Os perfis MSSQL agora aceitam `loginTimeoutSeconds` e `queryTimeoutSeconds`
+nativos e opcionais; veja [configuração e limites nativos exatos](configuration.pt-BR.md#native-mssql-timeouts).
+A omissão mantém o padrão do driver; zero explícito desativa aquele timeout.
+O conector aplica e verifica o atributo de login antes/depois da conexão e
+o atributo de consulta antes de cada instrução. Valores explícitos não suportados
+ou substituídos provocam falha, sem executar silenciosamente com outro timeout.
+A consulta da página e sua contagem separada recebem, cada uma, um timeout
+de instrução aplicado pelo driver. Não é um prazo compartilhado para espera
+pelo mutex SQL, conexão, todas as instruções, materialização e transporte da
+resposta. O timeout de rede não interrompe uma chamada bloqueante no conector.
+Cursores e uma API explícita de cancelamento hbBridge continuam sem implementação;
+timeout/desconexão do cliente não comprova cancelamento SQL no servidor.
+Essas opções MSSQL não são aceitas para SQLite.
 
 Tipos e nulos refletem o mapeamento do RDD vinculado. A regressão SQLite
 distingue `NULL` em uma expressão de texto vazio. Isso não certifica o
 mapeamento de todas as colunas nulas declaradas: conectores podem convertê-las
 em valores padrão. Datas, BLOBs, codepages, precisão ampliada e representação
 explícita de nulos continuam na evolução do contrato.
+A perda fracionária reproduzida em FLOAT bruto permanece na tarefa D03 de
+integridade; aceitar timeouts nativos não a resolve. O `CAST` escolhido na
+consulta de origem continua disponível para escala de negócio, sem consultas
+implícitas a SX3/TOP_FIELD nem reescrita automática da projeção SQL.
 
 ## Cliente e teste Protheus
 

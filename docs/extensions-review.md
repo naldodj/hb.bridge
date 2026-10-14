@@ -1,17 +1,18 @@
-# SQLRDD, JavaScript and agent extensions
+# Optional runtime and SQL extensions
 
 [Português](extensions-review.pt-BR.md) · [Roadmap](../TODO.md) · [Active package](../WIP.md)
 
 Reviewed on 2026-10-12 from `hbBridge_Braimstorming.txt` and the
 primary sources below. These are future extension decisions, not delivered
-services or dependencies. Package 001 remains open; its dataset, encoding and
-numeric integrity work comes first.
+services or dependencies. The Python/SQL parsing proposal was also reviewed on
+2026-10-14. Package 001 remains open; delivery priority follows WIP.
 
 | Reference | Assessment | Proposed use |
 | --- | --- | --- |
 | xHarbour-SQLRDD | Useful RDD design reference; adoption needs a concrete gap and source/license review. | Compare catalog/index/type/seek behavior against existing SQLMIX; preserve explicit caller metadata. |
 | Duktape | Feasible optional C engine. Engine embedding alone does not certify isolation or deadlines. | Registered JavaScript modules with explicit inputs and restricted host bindings. |
 | CCHarbour | Candidate for an optional agent addon, not a replacement for the service core. | Explicit tools, asynchronous jobs and a configured model provider. |
+| sqlparse / harbour_python | Feasible optional provider; the sample binding needs lifecycle, build and ownership work. | SQL analysis/rewriting with explicit caller metadata; adoption remains deferred. |
 
 ## xHarbour-SQLRDD
 
@@ -75,11 +76,48 @@ tools; real ERP context and any mutations remain governed by the Protheus
 caller. This is an integration design, not an installed agent or a privacy,
 performance or binary-size guarantee.
 
+## Optional Python SQL parsing: review on 2026-10-14
+
+[sqlparse 0.6.0](https://pypi.org/project/sqlparse/0.6.0/) requires Python
+3.10 or newer and uses the BSD license. It is a non-validating tokenizer/grouping
+parser. Its [identifier traversal API](https://sqlparse.readthedocs.io/en/stable/analyzing.html)
+supports aliases and wildcard detection; catalog binding, ordered `SELECT *`
+expansion and expression precision would still require our own semantic layer.
+Recognizing a token does not establish the source field or a safe CAST.
+
+[harbour_python](https://github.com/FiveTechSoft/harbour_python) was reviewed at
+`70f828e412ec8b9b7076d83e1541975e46fb7d9d`. Its
+[build example](https://github.com/FiveTechSoft/harbour_python/blob/70f828e412ec8b9b7076d83e1541975e46fb7d9d/test64.hbp)
+uses Windows/Python 3.11 paths; no Linux build is supplied. Its
+[C binding](https://github.com/FiveTechSoft/harbour_python/blob/70f828e412ec8b9b7076d83e1541975e46fb7d9d/python.c)
+passes raw Python object pointers and lacks automatic hash conversion and
+worker lifecycle management. No LICENSE or reuse grant was identified in the
+reviewed files; copying this binding cannot assume permission. An independent
+adapter through the documented CPython API remains an alternative.
+
+A proposed `ParseSQL` provider would accept UTF-8 JSON containing SQL, dialect,
+explicit table/alias mappings and field metadata, and return rewritten SQL plus
+diagnostics. Protheus supplies SX3/TamSX3 definitions and any ordered column
+list needed for wildcard expansion; hbBridge does not discover ERP context.
+Start with unambiguous projections and preserve manual CAST for unsupported
+rewrites. JSON input/output avoids a general Harbour/Python type conversion
+layer but still needs checked errors and length-aware Unicode handling.
+
+Embedding requires one owned initialization, per-worker GIL/thread-state
+handling and finalization after workers stop; `THREAD STATIC` does not manage
+the interpreter. See [CPython initialization/threading](https://docs.python.org/3.11/c-api/init.html)
+and [embedding/build configuration](https://docs.python.org/3.11/extending/embedding.html).
+Python must remain optional at startup: a mandatory main-executable library
+link could require its DLL even with the provider disabled. Evaluate deferred
+loading or a separate provider process, with independent Windows/Linux and
+performance acceptance. No Python dependency, parser service or rewrite was
+implemented by this review.
+
 ## Delivery order
 
 Complete the current dataset/type/encoding and relevant security acceptance.
-Then evaluate SQLRDD source reuse, a bounded Duktape module package and an
-optional CCHarbour job package separately. Record pinned sources, dependencies,
+Then evaluate SQLRDD source reuse, a bounded Duktape module package, an optional
+CCHarbour job package and the deferred SQL parser separately. Record pinned sources, dependencies,
 license provenance, exposed services and attributable tests before advertising
 each capability. This review neither installs these projects nor changes WIP's
 completion criteria.

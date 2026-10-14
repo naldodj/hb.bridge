@@ -5,6 +5,45 @@
    Caminhos antigos descrevem os arquivos existentes na época.
  */
 
+2026-10-14 17:35 UTC naldodj (Homologar recuperação manual de falhas SQL no Protheus)
+  * Confirmar validação manual AppServer de U_HBBridgeTCPAndHTTPFailureTest:
+    2026-10-14 14:30:50 São Paulo, thread 13796, todos os 38 TCP/51 HTTP checks
+    PASS, zero falhas; resolver as sete falhas anteriores por transporte.
+  * Atualizar homologação, WIP/TODO e guias EN/PT; M07 permanece próxima.
+    Preservar diagnósticos nativos de handshake sem inferir causa/resolução;
+    integridade D03 e fechamento do pacote 001 continuam pendentes.
+  ; Apenas documentação/evidências; runtime, configuração e índice preservados.
+
+2026-10-14 16:13 UTC naldodj (Homologar timeouts SQL nativos e recuperação no AppServer)
+  + Adicionar timeouts ODBC opcionais de login/instrução por perfil, validação
+    numérica nativa e leitura exata dos atributos; preservar omissão e zero.
+  + Adicionar fixtures MSSQL isoladas opt-in e testes CLI Protheus TCP/HTTP.
+  ; Windows: suíte nativa de falhas 46, regressão padrão 636, regressão MSSQL
+    92 e AppServer CLI TCP 38/HTTP 51 checks; zero falhas nas rodadas delimitadas.
+    TLPP: os 30 fontes compilados; AppServer encerra com 0xC0000409 após o
+    relatório concluído de build. Os dois testes CLI posteriores têm saída 0.
+  ! Diagnosticar sete falhas por transporte na rodada informada no host comum:
+    aliases da fixture ausentes; consultas constantes retornam PROFILE_NOT_FOUND.
+    Adicionar diagnóstico seguro de pré-requisito e remover dumps de parâmetros/token.
+  * Concluir M06 delimitada no WIP; retomar M07. Integridade D03 permanece pendente.
+    Registrar viabilidade opcional sqlparse/Harbour-Python sem adoção.
+
+2026-10-14 02:05 UTC naldodj (Adiar automação de metadados e testar recuperação SQL)
+  * Adiar addons opcionais de metadados/reescrita decimal e CAST automática;
+    manter CAST no chamador e registrar TamSX3/GetSX3Cache para análise futura.
+  * Ajustar prioridade para M06; integridade D03 e fechamento do pacote pendentes.
+  + Adicionar 32 asserções de falha/recuperação NETIO/TCP/HTTP RPC/REST com
+    SQLite/DSNs ODBC ausentes, envelope seguro exato e recuperação na mesma rota.
+  ; Regressão Windows: 615 checks, zero falhas/sem skips, saída 0.
+    MSSQL real/timeout nativo/AppServer controlados continuam abertos.
+
+2026-10-13 21:15 UTC naldodj (Esclarecer apresentação textual e integridade numérica)
+  * Registrar apresentação textual HTTP e validação desktop ampliada pendente.
+  * Separar escala DECIMAL de negócio definida pelo chamador da falha de
+    serialização FLOAT bruta; metadados lógicos explícitos seguem como proposta.
+  * Atualizar guias dataset EN/PT e análise D03 no WIP; implementação e
+    homologação UTF-8/FLOAT ampliada permanecem pendentes.
+
 2026-10-13 20:57 UTC naldodj (Homologar a validação do dataset e helpers)
   * Confirmar resultados manuais AppServer: dataset 67 checks/31 chamadas
     mock, 17:56:23 São Paulo, thread 32332; helpers 12 checks, 17:56:45,

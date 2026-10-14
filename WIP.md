@@ -12,11 +12,11 @@ acceptance records verified results; ChangeLog and Git preserve history.
 | Item | Current value |
 | --- | --- |
 | ID | `001-mssql-acceptance` |
-| Opened / updated | 2026-10-07 / 2026-10-13 |
-| Status | Native MSSQL: 92 checks; Protheus TCP: 29 and HTTP: 13 each for MSSQL/SQLite. D02 accepted: dataset 67 checks/31 calls and helpers 12 checks. Package remains open. |
+| Opened / updated | 2026-10-07 / 2026-10-14 |
+| Status | Native MSSQL: 92 checks; Protheus TCP: 29 and HTTP: 13 each for MSSQL/SQLite. D02 accepted: dataset 67 checks/31 calls and helpers 12 checks. M06 accepted: native 46, AppServer CLI and manual TCP 38/HTTP 51; regression 636. Package remains open. |
 | Goal | Accept the existing RPCRDD.Query/dataset against an identified real MSSQL database through Harbour, Protheus TCP and Protheus HTTP. |
 | Product reference | Published code `50e1c65`; checkout at package opening `bce52d2` includes the clone badge update. |
-| Next task | D03: correct and accept UTF-8/FLOAT integrity; then resume M06. |
+| Next task | M07: concurrent profile/resource isolation and release. D03 integrity remains pending; decimal metadata automation is deferred. |
 
 ### Decisions already made
 
@@ -37,6 +37,10 @@ acceptance records verified results; ChangeLog and Git preserve history.
   concurrent calls; this package does not promise parallel SQL execution.
 - Keep existing runtime capacities and configurable policies. Add no fixed
   proof-of-concept payload ceiling or new transport implementation.
+- Reprioritized on 2026-10-13: defer optional Protheus metadata addons and
+  automatic decimal/CAST rewriting. Keep caller SQL CAST and resume independent
+  M06 failure/recovery work. D03 UTF-8/FLOAT remains open; package completion
+  still requires its integrity evidence, not an assumed fix from CAST.
 
 ### Verified starting point
 
@@ -124,6 +128,14 @@ new acceptance findings, not reasons to repeat the completed inventory.
   native versus caller-supplied logical metadata without implicit ERP lookups.
   See [findings and contract](docs/dataset.md). Do not count old ASCII/DECIMAL
   fixture results as acceptance of these newly identified cases.
+  The 2026-10-13 presentation observations retain the working HTTP example
+  and further desktop validation. Separate generic FLOAT preservation from
+  caller-selected DECIMAL business scale; CAST is an available projection,
+  not a prerequisite for generic FLOAT transport. Explicit logical metadata
+  remains a proposed extension. See the [analysis](docs/dataset.md#business-scale-and-raw-float-analysis-on-2026-10-13).
+  Metadata addons and an optional TLPP/Zig SQL projection rewriter are deferred;
+  their [evaluation](docs/dataset.md#deferred-metadata-addon-and-sql-rewriting)
+  does not add an API/dependency or block independent M06 cases.
 - [x] **S01 — Expand credential design.** Cover SQL, NETIO/admin and HTTP on
   hbBridge and local AppServer client secrets, external per-installation keys,
   portable providers and separately verified TLPP support. Encryption is still
@@ -151,10 +163,22 @@ new acceptance findings, not reasons to repeat the completed inventory.
   [U_HBBridgeHTTPTest](src/tlpp/tests/protheus/hbbridge.http.test/hbbridge.http.test.tlpp) with the
   same explicit MSSQL alias and the common dataset. Check the actual selected
   profile/backend, values and pages; a generic HTTP success alone is insufficient.
-- [ ] **M06 — Verify failures and recovery.** Invalid SQL, unknown profile,
-  controlled unavailable connection, applicable native timeout, sanitized
-  errors and a successful subsequent query. Document any noninterruptible
-  driver call; do not equate client timeout/disconnect with server cancellation.
+- [x] **M06 — Verify failures and recovery.** Accepted on 2026-10-14:
+  invalid SQL, unknown profile, a reserved loopback port without a listener,
+  one-second native MSSQL statement timeout, exact safe errors and subsequent
+  recovery. Native local/NETIO/TCP/HTTP: **46 checks**; automated AppServer
+  RPO CLI: **38 TCP / 51 HTTP checks**, each with 21 calls; **zero failures**,
+  exit 0. Default regression: **636 checks**; repeated native MSSQL: **92**.
+  Manual AppServer validation at 14:30:50 São Paulo, thread 13796, also passed
+  all **38 TCP / 51 HTTP checks**, resolving the earlier seven failures per
+  transport. [Manual scope/evidence](docs/acceptance.md#manual-protheus-failure-recovery-on-2026-10-14).
+  Compiled all 30 TLPP sources with zero source errors. See
+  [scope, artifacts and limitations](docs/acceptance.md#sql-native-timeouts-and-appserver-recovery-on-2026-10-14)
+  and the [test guide](src/tlpp/tests/protheus/hbbridge.failure.test/README.md).
+  Optional login/statement timeouts belong to each MSSQL profile; zero disables
+  the native setting, omission preserves the driver default. Each statement,
+  including COUNT, has its own timeout. This does not impose a shared request
+  deadline or implement cancellation after client timeout/disconnect.
 - [ ] **M07 — Verify concurrency and release.** Interleave queries/profiles
   and verify workarea/connection restoration, no result leakage and cleanup
   after success/failure. Preserve the current synchronization contract.
@@ -225,8 +249,9 @@ Evidence: `tmp/mssql-tests-b3d676f0daaf470a97af605a98a9681c/results.log` and
 `tmp/mssql-native-normalized-20261008.log`. M03 is complete for this Windows target.
 The core baseline read 1000 constant rows in three executions: 31/32/31 ms,
 total 94 ms, concurrency 1, including connect/materialize/disconnect; memory
-was not measured. M06/M07 have partial evidence; controlled unavailable/native
-timeout and broader profile isolation remain. M08 still needs TCP/HTTP and memory.
+was not measured. At this point M06/M07 had partial evidence. M06 has subsequent native-timeout
+and AppServer acceptance on 2026-10-14; M07 broader profile isolation remains.
+M08 still needs TCP/HTTP and memory.
 The default regression passed **566 checks, zero failures/no skips**:
 `tmp/tests-f84004277a8d4cc2905131f706a1e181/results.log`.
 
@@ -251,10 +276,21 @@ resolution and does not replace M08 measurements. No compiler log, explicit
 call arguments or server artifact hash was supplied. HTTPS, wider native type
 transport and Linux remain separate acceptance tasks.
 
-Progress/evidence: P01/P02/F01/F02/D02 and M01–M05 complete for the exercised cases.
-Handle D03 integrity corrections before resuming M06 with controlled
-unavailable-connection/native-timeout cases, sanitized errors and recovery;
-invalid SQL/unknown-profile recovery already has native and TCP evidence.
+Progress/evidence: P01/P02/F01/F02/D02 and M01–M06 complete for the exercised cases.
+M06's 2026-10-14 automated AppServer TCP/HTTP acceptance follows recompilation;
+its native failure suite, default regression and repeated 92-check MSSQL route
+passed. The repeated database probe reports SQL Server **16.0.1210.3**;
+16.0.1200.5 remains the historical 2026-10-08 result.
+The earlier normal-host run had seven failures per transport because its INI
+lacked both fixture aliases; constant probes confirmed PROFILE_NOT_FOUND.
+Subsequent manual execution at 14:30:50 São Paulo, thread 13796, passed all
+38 TCP/51 HTTP checks and resolves that failed run within M06's test scope.
+Native handshake diagnostics remain recorded without a verified cause or
+resolution; neither a precise elapsed time nor a GUI launch route is inferred.
+Resume M07 with concurrent profiles, caller resource restoration and release
+through the shared executor. Preserve the SQL mutex and distinguish interleaved
+requests from parallel database execution. D03 integrity remains pending after
+explicit reprioritization, with caller CAST retained.
 Do not repeat accepted migrations, inventory or native/TCP/HTTP cases without
 new evidence requiring it. M07–M09 and the package completion criteria remain.
 

@@ -14,7 +14,7 @@
         },
         "odbcPatch": {
             "path": "config/patches/sddodbc.patch",
-            "sha256": "f0dde4c85f89d2a72b27040e65eb556e9e0d59838e064fb0fc2254650da637e6"
+            "sha256": "4e8f24d6482a93585ad021dd7eec9631c472a4bda225240206f83c5302c4b9be"
         }
     },
     "zig": {

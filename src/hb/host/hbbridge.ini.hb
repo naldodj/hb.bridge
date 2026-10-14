@@ -21,7 +21,8 @@ FUNCTION HBBridgeConfigINI( cContents, hDefaults, cError )
         "CONNECTIONSTRING" => "connectionString", "AUTHENTICATION" => "authentication", ;
         "DSN" => "dsn", "ODBCDRIVER" => "odbcDriver", "SERVER" => "server", ;
         "USERNAME" => "username", "PASSWORD" => "password", "ENCRYPT" => "encrypt", ;
-        "TRUSTSERVERCERTIFICATE" => "trustServerCertificate" }
+        "TRUSTSERVERCERTIFICATE" => "trustServerCertificate", ;
+        "LOGINTIMEOUTSECONDS" => "loginTimeoutSeconds", "QUERYTIMEOUTSECONDS" => "queryTimeoutSeconds" }
     LOCAL hFile := {=>}, hSeenSections := {=>}, hSeenKeys := {=>}
     LOCAL cSection := "", cProfile := "", cSectionID, cLine, cKey, cValue, cTarget
     LOCAL nStart := 1, nEnd, nLine := 0, nEqual, lHasSection := .F.
@@ -101,7 +102,13 @@ FUNCTION HBBridgeConfigINI( cContents, hDefaults, cError )
                 RETURN NIL
             ENDIF
             cTarget := hProfileKeys[ cKey ]
-            IF cTarget == "trustServerCertificate"
+            IF cTarget == "loginTimeoutSeconds" .OR. cTarget == "queryTimeoutSeconds"
+                IF Empty( cValue ) .OR. ! ( cValue == hb_ntos( Val( cValue ) ) )
+                    cError := "Invalid SQL timeout number at line " + hb_ntos( nLine ) + "."
+                    RETURN NIL
+                ENDIF
+                hFile[ "sqlProfiles" ][ cProfile ][ cTarget ] := Val( cValue )
+            ELSEIF cTarget == "trustServerCertificate"
                 IF ! ( Lower( cValue ) == "true" .OR. Lower( cValue ) == "false" )
                     cError := "INI logical values must be true or false at line " + hb_ntos( nLine ) + "."
                     RETURN NIL

@@ -87,6 +87,8 @@ executor. Choose one destination form and one authentication mode:
 | `Password` | `password` | Required, nonempty SQL password with `Authentication=sql`. |
 | `Encrypt` | `encrypt` | Optional: `optional`, `mandatory`, `strict`, mapped to ODBC `No`, `Yes`, `Strict`. Omission retains the driver's default. |
 | `TrustServerCertificate` | `trustServerCertificate` | Optional boolean: INI `true`/`false`, JSON `true`/`false`. |
+| `LoginTimeoutSeconds` | `loginTimeoutSeconds` | Optional nonnegative integer seconds for native ODBC login; omission retains the driver default and explicit `0` disables this timeout. |
+| `QueryTimeoutSeconds` | `queryTimeoutSeconds` | Optional nonnegative integer seconds for each native ODBC statement, including the separate page-count statement; omission retains the driver default and explicit `0` disables this timeout. |
 
 `Authentication=integrated` omits `Username` and `Password` entirely; even
 empty credential fields are rejected. It uses the hbBridge process identity
@@ -132,10 +134,53 @@ retries by weakening encryption or certificate checks. Driver/server support
 determines whether `strict` is usable. See [Microsoft's encryption settings](https://learn.microsoft.com/en-us/sql/connect/odbc/dsn-connection-string-attribute?view=sql-server-ver17#encrypt).
 
 Existing `Driver=mssql` plus `ConnectionString` (`connectionString` in JSON)
-remains accepted unchanged. It cannot be mixed with any structured field,
-including authentication, database or encryption options. Store any
+remains accepted unchanged. It may include the two timeout fields above,
+which are native attributes rather than connection-string entries. It cannot
+be mixed with structured connection fields, including authentication,
+database or encryption options. Store any
 credential-bearing connection string in the same private installation file.
 Structured fields provide configuration, without encrypted credential storage.
+
+<a id="native-mssql-timeouts"></a>
+
+### Native MSSQL timeouts
+
+These settings belong to the server's SQL profile, not `[hbBridge]` in the
+AppServer client INI. They work with a DSN, structured DSN-less connection or
+private `ConnectionString`. For example, add these optional lines to the
+selected `[SQL/profile_name]` section:
+
+~~~ini
+LoginTimeoutSeconds=5
+QueryTimeoutSeconds=30
+~~~
+
+Omit either key to leave that native attribute untouched. Zero explicitly
+disables that timeout; it differs from omission. INI uses canonical decimal
+integers and JSON uses numeric integers. Negative, fractional, text, null,
+logical and out-of-range values are rejected. The shared C validator uses the
+native ODBC capacity: login fits `SQLUINTEGER` (`0` to `4294967295`); query fits
+`SQLULEN`, capped at the JSON exact-integer boundary (`9007199254740991` on a
+64-bit build, `4294967295` on a 32-bit build). These are representation limits,
+not proof that a particular driver supports every value.
+
+The managed SDDODBC connector sets `SQL_ATTR_LOGIN_TIMEOUT` before connecting
+and reads it back both before and after connection. Each statement receives
+`SQL_ATTR_QUERY_TIMEOUT` before execution and its value is read back. If setting
+or reading an explicit attribute fails, or the driver substitutes a different
+value, that connection/statement fails and its handles are released. It never
+silently continues with a different timeout. These checks follow the native
+[connection attributes](https://learn.microsoft.com/en-us/sql/odbc/reference/syntax/sqlsetconnectattr-function?view=sql-server-ver17),
+[attribute readback](https://learn.microsoft.com/en-us/sql/odbc/reference/syntax/sqlgetconnectattr-function?view=sql-server-ver17)
+and [statement attributes](https://learn.microsoft.com/en-us/sql/odbc/reference/syntax/sqlsetstmtattr-function?view=sql-server-ver17).
+
+The driver enforces these native limits. A paged query and its separate
+`COUNT` each have their own statement timeout; connection, SQL mutex wait,
+materialization, serialization and transport are not one shared deadline.
+TCP `TimeoutMs`, NETIO timeout and HTTP client timeout remain separate budgets.
+A client disconnect does not demonstrate server-side cancellation. hbBridge
+provides no explicit cancellation API or request-wide SQL deadline in this
+implementation. SQLite rejects these MSSQL-only keys.
 
 After rebuilding, validate the completed private file without opening SQL:
 
@@ -165,12 +210,28 @@ backend** for MSSQL and SQLite. Later that day, manual
 **13 HTTP checks each**, threads 25976 and
 9916. Their convenience defaults select `MSSQL/pData` and `sqlite_demo` without
 changing generic client defaults. Integrated/service identities, HTTPS, Linux
-and broader failure/type cases remain pending; see [acceptance](acceptance.md).
+and broader type cases remain pending; see [acceptance](acceptance.md).
+
+On 2026-10-14, the dedicated real-MSSQL failure suite passed **46 checks, zero
+failures**, covering local/NETIO/TCP/HTTP failure envelopes and successful
+recovery, plus a native delayed-statement timeout. Run it explicitly with an
+installed driver of the hbBridge process architecture:
+
+~~~powershell
+./scripts/test-hbbridge-mssql.ps1 -Config C:/tmp/hbBridge.ini -Profile MSSQL/pData -Failures -FailureODBCDriver "ODBC Driver 18 for SQL Server"
+~~~
+
+The same M06 fixture subsequently passed local AppServer CLI execution with
+**38 TCP and 51 HTTP checks, zero failures**, after recompiling all 30 TLPP
+sources. These Windows results cover the selected failure/recovery cases;
+other drivers and Linux retain separate acceptance. See the
+[execution evidence and scope](acceptance.md#sql-native-timeouts-and-appserver-recovery-on-2026-10-14).
 
 The build stages the reviewed [SDDODBC patch](../config/patches/sddodbc.patch)
 without changing the pinned upstream source. It handles `SQL_NO_TOTAL` through
 incremental reads, uses the binary field flag and combines UTF-16 surrogate
-pairs when producing UTF-8. The native fixture covers long text/binary values,
+pairs when producing UTF-8. It also implements the optional native timeout
+attributes above. The native fixture covers long text/binary values,
 embedded NULs, empty values and NULLs. Transfer chunks impose no application
 payload ceiling; runtime memory and native driver capacities still apply.
 

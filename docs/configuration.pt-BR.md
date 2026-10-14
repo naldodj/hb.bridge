@@ -93,6 +93,8 @@ existente. Escolha uma forma de destino e um modo de autenticação:
 | `Password` | `password` | Senha SQL não vazia, obrigatória com `Authentication=sql`. |
 | `Encrypt` | `encrypt` | Opcional: `optional`, `mandatory`, `strict`, mapeados para ODBC `No`, `Yes`, `Strict`. A omissão mantém o padrão do driver. |
 | `TrustServerCertificate` | `trustServerCertificate` | Booleano opcional: INI `true`/`false`, JSON `true`/`false`. |
+| `LoginTimeoutSeconds` | `loginTimeoutSeconds` | Segundos inteiros não negativos, opcionais, para login ODBC nativo; a omissão mantém o padrão do driver e `0` explícito desativa esse timeout. |
+| `QueryTimeoutSeconds` | `queryTimeoutSeconds` | Segundos inteiros não negativos, opcionais, para cada instrução ODBC nativa, incluindo a contagem separada da página; a omissão mantém o padrão do driver e `0` explícito desativa esse timeout. |
 
 `Authentication=integrated` omite completamente `Username` e `Password`;
 campos de credenciais são rejeitados mesmo vazios. Usa a identidade do processo
@@ -140,10 +142,54 @@ certificado. O suporte do driver/servidor determina o uso de `strict`. Veja as
 [opções de criptografia Microsoft](https://learn.microsoft.com/en-us/sql/connect/odbc/dsn-connection-string-attribute?view=sql-server-ver17#encrypt).
 
 `Driver=mssql` com `ConnectionString` (`connectionString` no JSON) continua
-aceito sem alteração. Não pode ser combinado com nenhum campo estruturado,
-incluindo autenticação, banco ou criptografia. Guarde strings com credenciais
+aceito sem alteração. Pode incluir os dois campos de timeout acima, que são
+atributos nativos em vez de partes da string de conexão. Não pode ser combinado
+com campos estruturados da conexão, incluindo autenticação, banco ou
+criptografia. Guarde strings com credenciais
 no mesmo arquivo privado da instalação. Campos estruturados configuram a
 conexão, sem implementar armazenamento cifrado de credenciais.
+
+<a id="native-mssql-timeouts"></a>
+
+### Timeouts nativos MSSQL
+
+Essas opções pertencem ao perfil SQL do servidor, não à seção `[hbBridge]`
+do INI do cliente AppServer. Funcionam com DSN, conexão estruturada sem DSN
+ou `ConnectionString` privada. Por exemplo, acrescente estas linhas opcionais
+à seção `[SQL/profile_name]` escolhida:
+
+```ini
+LoginTimeoutSeconds=5
+QueryTimeoutSeconds=30
+```
+
+Omita cada chave para deixar seu atributo nativo intacto. Zero desativa
+explicitamente aquele timeout e difere da omissão. O INI usa inteiros decimais
+canônicos e o JSON usa inteiros numéricos. Valores negativos, fracionários,
+texto, nulo, booleanos e fora da faixa são rejeitados. O validador C compartilhado
+usa a capacidade nativa ODBC: login cabe em `SQLUINTEGER` (`0` a `4294967295`);
+consulta cabe em `SQLULEN`, limitado aos inteiros exatos do JSON
+(`9007199254740991` em build de 64 bits, `4294967295` em build de 32 bits).
+São limites de representação, sem garantir que cada driver aceite toda a faixa.
+
+O conector SDDODBC gerenciado define `SQL_ATTR_LOGIN_TIMEOUT` antes de conectar
+e lê seu valor tanto antes quanto depois da conexão. Cada instrução recebe
+`SQL_ATTR_QUERY_TIMEOUT` antes de executar e tem seu valor lido de volta.
+Se a definição ou leitura de um atributo explícito falhar, ou o driver
+substituir seu valor, a conexão/instrução falha e seus handles são liberados.
+Não continua silenciosamente com outro timeout. As verificações seguem os
+[atributos de conexão](https://learn.microsoft.com/en-us/sql/odbc/reference/syntax/sqlsetconnectattr-function?view=sql-server-ver17),
+a [leitura dos atributos](https://learn.microsoft.com/en-us/sql/odbc/reference/syntax/sqlgetconnectattr-function?view=sql-server-ver17)
+e os [atributos de instrução](https://learn.microsoft.com/en-us/sql/odbc/reference/syntax/sqlsetstmtattr-function?view=sql-server-ver17)
+nativos.
+
+O driver aplica esses limites nativos. Uma consulta paginada e seu `COUNT`
+separado têm, cada um, seu próprio timeout de instrução; conexão, espera pelo
+mutex SQL, materialização, serialização e transporte não formam um único prazo.
+`TimeoutMs` TCP, timeout NETIO e timeout do cliente HTTP continuam separados.
+A desconexão do cliente não comprova cancelamento no servidor. Esta implementação
+não oferece API explícita de cancelamento nem prazo SQL para a requisição inteira.
+SQLite rejeita essas chaves exclusivas do MSSQL.
 
 Após recompilar, valide o arquivo privado preenchido sem abrir SQL:
 
@@ -173,13 +219,29 @@ manuais de `U_HBBridgeHTTPTestMSSQL()` e
 `U_HBBridgeHTTPTestSQLite()` passaram nos **13 checks HTTP cada**, threads
 25976 e 9916. Seus padrões de conveniência selecionam `MSSQL/pData` e
 `sqlite_demo` sem alterar os padrões do cliente genérico. Identidades
-integrada/de serviço, HTTPS, Linux e cenários ampliados de falha/tipos
+integrada/de serviço, HTTPS, Linux e cenários ampliados de tipos
 permanecem pendentes; veja [homologação](acceptance.pt-BR.md).
+
+Em 2026-10-14, a suíte dedicada de falhas MSSQL reais passou em **46 checks,
+zero falhas**, cobrindo envelopes de falha e recuperação local/NETIO/TCP/HTTP,
+além do timeout nativo de uma instrução com atraso. Execute explicitamente
+com driver instalado na arquitetura do processo hbBridge:
+
+```powershell
+./scripts/test-hbbridge-mssql.ps1 -Config C:/tmp/hbBridge.ini -Profile MSSQL/pData -Failures -FailureODBCDriver "ODBC Driver 18 for SQL Server"
+```
+
+A mesma fixture M06 passou depois na execução local AppServer por CLI com
+**38 checks TCP e 51 HTTP, zero falhas**, após recompilar os 30 fontes TLPP.
+Esses resultados Windows cobrem os casos escolhidos de falha/recuperação;
+outros drivers e Linux mantêm aceite separado. Veja as
+[evidências e o escopo da execução](acceptance.pt-BR.md#sql-native-timeouts-and-appserver-recovery-on-2026-10-14).
 
 O build prepara o [patch SDDODBC](../config/patches/sddodbc.patch) revisado sem
 alterar o fonte upstream fixado. Ele trata `SQL_NO_TOTAL` por leitura
 incremental, usa a flag de campo binário e combina pares substitutos UTF-16
-ao produzir UTF-8. A fixture nativa cobre texto/binário longos, NULs embutidos,
+ao produzir UTF-8. Também implementa os atributos opcionais de timeout nativo
+acima. A fixture nativa cobre texto/binário longos, NULs embutidos,
 valores vazios e NULLs. Os chunks de transferência não impõem teto de payload
 da aplicação; memória do runtime e capacidades nativas do driver continuam valendo.
 

@@ -67,7 +67,11 @@ PROCEDURE HTTPTests( nFailures, nChecks )
     hConfig[ "adminPort" ] := HTTPFreePort()
     hConfig[ "netioRoot" ] := HBBridgeAbsolutePath( "http-netio-data", hb_cwd() )
     hConfig[ "netioPassword" ] := "http-native-test-only"
-    hConfig[ "sqlProfiles" ] := { "memory/HTTP" => { "driver" => "sqlite", "database" => ":memory:" } }
+    hConfig[ "sqlProfiles" ] := { "memory/HTTP" => { "driver" => "sqlite", "database" => ":memory:" }, ;
+        "missing/HTTP" => { "driver" => "sqlite", ;
+            "database" => HBBridgeAbsolutePath( "m06-http-missing.sqlite3", hb_cwd() ) }, ;
+        "odbc/HTTP" => { "driver" => "mssql", ;
+            "connectionString" => "DSN=__HBBridgeHTTPMissingDSN__;UID=m06-http-user;PWD=m06-http-secret;" } }
     /* Exercise native HTTP framing with character-indexed UTF8EX workers. */
     hb_cdpSelect( "UTF8EX" )
     hHost := HBBridgeHostStart( hConfig, @cError )
@@ -78,19 +82,19 @@ PROCEDURE HTTPTests( nFailures, nChecks )
     ENDIF
 
     BEGIN SEQUENCE WITH {| oError | Break( oError ) }
-        hResponse := HTTPRequest( hConfig[ "httpPort" ], "GET", "/api/v1/health", "", "" )
+        hResponse := HBBridgeHTTPTestRequest( hConfig[ "httpPort" ], "GET", "/api/v1/health", "", "" )
         HTTPAssert( hResponse[ "status" ] == 401 .AND. "Bearer" $ hResponse[ "headers" ], ;
             "HTTP service routes require bearer authentication", @nFailures, @nChecks )
-        hResponse := HTTPRequest( hConfig[ "httpPort" ], "GET", "/api/v1/health", "", cAdminAuth )
+        hResponse := HBBridgeHTTPTestRequest( hConfig[ "httpPort" ], "GET", "/api/v1/health", "", cAdminAuth )
         HTTPAssert( hResponse[ "status" ] == 401, ;
             "admin authentication cannot call data services", @nFailures, @nChecks )
-        hResponse := HTTPRequest( hConfig[ "httpPort" ], "GET", "/api/v1/health", "", cDataAuth )
+        hResponse := HBBridgeHTTPTestRequest( hConfig[ "httpPort" ], "GET", "/api/v1/health", "", cDataAuth )
         HTTPAssert( hResponse[ "status" ] == 200 .AND. hResponse[ "json" ][ "success" ], ;
             "native hbhttpd GET reaches the shared Zig Health service", @nFailures, @nChecks )
-        hResponse := HTTPRequest( hConfig[ "httpPort" ], "GET", "/api/v1/health", "", Lower( Left( cDataAuth, 6 ) ) + SubStr( cDataAuth, 7 ) )
+        hResponse := HBBridgeHTTPTestRequest( hConfig[ "httpPort" ], "GET", "/api/v1/health", "", Lower( Left( cDataAuth, 6 ) ) + SubStr( cDataAuth, 7 ) )
         HTTPAssert( hResponse[ "status" ] == 200, ;
             "HTTP bearer authentication scheme is case insensitive", @nFailures, @nChecks )
-        hResponse := HTTPRequest( hConfig[ "httpPort" ], "POST", "/api/v1/rpc", ;
+        hResponse := HBBridgeHTTPTestRequest( hConfig[ "httpPort" ], "POST", "/api/v1/rpc", ;
             '{"service":"Echo","params":{"tenantID":"caller-defined","branch":"caller-defined"}}', cDataAuth )
         HTTPAssert( hResponse[ "status" ] == 200 .AND. ;
             hResponse[ "json" ][ "params" ][ "tenantID" ] == "caller-defined", ;
@@ -99,137 +103,138 @@ PROCEDURE HTTPTests( nFailures, nChecks )
         hNative := netio_FuncExec( pNative, "HBBridge.Call", "Echo", hResponse[ "json" ][ "params" ] )
         HTTPAssert( hb_jsonEncode( hNative ) == hb_jsonEncode( hResponse[ "json" ] ), ;
             "HTTP and NETIO return the same service result", @nFailures, @nChecks )
-        hResponse := HTTPRequest( hConfig[ "httpPort" ], "POST", "/api/v1/services/Echo", ;
+        hResponse := HBBridgeHTTPTestRequest( hConfig[ "httpPort" ], "POST", "/api/v1/services/Echo", ;
             hb_jsonEncode( { "text" => cLarge } ), cDataAuth )
         HTTPAssert( hResponse[ "status" ] == 200 .AND. hResponse[ "json" ][ "params" ][ "text" ] == cLarge, ;
             "REST service route returns a large JSON body identically", @nFailures, @nChecks )
-        hResponse := HTTPRequest( hConfig[ "httpPort" ], "POST", "/api/v1/services/Echo", cUnicodeJSON, cDataAuth )
+        hResponse := HBBridgeHTTPTestRequest( hConfig[ "httpPort" ], "POST", "/api/v1/services/Echo", cUnicodeJSON, cDataAuth )
         HTTPAssert( hResponse[ "status" ] == 200 .AND. hResponse[ "json" ][ "params" ][ "text" ] == cUnicode, ;
             "REST preserves raw UTF-8 accents, CJK and supplementary characters", @nFailures, @nChecks )
         HTTPAssert( HTTPContentLength( hResponse ) == hb_BLen( hResponse[ "body" ] ) .AND. ;
             hb_BLen( hResponse[ "body" ] ) > Len( hResponse[ "body" ] ), ;
             "HTTP Content-Length counts bytes with UTF8EX workers", @nFailures, @nChecks )
-        hResponse := HTTPRequest( hConfig[ "httpPort" ], "POST", "/api/v1/rpc", ;
+        hResponse := HBBridgeHTTPTestRequest( hConfig[ "httpPort" ], "POST", "/api/v1/rpc", ;
             '{"service":"Echo","params":' + cUnicodeJSON + '}', cDataAuth )
         HTTPAssert( hResponse[ "status" ] == 200 .AND. hResponse[ "json" ][ "params" ][ "text" ] == cUnicode, ;
             "JSON RPC preserves UTF-8 through the shared dispatcher", @nFailures, @nChecks )
-        hResponse := HTTPRequest( hConfig[ "httpPort" ], "POST", "/api/v1/services/Echo", ;
+        hResponse := HBBridgeHTTPTestRequest( hConfig[ "httpPort" ], "POST", "/api/v1/services/Echo", ;
             '{"text":"\u00e9\u4e2d\u6587"}', cDataAuth )
         HTTPAssert( hResponse[ "status" ] == 200 .AND. ;
             hResponse[ "json" ][ "params" ][ "text" ] == hb_HexToStr( "C3A9E4B8ADE69687" ) .AND. ;
             HTTPContentLength( hResponse ) == hb_BLen( hResponse[ "body" ] ), ;
             "JSON Unicode escapes decode to UTF-8 with exact response framing", @nFailures, @nChecks )
-        hResponse := HTTPRequest( hConfig[ "httpPort" ], "POST", "/api/v1/services/Echo", ;
+        hResponse := HBBridgeHTTPTestRequest( hConfig[ "httpPort" ], "POST", "/api/v1/services/Echo", ;
             '{"text":"\u00e9\u4e2d\u6587\ud83d\ude00"}', cDataAuth )
         HTTPAssert( hResponse[ "status" ] == 200 .AND. hResponse[ "json" ][ "params" ][ "text" ] == cUnicode .AND. ;
             HTTPContentLength( hResponse ) == hb_BLen( hResponse[ "body" ] ), ;
             "REST surrogate pairs match raw supplementary UTF-8 bytes", @nFailures, @nChecks )
-        hResponse := HTTPRequest( hConfig[ "httpPort" ], "POST", "/api/v1/rpc", ;
+        hResponse := HBBridgeHTTPTestRequest( hConfig[ "httpPort" ], "POST", "/api/v1/rpc", ;
             '{"service":"Echo","params":{"text":"\u00e9\u4e2d\u6587\uD83D\uDE00"}}', cDataAuth )
         HTTPAssert( hResponse[ "status" ] == 200 .AND. hResponse[ "json" ][ "params" ][ "text" ] == cUnicode, ;
             "JSON RPC normalizes mixed-case surrogate pairs before shared dispatch", @nFailures, @nChecks )
-        hResponse := HTTPRequest( hConfig[ "httpPort" ], "POST", "/api/v1/services/Echo", ;
+        hResponse := HBBridgeHTTPTestRequest( hConfig[ "httpPort" ], "POST", "/api/v1/services/Echo", ;
             '{"\ud83d\ude00":"emoji-key"}', cDataAuth )
         HTTPAssert( hResponse[ "status" ] == 200 .AND. ;
             hResponse[ "json" ][ "params" ][ hb_HexToStr( "F09F9880" ) ] == "emoji-key", ;
             "surrogate normalization applies to JSON hash keys", @nFailures, @nChecks )
-        hResponse := HTTPRequest( hConfig[ "httpPort" ], "POST", "/api/v1/services/Echo", ;
+        hResponse := HBBridgeHTTPTestRequest( hConfig[ "httpPort" ], "POST", "/api/v1/services/Echo", ;
             '{"text":"\\ud83d\\ude00"}', cDataAuth )
         HTTPAssert( hResponse[ "status" ] == 200 .AND. hResponse[ "json" ][ "params" ][ "text" ] == "\ud83d\ude00", ;
             "JSON escaped backslashes preserve literal Unicode escape text", @nFailures, @nChecks )
-        hResponse := HTTPRequest( hConfig[ "httpPort" ], "POST", "/api/v1/services/Echo", ;
+        hResponse := HBBridgeHTTPTestRequest( hConfig[ "httpPort" ], "POST", "/api/v1/services/Echo", ;
             '{"text":"\\\ud83d\ude00\"after"}', cDataAuth )
         HTTPAssert( hResponse[ "status" ] == 200 .AND. ;
             hResponse[ "json" ][ "params" ][ "text" ] == "\" + hb_HexToStr( "F09F9880" ) + '"after', ;
             "surrogate normalization preserves escaped backslash and quote boundaries", @nFailures, @nChecks )
-        hResponse := HTTPRequest( hConfig[ "httpPort" ], "POST", "/api/v1/rpc", ;
+        hResponse := HBBridgeHTTPTestRequest( hConfig[ "httpPort" ], "POST", "/api/v1/rpc", ;
             '{"service":"Health","params":"\ud800"}', cDataAuth )
         HTTPAssert( hResponse[ "status" ] == 400 .AND. hResponse[ "json" ][ "code" ] == "INVALID_JSON", ;
             "orphan high surrogate is rejected before a parameter-ignoring service", @nFailures, @nChecks )
-        hResponse := HTTPRequest( hConfig[ "httpPort" ], "POST", "/api/v1/services/Health", ;
+        hResponse := HBBridgeHTTPTestRequest( hConfig[ "httpPort" ], "POST", "/api/v1/services/Health", ;
             '"\udc00"', cDataAuth )
         HTTPAssert( hResponse[ "status" ] == 400 .AND. hResponse[ "json" ][ "code" ] == "INVALID_JSON", ;
             "orphan low surrogate is rejected before REST dispatch", @nFailures, @nChecks )
-        hResponse := HTTPRequest( hConfig[ "httpPort" ], "POST", "/api/v1/services/Health", ;
+        hResponse := HBBridgeHTTPTestRequest( hConfig[ "httpPort" ], "POST", "/api/v1/services/Health", ;
             '"\ude00\ud83d"', cDataAuth )
         HTTPAssert( hResponse[ "status" ] == 400 .AND. hResponse[ "json" ][ "code" ] == "INVALID_JSON", ;
             "inverted surrogate pair is rejected before REST dispatch", @nFailures, @nChecks )
-        hResponse := HTTPRequest( hConfig[ "httpPort" ], "POST", "/api/v1/services/Echo", ;
+        hResponse := HBBridgeHTTPTestRequest( hConfig[ "httpPort" ], "POST", "/api/v1/services/Echo", ;
             cUnicodeJSON + " x", cDataAuth )
         HTTPAssert( hResponse[ "status" ] == 400 .AND. hResponse[ "json" ][ "code" ] == "INVALID_JSON", ;
             "REST rejects trailing bytes after multibyte JSON", @nFailures, @nChecks )
-        hResponse := HTTPRequest( hConfig[ "httpPort" ], "POST", "/api/v1/rpc", ;
+        hResponse := HBBridgeHTTPTestRequest( hConfig[ "httpPort" ], "POST", "/api/v1/rpc", ;
             '{"service":"Echo","params":' + cUnicodeJSON + '} x', cDataAuth )
         HTTPAssert( hResponse[ "status" ] == 400 .AND. hResponse[ "json" ][ "code" ] == "INVALID_JSON", ;
             "shared JSON RPC rejects trailing bytes after multibyte JSON", @nFailures, @nChecks )
         cInvalidBytes := hb_HexToStr( "C0AF" )
-        hResponse := HTTPRequest( hConfig[ "httpPort" ], "POST", "/api/v1/services/Echo", ;
+        hResponse := HBBridgeHTTPTestRequest( hConfig[ "httpPort" ], "POST", "/api/v1/services/Echo", ;
             '{"text":"' + cInvalidBytes + '"}', cDataAuth )
         HTTPAssert( hResponse[ "status" ] == 400 .AND. hResponse[ "json" ][ "code" ] == "INVALID_UTF8", ;
             "HTTP rejects overlong UTF-8 without changing payload bytes", @nFailures, @nChecks )
-        hResponse := HTTPRequest( hConfig[ "httpPort" ], "POST", "/api/v1/rpc", ;
+        hResponse := HBBridgeHTTPTestRequest( hConfig[ "httpPort" ], "POST", "/api/v1/rpc", ;
             '{"service":"Echo","params":{"text":"' + hb_HexToStr( "EDA080" ) + '"}}', cDataAuth )
         HTTPAssert( hResponse[ "status" ] == 400 .AND. hResponse[ "json" ][ "code" ] == "INVALID_UTF8", ;
             "HTTP rejects raw UTF-8 surrogate codepoints", @nFailures, @nChecks )
-        hResponse := HTTPRequest( hConfig[ "httpPort" ], "POST", "/api/v1/services/Echo", ;
+        hResponse := HBBridgeHTTPTestRequest( hConfig[ "httpPort" ], "POST", "/api/v1/services/Echo", ;
             cUnicodeJSON + Chr( 0 ), cDataAuth )
         HTTPAssert( hResponse[ "status" ] == 400 .AND. hResponse[ "json" ][ "code" ] == "INVALID_JSON", ;
             "HTTP does not hide a NUL byte following a JSON value", @nFailures, @nChecks )
-        hResponse := HTTPRequest( hConfig[ "httpPort" ], "POST", "/api/v1/services/RPCRDD.Query", ;
+        hResponse := HBBridgeHTTPTestRequest( hConfig[ "httpPort" ], "POST", "/api/v1/services/RPCRDD.Query", ;
             '{"alias":"memory/HTTP","sql":"SELECT 41 AS caller_value"}', cDataAuth )
         HTTPAssert( hResponse[ "status" ] == 200 .AND. ;
             hResponse[ "json" ][ "rows" ][ "1" ][ "CALLER_VALUE" ] == 41, ;
             "HTTP executes generic SQL using the explicit opaque profile alias", @nFailures, @nChecks )
-        hResponse := HTTPRequest( hConfig[ "httpPort" ], "POST", "/api/v1/services/RPCRDD.Query", ;
+        M6HTTPSQLFailures( hConfig[ "httpPort" ], cDataAuth, @nFailures, @nChecks )
+        hResponse := HBBridgeHTTPTestRequest( hConfig[ "httpPort" ], "POST", "/api/v1/services/RPCRDD.Query", ;
             hb_jsonEncode( { "alias" => "memory/HTTP", "sql" => "SELECT '" + cUnicode + "' AS caller_text" }, .F., "UTF8" ), cDataAuth )
         HTTPAssert( hResponse[ "status" ] == 200 .AND. ;
             hResponse[ "json" ][ "rows" ][ "1" ][ "CALLER_TEXT" ] == cUnicode, ;
             "HTTP SQLite query preserves UTF-8 text provided by the caller", @nFailures, @nChecks )
-        hResponse := HTTPRequest( hConfig[ "httpPort" ], "POST", "/api/v1/services/ADDON.Execute", ;
+        hResponse := HBBridgeHTTPTestRequest( hConfig[ "httpPort" ], "POST", "/api/v1/services/ADDON.Execute", ;
             '{"module":"examples/hbbridgesampleaddon.hb","params":{}}', cDataAuth )
         HTTPAssert( hResponse[ "status" ] == 200 .AND. hResponse[ "json" ][ "success" ], ;
             "HTTP uses the existing HRB addon executor", @nFailures, @nChecks )
-        hResponse := HTTPRequest( hConfig[ "httpPort" ], "GET", "/api/v1/services", "", cDataAuth )
+        hResponse := HBBridgeHTTPTestRequest( hConfig[ "httpPort" ], "GET", "/api/v1/services", "", cDataAuth )
         HTTPAssert( hResponse[ "status" ] == 200 .AND. hResponse[ "json" ][ "success" ], ;
             "HTTP advertises permitted shared services", @nFailures, @nChecks )
-        hResponse := HTTPRequest( hConfig[ "httpPort" ], "POST", "/api/v1/rpc", ;
+        hResponse := HBBridgeHTTPTestRequest( hConfig[ "httpPort" ], "POST", "/api/v1/rpc", ;
             '{"service":"Admin.Status"}', cDataAuth )
         HTTPAssert( hResponse[ "status" ] == 403 .AND. hResponse[ "json" ][ "code" ] == "FORBIDDEN", ;
             "data RPC cannot bypass administration permissions", @nFailures, @nChecks )
-        hResponse := HTTPRequest( hConfig[ "httpPort" ], "GET", "/admin/status", "", cDataAuth )
+        hResponse := HBBridgeHTTPTestRequest( hConfig[ "httpPort" ], "GET", "/admin/status", "", cDataAuth )
         HTTPAssert( hResponse[ "status" ] == 401 .AND. "Basic" $ hResponse[ "headers" ], ;
             "HTTP data token cannot administer the host", @nFailures, @nChecks )
-        hResponse := HTTPRequest( hConfig[ "httpPort" ], "GET", "/admin/status", "", cAdminAuth )
+        hResponse := HBBridgeHTTPTestRequest( hConfig[ "httpPort" ], "GET", "/admin/status", "", cAdminAuth )
         HTTPAssert( hResponse[ "status" ] == 200 .AND. Len( hResponse[ "json" ][ "endpoints" ] ) == 4 .AND. ;
             hResponse[ "json" ][ "endpoints" ][ "http" ][ "rejected" ] >= 3 .AND. ;
             ! ( "test-only" $ hResponse[ "body" ] ), ;
             "web administration reports all endpoints and auth counters without secrets", @nFailures, @nChecks )
-        hResponse := HTTPRequest( hConfig[ "httpPort" ], "GET", "/admin/", "", cAdminAuth )
+        hResponse := HBBridgeHTTPTestRequest( hConfig[ "httpPort" ], "GET", "/admin/", "", cAdminAuth )
         HTTPAssert( hResponse[ "status" ] == 200 .AND. "hbBridge administration" $ hResponse[ "body" ] .AND. ;
             "Content-Security-Policy" $ hResponse[ "headers" ], ;
             "authenticated administration panel renders native endpoint status", @nFailures, @nChecks )
-        hResponse := HTTPRequest( hConfig[ "httpPort" ], "POST", "/api/v1/rpc", "{", cDataAuth )
+        hResponse := HBBridgeHTTPTestRequest( hConfig[ "httpPort" ], "POST", "/api/v1/rpc", "{", cDataAuth )
         HTTPAssert( hResponse[ "status" ] == 400 .AND. hResponse[ "json" ][ "code" ] == "INVALID_JSON", ;
             "invalid JSON returns a structured HTTP error", @nFailures, @nChecks )
-        hResponse := HTTPRequest( hConfig[ "httpPort" ], "POST", "/api/v1/services/Echo", "{} extra", cDataAuth )
+        hResponse := HBBridgeHTTPTestRequest( hConfig[ "httpPort" ], "POST", "/api/v1/services/Echo", "{} extra", cDataAuth )
         HTTPAssert( hResponse[ "status" ] == 400, "REST rejects trailing JSON content", @nFailures, @nChecks )
-        hResponse := HTTPRequest( hConfig[ "httpPort" ], "POST", "/api/v1/rpc", "{}", cDataAuth, "text/plain" )
+        hResponse := HBBridgeHTTPTestRequest( hConfig[ "httpPort" ], "POST", "/api/v1/rpc", "{}", cDataAuth, "text/plain" )
         HTTPAssert( hResponse[ "status" ] == 415, "HTTP rejects unsupported request media", @nFailures, @nChecks )
-        hResponse := HTTPRequest( hConfig[ "httpPort" ], "POST", "/api/v1/rpc", "", cDataAuth, ;
+        hResponse := HBBridgeHTTPTestRequest( hConfig[ "httpPort" ], "POST", "/api/v1/rpc", "", cDataAuth, ;
             "application/json", "Transfer-Encoding: chunked" )
         HTTPAssert( hResponse[ "status" ] == 400, ;
             "native HTTP rejects unsupported transfer coding before dispatch", @nFailures, @nChecks )
-        hResponse := HTTPRequest( hConfig[ "httpPort" ], "POST", "/api/v1/rpc", "", cDataAuth, ;
+        hResponse := HBBridgeHTTPTestRequest( hConfig[ "httpPort" ], "POST", "/api/v1/rpc", "", cDataAuth, ;
             "application/json", "Content-Length: 1" )
         HTTPAssert( hResponse[ "status" ] == 400, ;
             "native HTTP rejects duplicate Content-Length headers", @nFailures, @nChecks )
-        hResponse := HTTPRequest( hConfig[ "httpPort" ], "POST", "/api/v1/rpc", "", cDataAuth, ;
+        hResponse := HBBridgeHTTPTestRequest( hConfig[ "httpPort" ], "POST", "/api/v1/rpc", "", cDataAuth, ;
             "application/json", "", "1junk" )
         HTTPAssert( hResponse[ "status" ] == 400, ;
             "native HTTP rejects nondecimal Content-Length without waiting for a body", @nFailures, @nChecks )
-        hResponse := HTTPRequest( hConfig[ "httpPort" ], "GET", "/api/v1/rpc", "", cDataAuth )
+        hResponse := HBBridgeHTTPTestRequest( hConfig[ "httpPort" ], "GET", "/api/v1/rpc", "", cDataAuth )
         HTTPAssert( hResponse[ "status" ] == 405, "RPC route advertises the required POST method", @nFailures, @nChecks )
-        hResponse := HTTPRequest( hConfig[ "httpPort" ], "POST", "/api/v1/rpc", ;
+        hResponse := HBBridgeHTTPTestRequest( hConfig[ "httpPort" ], "POST", "/api/v1/rpc", ;
             '{"service":"NoSuchService"}', cDataAuth )
         HTTPAssert( hResponse[ "status" ] == 404, "unknown service maps to HTTP 404", @nFailures, @nChecks )
         FOR nIndex := 1 TO 8
@@ -278,16 +283,16 @@ PROCEDURE HTTPTests( nFailures, nChecks )
     hHost := HBBridgeHostStart( hConfig, @cError )
     HTTPAssert( hHost != NIL, "HTTP and native endpoints restart after stop", @nFailures, @nChecks )
     IF hHost != NIL
-        hResponse := HTTPRequest( hConfig[ "httpPort" ], "GET", "/api/v1/health", "", ;
+        hResponse := HBBridgeHTTPTestRequest( hConfig[ "httpPort" ], "GET", "/api/v1/health", "", ;
             "Bearer http-service-test-only" + hb_HexToStr( "C3AA" ) )
         HTTPAssert( hResponse[ "status" ] == 401, ;
             "authentication compares every credential byte under UTF8EX", @nFailures, @nChecks )
-        hResponse := HTTPRequest( hConfig[ "httpPort" ], "POST", "/api/v1/services/Core.Upper", ;
+        hResponse := HBBridgeHTTPTestRequest( hConfig[ "httpPort" ], "POST", "/api/v1/services/Core.Upper", ;
             '"' + hb_HexToStr( "C3A9" ) + '"', cDataAuth )
         HTTPAssert( hResponse[ "status" ] == 200 .AND. ;
             hResponse[ "json" ][ "result" ] == hb_HexToStr( "C389" ), ;
             "HTTP selects UTF8EX for native executor semantics with valid credential bytes", @nFailures, @nChecks )
-        hResponse := HTTPRequest( hConfig[ "httpPort" ], "GET", "/admin/status", "", cAdminAuth )
+        hResponse := HBBridgeHTTPTestRequest( hConfig[ "httpPort" ], "GET", "/admin/status", "", cAdminAuth )
         HTTPAssert( hResponse[ "status" ] == 403 .AND. HB_ISHASH( hResponse[ "json" ] ) .AND. ;
             hResponse[ "json" ][ "code" ] == "ADMIN_DISABLED", ;
             "web administration remains disabled without the separate admin secret", @nFailures, @nChecks )
@@ -314,8 +319,70 @@ PROCEDURE HTTPTests( nFailures, nChecks )
     hb_cdpSelect( cPreviousCodepage )
 RETURN
 
+STATIC PROCEDURE M6HTTPSQLFailures( nPort, cAuthorization, nFailures, nChecks )
+
+    LOCAL hCases, hCase, hResponse, hResult, cName, cBody
+    LOCAL hRecovery := { "alias" => "memory/HTTP", "sql" => "SELECT 77 AS recovery_id" }
+
+    hCases := { "invalidSQL" => { "params" => { "alias" => "memory/HTTP", ;
+            "sql" => "SELECT * FROM m06_http_private_sql_marker" }, ;
+            "code" => "QUERY_FAILED", "error" => "Could not open or read the SQL query result." }, ;
+        "unknownProfile" => { "params" => { "alias" => "m06_http_private_profile_marker", "sql" => "SELECT 1" }, ;
+            "code" => "PROFILE_NOT_FOUND", "error" => "Connection profile is not configured." }, ;
+        "missingDatabase" => { "params" => { "alias" => "missing/HTTP", "sql" => "SELECT 1" }, ;
+            "code" => "CONNECTION_FAILED", "error" => "Database connection is unavailable." }, ;
+        "missingODBC" => { "params" => { "alias" => "odbc/HTTP", "sql" => "SELECT 1" }, ;
+            "code" => "CONNECTION_FAILED", "error" => "Database connection is unavailable." } }
+    FOR EACH hCase IN hCases
+        cName := hCase:__enumKey()
+        cBody := hb_jsonEncode( { "service" => "RPCRDD.Query", "params" => hCase[ "params" ] } )
+        hResponse := HBBridgeHTTPTestRequest( nPort, "POST", "/api/v1/rpc", cBody, cAuthorization )
+        hResult := hResponse[ "json" ]
+        HTTPAssert( hResponse[ "status" ] == 500 .AND. M6HTTPSQLSafeFailure( hResult, hCase ), ;
+            "HTTP RPC SQL failure has a safe envelope without partial data: " + cName, @nFailures, @nChecks )
+        hResponse := HBBridgeHTTPTestRequest( nPort, "POST", "/api/v1/rpc", ;
+            hb_jsonEncode( { "service" => "RPCRDD.Query", "params" => hRecovery } ), cAuthorization )
+        HTTPAssert( hResponse[ "status" ] == 200 .AND. M6HTTPSQLRecovered( hResponse[ "json" ] ), ;
+            "HTTP RPC SQL recovers after each failure: " + cName, @nFailures, @nChecks )
+        hResponse := HBBridgeHTTPTestRequest( nPort, "POST", "/api/v1/services/RPCRDD.Query", ;
+            hb_jsonEncode( hCase[ "params" ] ), cAuthorization )
+        HTTPAssert( hResponse[ "status" ] == 500 .AND. ;
+            M6HTTPSQLSafeFailure( hResponse[ "json" ], hCase ), ;
+            "HTTP REST SQL failure matches the RPC envelope: " + cName, @nFailures, @nChecks )
+        hResponse := HBBridgeHTTPTestRequest( nPort, "POST", "/api/v1/services/RPCRDD.Query", ;
+            hb_jsonEncode( hRecovery ), cAuthorization )
+        HTTPAssert( hResponse[ "status" ] == 200 .AND. M6HTTPSQLRecovered( hResponse[ "json" ] ), ;
+            "HTTP REST SQL recovers after each failure: " + cName, @nFailures, @nChecks )
+    NEXT
+
+RETURN
+
+STATIC FUNCTION M6HTTPSQLSafeFailure( hResult, hCase )
+    IF ! HB_ISHASH( hResult )
+        RETURN .F.
+    ENDIF
+RETURN Len( hResult ) == 4 .AND. hb_HGetDef( hResult, "success", .T. ) == .F. .AND. ;
+    hb_HGetDef( hResult, "code", "" ) == hCase[ "code" ] .AND. ;
+    hb_HGetDef( hResult, "error", "" ) == hCase[ "error" ] .AND. ;
+    hb_HGetDef( hResult, "message", NIL ) == ""
+
+STATIC FUNCTION M6HTTPSQLRecovered( hResult )
+    IF ! HB_ISHASH( hResult ) .OR. hb_HGetDef( hResult, "success", .F. ) != .T.
+        RETURN .F.
+    ENDIF
+    IF ! HB_ISHASH( hb_HGetDef( hResult, "rows", NIL ) ) .OR. ;
+        ! HB_ISHASH( hb_HGetDef( hResult, "header", NIL ) )
+        RETURN .F.
+    ENDIF
+    IF ! HB_ISHASH( hb_HGetDef( hResult[ "rows" ], "1", NIL ) )
+        RETURN .F.
+    ENDIF
+RETURN hb_HGetDef( hResult, "rowCount", 0 ) == 1 .AND. Len( hResult[ "rows" ] ) == 1 .AND. ;
+    Len( hResult[ "header" ] ) == 1 .AND. ;
+    hb_HGetDef( hResult[ "rows" ][ "1" ], "RECOVERY_ID", NIL ) == 77
+
 STATIC FUNCTION HTTPParallelEcho( nPort, nIndex, cAuthorization )
-RETURN HTTPRequest( nPort, "POST", "/api/v1/services/Echo", ;
+RETURN HBBridgeHTTPTestRequest( nPort, "POST", "/api/v1/services/Echo", ;
     hb_jsonEncode( { "index" => nIndex } ), cAuthorization )[ "json" ]
 
 STATIC PROCEDURE HTTPDribble( hSocket, hState )
@@ -351,7 +418,7 @@ STATIC FUNCTION HTTPContentLength( hResponse )
     ENDIF
 RETURN Val( hb_BSubStr( hResponse[ "headers" ], nStart + 16 ) )
 
-STATIC FUNCTION HTTPRequest( nPort, cMethod, cPath, cBody, cAuthorization, cContentType, cExtraHeaders, cLengthText )
+FUNCTION HBBridgeHTTPTestRequest( nPort, cMethod, cPath, cBody, cAuthorization, cContentType, cExtraHeaders, cLengthText )
 
     LOCAL hSocket := hb_socketOpen(), cRequest, cResponse := "", cBuffer := Space( 65536 )
     LOCAL nSent := 0, nCount, nSeparator, hResponse := { "status" => 0, "body" => "", "headers" => "", "json" => NIL }

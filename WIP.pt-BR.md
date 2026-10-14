@@ -12,11 +12,11 @@ registra resultados verificados; ChangeLog e Git preservam o histórico.
 | Item | Valor atual |
 | --- | --- |
 | ID | `001-mssql-acceptance` |
-| Abertura / atualização | 2026-10-07 / 2026-10-13 |
-| Situação | MSSQL nativo: 92 checks; Protheus TCP: 29 e HTTP: 13 em cada banco MSSQL/SQLite. D02 homologada: dataset 67 checks/31 chamadas e helpers 12 checks. Pacote permanece aberto. |
+| Abertura / atualização | 2026-10-07 / 2026-10-14 |
+| Situação | MSSQL nativo: 92 checks; Protheus TCP: 29 e HTTP: 13 em cada banco MSSQL/SQLite. D02 homologada: dataset 67 checks/31 chamadas e helpers 12 checks. M06 homologada: nativo 46, AppServer CLI e manual TCP 38/HTTP 51; regressão 636. Pacote permanece aberto. |
 | Objetivo | Homologar RPCRDD.Query/dataset existentes em banco MSSQL real identificado, por Harbour, TCP Protheus e HTTP Protheus. |
 | Referência do produto | Código publicado `50e1c65`; checkout na abertura `bce52d2` inclui atualização do badge de clones. |
-| Próxima tarefa | D03: corrigir e homologar integridade UTF-8/FLOAT; depois retomar M06. |
+| Próxima tarefa | M07: isolamento e liberação de perfis/recursos sob concorrência. Integridade D03 continua pendente; automação de metadados decimais adiada. |
 
 ### Decisões já tomadas
 
@@ -38,6 +38,10 @@ registra resultados verificados; ChangeLog e Git preservam o histórico.
   com chamadas concorrentes; este pacote não promete execução SQL paralela.
 - Manter capacidades reais do runtime e políticas configuráveis, sem teto
   fixo de payload de prova de conceito nem novo transporte.
+- Prioridade ajustada em 2026-10-13: adiar addons opcionais de metadados
+  Protheus e reescrita decimal/CAST automática. Manter CAST no SQL do chamador
+  e retomar falhas/recuperação independentes de M06. D03 UTF-8/FLOAT continua
+  aberta; o pacote exige seu aceite de integridade, sem presumir correção por CAST.
 
 ### Ponto de partida verificado
 
@@ -126,6 +130,14 @@ constatações de aceite, sem motivo para repetir o inventário concluído.
   exato/metadados nativos versus lógicos do chamador sem consultas ERP implícitas.
   Veja [constatações e contrato](docs/dataset.pt-BR.md). Os aceites ASCII/DECIMAL
   anteriores não homologam esses casos recém-identificados.
+  As observações de apresentação em 2026-10-13 mantêm o exemplo HTTP funcional
+  e validação desktop ampliada. Separar preservação FLOAT genérica da escala
+  DECIMAL de negócio definida pelo chamador; CAST é projeção disponível,
+  sem ser pré-requisito para transporte FLOAT genérico. Metadados lógicos
+  explícitos seguem como extensão proposta. Veja a [análise](docs/dataset.pt-BR.md#escala-de-negócio-e-float-bruto-análise-em-2026-10-13).
+  Addons de metadados e reescritor opcional da projeção SQL em TLPP/Zig adiados;
+  sua [avaliação](docs/dataset.pt-BR.md#addon-de-metadados-e-reescrita-sql-adiados)
+  não adiciona API/dependência nem bloqueia casos independentes de M06.
 - [x] **S01 — Ampliar desenho de credenciais.** Abranger SQL, NETIO/admin e
   HTTP no hbBridge e segredos cliente locais do AppServer, chaves externas por
   instalação, provedores portáveis e suporte TLPP verificado separadamente.
@@ -152,10 +164,22 @@ constatações de aceite, sem motivo para repetir o inventário concluído.
   [U_HBBridgeHTTPTest](src/tlpp/tests/protheus/hbbridge.http.test/hbbridge.http.test.tlpp) com o mesmo
   alias MSSQL explícito e dataset comum. Conferir perfil/backend escolhido,
   valores e páginas; sucesso HTTP genérico não basta.
-- [ ] **M06 — Verificar falhas e recuperação.** SQL inválido, perfil desconhecido,
-  conexão indisponível controlada, timeout nativo aplicável, erros sem segredos
-  e consulta seguinte bem-sucedida. Registrar chamadas de driver não
-  interrompíveis; timeout/desconexão do cliente não significa cancelamento servidor.
+- [x] **M06 — Verificar falhas e recuperação.** Homologada em 2026-10-14:
+  SQL inválido, perfil desconhecido, porta loopback reservada sem listener,
+  timeout nativo MSSQL de um segundo por instrução, erros seguros exatos e
+  recuperação seguinte. Nativo local/NETIO/TCP/HTTP: **46 checks**; execução
+  automatizada do RPO no AppServer CLI: **38 TCP / 51 HTTP checks**, cada
+  transporte com 21 chamadas; **zero falhas**, saída 0. Regressão padrão:
+  **636 checks**; repetição MSSQL nativa: **92**. Compilados os 30 fontes TLPP
+  com zero erros de fonte. A validação manual AppServer às 14:30:50 São Paulo,
+  thread 13796, também aprovou todos os **38 TCP / 51 HTTP checks**, resolvendo
+  as sete falhas anteriores por transporte. [Escopo/evidências manuais](docs/acceptance.pt-BR.md#manual-protheus-failure-recovery-on-2026-10-14). Veja
+  [escopo, artefatos e limitações](docs/acceptance.pt-BR.md#sql-native-timeouts-and-appserver-recovery-on-2026-10-14)
+  e o [guia de testes](src/tlpp/tests/protheus/hbbridge.failure.test/README.pt-BR.md).
+  Timeouts opcionais de login/instrução pertencem ao perfil MSSQL; zero
+  desativa a opção nativa e omissão preserva o padrão do driver. Cada instrução,
+  inclusive COUNT, tem timeout próprio. Isso não impõe prazo global à requisição
+  nem implementa cancelamento após timeout/desconexão do cliente.
 - [ ] **M07 — Verificar concorrência e liberação.** Intercalar consultas/perfis
   e conferir restauração de workarea/conexão, ausência de mistura de resultados
   e limpeza após sucesso/falha. Preservar o contrato de sincronização atual.
@@ -227,8 +251,9 @@ sem mistura de resultados. Evidências:
 `tmp/mssql-native-normalized-20261008.log`. M03 concluída neste alvo Windows.
 A referência do núcleo leu 1000 linhas constantes em três execuções:
 31/32/31 ms, total 94 ms, concorrência 1, incluindo conexão/materialização/
-desconexão; memória não medida. M06/M07 têm evidência parcial; conexão
-indisponível/timeout nativo controlados e isolamento ampliado de perfis faltam.
+desconexão; memória não medida. Naquela etapa M06/M07 tinham evidência parcial.
+M06 tem aceite posterior em 2026-10-14; isolamento ampliado de perfis de M07
+continua pendente.
 M08 ainda exige TCP/HTTP e memória. A regressão padrão passou em **566 checks,
 zero falhas/sem skips**: `tmp/tests-f84004277a8d4cc2905131f706a1e181/results.log`.
 
@@ -254,10 +279,21 @@ segundos inteiros e não substitui as medições de M08. Sem log de compilador,
 argumentos explícitos da chamada ou hash do artefato servidor fornecidos.
 HTTPS, transporte ampliado de tipos nativos e Linux têm aceites separados.
 
-Progresso/evidência: P01/P02/F01/F02/D02 e M01–M05 concluídas nos casos exercitados.
-Tratar as correções de integridade D03 antes de retomar M06 com conexão
-indisponível/timeout nativo controlados, erros sanitizados e recuperação;
-SQL inválido/perfil desconhecido já têm evidências no núcleo e TCP.
+Progresso/evidência: P01/P02/F01/F02/D02 e M01–M06 concluídas nos casos exercitados.
+O aceite automatizado TCP/HTTP no AppServer em 2026-10-14 sucede a recompilação;
+passaram a suíte nativa de falhas, regressão padrão e repetição MSSQL de 92 checks.
+A nova consulta identifica SQL Server **16.0.1210.3**; 16.0.1200.5 permanece
+como resultado histórico de 2026-10-08.
+O teste anterior no servidor comum teve sete falhas por transporte porque
+seu INI não continha os aliases da fixture; consultas confirmaram PROFILE_NOT_FOUND.
+A execução manual posterior às 14:30:50 São Paulo, thread 13796, aprovou todos
+os 38 TCP/51 HTTP checks e resolve aquela rodada no escopo de M06. Diagnósticos
+nativos de handshake permanecem registrados sem causa/resolução comprovada;
+não foram inferidos duração precisa nem acionamento por interface gráfica.
+Retomar M07 com perfis concorrentes, restauração e liberação de recursos do
+chamador pelo executor compartilhado. Preservar o mutex SQL e distinguir
+requisições intercaladas de execução paralela no banco. Integridade D03 continua
+pendente após o ajuste explícito da prioridade, mantendo CAST no chamador.
 Sem nova evidência que exija revisão, não repetir migração, inventário ou
 casos nativos/TCP/HTTP homologados. M07–M09 e critérios do pacote permanecem.
 

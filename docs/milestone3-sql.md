@@ -135,13 +135,28 @@ RDD/service/client JSON results are materialized. Runtime/memory/transport
 policies apply. With page, SQL returns at most size+1, response at most size;
 the bridge does not fetch all rows to slice them.
 The database may still scan/sort extensively for deep pages.
-Cursors, cancellation and SQL execution timeout are not implemented;
-network deadlines do not interrupt a blocking connector query.
+MSSQL profiles now accept optional native `loginTimeoutSeconds` and
+`queryTimeoutSeconds`; see [configuration and exact native limits](configuration.md#native-mssql-timeouts).
+Omission retains the driver default; explicit zero disables that timeout.
+The connector applies and verifies the login attribute before/after connection
+and the query attribute before each statement. Unsupported or substituted
+explicit values fail rather than silently executing with another timeout.
+The page query and its separate count each receive a statement timeout; the
+driver enforces it. This is not a shared deadline for the SQL mutex wait,
+connection, all statements, materialization and response transport. Network
+deadlines do not interrupt a blocking connector call. Cursors and an explicit
+hbBridge cancellation API remain unimplemented; a client timeout/disconnect
+does not demonstrate server-side SQL cancellation. These MSSQL options are
+not accepted for SQLite.
 
 Types/nulls follow the linked RDD. SQLite regression distinguishes NULL
 expressions from empty text, not every declared nullable-column mapping.
 Some connectors substitute defaults. Dates/BLOBs/codepages, expanded precision
 and explicit null semantics remain contract work.
+The reproduced raw FLOAT fractional loss remains the open D03 integrity task;
+native timeout acceptance does not resolve it. Caller-selected SQL `CAST` is
+available for business scale, without implicit SX3/TOP_FIELD lookups or an
+automatic SQL projection rewriter.
 
 ## Protheus dataset and test
 
