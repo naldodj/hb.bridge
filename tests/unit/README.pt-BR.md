@@ -11,3 +11,9 @@ alterar senhas/strings ODBC contendo `;`, `#` e `=`.
 incluindo avanço durante espera e leituras concorrentes sem regressão.
 O runner [test-hbbridge.ps1](../../scripts/test-hbbridge.ps1) compila esses
 testes com os componentes do produto e os executa em diretório isolado.
+
+[hbbridge.sql.pool.test.hb](hbbridge.sql.pool.test.hb) acrescenta 39 checks
+somente SQLite: propriedade por chamador/thread, devoluções falsas/obsoletas/
+duplicadas, reader ativo, bancos em memória novos, status defensivo e
+encerramento seguro. O subconjunto de leases/configuração passou em 266
+checks; a regressão completa passou em 712.

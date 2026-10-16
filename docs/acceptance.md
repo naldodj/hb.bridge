@@ -1180,3 +1180,152 @@ deadline does not reduce physical connection creation.
 M07 remains open. The next measured adaptation is physical ODBC connection
 reuse with the SQL mutex and logical caller ownership retained; HTTP/TCP
 reuse is separate. See the [design review](sql-connections.md).
+
+<a id="manual-protheus-concurrency-130-on-2026-10-15"></a>
+
+## Detailed manual 130-worker run on 2026-10-15
+
+The separately supplied `HBBridgeConcurrencyTest_130.txt` was reviewed and
+preserved as `tmp/protheus-concurrency-manual-130-20261015.log`, SHA-256
+`A507584F449BD08395DE6C94351529F2238EA72AD98CE6A707CD615061FD6C38`.
+It contains all **130 worker reports**, **130 distinct worker thread IDs**
+and **3640 reported RPC calls**: two TCP workers/56 calls and 128 HTTP
+workers/3584 calls. The total **15159 checks** comprises 14374 worker and
+785 parent checks. The run failed **41 checks**.
+
+Those 41 failures represent **13 refused HTTP requests**, all in step 4:
+
+| Operation | Refused requests | Failed worker assertions |
+| --- | --- | --- |
+| Unknown-profile request | 7 | 21: unknownProfile, unknownClears, unknownHTTPStatus |
+| Recovery after unknown profile | 6 | 12: recoveryAfterUnknown, unknownRecoveryHTTPStatus |
+| Parent zeroFailures aggregation | No additional requests | 8, one per affected worker |
+
+Affected HTTP workers were 9, 13, 29, 41, 58, 75, 97 and 126. Both TCP
+workers and the other 120 HTTP workers reported zero failures. All 13 response
+diagnostics have status **0**, code **NATIVE_REFUSED_DIAGNOSTIC**, and measured
+call durations **5.7892–34.1813 ms**. The seven unknown-profile requests should
+return PROFILE_NOT_FOUND/HTTP 500 before SQL connection acquisition; these
+refusals are transport failures, not evidence of unsupported services or
+incorrect business SQL. The six subsequent recovery requests expected HTTP 200.
+The eight parent failures summarize the same workers; they are not eight
+additional failed requests or checks after the final summary.
+
+The launch record is **17:59:38.935 São Paulo**; all workers are READY at
+**18:07:36.699**, and the final summary is **18:09:41.514**. Launch to readiness
+took **477764 ms**, readiness to summary **124815 ms**. All refusals occurred
+between **18:09:03.526 and 18:09:03.986**, a **460 ms** interval. Request timeout
+was **2100 seconds**, with a **2100000 ms** total budget; neither explains the
+fast refusals. If the launch ramp was 300/50/5000 ms, its 431450 ms of planned
+sleeps would leave 46314 ms of launch/readiness overhead, but this older log
+does not record the requested pacing fields.
+
+No THREAD ERROR, parent runtime error, pending/drain diagnostic, DBAccess
+error or SQL connection-close error appears in this log. It does not contain
+a binary hash, pooling policy or native adaptation identity. The refusal
+diagnostic does not establish its underlying host/network cause. Preserve
+this failed run independently of the later successful summaries below.
+
+<a id="manual-protheus-concurrency-on-2026-10-15"></a>
+
+## Manual Protheus paced concurrency on 2026-10-15
+
+The later supplied `HBBridgeConcurrencyTest.txt` contains the caller example
+and six launch/final-summary pairs. Its original bytes were preserved as
+`tmp/protheus-concurrency-manual-current-20261015-f067c9d9.log`, SHA-256
+`F067C9D9747FF12AC0FADC6D799C9EE16440FF1AD9026984CB804171E65FBE1E`.
+Every summary reports all expected jobs collected and **zero failures**:
+
+| Workers collected/expected | Checks / failures | Request timeout / total budget, seconds | Planned launch sleeps, ms |
+| --- | --- | --- | --- |
+| 5 / 5 | 534 / 0 | 100 / 100 | 2250 |
+| 15 / 15 | 1704 / 0 | 200 / 200 | 10500 |
+| 20 / 20 | 2289 / 0 | 250 / 250 | 16500 |
+| 30 / 30 | 3459 / 0 | 350 / 350 | 32250 |
+| 150 / 150 | 17499 / 0 | 1550 / 1550 | 531450 |
+| 500 / 500 | 58449 / 0 | 5050 / 5050 | 2281450 |
+
+The six summaries total **83934 checks, zero failures**, over **720 jobs
+across separate runs**. Every check count agrees with `117 * workers - 51`.
+Each run assigns two workers to TCP and the rest to HTTP; the largest has
+two TCP/498 HTTP workers. Under the 28-call test contract, the summaries imply
+**20160 RPC calls**, including 14000 for the 500-worker run; individual call
+counts are not present in this excerpt.
+
+All six launch records explicitly select **300/50/5000 ms** pacing. The
+500-worker plan includes **2281450 ms (38 minutes 1.45 seconds)** of sleeps
+within its **5050-second** budget. These are planned sleeps and configured
+budgets, not actual elapsed-time measurements. Job creation is paced; the
+existing all-READY/GO barrier still releases worker requests together.
+
+Manual acceptance is recorded for the exercised paced-load summary scope,
+including the successful 150- and 500-worker runs. The excerpt contains no
+individual worker reports, thread IDs, READY timestamps or final process
+exit evidence, so those details cannot be independently audited from it.
+There are no mismatch, failed-check or THREAD ERROR lines in the supplied
+text; absence from this summary excerpt is not a full thread-termination trace.
+The explicit launch fields establish execution of the revised reporting path,
+without supplying a new compiler receipt or identifying the server binary,
+ODBC policy or SQL-pool implementation. Do not attribute these results to
+the native physical-reuse adaptation without that evidence.
+
+The earlier 130/140-worker failures remain separate historical evidence;
+the later summaries do not identify which change removed those refusals.
+M07 manual paced-load follow-up is accepted within the scope above. The
+separate native acceptance below completes M07 for its recorded Windows
+scope; M08 measurement and D03 UTF-8/FLOAT remain open.
+
+<a id="odbc-physical-reuse-on-2026-10-15"></a>
+
+## Native ODBC physical reuse on 2026-10-15
+
+The adapted `HBBridgeSQLPool` retains exclusive logical ownership under the
+existing SQL lifecycle mutex. Native RDDSQL connections still connect and
+disconnect per call; physical MSSQL reuse belongs to the ODBC Driver Manager.
+Policy remains **off by default**. The opt-in `driver` route is gated to the
+verified Windows ODBC 3.8 path; Linux pooling remains outside this acceptance.
+
+The first pooling attempt used 13 physical connections for 13 leases because
+the ODBC environment lifetime did not retain the warm pool. Retaining a
+process environment corrected that lifecycle. Cold acquisition and steady
+reuse are recorded separately; the final acceptance does not hide the cold
+connections or average them into a performance claim:
+
+| Isolated native process | Cold warm-up | Subsequent measured leases | Checks / failures | Exit |
+| --- | --- | --- | --- | --- |
+| `driver` | 2 leases, 2 physical connections | 13 leases, 1 physical TCP connection | 61 / 0 | 0 |
+| `off` | 2 warm-up leases recorded separately | 13 leases, 13 physical connections | 61 / 0 | 0 |
+
+Physical identity is verified with SQL Server connection ID, client TCP port
+and connection creation time, rather than SPID alone. Test-owned mutations
+to settings/context, a local temporary table, an open transaction and `USE`
+database selection were observed before disconnect. The next driver lease
+after each mutation returned to the original clean state **on the same physical connection**.
+Invalid SQL/recovery, caller workarea/default connection zero and nonzero,
+an active caller's exclusive connection, one-second statement timeout and
+subsequent longer-timeout recovery also passed. All test-owned logical leases
+were released; the native retained environment closed successfully and its
+retained-state flag cleared.
+
+Evidence: `tmp/m07-mssql-pooling-driver-accepted-20261015.log` and
+`tmp/mssql-tests-bb7664a7b9314a9492a88d8f098c5aff/results.log`;
+the separate off control is `tmp/m07-mssql-pooling-off-accepted-20261015.log`.
+The isolated native concurrency fixture was then repeated with
+`-ODBCPooling driver`: **8 workers, 192 calls, 458 checks, zero failures,
+no skips, exit 0**, through local/NETIO/TCP/HTTP. It verifies profile/schema/
+value isolation, failure recovery, caller state and owned release under the
+retained SQL mutex. Evidence:
+`tmp/m07-mssql-pool-concurrency-20261015.log` and
+`tmp/mssql-tests-ea4ca5c6a2774bad8b2367822ef4cfd3/results.log`.
+
+This accepts physical reuse and the exercised native lifecycle for Windows
+with SQL authentication. Linux, integrated authentication and an optional
+second configured MSSQL database/profile were not exercised. The tested `USE`
+reset is not acceptance of that second-profile case. These native results
+remain separate from the manual 500-worker summaries, which do not identify
+their server binary or pooling policy. No attribution of those successful
+manual runs, speed gain, maximum worker count or parallel SQL guarantee follows.
+
+M07 is complete within the native Windows and manual paced-summary scopes
+recorded above. Resume M08 time/memory measurements; final M09 validation and
+D03 UTF-8/FLOAT remain open, so package 001 is not closed.

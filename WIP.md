@@ -13,10 +13,10 @@ acceptance records verified results; ChangeLog and Git preserve history.
 | --- | --- |
 | ID | `001-mssql-acceptance` |
 | Opened / updated | 2026-10-07 / 2026-10-15 |
-| Status | D02/M06 accepted. Current native regression: 712 checks, zero failures; isolated lease/configuration checks: 266, zero failures. M07 baseline remains native 458/AppServer CLI 417. The latest reported 130-worker run completed 15159 checks with 41 failures; its full log is pending review. Physical ODBC reuse, M07 and D03 remain pending. |
+| Status | D02/M06/M07 accepted within their recorded Windows/test scope. Native regression: 712/0; lease/configuration checks: 266/0; physical ODBC driver/off controls: 61/0 each; pooled native concurrency: 458/0. Manual paced-load summaries through 500 workers report 83934 checks/0. D03, M08 and final M09 checks remain pending; package stays open. |
 | Goal | Accept the existing RPCRDD.Query/dataset against an identified real MSSQL database through Harbour, Protheus TCP and Protheus HTTP. |
 | Product reference | Published code `50e1c65`; checkout at package opening `bce52d2` includes the clone badge update. |
-| Next task | M07: validate the adapted logical lease facade and opt-in physical ODBC reuse against MSSQL; review the 130-worker log and accept reproducible launch pacing before repeating load. M08 time/memory measurement follows M07 acceptance. D03 remains pending; decimal metadata automation is deferred. |
+| Next task | M08: record Harbour/TCP/HTTP time and memory with identified fixtures, volume and concurrency; preserve M07's native and manual evidence as separate scopes. Complete final build/regression/commit gates in M09. D03 remains pending. |
 
 ### Decisions already made
 
@@ -183,8 +183,10 @@ new acceptance findings, not reasons to repeat the completed inventory.
   the native setting, omission preserves the driver default. Each statement,
   including COUNT, has its own timeout. This does not impose a shared request
   deadline or implement cancellation after client timeout/disconnect.
-- [ ] **M07 — Verify concurrency and release.** Baseline accepted on 2026-10-14;
-  reopened for the additional 140-worker failure report:
+- [x] **M07 — Verify concurrency and release.** Baseline accepted on 2026-10-14;
+  the additional load follow-up was accepted on 2026-10-15 for the Windows
+  native and exercised manual summary scopes below. Preserve the intervening
+  140-worker failure evidence:
   native **458 checks, 8 workers/192 calls**, local/NETIO/TCP/HTTP and three
   aliases; AppServer CLI **417 checks, 4 jobs/112 calls**, two TCP/two HTTP
   jobs alternating MSSQL/SQLite. Zero failures; caller areas/default connection,
@@ -216,21 +218,40 @@ new acceptance findings, not reasons to repeat the completed inventory.
   regression** passed with zero failures.
   Physical Driver Manager policy is `off` by default. `driver` is an opt-in
   Windows ODBC 3.8 path; Linux remains `off` until separate acceptance.
-  MSSQL physical-reuse validation is in progress: the first attempt opened
-  13 distinct physical connections for 13 logical leases. Environment lifetime
-  is being corrected; reuse and session cleanup are not yet accepted.
-  A 125-worker success was reported without a fully reviewed log. The latest
-  130-worker summary reports all jobs collected, **15159 checks/41 failures**;
-  its full log remains pending review. Neither report closes M07.
+  The first MSSQL physical-reuse attempt opened
+  13 distinct physical connections for 13 logical leases. Retaining the
+  process ODBC environment subsequently demonstrated warm reuse and cleanup
+  of settings, temporary tables, transactions and database selection on the
+  same physical connection. Final isolated acceptance passed **61 checks/0**
+  in each separate `driver` and `off` process. After two cold warm-up leases
+  used two physical connections, all 13 measured `driver` leases reused one
+  physical TCP connection; `off` used 13. The pooled native eight-worker/
+  192-call suite passed **458 checks/0**, including isolation and release.
+  Linux, integrated authentication and an optional second-database pooling
+  profile were not exercised. The manual summaries do not identify this native
+  adaptation or establish it as the cause of their successful load runs.
+  A 125-worker success was reported without a fully reviewed log. The complete
+  130-worker log is now reviewed: all 130 reports/3640 calls, **15159 checks/
+  41 failures**. Thirteen HTTP refusals in step 4 caused 33 worker assertions
+  plus eight parent zero-failure checks; the TCP workers passed. No THREAD
+  ERROR appears. The refusals occurred within 460 ms, not a test-budget expiry.
+  Later supplied summaries for **5/15/20/30/150/500 workers** report all jobs
+  collected and **83934 checks, zero failures**; the 500-worker run reports
+  **58449/0**. This accepts the exercised paced-load summary scope. Individual
+  worker traces, actual elapsed times and binary/pool identity are absent;
+  the summaries do not independently prove those properties or resolve cause.
   Launch pacing is now explicit in arguments 10–12/CLI: defaults 300/50/5000 ms
   preserve the supplied ramp and `GetEnvServer()`. Planned sleeps are 431450 ms
   for 130 workers and 481450 ms for 140; `0/0/0` supplies a burst control.
   The budget includes launch and impossible sleep plans are rejected before
   `StartJob`; the all-READY/GO barrier still releases workload together.
-  This TLPP revision awaits compilation/runtime acceptance; the earlier
-  32-source compiler result precedes configurable pacing.
-  [Follow-up evidence](docs/acceptance.md#sql-concurrency-follow-up-on-2026-10-15)
-  and [reuse analysis](docs/sql-connections.md) precede M08.
+  The later summaries contain these explicit pacing fields, recording manual
+  execution of that reporting revision. No new compiler receipt is supplied;
+  the earlier 32-source compiler result precedes configurable pacing.
+  [Native ODBC evidence](docs/acceptance.md#odbc-physical-reuse-on-2026-10-15),
+  [historical follow-up](docs/acceptance.md#sql-concurrency-follow-up-on-2026-10-15)
+  and [manual paced-load evidence](docs/acceptance.md#manual-protheus-concurrency-on-2026-10-15)
+  retain their separate scopes. Resume M08; final M09 gates remain pending.
 - [ ] **M08 — Record a performance baseline.** Identify SQL, fixture/volume,
   execution count and concurrency; record elapsed time and available memory
   measurements separately for Harbour, TCP and HTTP. This is a reference,
@@ -340,21 +361,23 @@ resolution; neither a precise elapsed time nor a GUI launch route is inferred.
 M07's 458 native and 417 AppServer CLI checks remain the historical accepted baseline.
 The 2026-10-15 controlled 140-worker retry still failed after independent
 collection/drain controls were validated. Connection reuse and port-pressure
-analysis, the reported 130-worker failures and acceptance of the adapted
-logical/physical connection lifecycle remain within M07 before M08 time/memory work. Preserve the SQL mutex
+analysis and acceptance of the adapted logical/physical connection lifecycle
+subsequently completed M07 for the recorded Windows scope. The 130-worker
+failures are reviewed; later paced-load summaries through 500 workers are
+accepted within their summary scope. Resume M08 time/memory work and preserve the SQL mutex
 and distinguish concurrent requests from parallel database execution.
 D03 integrity remains pending after
 explicit reprioritization, with caller CAST retained.
 Do not repeat accepted migrations, inventory or native/TCP/HTTP cases without
-new evidence requiring it. M07 follow-up, M08–M09 and the package completion
+new evidence requiring it. M08–M09 and the package completion
 criteria remain.
 
 The 2026-10-12 [SQL connection-reuse observation](docs/sql-connections.md)
 was reprioritized into M07 on 2026-10-15. `HBBridgeSQLPool` now owns exclusive
-logical leases under the existing lifecycle mutex; native physical ODBC reuse
-remains under validation, with policy `off` by default. Complete proof of
-physical reuse, caller-state preservation, session cleanup and shutdown before
-accepting the change against MSSQL. Keep RPC persistence separate.
+logical leases under the existing lifecycle mutex. Native physical ODBC reuse
+passed its Windows MSSQL acceptance, with policy `off` by default and opt-in
+`driver`. Keep the accepted physical identity/session-cleanup proof separate
+from manual load summaries and from future RPC persistence.
 
 ## Following packages: reserved direction
 

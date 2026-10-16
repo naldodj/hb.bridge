@@ -5,6 +5,24 @@
    Caminhos antigos descrevem os arquivos existentes na época.
  */
 
+2026-10-16 02:23 UTC naldodj (Homologar reuso SQL Windows e concorrência Protheus com pausas)
+  + Adaptar HBBridgeSQLPool para leases em hashes com identidade única,
+    propriedade por perfil/thread e limpeza verificada; manter mutex SQL/SQLite.
+  + Adicionar pooling opt-in pelo gerenciador Windows ODBC 3.8 e referência
+    persistente de ambiente; manter handles RDDSQL por chamada e padrão off.
+  ! Corrigir duração do pool físico e rejeitar devoluções duplicadas/obsoletas/
+    alheias; normalizar BOM/EOF e espaços/checksum do patch gerenciado.
+  * Parametrizar pausas StartJob e separar orçamentos de lançamento/coleta;
+    preservar GetEnvServer e READY/GO, permitindo comparação com/sem pausas.
+  ; Windows: 266 checks leases/configuração, 712 regressão, 61 por controle
+    driver/off e 458 concorrência com pool; zero falhas. Dois leases frios
+    usaram duas conexões físicas; 13 estabilizados usaram uma com pooling,
+    13 sem pooling; reset de sessão e liberação nativa verificados.
+  * Registrar seis resumos manuais Protheus: 83934 checks/zero falhas, incluindo
+    500 jobs/58449; preservar falhas anteriores de 130/140 como outras evidências.
+  * Concluir M07 no escopo homologado e seguir M08; D03 e pooling Linux pendentes.
+    Atualizar guias/aceites pareados, sem prometer SQL paralelo ou carga sem pausas.
+
 2026-10-14 21:18 UTC naldodj (Homologar isolamento e limpeza de chamadores SQL concorrentes)
   + Adicionar fixtures nativas MSSQL/SQLite opt-in -Concurrency: 8 workers,
     192 chamadas local/NETIO/TCP/HTTP; 458 checks, zero falhas/sem skips.

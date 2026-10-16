@@ -197,3 +197,10 @@ elapsed time without tokens, SQL or raw exception text. `[General] MaxWorkers`
 in hbBridge governs listener capacity separately from AppServer jobs. SQL
 lifecycle synchronization remains unchanged. See the
 [acceptance follow-up](../../../../../docs/acceptance.md#sql-concurrency-follow-up-on-2026-10-15).
+
+The later manual summaries with explicit pacing report zero failures for
+5/15/20/30/150/500 jobs: **83934 checks** overall, including **58449** with
+500 jobs. All expected reports were collected. The supplied excerpt contains
+no individual worker log, binary identity or native-pool mode; it accepts
+the exercised paced configuration independently of physical reuse.
+[Manual evidence](../../../../../docs/acceptance.md#manual-protheus-concurrency-on-2026-10-15).

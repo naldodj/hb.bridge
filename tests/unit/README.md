@@ -11,3 +11,8 @@ punctuation (`;`, `#`, `=`), multiple profiles and slash/case-sensitive aliases.
 waits and concurrent reads without regression. The
 [runner](../../scripts/test-hbbridge.ps1) builds them with product components
 and executes them in an isolated directory.
+
+[hbbridge.sql.pool.test.hb](hbbridge.sql.pool.test.hb) adds 39 SQLite-only
+lease checks: caller/thread ownership, forged/stale/double returns, active
+reader cleanup, fresh memory databases, defensive status and safe shutdown.
+The lease/config subset passed 266 checks; the complete regression passed 712.

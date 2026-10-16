@@ -506,7 +506,7 @@ nativas de handshake estão no
 ./scripts/test-hbbridge-mssql.ps1 -Config C:/tmp/hbBridge.ini -Profile MSSQL/pData -Concurrency -Serve
 ```
 
-`-Concurrency` e `-Failures` são mutuamente exclusivos. Falta de configuração
+`-Concurrency`, `-Failures` e `-Pooling` são mutuamente exclusivos. Falta de configuração
 privada, alias MSSQL funcional ou pré-requisito do backend falha com saída 2;
 sem skip bem-sucedido. A suíte possui arquivo SQLite isolado e aliases em
 memória `m07/mssql-clone` e `m07/sqlite`, mantendo o alias MSSQL informado.
@@ -520,3 +520,29 @@ executam após encerrar o host; o aceite exige 458 checks e saída 0.
 A [suíte Protheus](../src/tlpp/tests/protheus/hbbridge.concurrency.test/README.pt-BR.md)
 usa quatro StartJobs, 112 chamadas e 417 checks. As duas rotas passaram em
 2026-10-14; [escopo/evidências](../docs/acceptance.pt-BR.md#sql-concurrency-and-release-on-2026-10-14).
+
+Resumos manuais posteriores com pausas passam até **500 jobs / 58449 checks**,
+sem falhas reportadas. Contêm parâmetros de lançamento e totais de coleta,
+sem identificar binário/pool ou os detalhes individuais necessários para
+atribuir o resultado ao reuso físico.
+[Homologação manual](../docs/acceptance.pt-BR.md#manual-protheus-concurrency-on-2026-10-15).
+
+## Reuso físico MSSQL e isolamento de sessão
+
+```powershell
+./scripts/test-hbbridge-mssql.ps1 -Config C:/tmp/hbBridge.ini -Profile MSSQL/pData -Pooling -ODBCPooling off
+./scripts/test-hbbridge-mssql.ps1 -Config C:/tmp/hbBridge.ini -Profile MSSQL/pData -Pooling -ODBCPooling driver
+./scripts/test-hbbridge-mssql.ps1 -Config C:/tmp/hbBridge.ini -Profile MSSQL/pData -Concurrency -ODBCPooling driver
+```
+
+Cada modo executa em processo novo e passou em 61 checks no Windows.
+Após dois leases de aquecimento registrados, 13 leases medidos usam 13
+conexões físicas em `off`, uma em `driver`. Identificadores do banco e portas
+TCP comprovam reuso; SET/contexto/temporárias/transação/banco, timeouts,
+estado do chamador e liberação do ambiente nativo têm verificações próprias.
+A conta precisa consultar sua conexão em `sys.dm_exec_connections`; falta de
+pré-requisito falha visivelmente. Sem alterar tabelas ERP ou INIs privados.
+`-OtherProfile <alias>` opcional testa outro banco MSSQL configurado; esse
+caso e pooling Linux ainda não têm aceite em execução. A fixture de oito
+workers com pooling passou em 458 checks, zero falhas/sem skips.
+[Evidências e limites](../docs/acceptance.pt-BR.md#odbc-physical-reuse-on-2026-10-15).

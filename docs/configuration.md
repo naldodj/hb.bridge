@@ -315,7 +315,7 @@ The policy applies to the process and must be selected before its first ODBC
 connection. Changing it afterwards requires restarting hbBridge; restarting
 only a listener does not change it. Configuration parsing and `--config-info`
 do not enable pooling. Unsupported modes/capabilities fail visibly. Initial
-pooling acceptance targets Windows with ODBC 3.8 manager/driver support;
+pooling acceptance covers Windows with ODBC 3.8 manager/driver support;
 Linux keeps `off` pending runtime/session-isolation acceptance.
 
 Logical RDDSQL connections still belong to one call and are disconnected
@@ -324,9 +324,14 @@ driver manager afterwards. The SQL lifecycle mutex, query/page/count contract
 and SQLite lifetime remain unchanged. `driver` means `SQL_CP_ONE_PER_DRIVER`,
 not `SQL_CP_DRIVER_AWARE`, a pool per Protheus tenant, or parallel SQL.
 
-Pool matching must preserve effective connection options and authenticated
-identity. Native session reset and its transaction/temporary-object/SET
-isolation require separate acceptance; matching alone is insufficient. See
+The native environment reference remains alive between logical calls and is
+released at process exit; idle physical retirement follows driver-manager
+policy. `HBBridgeODBCPoolingInfo()` distinguishes requested mode, first-use
+freeze, build support and whether this owned environment is retained. These
+flags alone do not prove physical reuse. Pool matching preserves effective
+options/identity; Windows reset, transaction/temporary-object/SET isolation
+and physical reuse have [separate evidence](acceptance.md#odbc-physical-reuse-on-2026-10-15).
+See
 the [reuse analysis](sql-connections.md) and
 [native ODBC contract](https://learn.microsoft.com/en-us/sql/odbc/reference/develop-app/driver-manager-connection-pooling?view=sql-server-ver17).
 

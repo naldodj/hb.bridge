@@ -24,8 +24,9 @@ de atribuir latência ao login. Veja
 
 O SDDODBC também aloca/libera handles de ambiente e conexão por chamada.
 Conferir modo de pooling, duração do ambiente compartilhado e reuso físico.
-Seu wrapper de desconexão ignora retornos ODBC nativos; sucesso de
-`RDDI_DISCONNECT` sozinho não comprova liberação completa.
+O wrapper original/padrão `off` ignora retornos ODBC nativos; sucesso de
+`RDDI_DISCONNECT` sozinho não comprova liberação completa. O caminho opt-in
+verifica rollback, desconexão e liberação de handles, conforme aceite abaixo.
 
 ## Alternativas a medir
 
@@ -117,17 +118,39 @@ HTTP/TCP Protheus–hbBridge têm outro ciclo e também precisam de medição.
 | Trocar construção MSSQL por concatenação ODBC genérica | Preservar validação de autenticação/TLS, exclusividade entre campos/string e comportamento de tipos/codificação/paginação. |
 | Anunciar Oracle/PostgreSQL/MySQL imediatamente | Homologar cada driver/dialeto; preservar a duração dos bancos SQLite. |
 
-A primeira adaptação avalia **pooling físico no gerenciador ODBC nativo**,
+A adaptação implementada usa **pooling físico no gerenciador ODBC nativo**,
 preservando conectar/desconectar lógico por chamada no RDDSQL e o mutex SQL.
-Evita cache compartilhado de handles RDDSQL e mantém a restauração do
+`HBBridgeSQLPool` controla leases em hashes com ID único, perfil e thread
+proprietária. Rejeita devoluções obsoletas/duplicadas/alheias e recusa destruir
+leases ativos. Configurar não recria o singleton. Evita cache compartilhado
+de handles RDDSQL e mantém a restauração do
 chamador cuja conexão anterior era zero. Pool gerenciado pela aplicação
 permanece outra opção se o reuso nativo não atender às medições necessárias.
 
 A política de pooling pertence ao processo, é explícita e fica fixa no
 primeiro uso ODBC. `off` preserva o padrão atual; `driver` solicita pool por
 driver, sem significar o recurso distinto `SQL_CP_DRIVER_AWARE`. Combinar
-opções de conexão exatamente não comprova sessão limpa. Reset ODBC 3.8,
-suporte do driver e reuso físico precisam de homologação antes de depender
-desse modo. A primeira validação de execução contempla Windows; Linux mantém
-`off` até homologar seu gerenciador/isolamento. Veja
+opções de conexão exatamente não comprova sessão limpa. O caminho Windows
+ODBC 3.8 passou em 61 checks por modo: após dois empréstimos de aquecimento
+registrados, 13 leases medidos reutilizaram uma conexão TCP física em
+`driver`, contra 13 em `off`. SET/contexto, temporárias, transação e banco
+selecionado foram limpos antes do próximo chamador na conexão reutilizada;
+passaram timeouts, estado do chamador e liberação da âncora. Não mede latência.
+Linux mantém `off` até homologar seu gerenciador/isolamento. Veja as
+[evidências nativas](acceptance.pt-BR.md#odbc-physical-reuse-on-2026-10-15) e
 [configuração](configuration.pt-BR.md) para opções e evidências atuais.
+
+O pool nativo mantém uma referência de ambiente compatível entre conexões
+lógicas, com DBC âncora sem conexão, credenciais ou socket de rede. A versão
+anterior solicitava pooling mas liberava o ambiente a cada chamada e mediu
+13 conexões físicas para 13 chamadas. Preservar o ambiente compartilhado
+permitiu reuso real; a âncora própria é liberada ao sair do processo ou na
+limpeza explícita do pool nativo, após fechar os leases lógicos. O início
+frio usou duas conexões físicas; o reuso estabilizado fica separado, sem
+afirmar uma única conexão física em todo o processo.
+
+O resumo manual posterior do Protheus informa 500 workers/58449 checks sem
+falhas, com pausas explícitas de lançamento. Não fornece modo do pool ou hash
+do binário, portanto fica separado do aceite de reuso físico. Atividade de
+banco do StartJob/framework também exige medição separada das conexões SQL
+e RPC do hbBridge. [Escopo manual](acceptance.pt-BR.md#manual-protheus-concurrency-on-2026-10-15).

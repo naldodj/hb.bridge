@@ -38,6 +38,7 @@ STATIC FUNCTION MPRun( cConfigPath, cProfile, cMode, cOtherProfile )
     LOCAL hChecks := { "checks" => 0, "failures" => 0 }, hConfig, hProfile, hProfiles
     LOCAL hBaseline, hSnapshot, hPairs := {=>}, cError, nIndex, hInfo, hOther, hResult
     LOCAL hIdentityParts := { "ports" => {=>}, "connections" => {=>}, "started" => {=>} }
+    LOCAL hWarmup := {=>}
     LOCAL nPreviousArea := Select(), nPreviousConnection := rddInfo( RDDI_CONNECTION, NIL, "SQLMIX" )
     LOCAL nStarted := HBBridgeMonotonicMs(), lReady := .F., cSwitch, nSwitch, hSlow, hFast
 
@@ -111,6 +112,25 @@ STATIC FUNCTION MPRun( cConfigPath, cProfile, cMode, cOtherProfile )
     ENDIF
     BEGIN SEQUENCE WITH __BreakBlock()
         MPAssert( nPreviousConnection == 0, "isolated test starts without a caller connection", hChecks )
+        /* Record cold-start behavior separately. The inspected driver manager
+         * opened two connections during initialization, then reused one in
+         * steady state. Neither the warmup nor its physical cost is hidden.
+         */
+        hWarmup[ MPIdentity( hBaseline ) ] := .T.
+        hSnapshot := MPSnapshot( hProfiles, cProfile )
+        MPAssert( MPIdentityValid( hSnapshot ) .AND. MPStateMatches( hSnapshot, hBaseline ), ;
+            "second cold-start lease preserves clean session state", hChecks )
+        IF ! MPIdentityValid( hSnapshot )
+            Break( NIL )
+        ENDIF
+        hWarmup[ MPIdentity( hSnapshot ) ] := .T.
+        hSnapshot := MPSnapshot( hProfiles, cProfile )
+        MPAssert( MPIdentityValid( hSnapshot ) .AND. MPStateMatches( hSnapshot, hBaseline ), ;
+            "measured leases start from the same clean profile after warmup", hChecks )
+        IF ! MPIdentityValid( hSnapshot )
+            Break( NIL )
+        ENDIF
+        hBaseline := hSnapshot
         hPairs[ MPIdentity( hBaseline ) ] := .T.
         MPIdentityParts( hIdentityParts, hBaseline )
         FOR nIndex := 1 TO 12
@@ -130,7 +150,8 @@ STATIC FUNCTION MPRun( cConfigPath, cProfile, cMode, cOtherProfile )
         ELSE
             MPAssert( Len( hPairs ) == 13, "pool-off control creates a distinct physical connection per lease", hChecks )
         ENDIF
-        ? "MSSQL physical reuse: mode=" + cMode + "; logicalLeases=13; physicalConnections=" + hb_ntos( Len( hPairs ) )
+        ? "MSSQL physical reuse: mode=" + cMode + "; warmupLeases=2; warmupConnections=" + ;
+            hb_ntos( Len( hWarmup ) ) + "; measuredLeases=13; measuredConnections=" + hb_ntos( Len( hPairs ) )
         ? "MSSQL identity counts: ports=" + hb_ntos( Len( hIdentityParts[ "ports" ] ) ) + ;
             "; connectionIDs=" + hb_ntos( Len( hIdentityParts[ "connections" ] ) ) + ;
             "; connectionStartTimes=" + hb_ntos( Len( hIdentityParts[ "started" ] ) )

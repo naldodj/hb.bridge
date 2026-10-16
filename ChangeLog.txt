@@ -5,6 +5,24 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Standardize hbBridge naming and paging)"
  */
 
+2026-10-16 02:23 UTC naldodj (Accept Windows SQL reuse and paced Protheus concurrency)
+  + Adapt HBBridgeSQLPool to hash-based logical leases with unique identity,
+    profile/thread ownership and checked cleanup; preserve SQL mutex/SQLite lifetime.
+  + Add opt-in Windows ODBC 3.8 driver-manager pooling and retained environment
+    reference; keep per-call RDDSQL handles and default-off policy.
+  ! Correct physical-pool lifetime and reject duplicate/stale/foreign returns;
+    normalize source BOM/EOF and managed patch whitespace/checksum.
+  * Parameterize StartJob launch pacing and separate launch/collection budgets;
+    retain GetEnvServer and READY/GO, with explicit paced/burst comparison.
+  ; Windows: 266 lease/config checks, 712 regression checks, 61 each for
+    driver/off controls and 458 pooled concurrency checks; zero failures.
+    Two cold leases used two physical connections; 13 steady leases used
+    one with pooling, 13 without; session reset and native release verified.
+  * Record six manual Protheus summaries: 83934 checks/zero failures, including
+    500 jobs/58449; retain prior 130/140 failures as distinct evidence.
+  * Complete scoped M07 and resume M08; D03 and Linux pooling remain pending.
+    Update paired guides/acceptance; no parallel-SQL or unpaced capacity claim.
+
 2026-10-14 21:18 UTC naldodj (Accept concurrent SQL caller isolation and cleanup)
   + Add opt-in -Concurrency MSSQL/SQLite native fixtures: 8 workers,
     192 calls through local/NETIO/TCP/HTTP; 458 checks, zero failures/no skips.

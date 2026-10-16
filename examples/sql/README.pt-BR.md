@@ -222,3 +222,17 @@ memória. Usar as portas informadas e `m07/sqlite` em
 A suíte nativa passou em 458 checks; Protheus CLI em 417, ambas sem falhas em
 2026-10-14. Verificam isolamento/liberação sob o mutex atual, sem selecionar
 pool de conexões nem garantir SQL paralelo.
+
+Pooling físico opcional no Windows é selecionado no host hbBridge:
+
+```ini
+[SQL]
+ODBCPooling=driver
+```
+
+Recompilar com o patch ODBC gerenciado e reiniciar o processo antes de mudar
+essa política fixada no primeiro uso. O padrão é `off`; não exige mudar
+credenciais no AppServer. O aceite de reuso/isolamento é separado dos resumos
+manuais posteriores de 500 workers com pausas. Veja
+[configuração](../../docs/configuration.pt-BR.md#pooling-físico-odbc) e
+[testes](../../tests/README.pt-BR.md#reuso-físico-mssql-e-isolamento-de-sessão).

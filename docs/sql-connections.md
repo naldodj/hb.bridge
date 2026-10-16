@@ -24,8 +24,9 @@ behavior before attributing latency to login. See
 
 SDDODBC also allocates/frees environment and connection handles per call.
 Check pooling mode, shared-environment lifetime and actual physical reuse.
-Its disconnect wrapper ignores native ODBC return codes; `RDDI_DISCONNECT`
-success alone cannot establish complete cleanup.
+Its original/default-off disconnect wrapper ignores native ODBC return codes;
+`RDDI_DISCONNECT` success alone cannot establish complete cleanup. The opt-in
+pooled path checks rollback, disconnect and handle release, as accepted below.
 
 ## Alternatives to measure
 
@@ -117,17 +118,39 @@ HTTP/TCP connection churn has a separate lifecycle and must also be measured.
 | Replace MSSQL connection construction with generic ODBC concatenation | Preserve authentication/TLS validation, structured/raw exclusivity and existing type/encoding/pagination behavior. |
 | Advertise Oracle/PostgreSQL/MySQL immediately | Add each driver/dialect only after its own acceptance; keep SQLite lifetime semantics unchanged. |
 
-The first adaptation evaluates **physical pooling in the native ODBC driver
+The implemented adaptation uses **physical pooling in the native ODBC driver
 manager**, preserving logical per-call RDDSQL connect/disconnect and the SQL
-mutex. This avoids a shared cache of RDDSQL handles and preserves restoration
+mutex. `HBBridgeSQLPool` manages hash-based logical leases with a unique ID,
+profile and owner thread. It rejects stale/duplicate/foreign returns and
+refuses destruction while leases remain active. Configuration does not
+recreate the singleton. This avoids a shared cache of RDDSQL handles and preserves restoration
 of a caller whose previous connection was zero. An application-managed pool
 remains a separate option if native reuse fails the measured requirements.
 
 Pooling is process-wide, explicitly selected and frozen at first ODBC use.
 `off` preserves the existing default; `driver` requests a pool per driver,
 not the separate `SQL_CP_DRIVER_AWARE` feature. Exact matching of connection
-options does not establish clean session state. Native ODBC 3.8 reset behavior,
-driver support and physical reuse require acceptance before relying on this
-mode. Initial runtime acceptance targets Windows; Linux retains `off` until
-its driver-manager/session-isolation path is accepted. See
+options does not establish clean session state. The Windows ODBC 3.8 path
+passed 61 checks in each mode: after two recorded cold-start leases, 13
+measured logical leases reused one physical TCP connection with `driver`,
+versus 13 with `off`. SET/context, temporary tables, transaction and database
+selection were cleared before the next borrower on the reused connection;
+timeouts, caller state and anchor release passed. This is no latency benchmark.
+Linux retains `off` until its driver-manager/session-isolation path is accepted.
+See the [native evidence](acceptance.md#odbc-physical-reuse-on-2026-10-15) and
 [configuration](configuration.md) for supported settings and current evidence.
+
+The native pool retains a matching environment reference between logical
+connections, using an unconnected anchor DBC without credentials or a network
+socket. The earlier connect/free-environment implementation requested pooling
+but measured 13 physical connections for 13 logical calls. Keeping the shared
+environment alive enabled actual reuse; its owned anchor is released at
+process exit or explicit native-pool cleanup, after logical leases close.
+Cold start used two physical connections; steady-state reuse is recorded
+separately instead of claiming one physical connection for the whole process.
+
+The later manual Protheus summary reports 500 workers/58449 checks with zero
+failures and explicit launch pacing. It does not supply pool mode or a binary
+hash, so it is separate from physical-reuse acceptance. StartJob/framework
+database activity also needs separate measurement from hbBridge SQL and RPC
+connections. [Manual scope](acceptance.md#manual-protheus-concurrency-on-2026-10-15).

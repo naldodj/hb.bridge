@@ -1259,3 +1259,152 @@ o prazo não reduz criação de conexões físicas.
 M07 permanece aberta. A próxima adaptação medida é reuso físico ODBC,
 mantendo mutex SQL e propriedade lógica do chamador; reuso HTTP/TCP é
 outra etapa. Veja a [revisão do desenho](sql-connections.pt-BR.md).
+
+<a id="manual-protheus-concurrency-130-on-2026-10-15"></a>
+
+## Rodada manual detalhada de 130 workers em 2026-10-15
+
+Analisado o arquivo separado `HBBridgeConcurrencyTest_130.txt`, preservado
+como `tmp/protheus-concurrency-manual-130-20261015.log`, SHA-256
+`A507584F449BD08395DE6C94351529F2238EA72AD98CE6A707CD615061FD6C38`.
+Contém todos os **130 relatos**, **130 IDs de thread distintos** e **3640
+chamadas RPC reportadas**: dois workers TCP/56 chamadas e 128 workers
+HTTP/3584 chamadas. O total de **15159 checks** reúne 14374 checks dos
+workers e 785 do pai. A rodada falhou em **41 checks**.
+
+As 41 falhas correspondem a **13 requisições HTTP recusadas**, todas na etapa 4:
+
+| Operação | Requisições recusadas | Assertivas dos workers falhas |
+| --- | --- | --- |
+| Requisição com perfil desconhecido | 7 | 21: unknownProfile, unknownClears, unknownHTTPStatus |
+| Recuperação após perfil desconhecido | 6 | 12: recoveryAfterUnknown, unknownRecoveryHTTPStatus |
+| Agregação zeroFailures do pai | Nenhuma requisição adicional | 8, uma por worker afetado |
+
+Os workers HTTP afetados foram 9, 13, 29, 41, 58, 75, 97 e 126. Os dois
+TCP e os outros 120 HTTP informaram zero falhas. Todos os 13 diagnósticos
+de resposta têm status **0**, código **NATIVE_REFUSED_DIAGNOSTIC** e duração
+medida de **5,7892–34,1813 ms**. As sete chamadas de perfil desconhecido deveriam
+receber PROFILE_NOT_FOUND/HTTP 500 antes de adquirir conexão SQL; essas
+recusas são falhas de transporte, sem comprovar serviço não suportado ou SQL
+de negócio incorreto. As seis recuperações esperavam HTTP 200. Os oito checks
+do pai resumem os mesmos workers; não são oito novas requisições falhas nem
+checks posteriores ao resumo final.
+
+O lançamento foi registrado às **17:59:38.935 São Paulo**; todos ficaram READY
+às **18:07:36.699** e o resumo final saiu às **18:09:41.514**. Foram **477764 ms**
+do lançamento à prontidão e **124815 ms** da prontidão ao resumo. Todas as
+recusas ocorreram entre **18:09:03.526 e 18:09:03.986**, intervalo de **460 ms**.
+O timeout por chamada era **2100 segundos**, com orçamento total de
+**2100000 ms**; nenhum explica as recusas rápidas. Se a rampa era 300/50/5000 ms,
+suas pausas planejadas de 431450 ms deixariam 46314 ms de custo de lançamento/
+prontidão, mas esse log anterior não registra os parâmetros de espaçamento.
+
+Não há THREAD ERROR, erro de execução do pai, diagnóstico de pendência/
+limpeza, erro DBAccess ou de fechamento de conexão SQL nesse log. Não contém
+hash do binário, política de pooling ou identificação da adaptação nativa.
+O diagnóstico de recusa não estabelece a causa subjacente no host/rede.
+Preservar a rodada falha separadamente dos resumos aprovados posteriores.
+
+<a id="manual-protheus-concurrency-on-2026-10-15"></a>
+
+## Concorrência manual Protheus com espaçamento em 2026-10-15
+
+O arquivo posterior `HBBridgeConcurrencyTest.txt` contém o exemplo de chamada
+e seis pares de lançamento/resumo final. Seus bytes originais foram preservados
+em `tmp/protheus-concurrency-manual-current-20261015-f067c9d9.log`, SHA-256
+`F067C9D9747FF12AC0FADC6D799C9EE16440FF1AD9026984CB804171E65FBE1E`.
+Todos os resumos informam coleta dos jobs esperados e **zero falhas**:
+
+| Workers coletados/esperados | Checks / falhas | Timeout por chamada / orçamento total, segundos | Pausas planejadas, ms |
+| --- | --- | --- | --- |
+| 5 / 5 | 534 / 0 | 100 / 100 | 2250 |
+| 15 / 15 | 1704 / 0 | 200 / 200 | 10500 |
+| 20 / 20 | 2289 / 0 | 250 / 250 | 16500 |
+| 30 / 30 | 3459 / 0 | 350 / 350 | 32250 |
+| 150 / 150 | 17499 / 0 | 1550 / 1550 | 531450 |
+| 500 / 500 | 58449 / 0 | 5050 / 5050 | 2281450 |
+
+Os seis resumos somam **83934 checks, zero falhas**, com **720 jobs em
+rodadas separadas**. Todas as contagens correspondem a `117 * workers - 51`.
+Cada rodada destina dois workers ao TCP e os demais ao HTTP; a maior tem dois
+TCP/498 HTTP. Pelo contrato de 28 chamadas por worker, os resumos implicam
+**20160 chamadas RPC**, incluindo 14000 na rodada de 500; as contagens
+individuais de chamadas não constam desse trecho.
+
+Os seis lançamentos registram espaçamento explícito **300/50/5000 ms**.
+O plano de 500 workers inclui **2281450 ms (38 minutos e 1,45 segundo)** de
+pausas dentro do orçamento de **5050 segundos**. São pausas planejadas e prazos
+configurados, sem representar medições de duração real. A criação dos jobs
+recebe espaçamento; a barreira READY/GO ainda libera as requisições em conjunto.
+
+Registrado aceite manual no escopo exercitado desses resumos com espaçamento,
+incluindo as rodadas aprovadas de 150 e 500 workers. O trecho não contém
+relatos individuais, IDs de thread, horários READY ou evidência de saída
+final do processo; esses detalhes não podem ser auditados separadamente.
+Não há linhas de mismatch, checks falhos ou THREAD ERROR no texto fornecido;
+sua ausência desse resumo não equivale a um rastro completo de término das
+threads. Os campos explícitos registram execução da revisão de relatório,
+sem fornecer novo recibo de compilação ou identificar binário servidor,
+política ODBC ou implementação do pool SQL. Não atribuir esse resultado à
+adaptação nativa de reuso físico sem essas evidências.
+
+As falhas anteriores de 130/140 workers permanecem evidências históricas
+separadas; os resumos posteriores não identificam qual alteração eliminou
+as recusas. O complemento manual com espaçamento de M07 está homologado no
+escopo acima. O aceite nativo separado abaixo conclui M07 no escopo Windows
+registrado; medições M08 e D03 UTF-8/FLOAT continuam abertas.
+
+<a id="odbc-physical-reuse-on-2026-10-15"></a>
+
+## Reuso físico ODBC nativo em 2026-10-15
+
+A adaptação `HBBridgeSQLPool` mantém posse lógica exclusiva sob o mutex
+existente do ciclo SQL. Conexões RDDSQL nativas ainda conectam/desconectam por
+chamada; reuso físico MSSQL pertence ao ODBC Driver Manager. A política
+mantém padrão **off**. A opção `driver` fica restrita à rota verificada
+Windows ODBC 3.8; pooling Linux não integra este aceite.
+
+A primeira tentativa usou 13 conexões físicas para 13 leases porque o ciclo
+do ambiente ODBC não mantinha o pool aquecido. Manter um ambiente do processo
+corrigiu esse ciclo. Aquisição fria e reuso estável são registrados
+separadamente; o aceite final não oculta as conexões frias nem as dilui em
+uma alegação de desempenho:
+
+| Processo nativo isolado | Aquecimento frio | Leases medidos posteriores | Checks / falhas | Saída |
+| --- | --- | --- | --- | --- |
+| `driver` | 2 leases, 2 conexões físicas | 13 leases, 1 conexão TCP física | 61 / 0 | 0 |
+| `off` | 2 leases de aquecimento registrados separadamente | 13 leases, 13 conexões físicas | 61 / 0 | 0 |
+
+A identidade física é verificada por ID de conexão SQL Server, porta TCP do
+cliente e horário de criação da conexão, sem depender apenas de SPID.
+Mutações de configurações/contexto, tabela temporária local, transação aberta
+e seleção de banco por `USE` foram observadas antes da desconexão. O lease
+`driver` seguinte a cada mutação retornou ao estado original limpo **na mesma
+conexão física**. Também passaram SQL inválido/recuperação, workarea/conexão padrão
+zero e não zero do chamador, exclusividade de conexão de chamador ativo,
+timeout de instrução de um segundo e recuperação com timeout maior. Todos
+os leases lógicos próprios foram liberados; o ambiente nativo retido fechou
+com sucesso e sua indicação de retenção foi apagada.
+
+Evidências: `tmp/m07-mssql-pooling-driver-accepted-20261015.log` e
+`tmp/mssql-tests-bb7664a7b9314a9492a88d8f098c5aff/results.log`;
+controle separado off em `tmp/m07-mssql-pooling-off-accepted-20261015.log`.
+A fixture nativa isolada de concorrência foi repetida com
+`-ODBCPooling driver`: **8 workers, 192 chamadas, 458 checks, zero falhas,
+nenhum skip, saída 0**, por local/NETIO/TCP/HTTP. Verifica isolamento de
+perfil/schema/valor, recuperação, estado do chamador e liberação própria
+mantendo mutex SQL. Evidências:
+`tmp/m07-mssql-pool-concurrency-20261015.log` e
+`tmp/mssql-tests-ea4ca5c6a2774bad8b2367822ef4cfd3/results.log`.
+
+Homologados reuso físico e ciclo nativo exercitado no Windows com autenticação
+SQL. Linux, autenticação integrada e perfil opcional de segundo banco MSSQL
+configurado não foram exercitados. O reset de `USE` não homologa esse caso
+de segundo perfil. Esses resultados permanecem separados dos resumos manuais
+de 500 workers, sem identidade de binário/política ODBC. Não se deduz relação
+causal com o sucesso manual, ganho de velocidade, quantidade máxima de workers
+ou garantia de SQL paralelo.
+
+M07 está concluída nos escopos nativo Windows e de resumos manuais com
+espaçamento registrados acima. Retomar medições M08 de tempo/memória; checks
+finais M09 e D03 UTF-8/FLOAT continuam abertos, sem encerrar o pacote 001.

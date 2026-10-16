@@ -204,3 +204,10 @@ tempo, sem tokens, SQL ou texto bruto de exceção. `[General] MaxWorkers` no
 hbBridge governa capacidade dos listeners, separada dos jobs AppServer. O
 mutex do ciclo SQL permanece. Veja o
 [complemento de homologação](../../../../../docs/acceptance.pt-BR.md#sql-concurrency-follow-up-on-2026-10-15).
+
+Resumos manuais posteriores com pausas explícitas informam zero falhas em
+5/15/20/30/150/500 jobs: **83934 checks** no total, incluindo **58449** com
+500 jobs. Todos os relatos esperados foram coletados. O trecho fornecido não
+contém logs individuais, identidade do binário ou modo do pool nativo;
+homologa a configuração exercitada independentemente do reuso físico.
+[Evidências manuais](../../../../../docs/acceptance.pt-BR.md#manual-protheus-concurrency-on-2026-10-15).

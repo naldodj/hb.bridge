@@ -114,8 +114,8 @@ Recursos disponíveis no Harbour só serão considerados integrados após os ace
 
 **Características intermediárias do produto:** gzip obrigatório, materialização
 integral do JSON, uma conexão SQL lógica por chamada e ausência de serviço de
-sistema. Reuso físico ODBC é opcional e ainda está em homologação; a política
-padrão é `off`.
+sistema. Reuso físico ODBC é opcional e foi homologado nos casos MSSQL Windows
+registrados; a política padrão é `off`.
 Os tetos arbitrários de tamanho foram removidos; payload e bytes transmitidos
 podem receber políticas opcionais, desativadas com `0`. Buffers, prazos e
 concorrência são configuráveis, dentro das capacidades reais do runtime.
@@ -548,8 +548,9 @@ testado; somente versões e capacidades efetivamente implementadas são anunciad
   Confirmada a validação manual AppServer às 14:30:50 São Paulo, thread 13796:
   todos os 38 TCP/51 HTTP checks passaram, resolvendo as sete falhas anteriores
   por transporte. [Evidências manuais](docs/acceptance.pt-BR.md#manual-protheus-failure-recovery-on-2026-10-14).
-- [ ] M07 isolamento concorrente de perfis e liberação própria: baseline
-  homologada em 2026-10-14; reaberta pela rodada adicional de 140 com falhas.
+- [x] M07 isolamento concorrente de perfis e liberação própria: baseline
+  homologada em 2026-10-14; complemento aprovado em 2026-10-15 nos escopos
+  nativo Windows e de resumos manuais exercitados. Preservar as rodadas falhas anteriores.
   458 checks nativos, 8 workers/192 chamadas local/NETIO/TCP/HTTP; 417 checks
   AppServer CLI, 4 jobs/112 chamadas TCP/HTTP. Zero falhas. Mutex SQL mantido;
   sem garantia de SQL paralelo ou ausência de vazamentos físicos ODBC/heap.
@@ -562,22 +563,36 @@ testado; somente versões e capacidades efetivamente implementadas são anunciad
   fornecedor, antes do espaçamento configurável. O
   anexo de 22 KB contém proposta de pool/diagnóstico ODBC 10048 do DBAccess,
   não um aceite. TIME_WAIT e eventos Tcpip 4227 registram pressão de portas
-  no host sem comprovar um processo ou a causa única. A última rodada informada
-  de 130 workers completou todos os jobs, com 15159 checks/41 falhas; o log
-  completo aguarda análise. Informada execução de 125 workers sem falhas,
+  no host sem comprovar um processo ou a causa única. Analisado o log completo
+  de 130 workers: todos os relatos/3640 chamadas, 15159 checks/41 falhas,
+  causadas por 13 recusas HTTP na etapa 4 (33 assertivas dos workers e oito
+  checks do pai); TCP passou e não há THREAD ERROR. Resumos posteriores de
+  5/15/20/30/150/500 workers informam todos os jobs coletados, 83934 checks/
+  zero falhas; 500 workers informam 58449/0. Homologado esse escopo exercitado
+  de resumos, sem comprovar threads/tempos individuais ou identidade do binário/
+  pool. Informada execução de 125 workers sem falhas,
   sem análise do log completo. Validação atual: build isolado do produto,
   266 checks de leases/configuração e regressão nativa completa 712/0.
-  Reuso físico MSSQL segue em teste; a primeira tentativa usou 13 conexões
-  físicas para 13 leases lógicos.
-  [Evidências do complemento](docs/acceptance.pt-BR.md#sql-concurrency-follow-up-on-2026-10-15).
-- [ ] Homologar o espaçamento TLPP revisado após recompilação: argumentos
+  Os controles físicos finais passaram em 61/0 cada: após dois leases de
+  aquecimento frio, 13 leases medidos em `driver` reutilizaram uma conexão TCP;
+  `off` separado usou 13. Limpeza de configurações/tabela temporária/transação/
+  USE passou na mesma conexão, e concorrência nativa com pooling de oito
+  workers/192 chamadas passou em 458/0. Os resumos manuais de 500 não identificam
+  essa adaptação nativa nem comprovam que ela causou seu sucesso.
+  [Aceite ODBC nativo](docs/acceptance.pt-BR.md#odbc-physical-reuse-on-2026-10-15),
+  [Complemento histórico](docs/acceptance.pt-BR.md#sql-concurrency-follow-up-on-2026-10-15)
+  e [aceite manual](docs/acceptance.pt-BR.md#manual-protheus-concurrency-on-2026-10-15).
+- [x] Registrar execução manual do espaçamento TLPP revisado: argumentos
   10–12 e CLI com padrões 300/50/5000 ms preservam a rampa fornecida e
   `GetEnvServer()`. Pausas planejadas somam 431450 ms com 130 workers e
   481450 ms com 140; `0/0/0` é um controle sem pausas. O lançamento consome
   o orçamento do teste; planos inviáveis são rejeitados antes de `StartJob`.
   READY/GO ainda libera todos em conjunto, sem implicar menor concorrência SQL.
-- [ ] Resolver complemento M07 antes da baseline de transporte/memória M08
-  e das verificações finais M09 do [WIP](WIP.pt-BR.md).
+  Os resumos fornecidos com 5–500 workers contêm os novos campos e informam
+  zero falhas; sem recibo de compilação ou rastro completo por worker.
+- [x] Concluir M07 no escopo Windows/nativo/manual registrado. Retomar
+  baseline de transporte/memória M08; checks finais M09 e D03 continuam
+  abertos no [WIP](WIP.pt-BR.md).
 - [ ] Avaliar `hbodbc`/`hbsqlit3` quando a operação exigir a API direta.
 - [x] Implementar `RPCRDD.Query` no registro/dispatcher, com perfil lógico,
   `alias`, `sql`, metadados e retorno por chave com contagem/versão explícitas.
@@ -616,15 +631,18 @@ testado; somente versões e capacidades efetivamente implementadas são anunciad
   preserva a fachada. Conexões nativas lógicas mantêm seu ciclo por chamada;
   bancos SQLite em memória continuam novos. Passaram checks isolados de
   leases/configuração e regressão nativa.
-- [ ] Concluir aceite do reuso físico MSSQL pelo Driver Manager dentro de M07.
+- [x] Homologar reuso físico MSSQL pelo Driver Manager no escopo Windows de M07.
   Política padrão `off`; `driver` é opcional no Windows com ODBC 3.8, enquanto
-  Linux permanece `off` até validação própria em execução. Corrigir o ciclo
-  do ambiente após o resultado inicial de 13 leases/13 conexões físicas;
-  comprovar reuso, sessão/transação limpas, isolamento de timeout/perfil,
-  conexão padrão zero do chamador e encerramento. Separar conexão/autenticação
-  das medições de query/contagem/leitura/codificação/transporte. Persistência
-  RPC e SQL paralelo permanecem desenhos separados.
-  [Análise](docs/sql-connections.pt-BR.md).
+  Linux permanece `off` até validação própria em execução. O ambiente do
+  processo mantém o pool aquecido; controles driver/off passaram em 61 checks
+  cada e concorrência nativa com pooling em 458. Foram exercitados reuso,
+  sessão/transação limpas, timeouts, conexão padrão zero do chamador e
+  encerramento. Separar conexão/autenticação das medições de query/contagem/
+  leitura/codificação/transporte. Persistência RPC e SQL paralelo permanecem
+  desenhos separados. [Aceite](docs/acceptance.pt-BR.md#odbc-physical-reuse-on-2026-10-15).
+- [ ] Ampliar aceite de pooling físico para Linux, autenticação integrada
+  e segundo banco/perfil MSSQL configurado; nenhum é inferido da rodada
+  Windows atual com autenticação SQL.
 
 - [ ] Correção de integridade UTF-8/FLOAT identificada no aceite: TCP atual pode
   usar CP437 Harbour e a prova de 2026-10-08 perdeu fração FLOAT no JSON.
@@ -640,7 +658,8 @@ testado; somente versões e capacidades efetivamente implementadas são anunciad
   zero falhas, em 2026-10-13 às 17:56:23 São Paulo, thread 32332. Helpers puros
   passaram nos 12 checks às 17:56:45, thread 28300. O escopo de mocks de D02
   está homologado; integridade UTF-8/FLOAT de D03 permanece pendente. M06 tem
-  aceite isolado posterior, com complemento M07 e M08–M09 abertos. Essas rodadas não exercitam transporte, backend SQL nem
+  aceite isolado posterior; M07 está homologada no escopo registrado e M08–M09
+  permanecem abertos. Essas rodadas não exercitam transporte, backend SQL nem
   tabela ERP. [Evidência](docs/dataset.pt-BR.md).
 
 - [ ] Adicionar parâmetros SQL e metadados de tipo, tamanho, precisão e nulos,

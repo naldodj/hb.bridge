@@ -179,3 +179,16 @@ are created only in memory. Use the printed ports and `m07/sqlite` in
 The native suite passed 458 checks; Protheus CLI passed 417, both zero failures
 on 2026-10-14. These verify caller isolation/release under the existing mutex,
 without selecting a connection pool or promising parallel SQL execution.
+
+Optional Windows physical pooling is selected on the hbBridge host:
+
+```ini
+[SQL]
+ODBCPooling=driver
+```
+
+Rebuild with the managed ODBC patch and restart the process before changing
+this first-use policy. Default is `off`; no AppServer credential changes are
+needed. Reuse/session-isolation acceptance is separate from the later manual
+500-worker paced summaries. See [configuration](../../docs/configuration.md#odbc-physical-pooling)
+and [tests](../../tests/README.md#mssql-physical-reuse-and-session-isolation).

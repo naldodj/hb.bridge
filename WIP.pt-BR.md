@@ -13,10 +13,10 @@ registra resultados verificados; ChangeLog e Git preservam o histórico.
 | --- | --- |
 | ID | `001-mssql-acceptance` |
 | Abertura / atualização | 2026-10-07 / 2026-10-15 |
-| Situação | D02/M06 homologadas. Regressão nativa atual: 712 checks, zero falhas; checks isolados de leases/configuração: 266, zero falhas. Baseline M07 permanece nativo 458/AppServer CLI 417. A última rodada informada de 130 workers completou 15159 checks com 41 falhas; o log completo aguarda análise. Reuso físico ODBC, M07 e D03 continuam pendentes. |
+| Situação | D02/M06/M07 homologadas nos escopos Windows/teste registrados. Regressão nativa: 712/0; checks de leases/configuração: 266/0; controles físicos ODBC driver/off: 61/0 cada; concorrência nativa com pooling: 458/0. Resumos manuais com espaçamento até 500 workers informam 83934 checks/0. D03, M08 e checks finais M09 continuam pendentes; pacote aberto. |
 | Objetivo | Homologar RPCRDD.Query/dataset existentes em banco MSSQL real identificado, por Harbour, TCP Protheus e HTTP Protheus. |
 | Referência do produto | Código publicado `50e1c65`; checkout na abertura `bce52d2` inclui atualização do badge de clones. |
-| Próxima tarefa | M07: homologar a fachada adaptada de leases lógicos e o reuso físico ODBC opcional contra MSSQL; analisar o log de 130 workers e aceitar o espaçamento reproduzível antes de repetir a carga. Medições M08 de tempo/memória seguem o aceite M07. D03 continua pendente; automação de metadados decimais adiada. |
+| Próxima tarefa | M08: registrar tempo e memória Harbour/TCP/HTTP com fixture, volume e concorrência identificados; preservar evidências nativas e manuais de M07 em escopos separados. Concluir build/regressões/validadores finais em M09. D03 continua pendente. |
 
 ### Decisões já tomadas
 
@@ -184,8 +184,10 @@ constatações de aceite, sem motivo para repetir o inventário concluído.
   desativa a opção nativa e omissão preserva o padrão do driver. Cada instrução,
   inclusive COUNT, tem timeout próprio. Isso não impõe prazo global à requisição
   nem implementa cancelamento após timeout/desconexão do cliente.
-- [ ] **M07 — Verificar concorrência e liberação.** Baseline homologada em
-  2026-10-14; reaberta pelo relato adicional com 140 workers:
+- [x] **M07 — Verificar concorrência e liberação.** Baseline homologada em
+  2026-10-14; complemento sob carga homologado em 2026-10-15 nos escopos
+  nativo Windows e de resumos manuais exercitados abaixo. Preservar as
+  evidências intermediárias de falhas com 140 workers:
   nativo **458 checks, 8 workers/192 chamadas**, local/NETIO/TCP/HTTP e três
   aliases; AppServer CLI **417 checks, 4 jobs/112 chamadas**, dois jobs TCP e
   dois HTTP alternando MSSQL/SQLite. Zero falhas; verificadas áreas/conexão
@@ -218,23 +220,42 @@ constatações de aceite, sem motivo para repetir o inventário concluído.
   completa de **712 checks**, com zero falhas.
   A política física do Driver Manager tem padrão `off`. `driver` é uma opção
   Windows com ODBC 3.8; Linux permanece `off` até homologação própria.
-  A validação do reuso físico MSSQL está em andamento: a primeira tentativa
-  abriu 13 conexões físicas distintas para 13 leases lógicos. O ciclo do
-  ambiente está sendo corrigido; reuso e limpeza de sessão ainda não homologados.
+  A primeira tentativa de reuso físico MSSQL
+  abriu 13 conexões físicas distintas para 13 leases lógicos. Manter o ambiente
+  ODBC do processo demonstrou depois reuso aquecido e limpeza de configurações,
+  tabelas temporárias, transações e banco selecionado na mesma conexão física;
+  o aceite isolado final passou em **61 checks/0** em cada processo separado
+  `driver` e `off`. Após dois leases de aquecimento frio usarem duas conexões
+  físicas, os 13 leases medidos em `driver` reutilizaram uma conexão TCP física;
+  `off` usou 13. A suíte nativa com pooling de oito workers/192 chamadas passou
+  em **458 checks/0**, incluindo isolamento e liberação. Linux, autenticação
+  integrada e perfil opcional de segundo banco para pooling não foram
+  exercitados. Os resumos manuais não identificam essa adaptação nativa nem
+  estabelecem que ela causou o sucesso das suas rodadas.
   Informada execução de 125 workers sem falhas, sem análise do log completo.
-  O resumo mais recente de 130 workers informa coleta de todos os jobs,
-  **15159 checks/41 falhas**; o log completo ainda aguarda análise.
-  Nenhum dos relatos encerra M07.
+  O log completo de 130 workers foi analisado: todos os 130 relatos/3640
+  chamadas, **15159 checks/41 falhas**. Treze recusas HTTP na etapa 4 causaram
+  33 assertivas dos workers e oito checks do pai indicando falhas; os TCP
+  passaram. Não há THREAD ERROR. As recusas ocorreram em 460 ms, sem expiração
+  do orçamento do teste.
+  Resumos posteriores de **5/15/20/30/150/500 workers** informam todos os jobs
+  coletados e **83934 checks, zero falhas**; a rodada de 500 informa **58449/0**.
+  Homologado o escopo exercitado desses resumos com espaçamento. Faltam rastros
+  individuais, duração real e identificação do binário/pool; os resumos não
+  comprovam essas propriedades separadamente nem estabelecem a causa anterior.
   O espaçamento agora é explícito nos argumentos 10–12/CLI: os padrões
   300/50/5000 ms preservam a rampa fornecida e `GetEnvServer()`. As pausas
   planejadas somam 431450 ms com 130 workers e 481450 ms com 140; `0/0/0`
   fornece um controle sem pausas. O orçamento inclui lançamento e planos de
   pausas inviáveis são rejeitados antes de `StartJob`; a barreira READY/GO de
-  todos os workers ainda libera o trabalho em conjunto. Esta revisão TLPP
-  aguarda compilação/aceite em execução; o resultado anterior de 32 fontes
-  compilados precede o espaçamento configurável.
-  [Evidências do complemento](docs/acceptance.pt-BR.md#sql-concurrency-follow-up-on-2026-10-15)
-  e [análise de reuso](docs/sql-connections.pt-BR.md) antecedem M08.
+  todos os workers ainda libera o trabalho em conjunto. Os resumos posteriores
+  incluem esses campos explícitos, registrando execução manual dessa revisão
+  de relatório. Não foi fornecido novo recibo de compilação; o resultado
+  anterior de 32 fontes precede o espaçamento configurável.
+  [Evidências ODBC nativas](docs/acceptance.pt-BR.md#odbc-physical-reuse-on-2026-10-15),
+  [complemento histórico](docs/acceptance.pt-BR.md#sql-concurrency-follow-up-on-2026-10-15)
+  e [evidências manuais com espaçamento](docs/acceptance.pt-BR.md#manual-protheus-concurrency-on-2026-10-15)
+  mantêm seus escopos separados. Retomar M08; checks finais M09 permanecem pendentes.
 - [ ] **M08 — Registrar referência de desempenho.** Identificar SQL, fixture/
   volume, quantidade de execuções e concorrência; registrar tempo e medições
   de memória disponíveis por Harbour, TCP e HTTP. É uma referência, sem
@@ -345,22 +366,23 @@ não foram inferidos duração precisa nem acionamento por interface gráfica.
 Os 458 checks nativos e 417 checks AppServer CLI permanecem a baseline histórica aceita
 de M07. A repetição controlada com 140 workers em 2026-10-15 continuou falhando
 após validar controles independentes de coleta/limpeza. Análises de reuso de
-conexões, pressão de portas, falhas informadas com 130 workers e aceite do
-ciclo lógico/físico adaptado permanecem em M07 antes das medições M08.
+conexões, pressão de portas e aceite do ciclo lógico/físico adaptado concluíram
+depois M07 no escopo Windows registrado. As falhas com 130 foram analisadas;
+resumos posteriores com espaçamento até 500 workers estão homologados no seu
+escopo. Retomar medições M08.
 Preservar mutex SQL e distinguir requisições concorrentes de execução paralela
 no banco. Integridade D03 continua
 pendente após o ajuste explícito da prioridade, mantendo CAST no chamador.
 Sem nova evidência que exija revisão, não repetir migração, inventário ou
-casos nativos/TCP/HTTP homologados. Complemento M07, M08–M09 e critérios do
+casos nativos/TCP/HTTP homologados. M08–M09 e critérios do
 pacote permanecem.
 
 A [observação de reuso de conexões SQL](docs/sql-connections.pt-BR.md) de
 2026-10-12 foi repriorizada para M07 em 2026-10-15. `HBBridgeSQLPool` agora
-controla leases lógicos exclusivos sob o mutex de ciclo de vida existente;
-o reuso físico ODBC nativo segue em validação, com política padrão `off`.
-Concluir comprovação de reuso físico, preservação do chamador, limpeza de
-sessão e responsabilidade pelo encerramento antes do aceite MSSQL.
-Manter persistência RPC separada.
+controla leases lógicos exclusivos sob o mutex de ciclo de vida existente.
+O reuso físico ODBC nativo passou no aceite MSSQL Windows, com política
+padrão `off` e opção `driver`. Manter a comprovação de identidade física/
+limpeza de sessão separada dos resumos manuais e da persistência RPC futura.
 
 ## Pacotes seguintes: direção reservada
 

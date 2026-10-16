@@ -144,9 +144,18 @@ encrypted credential management is not implemented yet.
 ## Opt-in SQL concurrency test
 
 `test-hbbridge-mssql.ps1 -Config C:/tmp/hbBridge.ini -Profile MSSQL/pData -Concurrency`
-builds and runs the isolated eight-worker M07 suite. `-Concurrency` cannot
-combine with `-Failures`; `-Serve` is available for either mode. In concurrency
+builds and runs the isolated eight-worker M07 suite. `-Concurrency`, `-Failures`
+and `-Pooling` are mutually exclusive; `-Serve` is available for concurrency
+or failures. In concurrency
 mode it prints test endpoints/profiles, hosts for up to 600 seconds, and stops
 on `m07.stop` in its run directory or Esc/Ctrl+Q. Final resource checks follow
 host shutdown. See the [test guide](../tests/README.md#mssql-concurrency-and-resource-release-m07)
 and [Protheus consumer](../src/tlpp/tests/protheus/hbbridge.concurrency.test/README.md).
+
+`-Pooling -ODBCPooling off` and `-Pooling -ODBCPooling driver` run the physical
+reuse/session-isolation test in separate processes; `-Pooling` defaults to
+`driver`. Optional `-OtherProfile` must name another configured MSSQL database.
+`-Concurrency -ODBCPooling driver` exercises all native routes with pooling.
+`-HTTPListenBacklog <positive integer>` selects the isolated concurrency host's
+queue request. These overrides do not modify private INIs. See
+[pooling acceptance](../docs/acceptance.md#odbc-physical-reuse-on-2026-10-15).

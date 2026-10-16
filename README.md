@@ -385,7 +385,23 @@ No arbitrary row ceiling applies; ordinals must remain exact JSON/TLPP
 integers. Pagination limits bridge rows but deep pages may still sort/scan
 extensively. The [contract](docs/milestone3-sql.md) details order grammar,
 types/nulls, errors and lifecycle. Bound parameters, cursors, transactions,
-cancellation, SQL timeouts and incremental BLOBs remain pending.
+cancellation and incremental BLOBs remain pending; optional native ODBC login
+and statement timeouts are available in MSSQL profiles.
+
+### SQL connection reuse
+
+`HBBridgeSQLPool` owns logical leases per call, preserving caller state and
+the SQL lifecycle mutex. Optional `[SQL] ODBCPooling=driver` in hbbridge.ini
+enables physical reuse through the Windows ODBC 3.8 driver manager; default
+`off` and SQLite lifetime stay unchanged. Native checks distinguish cold
+startup, actual reuse, clean sessions and release. Linux pooling remains
+pending. See [configuration](docs/configuration.md#odbc-physical-pooling) and
+[reuse acceptance](docs/acceptance.md#odbc-physical-reuse-on-2026-10-15).
+
+Manual Protheus summaries on 2026-10-15 report zero failures through 500 jobs
+(58449 checks), with explicit launch pacing. This accepts the exercised
+configuration; it is separate from SQL parallelism, an unpaced capacity
+limit or physical-pool identification. [Evidence](docs/acceptance.md#manual-protheus-concurrency-on-2026-10-15).
 
 ### Portable SQL credentials
 
@@ -747,9 +763,9 @@ are tracked in [WIP](WIP.md).
 [Syslog](src/hb/telemetry/hbbridge.syslog.hb) sends UDP to `127.0.0.1:514`
 but is not integrated into lifecycle/RPC yet.
 Broader identity/token policies, credential management, module trust and deployment policies
-remain work. The next SQL work corrects UTF-8/FLOAT integrity and accepts the
-dataset extension, then covers controlled connection failures, native timeout
-and recovery against MSSQL/ODBC;
+remain work. The active [WIP](WIP.md) records accepted dataset, failure/recovery
+and concurrent-caller work, followed by M08 time/memory measurements.
+D03 UTF-8/FLOAT integrity remains open;
 blocks, DBF, TLPP VF,
 services, jobs/batches and functional C/Zig extensions follow incrementally.
 Discover only delivered capabilities; metrics for correlation, latency,

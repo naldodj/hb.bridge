@@ -338,9 +338,13 @@ gerenciador depois disso. Permanecem mutex SQL, contrato query/página/contagem
 e duração do SQLite. `driver` significa `SQL_CP_ONE_PER_DRIVER`, sem indicar
 `SQL_CP_DRIVER_AWARE`, pool por tenant Protheus ou execução SQL paralela.
 
-O matching deve preservar opções efetivas e identidade autenticada. Reset
-nativo e isolamento de transação/objetos temporários/SET exigem homologação
-própria; matching sozinho não basta. Veja a
+A referência de ambiente nativo permanece entre chamadas lógicas e é liberada
+ao sair do processo; expiração de conexões físicas ociosas segue a política
+do gerenciador. `HBBridgeODBCPoolingInfo()` distingue modo solicitado, primeira
+utilização, suporte do build e retenção desse ambiente próprio. Essas flags
+sozinhas não comprovam reuso. O matching preserva opções/identidade; reset,
+isolamento de transação/temporárias/SET e reuso físico no Windows têm
+[evidências próprias](acceptance.pt-BR.md#odbc-physical-reuse-on-2026-10-15). Veja a
 [análise de reuso](sql-connections.pt-BR.md) e o
 [contrato ODBC nativo](https://learn.microsoft.com/en-us/sql/odbc/reference/develop-app/driver-manager-connection-pooling?view=sql-server-ver17).
 

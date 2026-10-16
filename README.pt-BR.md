@@ -557,8 +557,24 @@ representáveis pelo contrato JSON/TLPP. A paginação limita as linhas recebida
 e materializadas pela ponte; páginas profundas ainda podem custar ordenação
 e varredura no banco. O [contrato do Marco 3](docs/milestone3-sql.pt-BR.md) detalha
 gramática de ordenação, tipos, nulos, erros e o ciclo de conexão/área.
-Parâmetros vinculados, cursores, transações, cancelamento, timeout SQL e
-transferência incremental de BLOBs continuam no TODO.
+Parâmetros vinculados, cursores, transações, cancelamento e transferência
+incremental de BLOBs continuam no TODO; perfis MSSQL já oferecem timeouts
+nativos opcionais de login e statement ODBC.
+
+### Reutilização de conexões SQL
+
+`HBBridgeSQLPool` controla leases lógicos por chamada, preservando estado do
+chamador e mutex do ciclo SQL. A opção `[SQL] ODBCPooling=driver` no
+hbbridge.ini ativa reuso físico pelo gerenciador Windows ODBC 3.8; padrão
+`off` e duração do SQLite permanecem. Checks nativos distinguem início frio,
+reuso real, sessão limpa e liberação. Pooling Linux permanece pendente. Veja
+[configuração](docs/configuration.pt-BR.md#pooling-físico-odbc) e
+[homologação de reuso](docs/acceptance.pt-BR.md#odbc-physical-reuse-on-2026-10-15).
+
+Resumos manuais Protheus de 2026-10-15 informam zero falhas até 500 jobs
+(58449 checks), com pausas explícitas de lançamento. Homologa a configuração
+exercitada; não equivale a paralelismo SQL, limite de carga sem pausas ou
+identificação do pool físico. [Evidências](docs/acceptance.pt-BR.md#manual-protheus-concurrency-on-2026-10-15).
 
 ### DBF nativo do Harbour via NETIO
 
@@ -1022,8 +1038,9 @@ políticas de módulos também fazem parte da consolidação da ponte.
 
 O teste SQLite `U_HBBridgeQueryTest` foi homologado com o servidor preparado
 por `examples/sql/run.ps1`. MSSQL/ODBC passou no núcleo Harbour e no TCP/HTTP;
-o próximo trabalho SQL corrige integridade UTF-8/FLOAT e homologa a extensão
-do dataset, seguido por falhas controladas, timeout nativo e recuperação.
+O [WIP](WIP.pt-BR.md) registra dataset, falhas/recuperação e chamadores
+concorrentes homologados; a próxima M08 mede tempo/memória. A integridade
+UTF-8/FLOAT em D03 permanece aberta.
 Serviço e conectores estão implementados; o launcher aceita
 perfis em JSON ou INI, como `-Config config/examples/sqlite.ini`.
 Em paralelo, a base de integração

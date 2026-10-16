@@ -389,7 +389,7 @@ native handshake observations are recorded in the
 ./scripts/test-hbbridge-mssql.ps1 -Config C:/tmp/hbBridge.ini -Profile MSSQL/pData -Concurrency -Serve
 ```
 
-`-Concurrency` and `-Failures` are mutually exclusive. Missing private config,
+`-Concurrency`, `-Failures` and `-Pooling` are mutually exclusive. Missing private config,
 working MSSQL alias or backend prerequisite fails with exit 2; no successful
 skip is allowed. The suite owns an isolated SQLite file and in-memory aliases
 `m07/mssql-clone` and `m07/sqlite`, retaining the supplied working MSSQL alias.
@@ -404,3 +404,29 @@ checks run after hosting ends; acceptance requires all 458 checks and exit 0.
 The [Protheus suite](../src/tlpp/tests/protheus/hbbridge.concurrency.test/README.md)
 uses four StartJobs, 112 calls and 417 checks. Both native and AppServer CLI
 routes passed on 2026-10-14; [scope/evidence](../docs/acceptance.md#sql-concurrency-and-release-on-2026-10-14).
+
+Later paced manual summaries pass through **500 jobs / 58449 checks**, zero
+reported failures. They contain launch settings and collected-job totals,
+without the binary/pool identification or per-worker evidence needed to
+attribute the outcome to physical reuse.
+[Manual acceptance](../docs/acceptance.md#manual-protheus-concurrency-on-2026-10-15).
+
+## MSSQL physical reuse and session isolation
+
+```powershell
+./scripts/test-hbbridge-mssql.ps1 -Config C:/tmp/hbBridge.ini -Profile MSSQL/pData -Pooling -ODBCPooling off
+./scripts/test-hbbridge-mssql.ps1 -Config C:/tmp/hbBridge.ini -Profile MSSQL/pData -Pooling -ODBCPooling driver
+./scripts/test-hbbridge-mssql.ps1 -Config C:/tmp/hbBridge.ini -Profile MSSQL/pData -Concurrency -ODBCPooling driver
+```
+
+Each pooling mode runs in a fresh process and passed 61 checks on Windows.
+After two recorded warmup leases, 13 measured leases use 13 physical
+connections with `off`, one with `driver`. Database-side identities and TCP
+ports prove reuse; session SET/context/temp/transaction/database changes,
+timeouts, caller state and native environment release are checked separately.
+The inspected account needs access to its connection in `sys.dm_exec_connections`;
+missing prerequisites fail visibly. No ERP table changes or private INI edits.
+`-OtherProfile <alias>` optionally tests another configured MSSQL database;
+that case and Linux pooling have no runtime acceptance yet. The pooled
+eight-worker fixture passed 458 checks, zero failures/no skips.
+[Evidence and limits](../docs/acceptance.md#odbc-physical-reuse-on-2026-10-15).

@@ -159,9 +159,18 @@ implementado.
 ## Teste SQL concorrente opt-in
 
 `test-hbbridge-mssql.ps1 -Config C:/tmp/hbBridge.ini -Profile MSSQL/pData -Concurrency`
-compila e executa a suíte M07 isolada de oito workers. `-Concurrency` não
-combina com `-Failures`; `-Serve` funciona em ambos. No modo concorrência,
+compila e executa a suíte M07 isolada de oito workers. `-Concurrency`, `-Failures`
+e `-Pooling` são mutuamente exclusivos; `-Serve` funciona em concorrência
+ou falhas. No modo concorrência,
 imprime endpoints/perfis de teste, hospeda por até 600 segundos e encerra com
 `m07.stop` no diretório da rodada ou Esc/Ctrl+Q. Checks finais de recursos
 sucedem o shutdown. Veja o [guia](../tests/README.pt-BR.md#concorrência-mssql-e-liberação-de-recursos-m07)
 e [consumidor Protheus](../src/tlpp/tests/protheus/hbbridge.concurrency.test/README.pt-BR.md).
+
+`-Pooling -ODBCPooling off` e `-Pooling -ODBCPooling driver` executam o teste
+de reuso físico/isolamento em processos separados; `-Pooling` assume `driver`.
+`-OtherProfile` opcional deve indicar outro banco MSSQL configurado.
+`-Concurrency -ODBCPooling driver` exercita todas as rotas nativas com pooling.
+`-HTTPListenBacklog <inteiro positivo>` seleciona a fila solicitada no host
+isolado de concorrência. Não altera INIs privados. Veja a
+[homologação do pool](../docs/acceptance.pt-BR.md#odbc-physical-reuse-on-2026-10-15).
