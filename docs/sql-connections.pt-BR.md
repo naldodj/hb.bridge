@@ -1,10 +1,11 @@
-# Reutilização de conexões SQL: análise futura
+# Reutilização de conexões SQL
 
 [English](sql-connections.md) · [Contrato SQL](milestone3-sql.pt-BR.md) · [Roadmap](../TODO.pt-BR.md)
 
-Observação registrada em 2026-10-12 para avaliação futura. É um item para
-análise futura, sem pooling implementado, padrão aprovado ou novas chaves INI.
-O pacote WIP mantém suas tarefas e critérios de conclusão atuais.
+Observação registrada em 2026-10-12; repriorizada na investigação de carga
+M07 em 2026-10-15. O reuso deve preservar o executor genérico, o isolamento
+dos perfis e o estado do chamador. O esboço de pool fornecido serve como
+referência de desenho; sua implementação não é adotada literalmente.
 
 ## Comportamento atual
 
@@ -14,7 +15,7 @@ restaura a área/conexão padrão do chamador. Um mutex SQL protege todo o ciclo
 Reutilizar a conexão não elimina query/contagem de páginas nem torna as
 consultas paralelas sob esse mutex.
 
-O SDDODBC inspecionado chama `SQLDriverConnect()` e `SQLDisconnect()` sem
+O SDDODBC original chama `SQLDriverConnect()` e `SQLDisconnect()` sem
 habilitar pooling explicitamente. Conectar/desconectar logicamente não prova
 uma nova conexão física: com pooling ODBC ativo, desconectar pode devolver a
 conexão para reutilização. Verificar o comportamento real do gerenciador antes
@@ -69,3 +70,64 @@ A duração da conexão SQL é independente da conexão TCP/HTTP Protheus–hbBr
 Pode-se avaliar reuso do banco sem adotar transporte RPC persistente. Escolher
 implementação após medir e homologar isolamento, recuperação e recursos nas
 plataformas suportadas.
+
+## Homologação de chamadores concorrentes
+
+M07 passou em 458 checks nativos (8 workers/192 chamadas) e 417 checks
+AppServer CLI (4 jobs/112 chamadas) em 2026-10-14. Perfis, schemas, valores e
+limpeza própria permaneceram isolados sob o mutex do ciclo atual. Homologa
+chamadores concorrentes, sem remover sincronização nem provar liberação
+física de conexões. Não define estratégia de pooling.
+[Escopo e evidências](acceptance.pt-BR.md#sql-concurrency-and-release-on-2026-10-14).
+M08 ainda fornece medições de tempo/memória necessárias à análise de reuso.
+
+## Pressão sobre portas observada em 2026-10-15
+
+O arquivo mais recente contém erro ODBC **10048/08001** e timeout de login
+do DBAccess, seguido da proposta `HBBridgeSQLPool`; não é um relatório OK.
+DBAccess é outro processo. Uma captura local encontrou 15264 conexões em
+`TIME_WAIT`, e a faixa IPv4 dinâmica é 49152–65535. As contagens variam e
+não medem vazamento de handles.
+
+O log System do Windows também contém **Tcpip 4227** às **07:35:03 e
+08:41:55 São Paulo**: falha de conexão de saída porque o endpoint local
+selecionado havia conectado recentemente ao mesmo destino. Isso estabelece
+um sintoma de pressão sobre reuso de portas no host durante a investigação;
+a atribuição por processo e sua contribuição para cada falha HTTP ainda
+precisam ser medidas. A Microsoft distingue essa evidência da quantidade
+isolada de `TIME_WAIT` no
+[diagnóstico de esgotamento de portas](https://learn.microsoft.com/en-us/troubleshoot/windows-client/networking/tcp-ip-port-exhaustion-troubleshooting).
+
+Aumentar backlog HTTP ou prazos das chamadas não fez passar o caso de 140
+workers. Nenhuma configuração TCP do registro ou faixa de portas do Windows
+foi alterada. Reuso SQL reduz criação de conexões com o banco; as conexões
+HTTP/TCP Protheus–hbBridge têm outro ciclo e também precisam de medição.
+[Evidências das rodadas](acceptance.pt-BR.md#sql-concurrency-follow-up-on-2026-10-15).
+
+## Adaptação do esboço fornecido
+
+| Comportamento do esboço | Adaptação necessária ao hbBridge |
+| --- | --- |
+| Remover o mutex do ciclo SQL | Mantê-lo; o SDDODBC fixado não declara `MT_AWARE`, e o RDDSQL também serializa operações do driver. |
+| Repetir `Acquire()` indefinidamente e conectar/pingar sob o lock do pool | Manter timeouts nativos finitos e falhas visíveis; não adicionar repetição sem prazo nem reenviar comandos. |
+| Devolver handle ausente em `inUse` | Exigir propriedade exata; devolução duplicada ou alheia não pode disponibilizar o mesmo handle duas vezes. |
+| Destruir handles emprestados ou ignorar erro ao fechar cursor | Aguardar trabalho ativo, verificar limpeza e nunca emprestar conexão com reader pendente. |
+| Restaurar somente conexão padrão anterior positiva | Preservar também zero; `RDDI_CONNECTION` nativo ignora atribuição de zero. Reter handles RDDSQL exige outro desenho de propriedade. |
+| Usar `SELECT 1` como teste de sessão limpa | Verificar isolamento de transações, objetos temporários, banco e opções da sessão; disponibilidade não limpa estado. |
+| Trocar construção MSSQL por concatenação ODBC genérica | Preservar validação de autenticação/TLS, exclusividade entre campos/string e comportamento de tipos/codificação/paginação. |
+| Anunciar Oracle/PostgreSQL/MySQL imediatamente | Homologar cada driver/dialeto; preservar a duração dos bancos SQLite. |
+
+A primeira adaptação avalia **pooling físico no gerenciador ODBC nativo**,
+preservando conectar/desconectar lógico por chamada no RDDSQL e o mutex SQL.
+Evita cache compartilhado de handles RDDSQL e mantém a restauração do
+chamador cuja conexão anterior era zero. Pool gerenciado pela aplicação
+permanece outra opção se o reuso nativo não atender às medições necessárias.
+
+A política de pooling pertence ao processo, é explícita e fica fixa no
+primeiro uso ODBC. `off` preserva o padrão atual; `driver` solicita pool por
+driver, sem significar o recurso distinto `SQL_CP_DRIVER_AWARE`. Combinar
+opções de conexão exatamente não comprova sessão limpa. Reset ODBC 3.8,
+suporte do driver e reuso físico precisam de homologação antes de depender
+desse modo. A primeira validação de execução contempla Windows; Linux mantém
+`off` até homologar seu gerenciador/isolamento. Veja
+[configuração](configuration.pt-BR.md) para opções e evidências atuais.

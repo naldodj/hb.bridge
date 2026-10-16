@@ -20,6 +20,9 @@ FUNCTION HBBridgeHostStart( hConfig, cError )
         ENDIF
         RETURN NIL
     ENDIF
+    IF ! HBBridgeSQLConfigure( hConfig[ "sqlODBCPooling" ], @cError )
+        RETURN NIL
+    ENDIF
     IF ! hb_DirExists( hConfig[ "netioRoot" ] ) .AND. ! hb_DirBuild( hConfig[ "netioRoot" ] )
         cError := "Unable to prepare netioRoot"
         RETURN NIL

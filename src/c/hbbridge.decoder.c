@@ -6,6 +6,12 @@
 #include <string.h>
 #include <zlib.h>
 
+#if defined( HB_OS_WIN )
+#include <winsock2.h>
+#else
+#include <sys/socket.h>
+#endif
+
 typedef struct
 {
     z_stream stream;
@@ -114,7 +120,7 @@ static void BridgeHashLimit( PHB_ITEM hash, const char * name, HB_MAXINT limit )
     hb_itemRelease( value );
 }
 
-/* Representable lengths, not promises about available process memory. */
+/* Native defaults and representable limits, not available resource promises. */
 HB_FUNC( HBBRIDGERUNTIMELIMITS )
 {
     HB_SIZE stringLimit = BridgeStringLimit();
@@ -126,6 +132,8 @@ HB_FUNC( HBBRIDGERUNTIMELIMITS )
     BridgeHashLimit( limits, "socketChunkBytesMax", ( HB_MAXINT ) socketLimit );
     BridgeHashLimit( limits, "zlibChunkBytesMax", ( HB_MAXINT ) zlibLimit );
     BridgeHashLimit( limits, "netioTimeoutMsMax", ( HB_MAXINT ) INT_MAX );
+    BridgeHashLimit( limits, "socketListenBacklogDefault", ( HB_MAXINT ) SOMAXCONN );
+    BridgeHashLimit( limits, "socketListenBacklogMax", ( HB_MAXINT ) INT_MAX );
     hb_itemReturnRelease( limits );
 }
 

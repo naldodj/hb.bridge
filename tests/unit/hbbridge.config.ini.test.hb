@@ -12,25 +12,35 @@ PROCEDURE M1INIConfigTests( nFailures, nChecks )
         "ReadChunkBytes=8192" + hb_eol() + "TimeoutMs=0" + hb_eol() + ;
         "[NETIO]" + hb_eol() + "Root=files" + hb_eol() + "Password=test;#=secret" + hb_eol() + ;
         "TimeoutMs=0" + hb_eol() + "[Admin]" + hb_eol() + "Password=" + hb_eol() + ;
+        "[HTTP]" + hb_eol() + "ListenBacklog=32" + hb_eol() + ;
+        "[SQL]" + hb_eol() + "ODBCPooling=driver" + hb_eol() + ;
         "[SQL/SqliteDemo]" + hb_eol() + "Driver=SQLite" + hb_eol() + "Database=sample.sqlite3" + hb_eol()
     hb_MemoWrit( "config-test/host.ini", cIni )
     hb_MemoWrit( "config-test/equivalent.json", ;
         '{"maxWorkers":3,"addonRoot":"../addons","protheusHost":"127.0.0.1",' + ;
         '"protheusPort":1700,"protheusMaxPayloadBytes":0,"protheusMaxWireBytes":0,' + ;
         '"protheusReadChunkBytes":8192,"protheusTimeoutMs":0,"netioRoot":"files",' + ;
-        '"netioPassword":"test;#=secret","netioTimeout":0,"adminPassword":"",' + ;
-        '"sqlProfiles":{"SqliteDemo":{"driver":"sqlite","database":"sample.sqlite3"}}}' )
+        '"netioPassword":"test;#=secret","netioTimeout":0,"adminPassword":"","httpListenBacklog":32,' + ;
+        '"sqlODBCPooling":"driver","sqlProfiles":{"SqliteDemo":{"driver":"sqlite","database":"sample.sqlite3"}}}' )
     hINI := HBBridgeConfig( { "-config=config-test/host.ini" }, @cError )
     hJSON := HBBridgeConfig( { "-config=config-test/equivalent.json" } )
     M1Assert( hINI != NIL .AND. hJSON != NIL .AND. ;
         hb_jsonEncode( hINI ) == hb_jsonEncode( hJSON ), ;
         "INI and JSON normalize to the same typed configuration: " + cError, @nFailures, @nChecks )
+    M1Assert( hINI[ "sqlODBCPooling" ] == "driver" .AND. ;
+        HBBridgeODBCPoolingInfo()[ "mode" ] == "off", ;
+        "configuration parsing does not change native process pooling", @nFailures, @nChecks )
+    hJSON := HBBridgeConfig( { "-config=config-test/host.ini", "-odbcpooling=off" }, @cError )
+    M1Assert( hJSON != NIL .AND. hJSON[ "sqlODBCPooling" ] == "off", ;
+        "CLI overrides INI ODBC pooling policy", @nFailures, @nChecks )
     M1Assert( hINI[ "netioPassword" ] == "test;#=secret" .AND. Empty( hINI[ "adminPassword" ] ) .AND. ;
         hINI[ "sqlProfiles" ][ "SqliteDemo" ][ "database" ] == ;
         HBBridgeAbsolutePath( "config-test/sample.sqlite3", hb_cwd() ), ;
         "INI preserves password punctuation, empty admin and relative SQLite paths", @nFailures, @nChecks )
-    hINI := HBBridgeConfig( { "-port=1701", "-maxworkers=4", "-config=config-test/host.ini" }, @cError )
-    M1Assert( hINI != NIL .AND. hINI[ "protheusPort" ] == 1701 .AND. hINI[ "maxWorkers" ] == 4, ;
+    hINI := HBBridgeConfig( { "-port=1701", "-maxworkers=4", "-httplistenbacklog=31", ;
+        "-config=config-test/host.ini" }, @cError )
+    M1Assert( hINI != NIL .AND. hINI[ "protheusPort" ] == 1701 .AND. hINI[ "maxWorkers" ] == 4 .AND. ;
+        hINI[ "httpListenBacklog" ] == 31, ;
         "CLI overrides INI regardless of argument order", @nFailures, @nChecks )
     hINI := HBBridgeConfig( { "--config-info", "-config=config-test/host.ini", "-netioroot=cli-ini" } )
     M1Assert( hINI != NIL .AND. hINI[ "netioRoot" ] == HBBridgeAbsolutePath( "cli-ini", hb_cwd() ), ;
@@ -45,6 +55,10 @@ PROCEDURE M1INIConfigTests( nFailures, nChecks )
         "DSN=fixture;UID=include user;PWD=a#b;c=d;", ;
         "INI handles BOM/CRLF/tabs/case while preserving complete ODBC values", @nFailures, @nChecks )
     hInfo := HBBridgeConfigInfo( hINI )
+    M1Assert( hInfo[ "httpListenBacklog" ] == hINI[ "httpListenBacklog" ], ;
+        "config-info exposes the requested HTTP listen backlog", @nFailures, @nChecks )
+    M1Assert( hInfo[ "sqlODBCPooling" ] == "off", ;
+        "config-info exposes requested ODBC pooling without enabling it", @nFailures, @nChecks )
     M1Assert( hInfo[ "configVersion" ] == 1 .AND. hInfo[ "sqlProfiles" ][ "MssqlDemo" ][ "driver" ] == "mssql" .AND. ;
         ! ( "DSN=" $ hb_jsonEncode( hInfo ) ) .AND. ! ( "PWD=" $ hb_jsonEncode( hInfo ) ) .AND. ;
         Len( hInfo[ "sqlProfiles" ][ "MssqlDemo" ] ) == 1, ;
@@ -73,6 +87,9 @@ PROCEDURE M1INIConfigTests( nFailures, nChecks )
         "openSection" => "[Protheus", "emptySection" => "[]", ;
         "emptyProfile" => "[SQL/]", "badNumber" => "[Protheus]" + hb_eol() + "Port=1512x", ;
         "outOfRange" => "[Protheus]" + hb_eol() + "Port=65536", ;
+        "invalidODBCPooling" => "[SQL]" + hb_eol() + "ODBCPooling=auto", ;
+        "zeroHTTPBacklog" => "[HTTP]" + hb_eol() + "ListenBacklog=0", ;
+        "fractionalHTTPBacklog" => "[HTTP]" + hb_eol() + "ListenBacklog=1.5", ;
         "missingDriver" => "[SQL/demo]" + hb_eol() + "Database=:memory:", ;
         "extraProfileKey" => "[SQL/demo]" + hb_eol() + "Driver=sqlite" + hb_eol() + "User=x", ;
         "include" => "include config-test/host.ini", ;

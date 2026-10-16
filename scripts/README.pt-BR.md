@@ -155,3 +155,13 @@ Falhas/envios parciais forçados, destinos não padrão, MSSQL e Linux continuam
 pendentes. A [proposta de credenciais](../docs/credentials.pt-BR.md) descreve
 armazenamento portátil; gerenciamento de credenciais cifradas ainda não foi
 implementado.
+
+## Teste SQL concorrente opt-in
+
+`test-hbbridge-mssql.ps1 -Config C:/tmp/hbBridge.ini -Profile MSSQL/pData -Concurrency`
+compila e executa a suíte M07 isolada de oito workers. `-Concurrency` não
+combina com `-Failures`; `-Serve` funciona em ambos. No modo concorrência,
+imprime endpoints/perfis de teste, hospeda por até 600 segundos e encerra com
+`m07.stop` no diretório da rodada ou Esc/Ctrl+Q. Checks finais de recursos
+sucedem o shutdown. Veja o [guia](../tests/README.pt-BR.md#concorrência-mssql-e-liberação-de-recursos-m07)
+e [consumidor Protheus](../src/tlpp/tests/protheus/hbbridge.concurrency.test/README.pt-BR.md).

@@ -12,11 +12,11 @@ registra resultados verificados; ChangeLog e Git preservam o histórico.
 | Item | Valor atual |
 | --- | --- |
 | ID | `001-mssql-acceptance` |
-| Abertura / atualização | 2026-10-07 / 2026-10-14 |
-| Situação | MSSQL nativo: 92 checks; Protheus TCP: 29 e HTTP: 13 em cada banco MSSQL/SQLite. D02 homologada: dataset 67 checks/31 chamadas e helpers 12 checks. M06 homologada: nativo 46, AppServer CLI e manual TCP 38/HTTP 51; regressão 636. Pacote permanece aberto. |
+| Abertura / atualização | 2026-10-07 / 2026-10-15 |
+| Situação | D02/M06 homologadas. Regressão nativa atual: 712 checks, zero falhas; checks isolados de leases/configuração: 266, zero falhas. Baseline M07 permanece nativo 458/AppServer CLI 417. A última rodada informada de 130 workers completou 15159 checks com 41 falhas; o log completo aguarda análise. Reuso físico ODBC, M07 e D03 continuam pendentes. |
 | Objetivo | Homologar RPCRDD.Query/dataset existentes em banco MSSQL real identificado, por Harbour, TCP Protheus e HTTP Protheus. |
 | Referência do produto | Código publicado `50e1c65`; checkout na abertura `bce52d2` inclui atualização do badge de clones. |
-| Próxima tarefa | M07: isolamento e liberação de perfis/recursos sob concorrência. Integridade D03 continua pendente; automação de metadados decimais adiada. |
+| Próxima tarefa | M07: homologar a fachada adaptada de leases lógicos e o reuso físico ODBC opcional contra MSSQL; analisar o log de 130 workers e aceitar o espaçamento reproduzível antes de repetir a carga. Medições M08 de tempo/memória seguem o aceite M07. D03 continua pendente; automação de metadados decimais adiada. |
 
 ### Decisões já tomadas
 
@@ -36,6 +36,10 @@ registra resultados verificados; ChangeLog e Git preservam o histórico.
   dispensa plugin MSSQL dinâmico. Renovação do token do cofre tem ciclo separado.
 - Preservar o mutex compartilhado do ciclo SQL. Verificar isolamento/limpeza
   com chamadas concorrentes; este pacote não promete execução SQL paralela.
+- Adaptar a posse de conexões aos leases lógicos de `HBBridgeSQLPool`, mantendo
+  o ciclo de vida nativo RDDSQL por chamada. Reuso físico pertence ao ODBC
+  Driver Manager nativo; é opcional e exige comprovação própria. SQLite
+  `:memory:` mantém um banco novo a cada lease.
 - Manter capacidades reais do runtime e políticas configuráveis, sem teto
   fixo de payload de prova de conceito nem novo transporte.
 - Prioridade ajustada em 2026-10-13: adiar addons opcionais de metadados
@@ -180,9 +184,57 @@ constatações de aceite, sem motivo para repetir o inventário concluído.
   desativa a opção nativa e omissão preserva o padrão do driver. Cada instrução,
   inclusive COUNT, tem timeout próprio. Isso não impõe prazo global à requisição
   nem implementa cancelamento após timeout/desconexão do cliente.
-- [ ] **M07 — Verificar concorrência e liberação.** Intercalar consultas/perfis
-  e conferir restauração de workarea/conexão, ausência de mistura de resultados
-  e limpeza após sucesso/falha. Preservar o contrato de sincronização atual.
+- [ ] **M07 — Verificar concorrência e liberação.** Baseline homologada em
+  2026-10-14; reaberta pelo relato adicional com 140 workers:
+  nativo **458 checks, 8 workers/192 chamadas**, local/NETIO/TCP/HTTP e três
+  aliases; AppServer CLI **417 checks, 4 jobs/112 chamadas**, dois jobs TCP e
+  dois HTTP alternando MSSQL/SQLite. Zero falhas; verificadas áreas/conexão
+  padrão, reuso de handles nativos, isolamento de perfil/schema/valores,
+  recuperação e limpeza própria. Manter mutex SQL; não homologa consultas
+  paralelas no banco nem ausência de vazamentos físicos ODBC/heap.
+  [Evidências](docs/acceptance.pt-BR.md#sql-concurrency-and-release-on-2026-10-14).
+  Logs manuais adicionais informam 40/100 workers sem falhas; somente dois
+  usam TCP ao aumentar a carga. Em 2026-10-15, os controles independentes de
+  coleta/limpeza passaram nos 417 checks com quatro workers e drenaram um
+  aborto controlado de um segundo. Com prazo de 300 segundos, retornaram os
+  140 relatos/3920 chamadas: **16329 checks, 857 falhas**, incluindo status
+  zero com diagnóstico nativo de recusa. Os 32 fontes TLPP compilaram sem
+  erros de fonte; depois, o compilador do fornecedor saiu com **0xC0000409**,
+  registrado separadamente da compilação.
+  A regressão nativa anterior passou em **656 checks, zero falhas** com backlog HTTP
+  configurável; tanto backlog 10 quanto o padrão do SO falharam com 140 workers.
+  Isso não homologa uma correção por backlog.
+  O anexo fornecido de 22 KB contém proposta de pool e erro ODBC 10048 do DBAccess,
+  não um teste aprovado. Contagens elevadas de TIME_WAIT e dois eventos Windows
+  Tcpip 4227 registram pressão de portas no host, sem atribuir a um processo
+  ou comprovar a causa única das falhas HTTP.
+  A proposta foi adaptada a `HBBridgeSQLPool`: leases lógicos em hash contêm
+  ID único, perfil, thread proprietária e conexão nativa. Devoluções forjadas,
+  obsoletas, duplicadas ou por outra thread são rejeitadas; aquisição não tem
+  laço de repetição e encerramento recusa leases ativos. Reconfigurar a política
+  ODBC preserva a instância da fachada. Conexões lógicas mantêm seu ciclo por
+  chamada e bancos SQLite em memória continuam novos. Passaram build isolado
+  do produto, **266 checks de leases/configuração** e a regressão nativa
+  completa de **712 checks**, com zero falhas.
+  A política física do Driver Manager tem padrão `off`. `driver` é uma opção
+  Windows com ODBC 3.8; Linux permanece `off` até homologação própria.
+  A validação do reuso físico MSSQL está em andamento: a primeira tentativa
+  abriu 13 conexões físicas distintas para 13 leases lógicos. O ciclo do
+  ambiente está sendo corrigido; reuso e limpeza de sessão ainda não homologados.
+  Informada execução de 125 workers sem falhas, sem análise do log completo.
+  O resumo mais recente de 130 workers informa coleta de todos os jobs,
+  **15159 checks/41 falhas**; o log completo ainda aguarda análise.
+  Nenhum dos relatos encerra M07.
+  O espaçamento agora é explícito nos argumentos 10–12/CLI: os padrões
+  300/50/5000 ms preservam a rampa fornecida e `GetEnvServer()`. As pausas
+  planejadas somam 431450 ms com 130 workers e 481450 ms com 140; `0/0/0`
+  fornece um controle sem pausas. O orçamento inclui lançamento e planos de
+  pausas inviáveis são rejeitados antes de `StartJob`; a barreira READY/GO de
+  todos os workers ainda libera o trabalho em conjunto. Esta revisão TLPP
+  aguarda compilação/aceite em execução; o resultado anterior de 32 fontes
+  compilados precede o espaçamento configurável.
+  [Evidências do complemento](docs/acceptance.pt-BR.md#sql-concurrency-follow-up-on-2026-10-15)
+  e [análise de reuso](docs/sql-connections.pt-BR.md) antecedem M08.
 - [ ] **M08 — Registrar referência de desempenho.** Identificar SQL, fixture/
   volume, quantidade de execuções e concorrência; registrar tempo e medições
   de memória disponíveis por Harbour, TCP e HTTP. É uma referência, sem
@@ -253,7 +305,7 @@ A referência do núcleo leu 1000 linhas constantes em três execuções:
 31/32/31 ms, total 94 ms, concorrência 1, incluindo conexão/materialização/
 desconexão; memória não medida. Naquela etapa M06/M07 tinham evidência parcial.
 M06 tem aceite posterior em 2026-10-14; isolamento ampliado de perfis de M07
-continua pendente.
+tem aceite posterior registrado abaixo.
 M08 ainda exige TCP/HTTP e memória. A regressão padrão passou em **566 checks,
 zero falhas/sem skips**: `tmp/tests-f84004277a8d4cc2905131f706a1e181/results.log`.
 
@@ -290,20 +342,27 @@ A execução manual posterior às 14:30:50 São Paulo, thread 13796, aprovou tod
 os 38 TCP/51 HTTP checks e resolve aquela rodada no escopo de M06. Diagnósticos
 nativos de handshake permanecem registrados sem causa/resolução comprovada;
 não foram inferidos duração precisa nem acionamento por interface gráfica.
-Retomar M07 com perfis concorrentes, restauração e liberação de recursos do
-chamador pelo executor compartilhado. Preservar o mutex SQL e distinguir
-requisições intercaladas de execução paralela no banco. Integridade D03 continua
+Os 458 checks nativos e 417 checks AppServer CLI permanecem a baseline histórica aceita
+de M07. A repetição controlada com 140 workers em 2026-10-15 continuou falhando
+após validar controles independentes de coleta/limpeza. Análises de reuso de
+conexões, pressão de portas, falhas informadas com 130 workers e aceite do
+ciclo lógico/físico adaptado permanecem em M07 antes das medições M08.
+Preservar mutex SQL e distinguir requisições concorrentes de execução paralela
+no banco. Integridade D03 continua
 pendente após o ajuste explícito da prioridade, mantendo CAST no chamador.
 Sem nova evidência que exija revisão, não repetir migração, inventário ou
-casos nativos/TCP/HTTP homologados. M07–M09 e critérios do pacote permanecem.
+casos nativos/TCP/HTTP homologados. Complemento M07, M08–M09 e critérios do
+pacote permanecem.
+
+A [observação de reuso de conexões SQL](docs/sql-connections.pt-BR.md) de
+2026-10-12 foi repriorizada para M07 em 2026-10-15. `HBBridgeSQLPool` agora
+controla leases lógicos exclusivos sob o mutex de ciclo de vida existente;
+o reuso físico ODBC nativo segue em validação, com política padrão `off`.
+Concluir comprovação de reuso físico, preservação do chamador, limpeza de
+sessão e responsabilidade pelo encerramento antes do aceite MSSQL.
+Manter persistência RPC separada.
 
 ## Pacotes seguintes: direção reservada
-
-Observação registrada em 2026-10-12: [avaliar reuso de conexões SQL](docs/sql-connections.pt-BR.md)
-após medir seu custo real, aproveitando a referência de M08. Comparar pooling
-ODBC e reuso por perfil gerenciado pelo host; distinguir persistência do banco
-e do transporte RPC. A anotação não decide implementação nem altera a próxima
-tarefa ou os critérios de conclusão do pacote.
 
 A [análise de extensões](docs/extensions-review.pt-BR.md) de 2026-10-12 registra
 SQLRDD, Duktape e CCHarbour como pacotes opcionais posteriores, sem adotar
@@ -317,7 +376,7 @@ UTF-8/FLOAT e implementação de credenciais cifradas continuam pendentes.
 | --- | --- |
 | 002 | Parâmetros/metadados SQL tipados e apresentação FWTemporaryTable/FWMBrowse; materialização/liberação MSSQL com escopo separado. |
 | 003 | Dependências externas via hb_compile, provedores/gestão portável de credenciais, OpenBao opcional e homologação HTTPS. |
-| 004 | Compressão/blocos negociados, consumo incremental e capacidades reais do cliente; persistência/pool após medições. |
+| 004 | Compressão/blocos negociados, consumo incremental e capacidades reais do cliente; persistência/pool RPC após medições. |
 | 005 | Homologação DBF/NETIO nativo e fachada TLPP para Harbour VF IO. |
 | 006 | Serviço Windows/Linux, diagnóstico, administração e pacotes reproduzíveis. |
 | Posteriores | Jobs/batches/progresso/cancelamento e extensões nativas úteis. |

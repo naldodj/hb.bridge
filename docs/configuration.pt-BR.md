@@ -41,7 +41,8 @@ locais analisados; as chaves descrevem recursos próprios do hbBridge.
 | `[Protheus]` | `Host`, `Port`, `MaxPayloadBytes`, `MaxWireBytes`, `ReadChunkBytes`, `TimeoutMs` |
 | `[NETIO]` | `Host`, `Port`, `Root`, `Password`, `TimeoutMs` |
 | `[Admin]` | `Host`, `Port`, `Password` |
-| `[HTTP]` | `Enabled`, `Host`, `Port`, `Password`, `TLS`, `Certificate`, `PrivateKey` |
+| `[HTTP]` | `Enabled`, `Host`, `Port`, `ListenBacklog`, `Password`, `TLS`, `Certificate`, `PrivateKey` |
+| `[SQL]` | `ODBCPooling` (`off` ou `driver`), política física de conexões do processo |
 | `[SQL/profile_name]` | SQLite: `Driver`/`Database`; MSSQL: campos estruturados abaixo ou `Driver`/`ConnectionString` |
 
 Exemplo mínimo para o teste SQLite:
@@ -303,6 +304,45 @@ admin usa o adminPassword existente e precisa de senha diferente. JSON
 usa as chaves `http*` equivalentes. HTTPS exige build hbssl/OpenSSL,
 certificado e chave privada. Rotas, autorização, comportamento HTTP nativo
 e dependências de build estão no [guia HTTP](http.pt-BR.md).
+
+O campo opcional `[HTTP] ListenBacklog`, JSON `httpListenBacklog` ou CLI
+`-httplistenbacklog=<valor>` configura a fila nativa de conexões aguardando
+aceitação. A omissão usa `SOMAXCONN` da plataforma de compilação; no Windows,
+solicita ao provedor de sockets uma fila máxima razoável. Valores explícitos
+precisam ser inteiros positivos dentro da faixa nativa de `int` em C. O sistema
+operacional pode ajustar o tamanho solicitado; a configuração não pré-aloca
+essa quantidade de workers nem altera `MaxWorkers`. Uma fila de conexões
+pendentes cheia pode recusar a conexão antes de o hbBridge retornar um status
+HTTP. Veja o [contrato nativo do Windows](https://learn.microsoft.com/pt-br/windows/win32/api/winsock2/nf-winsock2-listen).
+`--config-info` inclui o `httpListenBacklog` solicitado, sem indicar o tamanho
+efetivo observado da fila no sistema operacional.
+
+## Pooling físico ODBC
+
+A opção hbBridge `[SQL] ODBCPooling=driver`, JSON `sqlODBCPooling: "driver"`
+ou CLI `-odbcpooling=driver` solicita reuso físico pelo gerenciador ODBC
+nativo. O padrão `off` mantém o comportamento atual. Pertence ao
+**hbbridge.ini**, não à seção do cliente no AppServer. Aliases e credenciais
+SQL continuam em suas seções `[SQL/alias]`.
+
+A política pertence ao processo e deve ser escolhida antes da primeira
+conexão ODBC. Alterá-la depois exige reiniciar hbBridge; reiniciar somente um
+listener não muda a política. Ler configuração ou usar `--config-info` não
+ativa pooling. Modos/capacidades indisponíveis falham visivelmente. A primeira
+homologação contempla Windows com gerenciador/driver ODBC 3.8; Linux mantém
+`off` até validar execução e isolamento de sessão.
+
+Conexões lógicas RDDSQL continuam pertencendo à chamada e são desconectadas
+depois do fechamento das suas áreas. Sessões físicas podem permanecer no
+gerenciador depois disso. Permanecem mutex SQL, contrato query/página/contagem
+e duração do SQLite. `driver` significa `SQL_CP_ONE_PER_DRIVER`, sem indicar
+`SQL_CP_DRIVER_AWARE`, pool por tenant Protheus ou execução SQL paralela.
+
+O matching deve preservar opções efetivas e identidade autenticada. Reset
+nativo e isolamento de transação/objetos temporários/SET exigem homologação
+própria; matching sozinho não basta. Veja a
+[análise de reuso](sql-connections.pt-BR.md) e o
+[contrato ODBC nativo](https://learn.microsoft.com/en-us/sql/odbc/reference/develop-app/driver-manager-connection-pooling?view=sql-server-ver17).
 
 ## Cliente Protheus no INI do AppServer
 

@@ -1,0 +1,25 @@
+/* Released to Public Domain. */
+#include "totvs.ch"
+#include "tlpp-core.th"
+
+// AppServer -run passes its own arguments together with the named test flags.
+function U_HBBridgeConcurrencyCLI(oArguments as variadic)
+return(HBBridge.Test.HBBridgeConcurrencyTest():RunCLI(oArguments:vArgs))
+
+// Both SQL aliases are explicit. Omitted transport settings use [hbBridge].
+function U_HBBridgeConcurrencyTest(cMSSQLProfile, cSQLiteProfile, cHost, nPort, cURL, cToken, ;
+    nTimeoutSeconds, nWorkers, nBudgetSeconds, nLaunchDelayMs, nLaunchStepMs, nLaunchMaxMs)
+return(HBBridge.Test.HBBridgeConcurrencyTest():Run(;
+    cMSSQLProfile, cSQLiteProfile, cHost, nPort, cURL, cToken, nTimeoutSeconds, nWorkers, nBudgetSeconds, ;
+    nLaunchDelayMs, nLaunchStepMs, nLaunchMaxMs))
+
+// StartJob cannot pass objects. Configuration and shared-key names are strings.
+function U_HBBridgeConcurrencyWorker(cConfigJSON, cReadyKey, cResultKey, cGateKey)
+
+    local nResult := HBBridge.Test.HBBridgeConcurrencyTest():Worker(;
+        cConfigJSON, cReadyKey, cResultKey, cGateKey)
+
+    // Last worker marker: resource/report/ack cleanup in Worker has returned.
+    ClearGlbValue(cReadyKey)
+
+return(nResult)

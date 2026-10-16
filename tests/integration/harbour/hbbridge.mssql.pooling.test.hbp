@@ -1,0 +1,5 @@
+-main=MSSQLPoolingTests
+-gtstd
+-ohbbridge.mssql.pooling.test
+hbbridge.mssql.pooling.test.hb
+../../../hbbridge.hbm

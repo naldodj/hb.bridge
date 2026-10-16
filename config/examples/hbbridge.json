@@ -22,5 +22,6 @@
     "addonRoot": "../../addons",
     "maxWorkers": 64,
     "netioTimeout": 0,
+    "sqlODBCPooling": "off",
     "sqlProfiles": {}
 }

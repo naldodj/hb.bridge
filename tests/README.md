@@ -380,4 +380,27 @@ Confirmed manual `U_HBBridgeTCPAndHTTPFailureTest` execution at 14:30:50
 São Paulo, thread 13796: **38 TCP checks and 51 HTTP checks, zero failures**.
 This resolves the earlier normal-host prerequisite failure. Evidence and
 native handshake observations are recorded in the
-[manual acceptance](../docs/acceptance.md#manual-protheus-failure-recovery-on-2026-10-14); M07 remains next.
+[manual acceptance](../docs/acceptance.md#manual-protheus-failure-recovery-on-2026-10-14); M07 has subsequent acceptance below.
+
+## MSSQL concurrency and resource release (M07)
+
+```powershell
+./scripts/test-hbbridge-mssql.ps1 -Config C:/tmp/hbBridge.ini -Profile MSSQL/pData -Concurrency
+./scripts/test-hbbridge-mssql.ps1 -Config C:/tmp/hbBridge.ini -Profile MSSQL/pData -Concurrency -Serve
+```
+
+`-Concurrency` and `-Failures` are mutually exclusive. Missing private config,
+working MSSQL alias or backend prerequisite fails with exit 2; no successful
+skip is allowed. The suite owns an isolated SQLite file and in-memory aliases
+`m07/mssql-clone` and `m07/sqlite`, retaining the supplied working MSSQL alias.
+It does not modify private INIs. Eight workers issue 192 calls through local,
+NETIO, TCP and HTTP and verify profile/result isolation, recovery and logical
+resource release under the unchanged SQL lifecycle mutex.
+
+`-Serve` keeps the isolated host available after the worker checks and prints
+its loopback TCP/HTTP ports and fixture token. It ends after 600 seconds,
+Esc/Ctrl+Q, or `m07.stop` created in the printed run directory. Final cleanup
+checks run after hosting ends; acceptance requires all 458 checks and exit 0.
+The [Protheus suite](../src/tlpp/tests/protheus/hbbridge.concurrency.test/README.md)
+uses four StartJobs, 112 calls and 417 checks. Both native and AppServer CLI
+routes passed on 2026-10-14; [scope/evidence](../docs/acceptance.md#sql-concurrency-and-release-on-2026-10-14).

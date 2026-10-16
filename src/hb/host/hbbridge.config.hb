@@ -30,6 +30,7 @@ FUNCTION HBBridgeConfig( aArgs, cError )
             ,"httpEnabled" => .F.;
             ,"httpHost" => "127.0.0.1";
             ,"httpPort" => 8080;
+            ,"httpListenBacklog" => HBBridgeRuntimeLimits()[ "socketListenBacklogDefault" ];
             ,"httpPassword" => "";
             ,"httpTLS" => .F.;
             ,"httpCertificate" => "";
@@ -37,6 +38,7 @@ FUNCTION HBBridgeConfig( aArgs, cError )
             ,"addonRoot" => "addons";
             ,"maxWorkers" => 64;
             ,"netioTimeout" => 0;
+            ,"sqlODBCPooling" => "off";
             ,"sqlProfiles" => {=>};
         }
     LOCAL hOptions := {;
@@ -53,9 +55,11 @@ FUNCTION HBBridgeConfig( aArgs, cError )
             ,"adminport" => "adminPort";
             ,"httphost" => "httpHost";
             ,"httpport" => "httpPort";
+            ,"httplistenbacklog" => "httpListenBacklog";
             ,"addonroot" => "addonRoot";
             ,"maxworkers" => "maxWorkers";
             ,"netiotimeout" => "netioTimeout";
+            ,"odbcpooling" => "sqlODBCPooling";
         }
     LOCAL cArg, cName, cValue, cKey, cFile := "", hFile, cContents, nRead, nEqual, xValue
     LOCAL lExplicitConfig := .F., cAutoFile
@@ -193,8 +197,9 @@ FUNCTION HBBridgeConfigInfo( hConfig )
 RETURN { "configVersion" => 1, "protheusHost" => hConfig[ "protheusHost" ], ;
     "protheusPort" => hConfig[ "protheusPort" ], "maxWorkers" => hConfig[ "maxWorkers" ], ;
     "httpEnabled" => hConfig[ "httpEnabled" ], "httpHost" => hConfig[ "httpHost" ], ;
-    "httpPort" => hConfig[ "httpPort" ], "httpTLS" => hConfig[ "httpTLS" ], ;
-    "sqlProfiles" => hProfiles }
+    "httpPort" => hConfig[ "httpPort" ], "httpListenBacklog" => hConfig[ "httpListenBacklog" ], ;
+    "httpTLS" => hConfig[ "httpTLS" ], ;
+    "sqlODBCPooling" => hConfig[ "sqlODBCPooling" ], "sqlProfiles" => hProfiles }
 
 FUNCTION HBBridgeConfigValid( hConfig, cError )
 
@@ -223,6 +228,7 @@ FUNCTION HBBridgeConfigValid( hConfig, cError )
         ,"httpEnabled";
         ,"httpHost";
         ,"httpPort";
+        ,"httpListenBacklog";
         ,"httpPassword";
         ,"httpTLS";
         ,"httpCertificate";
@@ -230,12 +236,21 @@ FUNCTION HBBridgeConfigValid( hConfig, cError )
         ,"addonRoot";
         ,"maxWorkers";
         ,"netioTimeout";
+        ,"sqlODBCPooling";
         ,"sqlProfiles" }
         IF ! hb_HHasKey( hConfig, cKey )
             cError := "Missing key: " + cKey
             RETURN .F.
         ENDIF
     NEXT
+    IF ! HB_ISSTRING( hConfig[ "sqlODBCPooling" ] )
+        cError := "ODBC pooling must be off or driver."
+        RETURN .F.
+    ENDIF
+    IF ! ( hConfig[ "sqlODBCPooling" ] == "off" .OR. hConfig[ "sqlODBCPooling" ] == "driver" )
+        cError := "ODBC pooling must be off or driver."
+        RETURN .F.
+    ENDIF
     IF HBBridgeSQLProfiles( hConfig[ "sqlProfiles" ], hb_cwd(), @cError ) == NIL
         RETURN .F.
     ENDIF
@@ -259,6 +274,11 @@ FUNCTION HBBridgeConfigValid( hConfig, cError )
     IF ! HBBridgeIntegerValid( nValue, Min( hRuntimeLimits[ "socketChunkBytesMax" ], ;
         hRuntimeLimits[ "zlibChunkBytesMax" ] ) ) .OR. nValue == 0
         cError := "Value outside the runtime range: protheusReadChunkBytes"
+        RETURN .F.
+    ENDIF
+    nValue := hConfig[ "httpListenBacklog" ]
+    IF ! HBBridgeIntegerValid( nValue, hRuntimeLimits[ "socketListenBacklogMax" ] ) .OR. nValue == 0
+        cError := "Value outside the runtime range: httpListenBacklog"
         RETURN .F.
     ENDIF
     FOR EACH cKey IN {;
@@ -395,22 +415,26 @@ RETURN hb_PathNormalize( hb_PathJoin( hb_DirSepAdd( cBase ), cPath ) )
 FUNCTION HBBridgeConfigHelp()
     local cConfigHelp
     #pragma __cstream | cConfigHelp:=%s
-hbBridge [-config=arquivo.ini|arquivo.json] [-host=0.0.0.0] [-port=1512]
+hbBridge [-config=file.ini|file.json] [-host=0.0.0.0] [-port=1512]
 [-netiohost=0.0.0.0] [-netioport=2941] [-netioroot=data]
 [-adminhost=127.0.0.1] [-adminport=2940] [-addonroot=addons]
 [-httphost=127.0.0.1] [-httpport=8080]
+[-httplistenbacklog=<native SOMAXCONN>]
 [-maxworkers=64] [-netiotimeout=0]
+[-odbcpooling=off|driver]
 [-maxpayloadbytes=0] [-maxwirebytes=0] [-readchunkbytes=65536] [-iotimeout=30000]
-Payload/wire: 0 sem teto de aplicacao; valores positivos limitam bytes por mensagem.
-Readchunkbytes dimensiona o buffer de leitura, sem limitar o tamanho da mensagem.
-Iotimeout em ms por transferencia; 0 sem prazo total. Faixas respeitam o runtime.
-Netiotimeout: 0 usa espera nativa sem prazo; valores positivos em ms.
-Senhas NETIO/admin somente no arquivo; admin desativada sem senha.
+Payload/wire: 0 disables application ceilings; positive values limit bytes per message.
+Readchunkbytes sizes the read buffer without limiting message size.
+Iotimeout: milliseconds per transfer; 0 disables the budget. Ranges follow the runtime.
+Netiotimeout: 0 selects the native unlimited wait; positive values are milliseconds.
+NETIO/admin passwords belong in the file; administration is disabled without its password.
 HTTP optional: [HTTP] Enabled=true, Password=<service secret>; disabled by default.
+HTTP ListenBacklog: positive native C integer; default uses the OS SOMAXCONN.
+ODBC pooling: process-wide, opt-in driver mode; restart to change after first use.
 Admin web uses the separate [Admin] Password; user name is admin.
-Perfis SQL no INI/JSON habilitam RPCRDD.Query com SQLite ou MSSQL via ODBC.
-Sem -config, procura hbbridge.ini ao lado do executavel.
---config-info valida e mostra metadados JSON sem credenciais, sem iniciar listeners.
-Precedencia: padroes < arquivo INI/JSON < CLI. CTRL+Q encerra o console.
+SQL profiles in INI/JSON enable RPCRDD.Query with SQLite or MSSQL through ODBC.
+Without -config, look for hbbridge.ini beside the executable.
+--config-info validates and prints JSON metadata without credentials or starting listeners.
+Precedence: defaults < INI/JSON file < CLI. CTRL+Q stops the console.
 #pragma __endtext
 RETURN cConfigHelp

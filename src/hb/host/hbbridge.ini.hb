@@ -8,6 +8,7 @@ FUNCTION HBBridgeConfigINI( cContents, hDefaults, cError )
 
     LOCAL hSections := { ;
         "GENERAL" => { "MAXWORKERS" => "maxWorkers", "ADDONROOT" => "addonRoot" }, ;
+        "SQL" => { "ODBCPOOLING" => "sqlODBCPooling" }, ;
         "PROTHEUS" => { "HOST" => "protheusHost", "PORT" => "protheusPort", ;
             "MAXPAYLOADBYTES" => "protheusMaxPayloadBytes", "MAXWIREBYTES" => "protheusMaxWireBytes", ;
             "READCHUNKBYTES" => "protheusReadChunkBytes", "TIMEOUTMS" => "protheusTimeoutMs" }, ;
@@ -15,6 +16,7 @@ FUNCTION HBBridgeConfigINI( cContents, hDefaults, cError )
             "PASSWORD" => "netioPassword", "TIMEOUTMS" => "netioTimeout" }, ;
         "ADMIN" => { "HOST" => "adminHost", "PORT" => "adminPort", "PASSWORD" => "adminPassword" }, ;
         "HTTP" => { "ENABLED" => "httpEnabled", "HOST" => "httpHost", "PORT" => "httpPort", ;
+            "LISTENBACKLOG" => "httpListenBacklog", ;
             "PASSWORD" => "httpPassword", "TLS" => "httpTLS", "CERTIFICATE" => "httpCertificate", ;
             "PRIVATEKEY" => "httpPrivateKey" } }
     LOCAL hProfileKeys := { "DRIVER" => "driver", "DATABASE" => "database", ;

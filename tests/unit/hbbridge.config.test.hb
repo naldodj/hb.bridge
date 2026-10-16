@@ -11,6 +11,17 @@ PROCEDURE M1ConfigTests( nFailures, nChecks )
     ENDIF
 
     hConfig := HBBridgeConfig( {}, @cError )
+    M1Assert( hConfig[ "sqlODBCPooling" ] == "off", ;
+        "ODBC physical pooling is opt-in", @nFailures, @nChecks )
+    hConfig := HBBridgeConfig( { "-odbcpooling=driver" }, @cError )
+    M1Assert( HB_ISHASH( hConfig ) .AND. hConfig[ "sqlODBCPooling" ] == "driver", ;
+        "ODBC pooling CLI selects process policy without opening a connection", @nFailures, @nChecks )
+    FOR EACH xValue IN { "", "auto", "DRIVER", "driver" + Chr( 0 ), 1, .T., NIL }
+        hConfig[ "sqlODBCPooling" ] := xValue
+        M1Assert( ! HBBridgeConfigValid( hConfig, @cError ) .AND. ! Empty( cError ), ;
+            "invalid ODBC pooling policy rejected (" + ValType( xValue ) + ")", @nFailures, @nChecks )
+    NEXT
+    hConfig := HBBridgeConfig( {}, @cError )
     M1Assert( hConfig[ "netioHost" ] == "0.0.0.0" .AND. hConfig[ "netioPort" ] == 2941 .AND. ;
         hConfig[ "adminHost" ] == "127.0.0.1" .AND. hConfig[ "adminPort" ] == 2940 .AND. ;
         Empty( hConfig[ "adminPassword" ] ) .AND. hConfig[ "netioTimeout" ] == 0, ;
@@ -19,6 +30,21 @@ PROCEDURE M1ConfigTests( nFailures, nChecks )
         hConfig[ "protheusReadChunkBytes" ] == 65536 .AND. hConfig[ "protheusTimeoutMs" ] == 30000, ;
         "transport defaults have no application payload or wire ceiling", @nFailures, @nChecks )
     hRuntimeLimits := HBBridgeRuntimeLimits()
+    M1Assert( hConfig[ "httpListenBacklog" ] == hRuntimeLimits[ "socketListenBacklogDefault" ] .AND. ;
+        hConfig[ "httpListenBacklog" ] > 0 .AND. ;
+        hConfig[ "httpListenBacklog" ] <= hRuntimeLimits[ "socketListenBacklogMax" ], ;
+        "HTTP pending-connection queue defaults to native SOMAXCONN", @nFailures, @nChecks )
+    hConfig := HBBridgeConfig( { "-httplistenbacklog=1" }, @cError )
+    M1Assert( HB_ISHASH( hConfig ) .AND. hConfig[ "httpListenBacklog" ] == 1, ;
+        "HTTP listen backlog accepts an explicit one-connection queue", @nFailures, @nChecks )
+    hConfig[ "httpListenBacklog" ] := hRuntimeLimits[ "socketListenBacklogMax" ]
+    M1Assert( HBBridgeConfigValid( hConfig, @cError ), ;
+        "HTTP listen backlog accepts the native C integer maximum", @nFailures, @nChecks )
+    FOR EACH xValue IN { 0, -1, 1.5, "1", .T., NIL, hRuntimeLimits[ "socketListenBacklogMax" ] + 1 }
+        hConfig[ "httpListenBacklog" ] := xValue
+        M1Assert( ! HBBridgeConfigValid( hConfig, @cError ) .AND. ! Empty( cError ), ;
+            "invalid HTTP listen backlog rejected (" + ValType( xValue ) + ")", @nFailures, @nChecks )
+    NEXT
     hConfig := HBBridgeConfig( { "-maxpayloadbytes=0", "-maxwirebytes=0", "-iotimeout=0", "-readchunkbytes=1" }, @cError )
     M1Assert( HB_ISHASH( hConfig ) .AND. Empty( cError ), ;
         "zero disables optional limits and deadline; one-byte read buffer is valid", @nFailures, @nChecks )
@@ -87,7 +113,10 @@ PROCEDURE M1ConfigTests( nFailures, nChecks )
         "-unknown=x", "-port=2941", "-port=1512 ", "-port=1512" + Chr( 0 ) + "x", "-netioroot=F:relative", ;
         "-maxpayloadbytes=-1", "-maxpayloadbytes=1.5", "-maxpayloadbytes=16777216x", ;
         "-maxwirebytes=-1", "-maxwirebytes=2.5", "-maxwirebytes=", "-readchunkbytes=0", ;
-        "-readchunkbytes=-1", "-readchunkbytes=1.5", "-iotimeout=-1", "-iotimeout=1.5", "-iotimeout=5000x" }
+        "-readchunkbytes=-1", "-readchunkbytes=1.5", "-iotimeout=-1", "-iotimeout=1.5", "-iotimeout=5000x", ;
+        "-odbcpooling=auto", "-odbcpooling=", ;
+        "-httplistenbacklog=0", "-httplistenbacklog=-1", "-httplistenbacklog=1.5", ;
+        "-httplistenbacklog=" + hb_ntos( hRuntimeLimits[ "socketListenBacklogMax" ] + 1 ) }
         hConfig := HBBridgeConfig( { cArg }, @cError )
         M1Assert( hConfig == NIL .AND. ! Empty( cError ), "invalid configuration rejected " + cArg, @nFailures, @nChecks )
     NEXT
@@ -95,7 +124,10 @@ PROCEDURE M1ConfigTests( nFailures, nChecks )
         '{"adminPassword":"test-only","adminPort":2941}', '{} trailing', '{', ;
         '{"netioPassword":"' + Replicate( "x", 65 ) + '"}', '{"netioRoot":"data\u0000"}', ;
         '{"protheusMaxPayloadBytes":"0"}', '{"protheusMaxWireBytes":-1}', ;
-        '{"protheusReadChunkBytes":0}', '{"protheusTimeoutMs":null}' }
+        '{"protheusReadChunkBytes":0}', '{"protheusTimeoutMs":null}', ;
+        '{"sqlODBCPooling":true}', '{"sqlODBCPooling":"auto"}', ;
+        '{"httpListenBacklog":0}', '{"httpListenBacklog":"32"}', ;
+        '{"httpListenBacklog":' + hb_ntos( hRuntimeLimits[ "socketListenBacklogMax" ] + 1 ) + '}' }
         hb_MemoWrit( "config-test/bad.json", cArg )
         hConfig := HBBridgeConfig( { "-config=config-test/bad.json" }, @cError )
         M1Assert( hConfig == NIL .AND. ! Empty( cError ), "invalid JSON configuration rejected " + cArg, @nFailures, @nChecks )

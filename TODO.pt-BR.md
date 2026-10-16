@@ -113,7 +113,9 @@ Recursos disponíveis no Harbour só serão considerados integrados após os ace
 - [x] Análise do [brainstorming](docs/transports-sessions-security.pt-BR.md), sem integrar novos transportes nesta etapa.
 
 **Características intermediárias do produto:** gzip obrigatório, materialização
-integral do JSON, uma conexão por chamada e ausência de serviço de sistema.
+integral do JSON, uma conexão SQL lógica por chamada e ausência de serviço de
+sistema. Reuso físico ODBC é opcional e ainda está em homologação; a política
+padrão é `off`.
 Os tetos arbitrários de tamanho foram removidos; payload e bytes transmitidos
 podem receber políticas opcionais, desativadas com `0`. Buffers, prazos e
 concorrência são configuráveis, dentro das capacidades reais do runtime.
@@ -546,8 +548,36 @@ testado; somente versões e capacidades efetivamente implementadas são anunciad
   Confirmada a validação manual AppServer às 14:30:50 São Paulo, thread 13796:
   todos os 38 TCP/51 HTTP checks passaram, resolvendo as sete falhas anteriores
   por transporte. [Evidências manuais](docs/acceptance.pt-BR.md#manual-protheus-failure-recovery-on-2026-10-14).
-- [ ] Casos restantes de isolamento e baseline de transporte/memória M07–M09
-  do [WIP](WIP.pt-BR.md).
+- [ ] M07 isolamento concorrente de perfis e liberação própria: baseline
+  homologada em 2026-10-14; reaberta pela rodada adicional de 140 com falhas.
+  458 checks nativos, 8 workers/192 chamadas local/NETIO/TCP/HTTP; 417 checks
+  AppServer CLI, 4 jobs/112 chamadas TCP/HTTP. Zero falhas. Mutex SQL mantido;
+  sem garantia de SQL paralelo ou ausência de vazamentos físicos ODBC/heap.
+  Rodadas manuais com 40/100 workers informam zero falhas. Controles
+  independentes de coleta/limpeza passaram com quatro workers e aborto
+  controlado; a repetição com 140 e prazo de 300 segundos retornou todos os
+  relatos/3920 chamadas com 16329 checks/857 falhas. Tanto backlog 10 quanto
+  o padrão do SO falharam. A regressão nativa anterior passou em 656/0; os 32
+  fontes TLPP compilaram sem erros de fonte, seguidos da saída 0xC0000409 do
+  fornecedor, antes do espaçamento configurável. O
+  anexo de 22 KB contém proposta de pool/diagnóstico ODBC 10048 do DBAccess,
+  não um aceite. TIME_WAIT e eventos Tcpip 4227 registram pressão de portas
+  no host sem comprovar um processo ou a causa única. A última rodada informada
+  de 130 workers completou todos os jobs, com 15159 checks/41 falhas; o log
+  completo aguarda análise. Informada execução de 125 workers sem falhas,
+  sem análise do log completo. Validação atual: build isolado do produto,
+  266 checks de leases/configuração e regressão nativa completa 712/0.
+  Reuso físico MSSQL segue em teste; a primeira tentativa usou 13 conexões
+  físicas para 13 leases lógicos.
+  [Evidências do complemento](docs/acceptance.pt-BR.md#sql-concurrency-follow-up-on-2026-10-15).
+- [ ] Homologar o espaçamento TLPP revisado após recompilação: argumentos
+  10–12 e CLI com padrões 300/50/5000 ms preservam a rampa fornecida e
+  `GetEnvServer()`. Pausas planejadas somam 431450 ms com 130 workers e
+  481450 ms com 140; `0/0/0` é um controle sem pausas. O lançamento consome
+  o orçamento do teste; planos inviáveis são rejeitados antes de `StartJob`.
+  READY/GO ainda libera todos em conjunto, sem implicar menor concorrência SQL.
+- [ ] Resolver complemento M07 antes da baseline de transporte/memória M08
+  e das verificações finais M09 do [WIP](WIP.pt-BR.md).
 - [ ] Avaliar `hbodbc`/`hbsqlit3` quando a operação exigir a API direta.
 - [x] Implementar `RPCRDD.Query` no registro/dispatcher, com perfil lógico,
   `alias`, `sql`, metadados e retorno por chave com contagem/versão explícitas.
@@ -579,12 +609,22 @@ testado; somente versões e capacidades efetivamente implementadas são anunciad
 
 ### Evolução do acesso a dados
 
-- [ ] Analisar reuso de conexões SQL: medir conexão/autenticação separadas de
-  query/contagem/leitura/codificação/transporte; comparar pooling ODBC, conexão
-  reutilizável por perfil e pool limitado do host. Homologar propriedade
-  exclusiva, reset de sessão/transação, recuperação, recursos e comportamento
-  Windows/Linux/SQLite. Preservar mutex até aceitar concorrência. Independente
-  da persistência RPC. [Observação](docs/sql-connections.pt-BR.md).
+- [x] Adaptar `HBBridgeSQLPool` como fachada de leases lógicos sob o mutex
+  do ciclo SQL: hashes com ID único/perfil/thread proprietária, rejeição de
+  devolução obsoleta/duplicada/forjada/por outra thread, sem repetição de
+  aquisição nem encerramento com leases ativos. Configurar a política ODBC
+  preserva a fachada. Conexões nativas lógicas mantêm seu ciclo por chamada;
+  bancos SQLite em memória continuam novos. Passaram checks isolados de
+  leases/configuração e regressão nativa.
+- [ ] Concluir aceite do reuso físico MSSQL pelo Driver Manager dentro de M07.
+  Política padrão `off`; `driver` é opcional no Windows com ODBC 3.8, enquanto
+  Linux permanece `off` até validação própria em execução. Corrigir o ciclo
+  do ambiente após o resultado inicial de 13 leases/13 conexões físicas;
+  comprovar reuso, sessão/transação limpas, isolamento de timeout/perfil,
+  conexão padrão zero do chamador e encerramento. Separar conexão/autenticação
+  das medições de query/contagem/leitura/codificação/transporte. Persistência
+  RPC e SQL paralelo permanecem desenhos separados.
+  [Análise](docs/sql-connections.pt-BR.md).
 
 - [ ] Correção de integridade UTF-8/FLOAT identificada no aceite: TCP atual pode
   usar CP437 Harbour e a prova de 2026-10-08 perdeu fração FLOAT no JSON.
@@ -593,14 +633,14 @@ testado; somente versões e capacidades efetivamente implementadas são anunciad
 - [ ] Adiado: addon opcional de metadados Protheus ou reescritor TLPP da projeção
   SQL usando JSON explícito para CAST automático. Avaliar gramática restrita,
   mapeamento completo de colunas/aliases e preservação semântica antes de implementar;
-  Zig após medições. Manter CAST no chamador enquanto M06 avança. [Decisão](docs/dataset.pt-BR.md#addon-de-metadados-e-reescrita-sql-adiados).
+  Zig após medições. Manter CAST no chamador enquanto o WIP atual avança. [Decisão](docs/dataset.pt-BR.md#addon-de-metadados-e-reescrita-sql-adiados).
 - [x] Homologação manual AppServer de mocks Header, FieldInfo/FieldCount/FieldName,
   FieldExist/GetRow/GetRows, totais e navegação anterior/próxima/MoreToRead,
   incluindo falha/recuperação de página: 67 checks/31 chamadas simuladas,
   zero falhas, em 2026-10-13 às 17:56:23 São Paulo, thread 32332. Helpers puros
   passaram nos 12 checks às 17:56:45, thread 28300. O escopo de mocks de D02
   está homologado; integridade UTF-8/FLOAT de D03 permanece pendente. M06 tem
-  aceite isolado posterior, com M07–M09 abertos. Essas rodadas não exercitam transporte, backend SQL nem
+  aceite isolado posterior, com complemento M07 e M08–M09 abertos. Essas rodadas não exercitam transporte, backend SQL nem
   tabela ERP. [Evidência](docs/dataset.pt-BR.md).
 
 - [ ] Adicionar parâmetros SQL e metadados de tipo, tamanho, precisão e nulos,

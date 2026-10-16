@@ -1,12 +1,12 @@
 diff --git a/hbhttpd/core.prg b/hbhttpd/core.prg
-index 9b6f73d..a922d0e 100755
 --- a/hbhttpd/core.prg
 +++ b/hbhttpd/core.prg
-@@ -77,11 +77,13 @@ METHOD Run( hConfig ) CLASS UHttpd
+@@ -77,11 +77,14 @@
     ::hConfig := { ;
        "SSL"                  => .F., ;
        "Port"                 => 80, ;
 +      "MaxWorkers"           => THREAD_COUNT_MAX, ;
++      "ListenBacklog"        => 10, ;
        "BindAddress"          => "0.0.0.0", ;
        "LogAccess"            => {|| NIL }, ;
        "LogError"             => {|| NIL }, ;
@@ -16,7 +16,7 @@ index 9b6f73d..a922d0e 100755
        "Mount"                => { => }, ;
        "PrivateKeyFilename"   => "", ;
        "CertificateFilename"  => "", ;
-@@ -123,6 +125,11 @@ METHOD Run( hConfig ) CLASS UHttpd
+@@ -123,6 +126,21 @@
        RETURN .F.
     ENDIF
 
@@ -25,10 +25,20 @@ index 9b6f73d..a922d0e 100755
 +      RETURN .F.
 +   ENDIF
 +
++   IF ::hConfig[ "ListenBacklog" ] != NIL
++      IF ! HB_ISNUMERIC( ::hConfig[ "ListenBacklog" ] ) .OR. ;
++            ::hConfig[ "ListenBacklog" ] < 1 .OR. ;
++            ::hConfig[ "ListenBacklog" ] > 2147483647 .OR. ;
++            ::hConfig[ "ListenBacklog" ] != Int( ::hConfig[ "ListenBacklog" ] )
++         ::cError := "Invalid listen backlog"
++         RETURN .F.
++      ENDIF
++   ENDIF
++
     IF ParseFirewallFilter( ::hConfig[ "FirewallFilter" ], @aI )
        ::aFirewallFilter := aI
     ELSE
-@@ -139,6 +146,8 @@ METHOD Run( hConfig ) CLASS UHttpd
+@@ -139,27 +157,30 @@
        RETURN .F.
     ENDIF
 
@@ -37,7 +47,14 @@ index 9b6f73d..a922d0e 100755
     IF ! hb_socketBind( ::hListen, { HB_SOCKET_AF_INET, ::hConfig[ "BindAddress" ], ::hConfig[ "Port" ] } )
        ::cError := "Bind error: " + hb_socketErrorString()
        hb_socketClose( ::hListen )
-@@ -152,14 +161,15 @@ METHOD Run( hConfig ) CLASS UHttpd
+       RETURN .F.
+    ENDIF
+
+-   IF ! hb_socketListen( ::hListen )
++   IF ! hb_socketListen( ::hListen, ::hConfig[ "ListenBacklog" ] )
+       ::cError := "Listen error: " + hb_socketErrorString()
+       hb_socketClose( ::hListen )
+       RETURN .F.
     ENDIF
 
     aThreads := {}
@@ -48,14 +65,15 @@ index 9b6f73d..a922d0e 100755
 
     ::lStop := .F.
     ::hSession := { => }
-+   Eval( ::hConfig[ "Ready" ], Self )
-
+-
 -   DO WHILE .T.
++   Eval( ::hConfig[ "Ready" ], Self )
++
 +   DO WHILE ! ::lStop
        IF Empty( hSocket := hb_socketAccept( ::hListen,, 1000 ) )
           IF hb_socketGetError() == HB_SOCKET_ERR_TIMEOUT
              Eval( ::hConfig[ "Idle" ], Self )
-@@ -172,7 +182,7 @@ METHOD Run( hConfig ) CLASS UHttpd
+@@ -172,7 +193,7 @@
        ELSE
           Eval( ::hConfig[ "Trace" ], "New connection", hSocket )
           IF hb_mutexQueueInfo( ::hmtxQueue, @nWorkers, @nJobs ) .AND. ;
@@ -64,7 +82,7 @@ index 9b6f73d..a922d0e 100755
                 nJobs >= nWorkers
              AAdd( aThreads, hb_threadStart( HB_THREAD_INHERIT_PUBLIC, @ProcessConnection(), Self ) )
           ENDIF
-@@ -211,7 +221,7 @@ METHOD LogAccess() CLASS UHttpd
+@@ -211,7 +232,7 @@
        server[ "REMOTE_ADDR" ] + " - - [" + Right( cDate, 2 ) + "/" + ;
        { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" }[ Val( SubStr( cDate, 5, 2 ) ) ] + ;
        "/" + Left( cDate, 4 ) + ":" + cTime + ' +0000] "' + server[ "REQUEST_ALL" ] + '" ' + ;
@@ -73,7 +91,7 @@ index 9b6f73d..a922d0e 100755
        ' "' + server[ "HTTP_REFERER" ] + '" "' + server[ "HTTP_USER_AGENT" ] + ;
        '"' )
     hb_mutexUnlock( ::hmtxLog )
-@@ -514,7 +524,7 @@ STATIC FUNCTION ProcessConnection( oServer )
+@@ -514,7 +535,7 @@
           nLen := 1
           nTime := hb_MilliSeconds()
           cBuf := Space( 4096 )
@@ -82,7 +100,7 @@ index 9b6f73d..a922d0e 100755
              IF oServer:lHasSSL .AND. oServer:hConfig[ "SSL" ]
                 nLen := MY_SSL_READ( oServer:hConfig, hSSL, hSocket, @cBuf, 1000, @nErr )
              ELSE
-@@ -559,7 +569,7 @@ STATIC FUNCTION ProcessConnection( oServer )
+@@ -559,7 +580,7 @@
           t_nStatusCode := 200
           t_aSessionData := NIL
 
@@ -91,7 +109,7 @@ index 9b6f73d..a922d0e 100755
 
           nReqLen := ParseRequestHeader( @cRequest )
           IF nReqLen == NIL
-@@ -571,7 +581,7 @@ STATIC FUNCTION ProcessConnection( oServer )
+@@ -571,7 +592,7 @@
              nLen := 1
              nTime := hb_MilliSeconds()
              cBuf := Space( 4096 )
@@ -100,7 +118,7 @@ index 9b6f73d..a922d0e 100755
                 IF oServer:lHasSSL .AND. oServer:hConfig[ "SSL" ]
                    nLen := MY_SSL_READ( oServer:hConfig, hSSL, hSocket, @cBuf, 1000, @nErr )
                 ELSE
-@@ -605,8 +615,8 @@ STATIC FUNCTION ProcessConnection( oServer )
+@@ -605,8 +626,8 @@
              ENDIF
 
              Eval( oServer:hConfig[ "Trace" ], cRequest )
@@ -111,23 +129,24 @@ index 9b6f73d..a922d0e 100755
 
              /* Deal with supported protocols and methods */
              IF !( Left( server[ "SERVER_PROTOCOL" ], 5 ) == "HTTP/" )
-@@ -729,11 +739,11 @@ STATIC PROCEDURE ProcessRequest( oServer )
+@@ -729,11 +750,11 @@
 
  STATIC FUNCTION ParseRequestHeader( cRequest )
 
 -   LOCAL aRequest, aLine, nI, nJ, cI, nK, nContentLength := 0
-+   LOCAL aRequest, aLine, nI, nJ, cI, nK, nContentLength := 0, lHasContentLength := .F.
-
+-
 -   nI := At( CR_LF + CR_LF, cRequest )
 -   aRequest := hb_ATokens( Left( cRequest, nI - 1 ), CR_LF )
 -   cRequest := SubStr( cRequest, nI + 4 )
++   LOCAL aRequest, aLine, nI, nJ, cI, nK, nContentLength := 0, lHasContentLength := .F.
++
 +   nI := hb_BAt( CR_LF + CR_LF, cRequest )
 +   aRequest := hb_ATokens( hb_BLeft( cRequest, nI - 1 ), CR_LF )
 +   cRequest := hb_BSubStr( cRequest, nI + 4 )
 
     aLine := hb_ATokens( aRequest[ 1 ], " " )
 
-@@ -789,7 +799,14 @@ STATIC FUNCTION ParseRequestHeader( cRequest )
+@@ -789,7 +810,14 @@
                 cookie[ Upper( Left( cI, nK - 1 ) ) ] := SubStr( cI, nK + 1 )
              ENDIF
              EXIT
@@ -142,16 +161,16 @@ index 9b6f73d..a922d0e 100755
              nContentLength := Val( cI )
              EXIT
           CASE "CONTENT-TYPE"
-@@ -817,6 +834,8 @@ STATIC PROCEDURE ParseRequestBody( cRequest )
+@@ -816,6 +844,8 @@
+ STATIC PROCEDURE ParseRequestBody( cRequest )
 
     LOCAL nI, cPart, cEncoding
-
-+   server[ "REQUEST_BODY" ] := cRequest
 +
++   server[ "REQUEST_BODY" ] := cRequest
+
     IF hb_HHasKey( server, "CONTENT_TYPE" ) .AND. ;
           Left( server[ "CONTENT_TYPE" ], 33 ) == "application/x-www-form-urlencoded"
-       IF ( nI := At( "CHARSET=", Upper( server[ "CONTENT_TYPE" ] ) ) ) > 0
-@@ -900,10 +919,10 @@ STATIC FUNCTION MakeResponse( hConfig )
+@@ -900,10 +930,10 @@
     ENDSWITCH
 
     cRet += cStatus + CR_LF

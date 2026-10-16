@@ -6,13 +6,28 @@ param(
     [string] $HbCompileRoot,
     [string] $ZigPath,
     [switch] $Failures,
+    [switch] $Concurrency,
+    [switch] $Pooling,
+    [ValidateSet('off', 'driver')][string] $ODBCPooling,
+    [string] $OtherProfile,
+    [Nullable[int]] $HTTPListenBacklog,
     [string] $FailureODBCDriver,
     [switch] $Serve
 )
 
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
-if ($Serve -and -not $Failures) { throw '-Serve requires -Failures.' }
+if ([int]$Failures.IsPresent + [int]$Concurrency.IsPresent + [int]$Pooling.IsPresent -gt 1) {
+    throw '-Failures, -Concurrency and -Pooling are mutually exclusive.'
+}
+if ($ODBCPooling -and -not ($Pooling -or $Concurrency)) {
+    throw '-ODBCPooling requires -Pooling or -Concurrency.'
+}
+if ($OtherProfile -and -not $Pooling) { throw '-OtherProfile requires -Pooling.' }
+if ($null -ne $HTTPListenBacklog -and (-not $Concurrency -or $HTTPListenBacklog -lt 1)) {
+    throw '-HTTPListenBacklog requires -Concurrency and a positive native integer.'
+}
+if ($Serve -and -not ($Failures -or $Concurrency)) { throw '-Serve requires -Failures or -Concurrency.' }
 if ($Failures) {
     if ([string]::IsNullOrWhiteSpace($FailureODBCDriver)) {
         Write-Host 'MSSQL prerequisite failed: FAILURE_ODBC_DRIVER_REQUIRED'
@@ -55,9 +70,15 @@ Push-Location -LiteralPath $projectRoot
 try {
     & $toolchain.Zig build
     if ($LASTEXITCODE -ne 0) { throw 'The Zig library build failed.' }
-    $targetName = if ($Failures) { 'hbbridge.mssql.failure.test' } else { 'hbbridgemssqltest' }
+    $targetName = if ($Failures) { 'hbbridge.mssql.failure.test' }
+        elseif ($Concurrency) { 'hbbridge.mssql.concurrency.test' }
+        elseif ($Pooling) { 'hbbridge.mssql.pooling.test' } else { 'hbbridgemssqltest' }
     $testProject = if ($Failures) {
         'tests/integration/harbour/hbbridge.mssql.failure.test.hbp'
+    } elseif ($Concurrency) {
+        'tests/integration/harbour/hbbridge.mssql.concurrency.test.hbp'
+    } elseif ($Pooling) {
+        'tests/integration/harbour/hbbridge.mssql.pooling.test.hbp'
     } else { 'tests/integration/harbour/hbbridge.mssql.test.hbp' }
     $testTarget = Join-Path $runRoot $targetName
     $testExecutable = $testTarget + $toolchain.ExecutableExtension
@@ -71,6 +92,15 @@ try {
     if ($Failures) {
         $testArguments += $FailureODBCDriver
         $testArguments += $(if ($Serve) { 'serve' } else { 'test' })
+    } elseif ($Concurrency) {
+        $testArguments += $(if ($Serve) { 'serve' } else { 'test' })
+        if ($null -ne $HTTPListenBacklog -or $ODBCPooling) {
+            $testArguments += $(if ($null -ne $HTTPListenBacklog) { $HTTPListenBacklog.ToString() } else { 'native' })
+        }
+        if ($ODBCPooling) { $testArguments += $ODBCPooling }
+    } elseif ($Pooling) {
+        $testArguments += $(if ($ODBCPooling) { $ODBCPooling } else { 'driver' })
+        if ($OtherProfile) { $testArguments += $OtherProfile }
     }
     & $testExecutable @testArguments 2>&1 | Tee-Object -FilePath (Join-Path $runRoot 'results.log')
     $testExit = $LASTEXITCODE

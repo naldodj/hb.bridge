@@ -4,11 +4,34 @@
 
 REQUEST SQLMIX, SDDSQLITE3, SDDODBC
 
+STATIC s_oSQLPool
 STATIC s_hSQLMutex
 
 INIT PROCEDURE HBBridgeSQLInit()
     s_hSQLMutex := hb_mutexCreate()
+    s_oSQLPool := HBBridgeSQLPool():New( s_hSQLMutex )
 RETURN
+
+EXIT PROCEDURE HBBridgeSQLExit()
+    IF ValType( s_oSQLPool ) == "O"
+        IF s_oSQLPool:Destroy()
+            HBBridgeODBCPoolingClose()
+        ENDIF
+        s_oSQLPool := NIL
+    ENDIF
+RETURN
+
+FUNCTION HBBridgeGetPool()
+RETURN s_oSQLPool
+
+/* The driver manager owns physical reuse. RDDSQL handles retain their current
+ * per-call ownership, including restoration of a caller's zero connection.
+ * Configure before listeners start; native policy freezes at first ODBC use.
+ */
+FUNCTION HBBridgeSQLConfigure( cMode, cError )
+    LOCAL lOK := hb_mutexEval( s_hSQLMutex, {|| HBBridgeODBCPooling( cMode ) } )
+    cError := iif( lOK, "", "ODBC pooling mode is unsupported or requires a process restart." )
+RETURN lOK
 
 /* Generic executor: callers resolve ERP table/branch/company/tenant rules.
  * Profile aliases are opaque keys, including names such as MSSQL/pData.
@@ -44,37 +67,26 @@ FUNCTION HBBridgeSQLQuery( hParams, hProfiles )
         cSQL := hPage[ "sqlpage" ]
     ENDIF
 
-RETURN hb_mutexEval( s_hSQLMutex, {|| SQLQueryLocked( cSQL, hProfiles[ cProfile ], hPage ) } )
+RETURN hb_mutexEval( s_hSQLMutex, {|| SQLQueryLocked( cSQL, cProfile, hProfiles[ cProfile ], hPage ) } )
 
-STATIC FUNCTION SQLQueryLocked( cSQL, hProfile, hPage )
+STATIC FUNCTION SQLQueryLocked( cSQL, cProfile, hProfile, hPage )
 
     LOCAL nConnection := 0, nPreviousConnection := rddInfo( RDDI_CONNECTION, NIL, "SQLMIX" )
     LOCAL nPreviousArea := Select(), nQueryArea := 0, nField, nFields, nRow := 0
     LOCAL hHeader := {=>}, hRows := {=>}, hRow, hField, cName, hResult
     LOCAL cFailure := "CONNECTION_FAILED", cMessage := "Database connection is unavailable."
-    LOCAL aConnection
     LOCAL nOffset := iif( hPage == NIL, 0, 1 ), lHasNext := .F.
-    LOCAL cAlias, nTotalRows, nTotalPages
+    LOCAL cAlias, nTotalRows, nTotalPages, hLease := NIL
 
-    /* The positional connection array is required by the native RDD API. */
-    IF hProfile[ "driver" ] == "sqlite"
-        IF hProfile[ "database" ] != ":memory:" .AND. ! hb_FileExists( hProfile[ "database" ] )
-            RETURN HBBridgeError( cFailure, cMessage )
-        ENDIF
-        aConnection := { "SQLITE3", hProfile[ "database" ] }
-    ELSE
-        /* NIL retains native defaults; an explicit zero disables that timeout.
-         * These positional slots belong to the managed SDDODBC interface.
-         */
-        aConnection := { "ODBC", hProfile[ "connectionString" ], ;
-            hb_HGetDef( hProfile, "loginTimeoutSeconds", NIL ), ;
-            hb_HGetDef( hProfile, "queryTimeoutSeconds", NIL ) }
+    IF ! s_oSQLPool:RegisterProfile( cProfile, hProfile )
+        RETURN HBBridgeError( cFailure, cMessage )
     ENDIF
     BEGIN SEQUENCE WITH __BreakBlock()
-        nConnection := rddInfo( RDDI_CONNECT, aConnection, "SQLMIX" )
-        IF nConnection == 0
+        hLease := s_oSQLPool:Acquire( cProfile )
+        IF hLease == NIL
             Break( NIL )
         ENDIF
+        nConnection := hLease[ "connection" ]
         cFailure := "QUERY_FAILED"
         cMessage := "Could not open or read the SQL query result."
         /* Select zero reserves the first unused area number, not the caller's
@@ -167,7 +179,7 @@ STATIC FUNCTION SQLQueryLocked( cSQL, hProfile, hPage )
         END SEQUENCE
         BEGIN SEQUENCE WITH __BreakBlock()
             IF nConnection > 0
-                IF ! rddInfo( RDDI_DISCONNECT, NIL, "SQLMIX", nConnection )
+                IF ! s_oSQLPool:Release( hLease )
                     hResult := HBBridgeError( "CONNECTION_CLOSE_FAILED", "Could not release the SQL connection." )
                 ENDIF
             ENDIF

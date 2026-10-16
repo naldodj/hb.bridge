@@ -43,6 +43,10 @@ STATIC FUNCTION MSSQLRun( cConfigPath, cProfile, nFailures, nChecks )
         ? "MSSQL prerequisite failed: CONFIG_INVALID"
         RETURN 2
     ENDIF
+    IF ! HBBridgeSQLConfigure( hConfig[ "sqlODBCPooling" ], @cError )
+        ? "MSSQL prerequisite failed: ODBC_POOLING_UNAVAILABLE"
+        RETURN 2
+    ENDIF
     hProfiles := hConfig[ "sqlProfiles" ]
     IF ! hb_HHasKey( hProfiles, cProfile )
         ? "MSSQL prerequisite failed: PROFILE_NOT_FOUND"

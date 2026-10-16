@@ -5,6 +5,20 @@
    Caminhos antigos descrevem os arquivos existentes na época.
  */
 
+2026-10-14 21:18 UTC naldodj (Homologar isolamento e limpeza de chamadores SQL concorrentes)
+  + Adicionar fixtures nativas MSSQL/SQLite opt-in -Concurrency: 8 workers,
+    192 chamadas local/NETIO/TCP/HTTP; 458 checks, zero falhas/sem skips.
+  + Adicionar testes Protheus StartJob TCP/HTTP: 4 jobs, 112 chamadas,
+    417 checks, zero falhas e saída CLI 0 após limpeza final das chaves.
+  ! Corrigir propriedade NETIO emprestada e corrida de confirmação/shutdown
+    nas fixtures; preservar o mutex SQL do produto.
+  * Registrar relatos manuais de 40/100 workers sem falhas; rodada informada
+    de 140 sem OK aguarda seu log. Contar checks reais do pai e adicionar
+    diagnósticos seguros de etapa/jobs pendentes; recompilação ainda pendente.
+  * Atualizar guias, homologação, WIP/TODO EN/PT; próxima M08, D03 aberta.
+  ; Compilação: 32 sucessos/zero erros; encerramento do compilador retornou
+    separadamente 0xC0000409. Sem claim de pooling, capacidade ou SQL paralelo.
+
 2026-10-14 17:35 UTC naldodj (Homologar recuperação manual de falhas SQL no Protheus)
   * Confirmar validação manual AppServer de U_HBBridgeTCPAndHTTPFailureTest:
     2026-10-14 14:30:50 São Paulo, thread 13796, todos os 38 TCP/51 HTTP checks

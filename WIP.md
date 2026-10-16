@@ -12,11 +12,11 @@ acceptance records verified results; ChangeLog and Git preserve history.
 | Item | Current value |
 | --- | --- |
 | ID | `001-mssql-acceptance` |
-| Opened / updated | 2026-10-07 / 2026-10-14 |
-| Status | Native MSSQL: 92 checks; Protheus TCP: 29 and HTTP: 13 each for MSSQL/SQLite. D02 accepted: dataset 67 checks/31 calls and helpers 12 checks. M06 accepted: native 46, AppServer CLI and manual TCP 38/HTTP 51; regression 636. Package remains open. |
+| Opened / updated | 2026-10-07 / 2026-10-15 |
+| Status | D02/M06 accepted. Current native regression: 712 checks, zero failures; isolated lease/configuration checks: 266, zero failures. M07 baseline remains native 458/AppServer CLI 417. The latest reported 130-worker run completed 15159 checks with 41 failures; its full log is pending review. Physical ODBC reuse, M07 and D03 remain pending. |
 | Goal | Accept the existing RPCRDD.Query/dataset against an identified real MSSQL database through Harbour, Protheus TCP and Protheus HTTP. |
 | Product reference | Published code `50e1c65`; checkout at package opening `bce52d2` includes the clone badge update. |
-| Next task | M07: concurrent profile/resource isolation and release. D03 integrity remains pending; decimal metadata automation is deferred. |
+| Next task | M07: validate the adapted logical lease facade and opt-in physical ODBC reuse against MSSQL; review the 130-worker log and accept reproducible launch pacing before repeating load. M08 time/memory measurement follows M07 acceptance. D03 remains pending; decimal metadata automation is deferred. |
 
 ### Decisions already made
 
@@ -35,6 +35,10 @@ acceptance records verified results; ChangeLog and Git preserve history.
   needs no dynamic MSSQL plugin. Vault token renewal is a separate lifecycle.
 - Preserve the shared SQL lifecycle mutex. Verify isolation/cleanup under
   concurrent calls; this package does not promise parallel SQL execution.
+- Adapt connection ownership to `HBBridgeSQLPool` logical leases while keeping
+  one native RDDSQL connection lifetime per call. Physical reuse belongs to
+  the native ODBC Driver Manager; it remains opt-in and requires separate proof.
+  SQLite `:memory:` retains a fresh database for each lease.
 - Keep existing runtime capacities and configurable policies. Add no fixed
   proof-of-concept payload ceiling or new transport implementation.
 - Reprioritized on 2026-10-13: defer optional Protheus metadata addons and
@@ -179,9 +183,54 @@ new acceptance findings, not reasons to repeat the completed inventory.
   the native setting, omission preserves the driver default. Each statement,
   including COUNT, has its own timeout. This does not impose a shared request
   deadline or implement cancellation after client timeout/disconnect.
-- [ ] **M07 — Verify concurrency and release.** Interleave queries/profiles
-  and verify workarea/connection restoration, no result leakage and cleanup
-  after success/failure. Preserve the current synchronization contract.
+- [ ] **M07 — Verify concurrency and release.** Baseline accepted on 2026-10-14;
+  reopened for the additional 140-worker failure report:
+  native **458 checks, 8 workers/192 calls**, local/NETIO/TCP/HTTP and three
+  aliases; AppServer CLI **417 checks, 4 jobs/112 calls**, two TCP/two HTTP
+  jobs alternating MSSQL/SQLite. Zero failures; caller areas/default connection,
+  native handle reuse, profile/schema/value isolation, failure recovery and
+  owned cleanup verified. Keep the SQL mutex; this does not certify parallel
+  database execution or physical ODBC/heap leak freedom.
+  [Evidence](docs/acceptance.md#sql-concurrency-and-release-on-2026-10-14).
+  Additional manual logs report 40/100 workers with zero failures; only two
+  use TCP when load increases. On 2026-10-15, independent collection/drain
+  controls passed 417 checks with four workers and drained a controlled
+  one-second abort. With a 300-second budget, all 140 reports/3920 calls
+  returned: **16329 checks, 857 failures**, including status-0 native refusal
+  diagnostics. All 32 TLPP sources compiled without source errors; the vendor
+  compiler subsequently exited **0xC0000409**, recorded separately from compilation.
+  The earlier native regression passed **656 checks, zero failures** with configurable
+  HTTP listen backlog; both backlog 10 and the OS default failed at 140 workers.
+  This is not an accepted backlog fix.
+  The supplied 22 KB attachment contains a pool proposal plus DBAccess ODBC error
+  10048, not a successful test log. Large TIME_WAIT counts and two Windows
+  Tcpip 4227 events record host port pressure without identifying one process
+  or proving the sole cause of HTTP failures.
+  The proposal was adapted to `HBBridgeSQLPool`: hash-based logical leases
+  carry unique ID, profile, owning thread and native connection. Forged,
+  stale, duplicate and foreign-thread returns are rejected; acquisition has
+  no retry loop and shutdown refuses active leases. Reconfiguring ODBC policy
+  preserves the facade instance. Logical connections retain their per-call
+  lifetime and SQLite memory databases remain fresh. An isolated product
+  build, **266 lease/configuration checks** and the full **712-check native
+  regression** passed with zero failures.
+  Physical Driver Manager policy is `off` by default. `driver` is an opt-in
+  Windows ODBC 3.8 path; Linux remains `off` until separate acceptance.
+  MSSQL physical-reuse validation is in progress: the first attempt opened
+  13 distinct physical connections for 13 logical leases. Environment lifetime
+  is being corrected; reuse and session cleanup are not yet accepted.
+  A 125-worker success was reported without a fully reviewed log. The latest
+  130-worker summary reports all jobs collected, **15159 checks/41 failures**;
+  its full log remains pending review. Neither report closes M07.
+  Launch pacing is now explicit in arguments 10–12/CLI: defaults 300/50/5000 ms
+  preserve the supplied ramp and `GetEnvServer()`. Planned sleeps are 431450 ms
+  for 130 workers and 481450 ms for 140; `0/0/0` supplies a burst control.
+  The budget includes launch and impossible sleep plans are rejected before
+  `StartJob`; the all-READY/GO barrier still releases workload together.
+  This TLPP revision awaits compilation/runtime acceptance; the earlier
+  32-source compiler result precedes configurable pacing.
+  [Follow-up evidence](docs/acceptance.md#sql-concurrency-follow-up-on-2026-10-15)
+  and [reuse analysis](docs/sql-connections.md) precede M08.
 - [ ] **M08 — Record a performance baseline.** Identify SQL, fixture/volume,
   execution count and concurrency; record elapsed time and available memory
   measurements separately for Harbour, TCP and HTTP. This is a reference,
@@ -250,7 +299,8 @@ Evidence: `tmp/mssql-tests-b3d676f0daaf470a97af605a98a9681c/results.log` and
 The core baseline read 1000 constant rows in three executions: 31/32/31 ms,
 total 94 ms, concurrency 1, including connect/materialize/disconnect; memory
 was not measured. At this point M06/M07 had partial evidence. M06 has subsequent native-timeout
-and AppServer acceptance on 2026-10-14; M07 broader profile isolation remains.
+and AppServer acceptance on 2026-10-14; M07 broader profile isolation has
+subsequent acceptance recorded below.
 M08 still needs TCP/HTTP and memory.
 The default regression passed **566 checks, zero failures/no skips**:
 `tmp/tests-f84004277a8d4cc2905131f706a1e181/results.log`.
@@ -287,20 +337,26 @@ Subsequent manual execution at 14:30:50 São Paulo, thread 13796, passed all
 38 TCP/51 HTTP checks and resolves that failed run within M06's test scope.
 Native handshake diagnostics remain recorded without a verified cause or
 resolution; neither a precise elapsed time nor a GUI launch route is inferred.
-Resume M07 with concurrent profiles, caller resource restoration and release
-through the shared executor. Preserve the SQL mutex and distinguish interleaved
-requests from parallel database execution. D03 integrity remains pending after
+M07's 458 native and 417 AppServer CLI checks remain the historical accepted baseline.
+The 2026-10-15 controlled 140-worker retry still failed after independent
+collection/drain controls were validated. Connection reuse and port-pressure
+analysis, the reported 130-worker failures and acceptance of the adapted
+logical/physical connection lifecycle remain within M07 before M08 time/memory work. Preserve the SQL mutex
+and distinguish concurrent requests from parallel database execution.
+D03 integrity remains pending after
 explicit reprioritization, with caller CAST retained.
 Do not repeat accepted migrations, inventory or native/TCP/HTTP cases without
-new evidence requiring it. M07–M09 and the package completion criteria remain.
+new evidence requiring it. M07 follow-up, M08–M09 and the package completion
+criteria remain.
+
+The 2026-10-12 [SQL connection-reuse observation](docs/sql-connections.md)
+was reprioritized into M07 on 2026-10-15. `HBBridgeSQLPool` now owns exclusive
+logical leases under the existing lifecycle mutex; native physical ODBC reuse
+remains under validation, with policy `off` by default. Complete proof of
+physical reuse, caller-state preservation, session cleanup and shutdown before
+accepting the change against MSSQL. Keep RPC persistence separate.
 
 ## Following packages: reserved direction
-
-Observation recorded on 2026-10-12: [evaluate SQL connection reuse](docs/sql-connections.md)
-after measuring its actual cost, using M08's baseline as input. Compare ODBC
-pooling and host-owned per-profile reuse; distinguish database persistence from
-RPC transport persistence. This note does not authorize an implementation choice
-or change the next task/package completion criteria.
 
 The 2026-10-12 [extension review](docs/extensions-review.md) records SQLRDD,
 Duktape and CCHarbour as optional later packages, without adopting dependencies
@@ -314,7 +370,7 @@ separate acceptance above. UTF-8/FLOAT and encrypted credentials remain pending.
 | --- | --- |
 | 002 | Typed SQL parameters/metadata and native FWTemporaryTable/FWMBrowse presentation; separately scoped MSSQL materialization/release. |
 | 003 | External dependencies through hb_compile, portable credential providers/management, optional OpenBao and HTTPS acceptance. |
-| 004 | Negotiated compression/blocks, incremental consumption and real client capacities; persistence/pool after measurements. |
+| 004 | Negotiated compression/blocks, incremental consumption and real client capacities; RPC persistence/pool after measurements. |
 | 005 | Native DBF/NETIO acceptance and a TLPP facade for Harbour VF IO. |
 | 006 | Windows/Linux service operation, diagnostics, administration and reproducible packaging. |
 | Later | Jobs/batches/progress/cancellation and useful native extensions. |

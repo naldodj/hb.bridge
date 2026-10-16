@@ -45,6 +45,9 @@ static method ViewData(cAlias,nRecNo,cTitle,aButtons,aAcho) class HBBridgeMsMGet
     local cFil as character
     local cSVFilAnt as character
     local cFieldFil as character
+    local cX3Relacao as character
+
+    local jAcho as json
 
     local lAcho as logical
     local lMsMGet as logical
@@ -108,29 +111,30 @@ static method ViewData(cAlias,nRecNo,cTitle,aButtons,aAcho) class HBBridgeMsMGet
 
         RPCSetEmpFil(cEmpAnt,cSVFilAnt)
 
-    else
+    else //MsMGet
 
-        //MsMGet
+        if (lAcho)
+            jAcho:=JSONObject():New()
+            aEval(aAcho,{|cField|jAcho[cField:=cField]})
+        endif
 
-        aFields:=array(0)
-        aFieldsNoSX3:=array(0)
+        aFields:=Array(0)
+        aFieldsNoSX3:=Array(0)
         adbStruct:=(cAlias)->(dbStruct())
-        nFields:=len(adbStruct)
+        nFields:=Len(adbStruct)
         for nField:=1 to nFields
             cField:=adbStruct[nField][DBS_NAME]
-            if (lAcho)
-                if (aScan(aAcho,cField)==0)
-                    loop
-                endif
+            if ((lAcho).and.(!jAcho:HasProperty(cField)))
+                loop
             endif
             aAdd(aFields,cField)
             nATField:=Len(aFields)
             cVar:=("M->"+cField)
             xValue:=(cAlias)->(FieldGet(nField))
-            if (empty(xValue).and.!Empty(GetSX3Cache(cField,"X3_RELACAO")))
+            if ((empty(xValue).and.!Empty(cX3Relacao:=GetSX3Cache(cField,"X3_RELACAO"))))
                 bErrorBlock:=ErrorBlock({|e|Break(e)})
                 begin sequence
-                    xValue:=&(GetSX3Cache(cField,"X3_RELACAO"))
+                    xValue:=&(cX3Relacao)
                 end sequence
                 ErrorBlock(bErrorBlock)
             endif
@@ -175,6 +179,8 @@ static method ViewData(cAlias,nRecNo,cTitle,aButtons,aAcho) class HBBridgeMsMGet
             DEFAULT aFieldsNoSX3[nATField][18]:=""
         next nField
 
+        FreeObj(@jAcho)
+
         oFWDefSize:=FWDefSize():New(.T.,.T.)//Com enchoicebar
         oFWDefSize:lLateral:=.F.//Calculo vertical
         oFWDefSize:AddObject("ENCHOICE",100,60,.T.,.T.)//Adiciona enchoice
@@ -186,8 +192,8 @@ static method ViewData(cAlias,nRecNo,cTitle,aButtons,aAcho) class HBBridgeMsMGet
         nBottom:=oFWDefSize:aWindSize[3]
         nRight:=oFWDefSize:aWindSize[4]
 
-        private aTela:=array(0) as array
-        private aGets:=array(0) as array
+        private aTela:=Array(0) as array
+        private aGets:=Array(0) as array
         if (Type("lObfuscate")!="L")
             private lObfuscate:=.F. as logical
         endif
@@ -203,7 +209,7 @@ static method ViewData(cAlias,nRecNo,cTitle,aButtons,aAcho) class HBBridgeMsMGet
             }
 
             if (Type("aRotina")=="A")
-                if (2>len(aRotina))
+                if (2>Len(aRotina))
                     lProperty:=.T.
                 endif
             endif
@@ -238,7 +244,7 @@ static method ViewData(cAlias,nRecNo,cTitle,aButtons,aAcho) class HBBridgeMsMGet
                 endif
             endif
 
-            lMsMGet:=(((lMsMGet).and.(valType(oMsMGet)=="O")))
+            lMsMGet:=(((lMsMGet).and.(ValType(oMsMGet)=="O")))
 
             if (lMsMGet)
                 oMsMGet:oBox:align:=CONTROL_ALIGN_ALLCLIENT

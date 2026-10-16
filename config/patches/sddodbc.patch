@@ -1,26 +1,203 @@
 diff --git a/sddodbc/core.c b/sddodbc/core.c
 --- a/sddodbc/core.c
 +++ b/sddodbc/core.c
-@@ -49,6 +49,7 @@
- #include "hbapiitm.h"
- #include "hbdate.h"
+@@ -51,4 +51,6 @@
  #include "hbapistr.h"
 +#include "hbapicdp.h"
  #include "hbset.h"
  #include "hbvm.h"
++#include "hbthread.h"
 
-@@ -109,6 +110,8 @@
- {
-    SQLHENV hEnv;
+@@ -65,2 +67,181 @@
+ #include <sqlext.h>
++
++/* Pooling is process policy. Physical reuse/reset is owned by the Windows
++ * ODBC 3.8 driver manager, never by an application cache of RDDSQL handles.
++ * Other platforms retain their existing default-off lifecycle until accepted.
++ */
++#if defined( HB_OS_WIN ) && ODBCVER >= 0x0380 && defined( SQL_OV_ODBC3_80 )
++   #define HBBRIDGE_ODBC_POOL_SUPPORTED 1
++#endif
++
++static HB_CRITICAL_NEW( s_odbcPoolMutex );
++static HB_BOOL s_odbcPoolEnabled = HB_FALSE;
++static HB_BOOL s_odbcPoolFrozen = HB_FALSE;
++/* Keep one matching environment reference alive between logical leases.
++ * Its DBC is never connected and holds no credentials or network socket.
++ */
++static SQLHENV s_odbcPoolAnchorEnv = SQL_NULL_HENV;
++static SQLHDBC s_odbcPoolAnchorDBC = SQL_NULL_HDBC;
++
++HB_FUNC( HBBRIDGEODBCPOOLING )
++{
++   const char * mode = hb_parc( 1 );
++   HB_BOOL valid = HB_FALSE;
++   HB_BOOL enabled = HB_FALSE;
++
++   if( mode && hb_parclen( 1 ) == 3 && strcmp( mode, "off" ) == 0 )
++      valid = HB_TRUE;
++   else if( mode && hb_parclen( 1 ) == 6 && strcmp( mode, "driver" ) == 0 )
++   {
++#if defined( HBBRIDGE_ODBC_POOL_SUPPORTED )
++      valid = enabled = HB_TRUE;
++#endif
++   }
++   if( valid )
++   {
++      hb_threadEnterCriticalSection( &s_odbcPoolMutex );
++      if( enabled != s_odbcPoolEnabled )
++      {
++         if( s_odbcPoolFrozen )
++            valid = HB_FALSE;
++         else
++         {
++#if defined( HBBRIDGE_ODBC_POOL_SUPPORTED )
++            /* An option substitution is not successful configuration. */
++            valid = SQLSetEnvAttr( SQL_NULL_HENV, SQL_ATTR_CONNECTION_POOLING,
++               ( SQLPOINTER ) ( HB_PTRUINT ) ( enabled ? SQL_CP_ONE_PER_DRIVER : SQL_CP_OFF ),
++               SQL_IS_UINTEGER ) == SQL_SUCCESS;
++            if( valid )
++               s_odbcPoolEnabled = enabled;
++#else
++            valid = HB_FALSE;
++#endif
++         }
++      }
++      hb_threadLeaveCriticalSection( &s_odbcPoolMutex );
++   }
++   hb_retl( valid );
++}
++
++HB_FUNC( HBBRIDGEODBCPOOLINGINFO )
++{
++   PHB_ITEM result = hb_hashNew( NULL );
++   PHB_ITEM key = hb_itemNew( NULL );
++   PHB_ITEM value = hb_itemNew( NULL );
++   HB_BOOL enabled, frozen, retained;
++
++   hb_threadEnterCriticalSection( &s_odbcPoolMutex );
++   enabled = s_odbcPoolEnabled;
++   frozen = s_odbcPoolFrozen;
++   retained = s_odbcPoolAnchorEnv != SQL_NULL_HENV;
++   hb_threadLeaveCriticalSection( &s_odbcPoolMutex );
++   hb_hashAdd( result, hb_itemPutC( key, "mode" ), hb_itemPutC( value, enabled ? "driver" : "off" ) );
++   hb_hashAdd( result, hb_itemPutC( key, "frozen" ), hb_itemPutL( value, frozen ) );
++#if defined( HBBRIDGE_ODBC_POOL_SUPPORTED )
++   hb_hashAdd( result, hb_itemPutC( key, "supported" ), hb_itemPutL( value, HB_TRUE ) );
++#else
++   hb_hashAdd( result, hb_itemPutC( key, "supported" ), hb_itemPutL( value, HB_FALSE ) );
++#endif
++   hb_hashAdd( result, hb_itemPutC( key, "environmentRetained" ), hb_itemPutL( value, retained ) );
++   hb_itemRelease( key );
++   hb_itemRelease( value );
++   hb_itemReturnRelease( result );
++}
++
++static HB_BOOL odbcPoolingBegin( void )
++{
++   HB_BOOL enabled;
++   hb_threadEnterCriticalSection( &s_odbcPoolMutex );
++   s_odbcPoolFrozen = HB_TRUE;
++   enabled = s_odbcPoolEnabled;
++   hb_threadLeaveCriticalSection( &s_odbcPoolMutex );
++   return enabled;
++}
++
++static HB_BOOL odbcPoolingEnvironment( SQLHENV environment )
++{
++#if defined( HBBRIDGE_ODBC_POOL_SUPPORTED )
++   SQLUINTEGER version = 0, match = SQL_CP_RELAXED_MATCH;
++
++   return SQLSetEnvAttr( environment, SQL_ATTR_ODBC_VERSION,
++             ( SQLPOINTER ) ( HB_PTRUINT ) SQL_OV_ODBC3_80, SQL_IS_UINTEGER ) == SQL_SUCCESS &&
++          SQLGetEnvAttr( environment, SQL_ATTR_ODBC_VERSION, &version, sizeof( version ), NULL ) == SQL_SUCCESS &&
++          version == SQL_OV_ODBC3_80 &&
++          SQLSetEnvAttr( environment, SQL_ATTR_CP_MATCH,
++             ( SQLPOINTER ) ( HB_PTRUINT ) SQL_CP_STRICT_MATCH, SQL_IS_UINTEGER ) == SQL_SUCCESS &&
++          SQLGetEnvAttr( environment, SQL_ATTR_CP_MATCH, &match, sizeof( match ), NULL ) == SQL_SUCCESS &&
++          match == SQL_CP_STRICT_MATCH;
++#else
++   HB_SYMBOL_UNUSED( environment );
++   return HB_FALSE;
++#endif
++}
++
++/* The matching shared environment must outlive individual connections:
++ * releasing its last reference destroys its native pool. A disconnected
++ * anchor DBC selects that shared environment without opening a database.
++ */
++static HB_BOOL odbcPoolingAnchor( void )
++{
++   HB_BOOL ready = HB_FALSE;
++#if defined( HBBRIDGE_ODBC_POOL_SUPPORTED )
++   hb_threadEnterCriticalSection( &s_odbcPoolMutex );
++   if( s_odbcPoolAnchorEnv == SQL_NULL_HENV )
++   {
++      if( SQLAllocHandle( SQL_HANDLE_ENV, SQL_NULL_HANDLE, &s_odbcPoolAnchorEnv ) == SQL_SUCCESS )
++      {
++         if( ! odbcPoolingEnvironment( s_odbcPoolAnchorEnv ) )
++         {
++            SQLFreeHandle( SQL_HANDLE_ENV, s_odbcPoolAnchorEnv );
++            s_odbcPoolAnchorEnv = SQL_NULL_HENV;
++         }
++      }
++   }
++   if( s_odbcPoolAnchorEnv != SQL_NULL_HENV && s_odbcPoolAnchorDBC == SQL_NULL_HDBC )
++      SQLAllocHandle( SQL_HANDLE_DBC, s_odbcPoolAnchorEnv, &s_odbcPoolAnchorDBC );
++   ready = s_odbcPoolAnchorEnv != SQL_NULL_HENV && s_odbcPoolAnchorDBC != SQL_NULL_HDBC;
++   hb_threadLeaveCriticalSection( &s_odbcPoolMutex );
++#endif
++   return ready;
++}
++
++HB_FUNC( HBBRIDGEODBCPOOLINGCLOSE )
++{
++   HB_BOOL released = HB_TRUE;
++   hb_threadEnterCriticalSection( &s_odbcPoolMutex );
++#if defined( HBBRIDGE_ODBC_POOL_SUPPORTED )
++   if( s_odbcPoolAnchorDBC != SQL_NULL_HDBC )
++   {
++      released = SQLFreeHandle( SQL_HANDLE_DBC, s_odbcPoolAnchorDBC ) == SQL_SUCCESS;
++      if( released )
++         s_odbcPoolAnchorDBC = SQL_NULL_HDBC;
++   }
++   if( released && s_odbcPoolAnchorEnv != SQL_NULL_HENV )
++   {
++      released = SQLFreeHandle( SQL_HANDLE_ENV, s_odbcPoolAnchorEnv ) == SQL_SUCCESS;
++      if( released )
++         s_odbcPoolAnchorEnv = SQL_NULL_HENV;
++   }
++#endif
++   hb_threadLeaveCriticalSection( &s_odbcPoolMutex );
++   hb_retl( released );
++}
++
++#if defined( HBBRIDGE_ODBC_POOL_SUPPORTED )
++static HB_BOOL odbcPoolingVersion( SQLHDBC connection, SQLUSMALLINT attribute )
++{
++   SQLCHAR version[ 32 ];
++   SQLSMALLINT length = 0;
++   int major, minor;
++
++   if( SQLGetInfoA( connection, attribute, version, sizeof( version ), &length ) != SQL_SUCCESS ||
++       length < 5 || length >= ( SQLSMALLINT ) sizeof( version ) || version[ 2 ] != '.' ||
++       version[ 0 ] < '0' || version[ 0 ] > '9' || version[ 1 ] < '0' || version[ 1 ] > '9' ||
++       version[ 3 ] < '0' || version[ 3 ] > '9' || version[ 4 ] < '0' || version[ 4 ] > '9' )
++      return HB_FALSE;
++   major = ( version[ 0 ] - '0' ) * 10 + version[ 1 ] - '0';
++   minor = ( version[ 3 ] - '0' ) * 10 + version[ 4 ] - '0';
++   return major > 3 || ( major == 3 && minor >= 80 );
++}
++#endif
+
+@@ -111,2 +292,6 @@
     SQLHDBC hConn;
 +   HB_BOOL fQueryTimeout;
 +   SQLULEN ulQueryTimeout;
++   HB_BOOL fPooling;
++   HB_BOOL fDisconnected;
  } SDDCONN;
-
- typedef struct
-@@ -218,12 +221,108 @@
-
-
+@@ -220,2 +405,89 @@
  /* --- SDD METHODS --- */
 +/* hbBridge's optional timeout slots keep NIL/missing distinct from zero.
 + * SQLULEN follows native pointer capacity; JSON integers must remain exact.
@@ -110,13 +287,11 @@ diff --git a/sddodbc/core.c b/sddodbc/core.c
 +}
 +
  static HB_ERRCODE odbcConnect( SQLDDCONNECTION * pConnection, PHB_ITEM pItem )
- {
-    SQLHENV    hEnv     = NULL;
-    SQLHDBC    hConnect = NULL;
-    char *     szError;
+@@ -226,3 +498,18 @@
     HB_ERRCODE errCode;
+-
 +   SQLULEN    ulLoginTimeout, ulQueryTimeout;
-+   HB_BOOL    fLoginTimeout, fQueryTimeout;
++   HB_BOOL    fLoginTimeout, fQueryTimeout, fPooling;
 +
 +   if( ! odbcTimeoutValue( pItem, 3, HB_TRUE, &ulLoginTimeout, &fLoginTimeout ) ||
 +       ! odbcTimeoutValue( pItem, 4, HB_FALSE, &ulQueryTimeout, &fQueryTimeout ) )
@@ -124,12 +299,30 @@ diff --git a/sddodbc/core.c b/sddodbc/core.c
 +      hb_rddsqlSetError( 0, "HY024 Invalid native ODBC timeout.", NULL, NULL, 0 );
 +      return HB_FAILURE;
 +   }
-
++
++   fPooling = odbcPoolingBegin();
++   if( fPooling && ! odbcPoolingAnchor() )
++   {
++      hb_rddsqlSetError( 0, "HY024 Could not retain the pooled ODBC environment.", NULL, NULL, 0 );
++      return HB_FAILURE;
++   }
  #if ODBCVER >= 0x0300
-    if( SQL_SUCCEEDED( SQLAllocHandle( SQL_HANDLE_ENV, SQL_NULL_HANDLE, &hEnv ) ) )
-@@ -246,6 +345,19 @@
-          HB_SIZE           nConnLen;
-          SQLTCHAR          cBuffer[ 1024 ];
+@@ -234,3 +521,13 @@
+ #if ODBCVER >= 0x0300
+-      SQLSetEnvAttr( hEnv, SQL_ATTR_ODBC_VERSION, ( SQLPOINTER ) SQL_OV_ODBC3, SQL_IS_UINTEGER );
++      if( fPooling )
++      {
++         if( ! odbcPoolingEnvironment( hEnv ) )
++         {
++            SQLFreeHandle( SQL_HANDLE_ENV, hEnv );
++            hb_rddsqlSetError( 0, "HY024 Could not configure strict ODBC 3.8 pooling.", NULL, NULL, 0 );
++            return HB_FAILURE;
++         }
++      }
++      else
++         SQLSetEnvAttr( hEnv, SQL_ATTR_ODBC_VERSION, ( SQLPOINTER ) SQL_OV_ODBC3, SQL_IS_UINTEGER );
+ #endif
+@@ -248,2 +545,15 @@
           SQLSMALLINT       iLen = HB_SIZEOFARRAY( cBuffer );
 +
 +         if( fLoginTimeout && ! odbcLoginTimeout( hConnect, ulLoginTimeout ) )
@@ -145,12 +338,19 @@ diff --git a/sddodbc/core.c b/sddodbc/core.c
 +            return HB_FAILURE;
 +         }
 
-          cBuffer[ 0 ] = '\0';
-          pchConStr = O_HB_ARRAYGETSTR( pItem, 2, &hConnStr, &nConnLen );
-@@ -260,9 +372,24 @@
-                                               SQL_DRIVER_NOPROMPT ) ) )
-          {
+@@ -262,2 +572,26 @@
              hb_strfree( hConnStr );
++#if defined( HBBRIDGE_ODBC_POOL_SUPPORTED )
++            if( fPooling && ( ! odbcPoolingVersion( hConnect, SQL_DM_VER ) ||
++                             ! odbcPoolingVersion( hConnect, SQL_DRIVER_ODBC_VER ) ) )
++            {
++               SQLDisconnect( hConnect );
++               SQLFreeHandle( SQL_HANDLE_DBC, hConnect );
++               SQLFreeHandle( SQL_HANDLE_ENV, hEnv );
++               hb_rddsqlSetError( 0, "HY024 Pooled ODBC requires a 3.8 driver manager and driver.", NULL, NULL, 0 );
++               return HB_FAILURE;
++            }
++#endif
 +            if( fLoginTimeout && ! odbcLoginTimeoutMatches( hConnect, ulLoginTimeout ) )
 +            {
 +               SQLDisconnect( hConnect );
@@ -165,16 +365,64 @@ diff --git a/sddodbc/core.c b/sddodbc/core.c
 +               return HB_FAILURE;
 +            }
              pConnection->pSDDConn = hb_xgrab( sizeof( SDDCONN ) );
-             ( ( SDDCONN * ) pConnection->pSDDConn )->hConn = hConnect;
+@@ -265,2 +599,6 @@
              ( ( SDDCONN * ) pConnection->pSDDConn )->hEnv  = hEnv;
 +            ( ( SDDCONN * ) pConnection->pSDDConn )->fQueryTimeout = fQueryTimeout;
 +            ( ( SDDCONN * ) pConnection->pSDDConn )->ulQueryTimeout = ulQueryTimeout;
++            ( ( SDDCONN * ) pConnection->pSDDConn )->fPooling = fPooling;
++            ( ( SDDCONN * ) pConnection->pSDDConn )->fDisconnected = HB_FALSE;
              return HB_SUCCESS;
-          }
-          else
-@@ -338,6 +465,17 @@
-       szError = odbcGetError( pSDDConn->hEnv, pSDDConn->hConn, SQL_NULL_HSTMT, &errCode );
-       hb_errRT_ODBCDD( EG_OPEN, ESQLDD_STMTALLOC, szError, hb_itemGetCPtr( pItem ), errCode );
+@@ -306,2 +644,49 @@
+
++#if ODBCVER >= 0x0300
++   if( pSDDConn->fPooling )
++   {
++      /* SQL_ATTR_RESET_CONNECTION belongs to DM/driver communication.
++       * ODBC 3.8 performs that reset when returning a connection to its pool.
++       * Never commit caller work or claim cleanup after native failure.
++       * Keep partially released state so RDDSQL can retry owned cleanup.
++       */
++      if( pSDDConn->hConn != SQL_NULL_HDBC )
++      {
++         if( ! pSDDConn->fDisconnected )
++         {
++            SQLUINTEGER dead = SQL_CD_FALSE;
++            if( ! SQL_SUCCEEDED( SQLGetConnectAttr( pSDDConn->hConn, SQL_ATTR_CONNECTION_DEAD,
++                      &dead, sizeof( dead ), NULL ) ) || dead != SQL_CD_TRUE )
++            {
++               if( ! SQL_SUCCEEDED( SQLEndTran( SQL_HANDLE_DBC, pSDDConn->hConn, SQL_ROLLBACK ) ) )
++               {
++                  hb_rddsqlSetError( 0, "HY000 Could not roll back the pooled ODBC connection.", NULL, NULL, 0 );
++                  return HB_FAILURE;
++               }
++            }
++            if( ! SQL_SUCCEEDED( SQLDisconnect( pSDDConn->hConn ) ) )
++            {
++               hb_rddsqlSetError( 0, "HY000 Could not disconnect the pooled ODBC connection.", NULL, NULL, 0 );
++               return HB_FAILURE;
++            }
++            pSDDConn->fDisconnected = HB_TRUE;
++         }
++         if( ! SQL_SUCCEEDED( SQLFreeHandle( SQL_HANDLE_DBC, pSDDConn->hConn ) ) )
++         {
++            hb_rddsqlSetError( 0, "HY000 Could not release the pooled ODBC connection handle.", NULL, NULL, 0 );
++            return HB_FAILURE;
++         }
++         pSDDConn->hConn = SQL_NULL_HDBC;
++      }
++      if( pSDDConn->hEnv != SQL_NULL_HENV &&
++          ! SQL_SUCCEEDED( SQLFreeHandle( SQL_HANDLE_ENV, pSDDConn->hEnv ) ) )
++      {
++         hb_rddsqlSetError( 0, "HY000 Could not release the pooled ODBC environment.", NULL, NULL, 0 );
++         return HB_FAILURE;
++      }
++      hb_xfree( pSDDConn );
++      pConnection->pSDDConn = NULL;
++      return HB_SUCCESS;
++   }
++#endif
+    SQLDisconnect( pSDDConn->hConn );
+@@ -340,2 +725,13 @@
        hb_xfree( szError );
 +      return HB_FAILURE;
 +   }
@@ -188,11 +436,7 @@ diff --git a/sddodbc/core.c b/sddodbc/core.c
 +#endif
 +      hb_rddsqlSetError( 0, "HY024 Could not apply the native ODBC query timeout.", NULL, NULL, 0 );
        return HB_FAILURE;
-    }
-
-@@ -401,6 +539,18 @@
-       szError = odbcGetError( pSDDConn->hEnv, pSDDConn->hConn, SQL_NULL_HSTMT, &errCode );
-       hb_errRT_ODBCDD( EG_OPEN, ESQLDD_STMTALLOC, szError, pArea->szQuery, errCode );
+@@ -403,2 +799,14 @@
        hb_xfree( szError );
 +      return HB_FAILURE;
 +   }
@@ -207,11 +451,7 @@ diff --git a/sddodbc/core.c b/sddodbc/core.c
 +      hb_errRT_ODBCDD( EG_OPEN, ESQLDD_INVALIDQUERY,
 +                       "HY024 Could not apply the native ODBC query timeout.", NULL, 0 );
        return HB_FAILURE;
-    }
-
-@@ -688,6 +838,171 @@
- }
-
+@@ -690,2 +1098,167 @@
 
 +#if defined( UNICODE )
 +/* The native U16 string converter treats surrogate units independently.
@@ -379,17 +619,13 @@ diff --git a/sddodbc/core.c b/sddodbc/core.c
 +
 +
  static HB_ERRCODE odbcGoTo( SQLBASEAREAP pArea, HB_ULONG ulRecNo )
- {
-    SQLHSTMT  hStmt;
-@@ -704,10 +1019,16 @@
-
-    while( ulRecNo > pArea->ulRecCount && ! pArea->fFetched )
+@@ -706,3 +1279,4 @@
     {
 -      if( ! SQL_SUCCEEDED( SQLFetch( hStmt ) ) )
 +      res = SQLFetch( hStmt );
 +      if( res == SQL_NO_DATA )
        {
-          pArea->fFetched = HB_TRUE;
+@@ -710,2 +1284,7 @@
           break;
 +      }
 +      if( ! SQL_SUCCEEDED( res ) )
@@ -397,11 +633,7 @@ diff --git a/sddodbc/core.c b/sddodbc/core.c
 +         hb_errRT_ODBCDD( EG_READ, ESQLDD_FETCH, "Could not fetch SQL data", pArea->szQuery, 0 );
 +         return HB_FAILURE;
        }
-
-       pArray = hb_itemArrayNew( pArea->area.uiFieldCount );
-@@ -720,49 +1041,7 @@
-          switch( pField->uiType )
-          {
+@@ -722,45 +1301,3 @@
              case HB_FT_STRING:
 -               if( pField->uiType & HB_FF_BINARY )
 -               {
@@ -448,11 +680,7 @@ diff --git a/sddodbc/core.c b/sddodbc/core.c
 -               }
 +               res = odbcGetVarData( hStmt, ui, ( pField->uiFlags & HB_FF_BINARY ) != 0, &pItem, &iLen );
                 break;
-
-             case HB_FT_INTEGER:
-@@ -840,9 +1119,14 @@
-             }
-          }
+@@ -842,5 +1379,10 @@
 
 -         /* TODO: check SQL_SUCCEEDED( res ) */
 -         /* TODO: check for SQL_NO_TOTAL. What does this mean? */
@@ -466,5 +694,12 @@ diff --git a/sddodbc/core.c b/sddodbc/core.c
 +            return HB_FAILURE;
 +         }
 
-          if( pItem )
-          {
+diff --git a/sddodbc/sddodbc.hbx b/sddodbc/sddodbc.hbx
+--- a/sddodbc/sddodbc.hbx
++++ b/sddodbc/sddodbc.hbx
+@@ -23,2 +23,5 @@
+
++DYNAMIC HBBridgeODBCPooling
++DYNAMIC HBBridgeODBCPoolingClose
++DYNAMIC HBBridgeODBCPoolingInfo
+ DYNAMIC hb_SDDODBC_Register

@@ -37,6 +37,7 @@ PROCEDURE MTTests()
     M2FramingTests( @nFailures, @nChecks )
     M2ClockTests( @nFailures, @nChecks )
     M3SQLTests( @nFailures, @nChecks )
+    HBBridgeSQLPoolTests( @nFailures, @nChecks )
     HTTPTests( @nFailures, @nChecks )
 
     ? "MT checks:", nChecks, "failures:", nFailures

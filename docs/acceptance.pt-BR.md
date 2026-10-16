@@ -1087,3 +1087,175 @@ de acionamento, argumentos explícitos, hash do artefato servidor ou novo
 resultado de compilação. A rodada não homologa concorrência M07, desempenho
 M08 nem integridade UTF-8/FLOAT ampliada. A próxima tarefa do WIP permanece
 **M07**, e integridade D03 continua pendente.
+
+<a id="sql-concurrency-and-release-on-2026-10-14"></a>
+
+## Concorrência SQL e liberação de recursos em 2026-10-14
+
+Homologada M07 no Windows com o perfil privado funcional `MSSQL/pData` e
+fixtures SQLite isoladas. SQL Server havia sido identificado como 16.0.1210.3;
+mantidos SDDODBC gerenciado e mutex do ciclo SQL. Usados somente SELECTs
+constantes MSSQL e arquivo SQLite próprio do teste. Sem alterar sincronização
+do produto, pooling, credenciais ou regras ERP.
+
+| Execução | Workers / chamadas | Checks / falhas |
+| --- | --- | --- |
+| Nativo local, NETIO, TCP e HTTP | 8 / 192 | 458 / 0, sem skips |
+| AppServer CLI TCP e HTTP | 4 / 112 | 417 / 0 |
+
+A suíte nativa sincroniza oito workers, dois por rota, em três rodadas sobre
+o alias funcional, `m07/mssql-clone` e `m07/sqlite`. Schemas, drivers e valores
+por worker/rodada distintos detectam mistura de perfis. Checks abrangem leitura
+sem páginas, primeira/última/página vazia e COUNT independente, SQL inválido,
+colunas ambíguas, perfil desconhecido e recuperação. Áreas/conexão padrão do
+chamador permanecem intactas e sua fixture continua legível. Conexões próprias
+retidas desconectam após joins; os primeiros slots RDDSQL livres são reutilizados
+antes/depois da rodada. O endpoint NETIO é liberado após todos os empréstimos.
+O host isolado encerra com listeners parados e zero workers ativos.
+
+A primeira rodada nativa teve uma falha de fixture entre 457 checks: esperava
+que cada ponteiro NETIO emprestado fosse dono de uma desconexão do endpoint.
+O pai passou a manter uma referência, liberá-la após os joins e conferir cache
+vazio. A rodada corrigida passou em 458 checks, saída 0. Evidências:
+`tmp/mssql-tests-e914432a7e5d49cc99b76cbb948605a1/results.log` e
+`tmp/review-m07-concurrency-final-20261014.log`. Hosts isolados repetidos também
+passaram nos 458 checks, incluindo limpeza final, antes de encerrar com saída 0.
+
+`U_HBBridgeConcurrencyCLI` inicia dois StartJobs TCP e dois HTTP no AppServer.
+Cada um possui cliente/dataset/JSON próprios, alterna MSSQL/SQLite em quatro
+etapas e emite 28 chamadas. Passaram provas reais de backend/schema, páginas/
+totais exatos, snapshots defensivos, falhas/recuperação e limpeza de estado
+anterior. Registrados quatro workers distintos: 9712, 16572, 27392 e 24384;
+o coletor era thread 24480. Publicação sucede liberação dos objetos; o pai
+confirma os relatos e espera a limpeza final das chaves compartilhadas.
+`StartJob` não expõe handle de join: registra-se conclusão lógica, sem join nativo.
+
+Compilação às **18:15:58 São Paulo**, thread 17484, informou **32 fontes,
+32 sucessos, zero erros**. Seu processo retornou posteriormente `0xC0000409`
+(-1073740791), registrado separadamente da compilação dos fontes. O CLI do
+teste seguinte terminou com **saída 0**, relatou 417 checks/zero falhas às
+**18:18:12** e encerrou às **18:18:24**, sem THREAD ERROR ou exceção de shutdown.
+Scripts de parada/início retornaram 0 e o listener comum do AppServer voltou.
+Removido INI CLI isolado; INIs privados regulares permaneceram intactos.
+Evidências: `tmp/totvs-m07-baseline-compile-20261014.log`,
+`tmp/m07-totvs-build-result-20261014.json`,
+`tmp/m07-protheus-concurrency-final-output-20261014.log` e
+`tmp/m07-protheus-concurrency-final-20261014.log`.
+
+A rodada CLI anterior relatou 416 checks/zero falhas de assertivas, mas depois
+levantou `Application Server is Shutting Down` enquanto um worker aguardava
+confirmação da coleta. Não foi homologada como ciclo limpo. O marcador final
+no wrapper do worker e a barreira de conclusão do pai resolvem essa corrida
+reproduzida do teste; a repetição bem-sucedida de 417 checks é o aceite.
+
+### Carga manual adicional e diagnóstico em andamento
+
+`HBBridgeConcurrencyTest.txt` fornecido contém relatos completos de 4, 40 e
+100 workers, zero falhas e 112, 1120 e 2800 chamadas respectivamente. A rodada
+de 100 tem threads reportadas distintas e tempos por worker de aproximadamente
+31,94 a 49,72 segundos. Incluem espera e execução completa do worker, sem
+representar latência por query ou medições de memória M08. Cópia da evidência:
+`tmp/protheus-concurrency-manual-20261014.txt`.
+
+Aumentar a constante mantém dois jobs TCP; os demais usam HTTP (38 e 98,
+respectivamente). Não são cargas equilibradas entre transportes. O resumo
+anterior fixava os checks do pai em 29, subcontando assertivas nos números
+impressos 4413/11073: são 6 por worker e 5 compartilhadas. O relatório agora
+conta as chaves JSON reais do pai. Sem mudar a distribuição, rodadas completas
+de 40/100 workers informariam 4629/11649 checks. Novos diagnósticos de etapa/
+workers pendentes distinguem início/prontidão, coleta e liberação, sem imprimir
+tokens ou descrições brutas de exceções. A compilação/validação posterior e os
+logs falhos de 140 workers estão registrados abaixo. Não se deduz limite do produto.
+
+Reuso de handles e desconexão lógica não provam fechamento físico de sessões
+ODBC nem ausência de vazamentos de heap/rede. Mantido mutex: chamadores
+concorrentes podem aguardar enquanto ciclos SQL executam sequencialmente.
+Linux, HTTPS, cancelamento, pooling e D03 UTF-8/FLOAT mantêm aceites próprios.
+Permanece homologada a baseline de isolamento/ciclo exercitado; a carga
+adicional reabre M07 antes das medições M08. Veja
+[guia Protheus](../src/tlpp/tests/protheus/hbbridge.concurrency.test/README.pt-BR.md)
+e [análise de reuso](sql-connections.pt-BR.md).
+
+<a id="sql-concurrency-follow-up-on-2026-10-15"></a>
+
+## Complemento de concorrência HTTP em 2026-10-15
+
+A carga adicional reabre M07 após a baseline homologada de oito workers
+nativos e quatro jobs AppServer. A baseline permanece, sem homologar 140
+chamadores. O log anterior de 140, coletor thread 2680 em 2026-10-14, contém
+140 relatos/3920 chamadas: 833 assertivas HTTP falhas, todas na etapa 4, e
+136 checks do pai indicando workers com falhas, total 969. Os dois TCP passam
+nos 83 checks; passam os checks de leitura/página/schema/valores anteriores
+às operações finais de erro/recuperação. O número impresso 15513 usa a
+contagem antiga fixa do pai, sem representar o total real. Evidência:
+`tmp/protheus-concurrency-manual-140-20261014.log`.
+
+O log posterior começa em 2026-10-15 **07:33:53.921 São Paulo**, coletor thread
+34240, com **140 workers (2 TCP/138 HTTP), timeout 150 segundos por chamada e
+coleta 120000 ms**. READY passa às 07:33:55.906; coleta termina exatamente às
+**07:35:53.971**, informando **10002 checks, 894 falhas, 83 relatos coletados,
+FAILED**. Alguns jobs registram depois. O trecho não contém THREAD ERROR.
+Não é homologação bem-sucedida de 140 workers. Evidência:
+`tmp/protheus-concurrency-manual-latest-20261015.log`.
+
+Há 336 diagnósticos de resposta, todos na etapa 4: 204 com status HTTP 0 e
+código UNRECOGNIZED. Os demais 132 mantêm status 200/500. Tempos entre
+0,0223 e 34,0541 ms. Algumas operações posteriores ao ABORT não emitem
+requisição; seu status/código anterior fica retido, e tempo submilissegundo
+não é latência HTTP. Falhas rápidas anteriores ao prazo de coleta continuam
+sem causa estabelecida; aumentar só o timeout por chamada não as resolveu.
+
+A repetição CLI local de diagnóstico em 2026-10-14 também falhou: 113 relatos
+coletados, 13332 checks/937 falhas e 27 erros de shutdown posteriores nos jobs.
+A repetição de quatro passou em 417 checks, saída 0. Evidências:
+`tmp/m07-protheus-diagnostics-140-output-20261014.log` e
+`tmp/m07-protheus-diagnostics-4-output-20261014.log`. São rodadas distintas;
+o sucesso com quatro não pode ser atribuído ao caso de 140.
+
+O teste agora aceita quantidade de workers no argumento 8 (`--workers`) e
+orçamento independente de coleta em segundos no argumento 9 (`--budget-seconds`).
+Padrões mantidos em 4 e 120. Marca jobs pendentes antes do lançamento,
+verifica ABORT após cada chamada, para sem interpretar chamadas não emitidas
+e espera limpeza dos workers separadamente antes de apagar as chaves. O prazo
+dessa espera é timeout por chamada mais 10 segundos; não cancela SQL nativo
+nem implementa join nativo de StartJob.
+
+Os controles atuais compilaram em 2026-10-15: **32 fontes, 32 sucessos, zero
+erros**. O compilador voltou a retornar `0xC0000409` após concluir o relatório;
+stop/start saíram com 0. A validação em execução é distinta:
+
+| Rodada CLI controlada | Resultado |
+| --- | --- |
+| 4 workers, orçamento normal | 417 checks / 0 falhas, saída 0 |
+| 4 workers, coleta deliberadamente insuficiente de 1 segundo | Falha esperada, 29 checks / 27 falhas, limpeza concluída, saída 1 sem THREAD ERROR |
+| 140 workers, chamada 30 segundos / coleta 300 segundos | 140 relatos coletados, 16329 checks / 857 falhas, saída 1 sem THREAD ERROR |
+
+Evidências: `tmp/m07-protheus-budget-4-output-20261015.log`,
+`tmp/m07-protheus-abort-4-output-20261015.log` e
+`tmp/m07-protheus-budget-140-output-20261015.log`. Corrigir a limpeza do teste
+não resolveu a falha de transporte. A comparação isolada de backlog HTTP
+também falhou nas duas opções: backlog 10 teve 1433 falhas, e a solicitação
+`SOMAXCONN` teve 1010, ambas entre 16329 checks/140 relatos. São rodadas
+distintas, sem comprovar melhoria de capacidade por mudar backlog. Os dois
+hosts nativos isolados passaram nos 458 checks, inclusive shutdown.
+Evidências: `tmp/m07-protheus-backlog10-140-output-20261015.log`,
+`tmp/m07-protheus-somax-140-output-20261015.log` e seus logs nativos.
+Regressão Harbour após configurar backlog: **656 checks / 0**, saída 0,
+`tmp/m07-backlog-regression-final-20261015.log`.
+
+O arquivo atual fornecido é um esboço de pool com falha de login ODBC
+**10048/08001** no DBAccess, sem representar nova rodada bem-sucedida. Os
+eventos System **Tcpip 4227** às **07:35:03 e 08:41:55 São Paulo** registram
+falha ao alocar endpoint local de saída usado recentemente. Uma captura
+contou 15264 conexões `TIME_WAIT`; a faixa IPv4 dinâmica é 49152–65535.
+Estabelece pressão sobre reuso de portas no host, sem atribuir cada falha ou
+porta ao hbBridge ou DBAccess. Evidências:
+`tmp/protheus-concurrency-pool-proposal-20261015.txt` e
+`tmp/m07-port-pressure-events-20261015.json`. Nenhuma opção TCP do SO foi
+alterada. Os argumentos finais `150*10,120,150*10` significam timeout de
+1500 segundos por chamada, 120 workers e coleta de 1500 segundos. Aumentar
+o prazo não reduz criação de conexões físicas.
+
+M07 permanece aberta. A próxima adaptação medida é reuso físico ODBC,
+mantendo mutex SQL e propriedade lógica do chamador; reuso HTTP/TCP é
+outra etapa. Veja a [revisão do desenho](sql-connections.pt-BR.md).

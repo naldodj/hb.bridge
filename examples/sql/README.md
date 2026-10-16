@@ -168,3 +168,14 @@ and broader failure/type/resource/performance cases remain pending. See
 This means the connected process did not register Query, usually because it
 loaded no SQL profiles. Check the binary/configuration/port and start this SQL
 example. PROFILE_NOT_FOUND means Query exists but that alias is not configured.
+
+## Concurrent MSSQL/SQLite acceptance
+
+For an isolated host with both backends use
+`scripts/test-hbbridge-mssql.ps1 -Config C:/tmp/hbBridge.ini -Profile MSSQL/pData -Concurrency -Serve`
+from the repository root. The private MSSQL alias stays explicit; test aliases
+are created only in memory. Use the printed ports and `m07/sqlite` in
+[U_HBBridgeConcurrencyTest](../../src/tlpp/tests/protheus/hbbridge.concurrency.test/README.md).
+The native suite passed 458 checks; Protheus CLI passed 417, both zero failures
+on 2026-10-14. These verify caller isolation/release under the existing mutex,
+without selecting a connection pool or promising parallel SQL execution.

@@ -26,6 +26,7 @@ src/hb/host/hbbridge.life.cycle.hb
 src/hb/core/hbbridge.dispatcher.hb
 src/hb/services/hbbridge.services.hb
 src/hb/services/hbbridge.query.hb
+src/hb/services/hbbridge.sql.pool.hb
 src/hb/addons/hbbridge.addon.hb
 src/hb/telemetry/hbbridge.syslog.hb
 src/c/hbbridge.zig.c

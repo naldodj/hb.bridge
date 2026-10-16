@@ -1,0 +1,1283 @@
+/* Released to Public Domain. */
+#include "totvs.ch"
+#include "tlpp-core.th"
+
+#define HBBRIDGE_CONCURRENCY_WORKERS 4
+#define HBBRIDGE_CONCURRENCY_STEPS 4
+#define HBBRIDGE_CONCURRENCY_CALLS 28
+#define HBBRIDGE_CONCURRENCY_WAIT_MS 120000
+#define HBBRIDGE_CONCURRENCY_ACK_MS 150000
+
+namespace HBBridge.Test
+
+class HBBridgeConcurrencyTest
+
+    static method RunCLI(aArguments as array) as numeric
+    static method Run(cMSSQLProfile as character, cSQLiteProfile as character, ;
+        cHost as character, nPort as numeric, cURL as character, cToken as character, ;
+        nTimeoutSeconds as numeric, nWorkers as numeric, nBudgetSeconds as numeric, ;
+        nLaunchDelayMs as numeric, nLaunchStepMs as numeric, nLaunchMaxMs as numeric) as numeric
+    static method Worker(cConfigJSON as character, cReadyKey as character, ;
+        cResultKey as character, cGateKey as character) as numeric
+
+endclass
+
+static method RunCLI(aArguments) class HBBridgeConcurrencyTest
+
+    local jFlags := JSONObject():New() as json
+    local jSeen := JSONObject():New() as json
+    local cArgument := "", cKey := "", cValue := "" as character
+    local nArgument := 0, nEqual := 0, nValue := 0, nResult := 1 as numeric
+    local lValid := .T., lPacing := .F. as logical
+
+    jFlags["mssql-profile"] := ""
+    jFlags["sqlite-profile"] := ""
+    jFlags["host"] := Nil
+    jFlags["port"] := Nil
+    jFlags["url"] := Nil
+    jFlags["token"] := Nil
+    jFlags["timeout"] := 30
+    jFlags["workers"] := HBBRIDGE_CONCURRENCY_WORKERS
+    jFlags["budget-seconds"] := HBBRIDGE_CONCURRENCY_WAIT_MS / 1000
+    jFlags["launch-delay-ms"] := 300
+    jFlags["launch-step-ms"] := 50
+    jFlags["launch-max-ms"] := 5000
+
+    // Variadic:vArgs is borrowed from the native CLI entry. No argv/token logging.
+    if ValType(aArguments) != "A"
+        lValid := .F.
+    else
+        for nArgument := 1 to Len(aArguments)
+            if ValType(aArguments[nArgument]) != "C"
+                loop
+            endif
+            cArgument := aArguments[nArgument]
+            if Left(cArgument, 2) != "--"
+                loop
+            endif
+            nEqual := At("=", cArgument)
+            cKey := SubStr(cArgument, 3)
+            if nEqual > 0
+                cKey := SubStr(cArgument, 3, nEqual - 3)
+            endif
+            if !jFlags:HasProperty(cKey)
+                loop
+            endif
+            if nEqual <= 3 .or. jSeen:HasProperty(cKey)
+                lValid := .F.
+                exit
+            endif
+            jSeen[cKey] := .T.
+            cValue := SubStr(cArgument, nEqual + 1)
+            lPacing := cKey == "launch-delay-ms" .or. cKey == "launch-step-ms" .or. cKey == "launch-max-ms"
+            if cKey == "port" .or. cKey == "timeout" .or. cKey == "workers" .or. cKey == "budget-seconds" .or. lPacing
+                nValue := ConcurrencyInteger(cValue, IIf(cKey == "port", 65535, ;
+                    IIf(cKey == "workers" .or. lPacing, 2147483647, 2147483)), lPacing)
+                if nValue < IIf(lPacing, 0, 1)
+                    lValid := .F.
+                    exit
+                endif
+                jFlags[cKey] := nValue
+            else
+                if !ConcurrencyTextValid(cValue)
+                    lValid := .F.
+                    exit
+                endif
+                jFlags[cKey] := cValue
+            endif
+        next nArgument
+    endif
+
+    if !lValid
+        ConOut("hbBridge concurrency CLI FAILED: supply unique valid flags and canonical integers; launch pacing permits zero.")
+    else
+        nResult := HBBridge.Test.HBBridgeConcurrencyTest():Run(;
+            jFlags["mssql-profile"], jFlags["sqlite-profile"], jFlags["host"], ;
+            jFlags["port"], jFlags["url"], jFlags["token"], jFlags["timeout"], jFlags["workers"], jFlags["budget-seconds"], ;
+            jFlags["launch-delay-ms"], jFlags["launch-step-ms"], jFlags["launch-max-ms"])
+    endif
+    FreeObj(@jSeen)
+    FreeObj(@jFlags)
+
+return(nResult)
+
+static method Run(cMSSQLProfile, cSQLiteProfile, cHost, nPort, cURL, cToken, ;
+    nTimeoutSeconds, nWorkers, nBudgetSeconds, nLaunchDelayMs, nLaunchStepMs, nLaunchMaxMs) class HBBridgeConcurrencyTest
+
+    local xError as variant
+    local jConfig := JSONObject():New() as json
+    local jWorkers := JSONObject():New() as json
+    local jChecks := JSONObject():New() as json
+    local jWorker as json
+    local jReport as json
+    local cIniFile := GetSrvIniName() as character
+    local cRunID := StrTran(UUIDRandom(), "-", "") as character
+    local cID := "", cWorkerJSON := "", cReport := "" as character
+    local cStage := "initialize" as character
+    local cEnvServer := GetEnvServer() as character
+    local nWorker := 0, nOther := 0, nCompleted := 0, nFailures := 0 as numeric
+    local nStarted := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs() as numeric
+    local nPrevious := nStarted, nLatestStart := 0, nEarliestFinish := 0 as numeric
+    local nWorkerChecks := 0, nWorkerFailures := 0 as numeric
+    local nBudgetMs := 0, nDrainStarted := 0, nDrainBudget := 0 as numeric
+    local nPlannedDelayMs := 0, nSleepMs := 0, nRemainingMs := 0 as numeric
+    local lDrained := .F. as logical
+    local nParentChecks := 0 as numeric
+    local aParentChecks as array
+    local lValid := .T., lDistinct := .T., lReports := .F. as logical
+
+    if !ConcurrencyTextValid(cMSSQLProfile) .or. !ConcurrencyTextValid(cSQLiteProfile)
+        lValid := .F.
+    elseif cMSSQLProfile == cSQLiteProfile .or. ;
+        cMSSQLProfile == "__HBBridgeM07UnknownProfile__" .or. ;
+        cSQLiteProfile == "__HBBridgeM07UnknownProfile__"
+        lValid := .F.
+    endif
+    if ValType(cHost) == "U"
+        cHost := GetPvProfString("hbBridge", "Host", "127.0.0.1", cIniFile)
+    endif
+    if ValType(nPort) == "U"
+        nPort := ConcurrencyInteger(GetPvProfString("hbBridge", "Port", "1512", cIniFile), 65535)
+    endif
+    if ValType(cURL) == "U"
+        cURL := GetPvProfString("hbBridge", "HTTPURL", "http://127.0.0.1:8080", cIniFile)
+    endif
+    if ValType(cToken) == "U"
+        cToken := GetPvProfString("hbBridge", "HTTPToken", "", cIniFile)
+    endif
+    if ValType(nTimeoutSeconds) == "U"
+        nTimeoutSeconds := 30
+    endif
+    if !ConcurrencyTextValid(cHost) .or. !ConcurrencyURLValid(cURL) .or. !ConcurrencyTextValid(cToken)
+        lValid := .F.
+    endif
+    if ValType(nPort) != "N" .or. ValType(nTimeoutSeconds) != "N"
+        lValid := .F.
+    elseif nPort < 1 .or. nPort > 65535 .or. nPort != Int(nPort) .or. ;
+        nTimeoutSeconds < 1 .or. nTimeoutSeconds > 2147483 .or. nTimeoutSeconds != Int(nTimeoutSeconds)
+        lValid := .F.
+    endif
+    if ValType(nWorkers) == "U"
+        nWorkers := HBBRIDGE_CONCURRENCY_WORKERS
+    endif
+    if ValType(nWorkers) != "N"
+        lValid := .F.
+    elseif nWorkers < 4 .or. nWorkers > 2147483647 .or. nWorkers != Int(nWorkers)
+        lValid := .F.
+    endif
+    if ValType(nBudgetSeconds) == "U"
+        nBudgetSeconds := HBBRIDGE_CONCURRENCY_WAIT_MS / 1000
+    endif
+    if ValType(nBudgetSeconds) != "N"
+        lValid := .F.
+    elseif nBudgetSeconds < 1 .or. nBudgetSeconds > 2147483 .or. nBudgetSeconds != Int(nBudgetSeconds)
+        lValid := .F.
+    endif
+    if ValType(nLaunchDelayMs) == "U"
+        nLaunchDelayMs := 300
+    endif
+    if ValType(nLaunchStepMs) == "U"
+        nLaunchStepMs := 50
+    endif
+    if ValType(nLaunchMaxMs) == "U"
+        nLaunchMaxMs := 5000
+    endif
+    if !ConcurrencyPacingValid(nLaunchDelayMs) .or. !ConcurrencyPacingValid(nLaunchStepMs) .or. ;
+        !ConcurrencyPacingValid(nLaunchMaxMs)
+        lValid := .F.
+    endif
+    if !lValid
+        ConOut("hbBridge concurrency FAILED: supply distinct MSSQL/SQLite aliases, valid TCP/HTTP settings, at least four workers and nonnegative integer launch pacing.")
+        FreeObj(@jChecks)
+        FreeObj(@jWorkers)
+        FreeObj(@jConfig)
+        return 1
+    endif
+
+    nBudgetMs := nBudgetSeconds * 1000
+    nPlannedDelayMs := ConcurrencyLaunchPlan(nWorkers, nLaunchDelayMs, nLaunchStepMs, nLaunchMaxMs, nBudgetMs)
+    if nPlannedDelayMs >= nBudgetMs
+        ConOut("hbBridge concurrency FAILED: planned launch sleeps consume the entire test budget; " + ;
+            "launchDelayMs=" + tlpp.ToStr(nLaunchDelayMs) + "; launchStepMs=" + tlpp.ToStr(nLaunchStepMs) + ;
+            "; launchMaxMs=" + tlpp.ToStr(nLaunchMaxMs) + "; plannedLaunchDelayMs>=" + tlpp.ToStr(nBudgetMs))
+        FreeObj(@jChecks)
+        FreeObj(@jWorkers)
+        FreeObj(@jConfig)
+        return 1
+    endif
+    jConfig["budgetMs"] := nBudgetMs
+    jConfig["ackMs"] := Max(HBBRIDGE_CONCURRENCY_ACK_MS, nBudgetMs + 10000)
+    jConfig["mssqlProfile"] := cMSSQLProfile
+    jConfig["sqliteProfile"] := cSQLiteProfile
+    jConfig["host"] := cHost
+    jConfig["port"] := nPort
+    jConfig["url"] := cURL
+    jConfig["token"] := cToken
+    jConfig["timeoutSeconds"] := nTimeoutSeconds
+    jChecks["allWorkersReady"] := .F.
+    jChecks["distinctThreadIDs"] := .F.
+    jChecks["overlappingWorkerLifetimes"] := .F.
+    jChecks["parentCompleted"] := .F.
+    jChecks["allWorkerKeysReleased"] := .F.
+
+    // One JSONObject per worker stores named keys and collected scalar evidence.
+    // Each ready/result key has one worker writer; only the parent writes gates.
+    for nWorker := 1 to nWorkers
+        cID := tlpp.ToStr(nWorker)
+        jWorker := JSONObject():New()
+        jWorker["readyKey"] := "HBM07_" + cRunID + "_" + cID + "_R"
+        jWorker["resultKey"] := "HBM07_" + cRunID + "_" + cID + "_D"
+        jWorker["gateKey"] := "HBM07_" + cRunID + "_" + cID + "_G"
+        jWorker["collected"] := .F.
+        jWorker["valid"] := .F.
+        jWorker["thread"] := 0
+        jWorker["startedMs"] := 0
+        jWorker["finishedMs"] := 0
+        jWorkers[cID] := jWorker
+        jChecks["worker" + cID + ".reportReceived"] := .F.
+        jChecks["worker" + cID + ".reportValid"] := .F.
+        jChecks["worker" + cID + ".expectedChecks"] := .F.
+        jChecks["worker" + cID + ".zeroFailures"] := .F.
+        jChecks["worker" + cID + ".resourcesReleased"] := .F.
+        jChecks["worker" + cID + ".expectedCalls"] := .F.
+    next nWorker
+
+    try
+        cStage := "launch"
+        ConOut("hbBridge concurrency stage=launch; workers=" + tlpp.ToStr(nWorkers) + ;
+            "; tcpWorkers=" + tlpp.ToStr(Min(2, nWorkers)) + ;
+            "; httpWorkers=" + tlpp.ToStr(Max(0, nWorkers - 2)) + ;
+            "; requestTimeoutSeconds=" + tlpp.ToStr(nTimeoutSeconds) + ;
+            "; collectionBudgetMs=" + tlpp.ToStr(nBudgetMs) + ;
+            "; launchDelayMs=" + tlpp.ToStr(nLaunchDelayMs) + ;
+            "; launchStepMs=" + tlpp.ToStr(nLaunchStepMs) + ;
+            "; launchMaxMs=" + tlpp.ToStr(nLaunchMaxMs) + ;
+            "; plannedLaunchDelayMs=" + tlpp.ToStr(nPlannedDelayMs))
+        // Initialize every key before attempting any StartJob. A partial launch
+        // is still owned by the parent's cleanup after the guarded block.
+        for nWorker := 1 to nWorkers
+            jWorker := jWorkers[tlpp.ToStr(nWorker)]
+            PutGlbValue(jWorker["readyKey"], "PENDING")
+            PutGlbValue(jWorker["resultKey"], "")
+            PutGlbValue(jWorker["gateKey"], "WAIT")
+        next nWorker
+        for nWorker := 1 to nWorkers
+            if ConcurrencyRemaining(nStarted, nBudgetMs, @nPrevious) <= 0 .or. KillApp()
+                ConOut("hbBridge concurrency launch stopped before all workers started: budget expired or application stopping.")
+                // Unlaunched jobs cannot clear their PENDING markers. The
+                // parent retains gate/result ownership for the final cleanup.
+                for nOther := nWorker to nWorkers
+                    ClearGlbValue(jWorkers[tlpp.ToStr(nOther)]["readyKey"])
+                next nOther
+                exit
+            endif
+            jWorker := jWorkers[tlpp.ToStr(nWorker)]
+            jConfig["worker"] := nWorker
+            jConfig["http"] := nWorker > 2
+            cWorkerJSON := jConfig:ToJSON()
+            StartJob("U_HBBridgeConcurrencyWorker", cEnvServer, .F., ;
+                cWorkerJSON, jWorker["readyKey"], jWorker["resultKey"], jWorker["gateKey"])
+            nSleepMs := ConcurrencyWorkerDelay(nWorker, nLaunchDelayMs, nLaunchStepMs, nLaunchMaxMs)
+            nRemainingMs := Int(ConcurrencyRemaining(nStarted, nBudgetMs, @nPrevious))
+            if nSleepMs > 0 .and. nRemainingMs > 0
+                Sleep(Min(nSleepMs, nRemainingMs))
+            endif
+        next nWorker
+        cWorkerJSON := ""
+        // Credentials have crossed only as a serialized argument, never a log.
+        jConfig["token"] := ""
+        cStage := "ready"
+        jChecks["allWorkersReady"] := ConcurrencyWaitReady(jWorkers, nWorkers, nStarted, @nPrevious, nBudgetMs)
+        ConOut("hbBridge concurrency stage=ready; allWorkersReady=" + ;
+            IIf(jChecks["allWorkersReady"], "true", "false"))
+        if jChecks["allWorkersReady"]
+            cStage := "collect"
+            for nWorker := 1 to nWorkers
+                PutGlbValue(jWorkers[tlpp.ToStr(nWorker)]["gateKey"], "GO")
+            next nWorker
+            do while nCompleted < nWorkers .and. ;
+                ConcurrencyRemaining(nStarted, nBudgetMs, @nPrevious) > 0 .and. !KillApp()
+                for nWorker := 1 to nWorkers
+                    cID := tlpp.ToStr(nWorker)
+                    jWorker := jWorkers[cID]
+                    if jWorker["collected"]
+                        loop
+                    endif
+                    cReport := GetGlbValue(jWorker["resultKey"])
+                    if Empty(cReport)
+                        loop
+                    endif
+                    jChecks["worker" + cID + ".reportReceived"] := .T.
+                    jReport := JSONObject():New()
+                    if ValType(jReport:FromJSON(cReport)) == "U"
+                        ConcurrencyCollect(jReport, jWorker, jChecks, cID, nWorker > 2, ;
+                            @nWorkerChecks, @nWorkerFailures)
+                    endif
+                    FreeObj(@jReport)
+                    // Cache all report evidence before acknowledging. The job
+                    // can then remove its own keys, including a late report.
+                    jWorker["collected"] := .T.
+                    PutGlbValue(jWorker["gateKey"], "COLLECTED")
+                    nCompleted++
+                next nWorker
+                if nCompleted < nWorkers
+                    Sleep(50)
+                endif
+            enddo
+        endif
+        lReports := nCompleted == nWorkers
+        if lReports
+            for nWorker := 1 to nWorkers
+                jWorker := jWorkers[tlpp.ToStr(nWorker)]
+                if !jWorker["valid"] .or. jWorker["thread"] == ThreadId()
+                    lDistinct := .F.
+                endif
+                for nOther := 1 to nWorker - 1
+                    if jWorker["thread"] == jWorkers[tlpp.ToStr(nOther)]["thread"]
+                        lDistinct := .F.
+                    endif
+                next nOther
+                nLatestStart := Max(nLatestStart, jWorker["startedMs"])
+                if nWorker == 1
+                    nEarliestFinish := jWorker["finishedMs"]
+                else
+                    nEarliestFinish := Min(nEarliestFinish, jWorker["finishedMs"])
+                endif
+            next nWorker
+            jChecks["distinctThreadIDs"] := lDistinct
+            jChecks["overlappingWorkerLifetimes"] := nLatestStart > 0 .and. nLatestStart < nEarliestFinish
+        endif
+        jChecks["parentCompleted"] := lReports
+        if lReports
+            cStage := "release"
+            jChecks["allWorkerKeysReleased"] := ConcurrencyWaitReleased(jWorkers, nWorkers, nStarted, @nPrevious, nBudgetMs)
+        endif
+    catch xError
+        ConOut("hbBridge concurrency parent FAILED: unexpected runtime error; stage=" + cStage)
+        if (ValType(xError)=="O")
+            FreeObj(@xError)
+        endif
+    endtry
+
+    if !jChecks["parentCompleted"] .or. !jChecks["allWorkerKeysReleased"]
+        ConcurrencyLogPending(jWorkers, nWorkers, cStage)
+        // Stop between calls, then wait separately for the in-flight call and
+        // worker-owned resource cleanup. This does not cancel native HTTP/SQL.
+        ConcurrencyAbortWorkers(jWorkers, nWorkers)
+        nDrainStarted := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs()
+        nPrevious := nDrainStarted
+        nDrainBudget := nTimeoutSeconds * 1000 + 10000
+        lDrained := ConcurrencyWaitDrained(jWorkers, nWorkers, nDrainStarted, @nPrevious, nDrainBudget)
+        ConOut("hbBridge concurrency stage=drain; completed=" + IIf(lDrained, "true", "false"))
+        jChecks["allWorkerKeysReleased"] := lDrained
+    endif
+    // READY is the last worker-owned marker. Only remove parent-owned keys
+    // after waiting for it; absence of a join API prevents a native join claim.
+    ConcurrencyClearWorkers(jWorkers, nWorkers)
+    if ValType(jReport) == "J"
+        FreeObj(@jReport)
+    endif
+    FreeObj(@jConfig)
+
+
+    nFailures := ConcurrencyCheckFailures(jChecks, "parent", .T.)
+    // Native GetNames is required to count the actual keyed parent checks.
+    aParentChecks := jChecks:GetNames()
+    nParentChecks := Len(aParentChecks)
+    FWFreeArray(@aParentChecks)
+    ConOut("hbBridge concurrency total: checks=" + tlpp.ToStr(nParentChecks + nWorkerChecks) + ;
+        "; failures=" + tlpp.ToStr(nFailures + nWorkerFailures) + ;
+        "; workers=" + tlpp.ToStr(nCompleted) + "; expectedWorkers=" + tlpp.ToStr(nWorkers) + "; " + ;
+        IIf(nFailures + nWorkerFailures == 0, "OK", "FAILED"))
+    FreeObj(@jChecks)
+    FreeObj(@jWorkers)
+
+return(IIf(nFailures + nWorkerFailures == 0, 0, 1))
+
+static method Worker(cConfigJSON, cReadyKey, cResultKey, cGateKey) class HBBridgeConcurrencyTest
+
+    local xError as variant
+    local jConfig := JSONObject():New() as json
+    local jChecks := JSONObject():New() as json
+    local jReport := JSONObject():New() as json
+    local oClient as object
+    local oDataSet as object
+    local cReport := "", cGate := "", cDriver := "", cProfile := "" as character
+    local cStage := "configure" as character
+    local nWorker := 0, nStep := 0, nCalls := 0, nFailures := 0 as numeric
+    local nStarted := 0, nFinished := 0, nAckBudget := HBBRIDGE_CONCURRENCY_ACK_MS as numeric
+    local nWaiting := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs() as numeric
+    local nPrevious := nWaiting as numeric
+    local lHTTP := .F., lReleased := .F., lCompleted := .F., lPublish := .F. as logical
+
+    try
+        if ValType(jConfig:FromJSON(cConfigJSON)) != "U"
+            throw "Invalid worker configuration."
+        endif
+        cConfigJSON := ""
+        nAckBudget := jConfig["ackMs"]
+        nWorker := jConfig["worker"]
+        lHTTP := jConfig["http"]
+        ConcurrencyInitializeChecks(jChecks, lHTTP)
+        cStage := "ready"
+        PutGlbValue(cReadyKey, "READY")
+        do while ConcurrencyRemaining(nWaiting, jConfig["budgetMs"], @nPrevious) > 0 .and. !KillApp()
+            cGate := GetGlbValue(cGateKey)
+            if cGate != "WAIT"
+                exit
+            endif
+            Sleep(20)
+        enddo
+        jChecks["gateReleased"] := cGate == "GO"
+        if cGate == "GO"
+            cStage := "client"
+            nStarted := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs()
+            if lHTTP
+                oClient := HBBridge.Client.HBBridgeHTTPClient():New(;
+                    jConfig["url"], jConfig["token"], jConfig["timeoutSeconds"])
+            else
+                oClient := HBBridge.Client.HBBridgeClient():New(;
+                    jConfig["host"], jConfig["port"], jConfig["timeoutSeconds"] * 1000)
+            endif
+            oDataSet := HBBridge.RDD.HBBridgeRPCDataSet():New(oClient)
+            lCompleted := .T.
+            // Two rounds, each visiting both drivers. Half of the workers start
+            // with SQLite, so concurrent requests use different explicit aliases.
+            for nStep := 1 to HBBRIDGE_CONCURRENCY_STEPS
+                cStage := "step" + tlpp.ToStr(nStep)
+                if !ConcurrencyRunning(cGateKey)
+                    lCompleted := .F.
+                    exit
+                endif
+                cDriver := "mssql"
+                cProfile := jConfig["mssqlProfile"]
+                if (nStep + nWorker) % 2 == 1
+                    cDriver := "sqlite"
+                    cProfile := jConfig["sqliteProfile"]
+                endif
+                if !ConcurrencyCycle(oClient, oDataSet, cProfile, cDriver, nWorker, ;
+                    nStep, lHTTP, cGateKey, jChecks, @nCalls)
+                    lCompleted := .F.
+                    exit
+                endif
+            next nStep
+            lCompleted := lCompleted .and. ConcurrencyRunning(cGateKey)
+        endif
+    catch xError
+        ConOut("hbBridge concurrency worker FAILED: unexpected runtime error; worker=" + ;
+            tlpp.ToStr(nWorker) + "; stage=" + cStage)
+        lCompleted := .F.
+        if (ValType(xError)=="O")
+            FreeObj(@xError)
+        endif
+    endtry
+
+    // Dataset Close explicitly releases its rows/metadata. Clients have no
+    // Close method; native TCP/HTTP resources are owned by each call.
+    if ValType(oDataSet) == "O"
+        oDataSet:Close()
+        FreeObj(@oDataSet)
+        oDataSet := Nil
+    endif
+    if ValType(oClient) == "O"
+        FreeObj(@oClient)
+        oClient := Nil
+    endif
+    lReleased := ValType(oDataSet) == "U" .and. ValType(oClient) == "U"
+    nFinished := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs()
+
+
+    jChecks["executionCompleted"] := lCompleted
+    jChecks["resourcesReleased"] := lReleased
+    nFailures := ConcurrencyCheckFailures(jChecks, "", .F.)
+    jReport["worker"] := nWorker
+    jReport["http"] := lHTTP
+    jReport["thread"] := ThreadId()
+    jReport["startedMs"] := nStarted
+    jReport["finishedMs"] := nFinished
+    jReport["calls"] := nCalls
+    jReport["failures"] := nFailures
+    jReport["checks"] := jChecks
+    cReport := jReport:ToJSON()
+    FreeObj(@jReport)
+    FreeObj(@jChecks)
+    FreeObj(@jConfig)
+
+    // Only strings remain before publication. No client/dataset/JSON object is
+    // shared with another job. This is resource release, not a native join.
+    lPublish := ConcurrencyRunning(cGateKey)
+    if lPublish
+        PutGlbValue(cResultKey, cReport)
+        cReport := ""
+        nWaiting := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs()
+        nPrevious := nWaiting
+        do while ConcurrencyRemaining(nWaiting, nAckBudget, @nPrevious) > 0 .and. !KillApp()
+            cGate := GetGlbValue(cGateKey)
+            if cGate != "GO"
+                exit
+            endif
+            Sleep(20)
+        enddo
+    endif
+    // Parent removal or ABORT also covers jobs that start/publish after timeout.
+    // The public wrapper clears READY only after this method has returned.
+    // Parent completion waits for that last worker-owned marker to disappear.
+    ClearGlbValue(cResultKey)
+    ClearGlbValue(cGateKey)
+
+return(IIf(lCompleted .and. nFailures == 0, 0, 1))
+
+static procedure ConcurrencyInitializeChecks(jChecks as json, lHTTP as logical)
+
+    local nStep := 0 as numeric
+    local cPrefix := "" as character
+
+    jChecks["gateReleased"] := .F.
+    jChecks["executionCompleted"] := .F.
+    jChecks["resourcesReleased"] := .F.
+    for nStep := 1 to HBBRIDGE_CONCURRENCY_STEPS
+        cPrefix := "step" + tlpp.ToStr(nStep) + "."
+        jChecks[cPrefix + "profileSwitchClears"] := .F.
+        jChecks[cPrefix + "rawBackendProof"] := .F.
+        jChecks[cPrefix + "pageOpened"] := .F.
+        jChecks[cPrefix + "pageTotals"] := .F.
+        jChecks[cPrefix + "pageSchema"] := .F.
+        jChecks[cPrefix + "pageFirstRow"] := .F.
+        jChecks[cPrefix + "rowDefensiveCopy"] := .F.
+        jChecks[cPrefix + "headerDefensiveCopy"] := .F.
+        jChecks[cPrefix + "pageSecondRow"] := .F.
+        jChecks[cPrefix + "pageBoundary"] := .F.
+        jChecks[cPrefix + "nextPage"] := .F.
+        jChecks[cPrefix + "nextPageTotals"] := .F.
+        jChecks[cPrefix + "lastRow"] := .F.
+        jChecks[cPrefix + "endStops"] := .F.
+        jChecks[cPrefix + "invalidSQL"] := .F.
+        jChecks[cPrefix + "invalidClears"] := .F.
+        jChecks[cPrefix + "recoveryAfterInvalid"] := .F.
+        jChecks[cPrefix + "unknownProfile"] := .F.
+        jChecks[cPrefix + "unknownClears"] := .F.
+        jChecks[cPrefix + "recoveryAfterUnknown"] := .F.
+        if lHTTP
+            jChecks[cPrefix + "rawHTTPStatus"] := .F.
+            jChecks[cPrefix + "pageHTTPStatus"] := .F.
+            jChecks[cPrefix + "nextPageHTTPStatus"] := .F.
+            jChecks[cPrefix + "invalidHTTPStatus"] := .F.
+            jChecks[cPrefix + "invalidRecoveryHTTPStatus"] := .F.
+            jChecks[cPrefix + "unknownHTTPStatus"] := .F.
+            jChecks[cPrefix + "unknownRecoveryHTTPStatus"] := .F.
+        endif
+    next nStep
+
+return
+
+static function ConcurrencyCycle(oClient as object, oDataSet as object, cProfile as character, ;
+    cDriver as character, nWorker as numeric, nStep as numeric, lHTTP as logical, ;
+    cGateKey as character, jChecks as json, nCalls as numeric) as logical
+
+    local xError as variant
+    local cPrefix := "step" + tlpp.ToStr(nStep) + "." as character
+    local cMarker := "W" + tlpp.ToStr(nWorker) + "S" + tlpp.ToStr(nStep) + cDriver as character
+    local cOwnField := IIf(cDriver == "mssql", "MSSQL_ONLY", "SQLITE_ONLY") as character
+    local cOtherField := IIf(cDriver == "mssql", "SQLITE_ONLY", "MSSQL_ONLY") as character
+    local nBase := nWorker * 1000 + nStep * 10 as numeric
+    local nCallStarted := 0 as numeric
+    local cSQL := ConcurrencySQL(cDriver, nBase, cMarker) as character
+    local jResponse as json
+    local jHeader as json
+    local jRow as json
+    local jInfo as json
+    local lOpened := .F., lCompleted := .T., lStatusValid := .T., lCancelled := .F. as logical
+
+    try
+        oDataSet:SetAliasProfile(cProfile)
+        jChecks[cPrefix + "profileSwitchClears"] := ConcurrencyDataSetEmpty(oDataSet) .and. ;
+            oDataSet:GetAliasProfile() == cProfile .and. Empty(oDataSet:ErrorCode())
+        jResponse := ConcurrencyCall(oClient, cProfile, cSQL, cGateKey, @nCalls)
+        if !ConcurrencyRunning(cGateKey)
+            lCancelled := .T.
+            throw "Test run cancelled."
+        endif
+        jChecks[cPrefix + "rawBackendProof"] := ConcurrencyRawMatches(jResponse, cDriver, nBase, cMarker, cOwnField, cOtherField)
+        if lHTTP
+            jChecks[cPrefix + "rawHTTPStatus"] := oClient:StatusCode() == 200
+        endif
+        FreeObj(@jResponse)
+
+        lOpened := ConcurrencyOpen(oDataSet, cSQL, .T., cGateKey, @nCalls)
+        if !ConcurrencyRunning(cGateKey)
+            lCancelled := .T.
+            throw "Test run cancelled."
+        endif
+        jChecks[cPrefix + "pageOpened"] := lOpened
+        if lHTTP
+            jChecks[cPrefix + "pageHTTPStatus"] := oClient:StatusCode() == 200
+        endif
+        jChecks[cPrefix + "pageTotals"] := lOpened .and. oDataSet:HasTotals() .and. ;
+            oDataSet:TotalRows() == 3 .and. oDataSet:TotalPages() == 2 .and. ;
+            oDataSet:PageNumber() == 1 .and. oDataSet:PageSize() == 2 .and. oDataSet:RowCount() == 2
+        jChecks[cPrefix + "pageSchema"] := lOpened .and. oDataSet:FieldCount() == 3 .and. ;
+            oDataSet:FieldName(1) == "ROW_ID" .and. oDataSet:FieldName(2) == "MARKER" .and. ;
+            oDataSet:FieldName(3) == cOwnField .and. !oDataSet:FieldExist(cOtherField)
+        jChecks[cPrefix + "pageFirstRow"] := lOpened .and. ConcurrencyDataSetRow(oDataSet, nBase + 1, cMarker, cOwnField)
+        if lOpened
+            jRow := oDataSet:GetRow()
+            jRow["ROW_ID"] := -1
+            jRow["MARKER"] := "changed snapshot"
+            jChecks[cPrefix + "rowDefensiveCopy"] := ConcurrencyDataSetRow(oDataSet, nBase + 1, cMarker, cOwnField)
+            FreeObj(@jRow)
+            jHeader := oDataSet:Header()
+            if jHeader:HasProperty("ROW_ID")
+                if ValType(jHeader["ROW_ID"]) == "J"
+                    jHeader["ROW_ID"]["position"] := 99
+                    jInfo := oDataSet:FieldInfo("ROW_ID")
+                    if jInfo:HasProperty("position")
+                        jChecks[cPrefix + "headerDefensiveCopy"] := jInfo["position"] == 1 .and. ;
+                            oDataSet:FieldName(1) == "ROW_ID"
+                    endif
+                    FreeObj(@jInfo)
+                endif
+            endif
+            FreeObj(@jHeader)
+        endif
+        oDataSet:Skip()
+        jChecks[cPrefix + "pageSecondRow"] := ConcurrencyDataSetRow(oDataSet, nBase + 2, cMarker, cOwnField)
+        oDataSet:Skip()
+        jChecks[cPrefix + "pageBoundary"] := oDataSet:Eof() .and. oDataSet:HasNextPage()
+        lOpened := ConcurrencyNextPage(oDataSet, cGateKey, @nCalls)
+        if !ConcurrencyRunning(cGateKey)
+            lCancelled := .T.
+            throw "Test run cancelled."
+        endif
+        jChecks[cPrefix + "nextPage"] := lOpened .and. oDataSet:PageNumber() == 2 .and. ;
+            oDataSet:RowCount() == 1 .and. !oDataSet:HasNextPage()
+        if lHTTP
+            jChecks[cPrefix + "nextPageHTTPStatus"] := oClient:StatusCode() == 200
+        endif
+        jChecks[cPrefix + "nextPageTotals"] := lOpened .and. oDataSet:HasTotals() .and. ;
+            oDataSet:TotalRows() == 3 .and. oDataSet:TotalPages() == 2
+        jChecks[cPrefix + "lastRow"] := ConcurrencyDataSetRow(oDataSet, nBase + 3, cMarker, cOwnField)
+        oDataSet:Skip()
+        jChecks[cPrefix + "endStops"] := oDataSet:Eof() .and. !oDataSet:MoreToRead() .and. ;
+            !oDataSet:MoreToRead() .and. Empty(oDataSet:ErrorCode())
+
+        nCallStarted := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs()
+        lOpened := ConcurrencyOpen(oDataSet, "SELECT FROM", .F., cGateKey, @nCalls)
+        if !ConcurrencyRunning(cGateKey)
+            lCancelled := .T.
+            throw "Test run cancelled."
+        endif
+        jChecks[cPrefix + "invalidSQL"] := !lOpened .and. oDataSet:ErrorCode() == "QUERY_FAILED" .and. ;
+            oDataSet:ErrorMessage() == "Could not open or read the SQL query result."
+        lStatusValid := .T.
+        if lHTTP
+            jChecks[cPrefix + "invalidHTTPStatus"] := oClient:StatusCode() == 500
+            lStatusValid := jChecks[cPrefix + "invalidHTTPStatus"]
+        endif
+        if !jChecks[cPrefix + "invalidSQL"] .or. !lStatusValid
+            ConcurrencyLogCall(oClient, oDataSet, lHTTP, nWorker, nStep, "invalidSQL", nCallStarted)
+        endif
+        jChecks[cPrefix + "invalidClears"] := ConcurrencyDataSetEmpty(oDataSet) .and. ;
+            !oDataSet:MoreToRead() .and. !oDataSet:MoreToRead() .and. oDataSet:ErrorCode() == "QUERY_FAILED"
+        nCallStarted := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs()
+        lOpened := ConcurrencyOpen(oDataSet, "SELECT " + tlpp.ToStr(nBase + 7) + " AS RECOVERY_ID", ;
+            .F., cGateKey, @nCalls)
+        if !ConcurrencyRunning(cGateKey)
+            lCancelled := .T.
+            throw "Test run cancelled."
+        endif
+        jChecks[cPrefix + "recoveryAfterInvalid"] := ConcurrencyRecovery(oDataSet, lOpened, nBase + 7)
+        lStatusValid := .T.
+        if lHTTP
+            jChecks[cPrefix + "invalidRecoveryHTTPStatus"] := oClient:StatusCode() == 200
+            lStatusValid := jChecks[cPrefix + "invalidRecoveryHTTPStatus"]
+        endif
+        if !jChecks[cPrefix + "recoveryAfterInvalid"] .or. !lStatusValid
+            ConcurrencyLogCall(oClient, oDataSet, lHTTP, nWorker, nStep, "recoveryAfterInvalid", nCallStarted)
+        endif
+
+        oDataSet:SetAliasProfile("__HBBridgeM07UnknownProfile__")
+        nCallStarted := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs()
+        lOpened := ConcurrencyOpen(oDataSet, "SELECT 1 AS RECOVERY_ID", .F., cGateKey, @nCalls)
+        if !ConcurrencyRunning(cGateKey)
+            lCancelled := .T.
+            throw "Test run cancelled."
+        endif
+        jChecks[cPrefix + "unknownProfile"] := !lOpened .and. oDataSet:ErrorCode() == "PROFILE_NOT_FOUND" .and. ;
+            oDataSet:ErrorMessage() == "Connection profile is not configured."
+        lStatusValid := .T.
+        if lHTTP
+            jChecks[cPrefix + "unknownHTTPStatus"] := oClient:StatusCode() == 500
+            lStatusValid := jChecks[cPrefix + "unknownHTTPStatus"]
+        endif
+        if !jChecks[cPrefix + "unknownProfile"] .or. !lStatusValid
+            ConcurrencyLogCall(oClient, oDataSet, lHTTP, nWorker, nStep, "unknownProfile", nCallStarted)
+        endif
+        jChecks[cPrefix + "unknownClears"] := ConcurrencyDataSetEmpty(oDataSet) .and. ;
+            !oDataSet:MoreToRead() .and. oDataSet:ErrorCode() == "PROFILE_NOT_FOUND"
+        oDataSet:SetAliasProfile(cProfile)
+        nCallStarted := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs()
+        lOpened := ConcurrencyOpen(oDataSet, "SELECT " + tlpp.ToStr(nBase + 9) + " AS RECOVERY_ID", ;
+            .F., cGateKey, @nCalls)
+        if !ConcurrencyRunning(cGateKey)
+            lCancelled := .T.
+            throw "Test run cancelled."
+        endif
+        jChecks[cPrefix + "recoveryAfterUnknown"] := ConcurrencyRecovery(oDataSet, lOpened, nBase + 9)
+        lStatusValid := .T.
+        if lHTTP
+            jChecks[cPrefix + "unknownRecoveryHTTPStatus"] := oClient:StatusCode() == 200
+            lStatusValid := jChecks[cPrefix + "unknownRecoveryHTTPStatus"]
+        endif
+        if !jChecks[cPrefix + "recoveryAfterUnknown"] .or. !lStatusValid
+            ConcurrencyLogCall(oClient, oDataSet, lHTTP, nWorker, nStep, "recoveryAfterUnknown", nCallStarted)
+        endif
+    catch xError
+        if !lCancelled
+            ConOut("hbBridge concurrency cycle FAILED: unexpected runtime error; worker=" + ;
+                tlpp.ToStr(nWorker) + "; step=" + tlpp.ToStr(nStep))
+        endif
+        lCompleted := .F.
+        if (ValType(xError)=="O")
+            FreeObj(@xError)
+        endif
+    endtry
+
+    if ValType(jResponse) == "J"
+        FreeObj(@jResponse)
+    endif
+    if ValType(jHeader) == "J"
+        FreeObj(@jHeader)
+    endif
+    if ValType(jRow) == "J"
+        FreeObj(@jRow)
+    endif
+    if ValType(jInfo) == "J"
+        FreeObj(@jInfo)
+    endif
+
+
+return(lCompleted .and. ConcurrencyRunning(cGateKey))
+
+
+static procedure ConcurrencyLogCall(oClient as object, oDataSet as object, lHTTP as logical, ;
+    nWorker as numeric, nStep as numeric, cOperation as character, nStarted as numeric)
+
+    local cCode := oDataSet:ErrorCode() as character
+    local cNativeText := Upper(AllTrim(cCode)) as character
+    local nStatus := 0 as numeric
+    local nElapsed := Max(0, HBBridge.Client.HBBridgeTime():HBBridgeTimeMs() - nStarted) as numeric
+
+    // FWRest may return arbitrary native diagnostics as codes. Publish only
+    // known protocol codes; never log raw diagnostics, credentials or SQL.
+    if Empty(cCode)
+        cCode := "NONE"
+    elseif cNativeText == "INTERNAL SERVER ERROR"
+        cCode := "NATIVE_HTTP_500_REASON"
+    elseif "TIMEOUT" $ cNativeText .or. "TIMED OUT" $ cNativeText
+        cCode := "NATIVE_TIMEOUT_DIAGNOSTIC"
+    elseif "REFUSED" $ cNativeText
+        cCode := "NATIVE_REFUSED_DIAGNOSTIC"
+    elseif "RESET" $ cNativeText
+        cCode := "NATIVE_RESET_DIAGNOSTIC"
+    elseif "HEADER" $ cNativeText
+        cCode := "NATIVE_HEADER_DIAGNOSTIC"
+    elseif "SOCKET" $ cNativeText
+        cCode := "NATIVE_SOCKET_DIAGNOSTIC"
+    elseif "CONNECT" $ cNativeText
+        cCode := "NATIVE_CONNECTION_DIAGNOSTIC"
+    elseif "RECEIV" $ cNativeText
+        cCode := "NATIVE_RECEIVE_DIAGNOSTIC"
+    elseif !(cCode == "QUERY_FAILED" .or. cCode == "PROFILE_NOT_FOUND" .or. ;
+        cCode == "HTTP_TRANSPORT_FAILED" .or. cCode == "INVALID_HTTP_RESPONSE" .or. ;
+        cCode == "HTTP_STATUS_FAILED" .or. cCode == "BUSY" .or. ;
+        cCode == "UNAUTHORIZED" .or. cCode == "CONNECTION_FAILED" .or. ;
+        cCode == "INVALID_CONFIGURATION" .or. cCode == "SERVICE_ERROR")
+        cCode := "UNRECOGNIZED"
+    endif
+    if lHTTP
+        nStatus := oClient:StatusCode()
+    endif
+    ConOut("hbBridge concurrency response mismatch: worker=" + tlpp.ToStr(nWorker) + ;
+        "; step=" + tlpp.ToStr(nStep) + "; operation=" + cOperation + ;
+        "; transport=" + IIf(lHTTP, "HTTP", "TCP") + "; status=" + tlpp.ToStr(nStatus) + ;
+        "; code=" + cCode + "; elapsedMs=" + tlpp.ToStr(nElapsed))
+
+return
+
+static function ConcurrencySQL(cDriver as character, nBase as numeric, cMarker as character) as character
+
+    local nRow := 0 as numeric
+    local cSQL := "", cVersion := "", cField := "" as character
+
+    if cDriver == "mssql"
+        cVersion := "CAST(SERVERPROPERTY('ProductVersion') AS VARCHAR(64))"
+        cField := "MSSQL_ONLY"
+    else
+        cVersion := "sqlite_version()"
+        cField := "SQLITE_ONLY"
+    endif
+    for nRow := 1 to 3
+        if nRow > 1
+            cSQL += " UNION ALL "
+        endif
+        cSQL += "SELECT " + tlpp.ToStr(nBase + nRow) + " AS ROW_ID, '" + cMarker + ;
+            "' AS MARKER, " + cVersion + " AS " + cField
+    next nRow
+
+return(cSQL)
+
+static function ConcurrencyCall(oClient as object, cProfile as character, cSQL as character, ;
+    cGateKey as character, nCalls as numeric) as json
+
+    local jParams := JSONObject():New() as json
+    local jResponse := JSONObject():New() as json
+
+    if ConcurrencyRunning(cGateKey)
+        jParams["alias"] := cProfile
+        jParams["sql"] := cSQL
+        FreeObj(@jResponse)
+        nCalls++
+        jResponse := oClient:CallService("RPCRDD.Query", jParams)
+    endif
+    FreeObj(@jParams)
+
+return(jResponse)
+
+static function ConcurrencyOpen(oDataSet as object, cSQL as character, lPage as logical, ;
+    cGateKey as character, nCalls as numeric) as logical
+
+    if !ConcurrencyRunning(cGateKey)
+        return .F.
+    endif
+    nCalls++
+    if lPage
+        return oDataSet:OpenPage(cSQL, 1, 2, "ROW_ID ASC")
+    endif
+
+return(oDataSet:OpenSQL(cSQL))
+
+static function ConcurrencyNextPage(oDataSet as object, cGateKey as character, nCalls as numeric) as logical
+
+    if !ConcurrencyRunning(cGateKey) .or. !oDataSet:HasNextPage()
+        return .F.
+    endif
+    nCalls++
+
+return(oDataSet:NextPage())
+
+static function ConcurrencyDataSetEmpty(oDataSet as object) as logical
+
+    local jHeader := oDataSet:Header() as json
+    local jRow := oDataSet:GetRow() as json
+    local lEmpty := oDataSet:Eof() .and. oDataSet:FieldCount() == 0 .and. ;
+        oDataSet:RowCount() == 0 .and. !oDataSet:HasNextPage() .and. !oDataSet:HasTotals() .and. ;
+        jHeader:ToJSON() == "{}" .and. jRow:ToJSON() == "{}" .and. ;
+        ValType(oDataSet:FieldGet("ROW_ID")) == "U" .and. ValType(oDataSet:FieldGet("RECOVERY_ID")) == "U" as logical
+
+    FreeObj(@jRow)
+    FreeObj(@jHeader)
+
+return(lEmpty)
+
+static function ConcurrencyDataSetRow(oDataSet as object, nID as numeric, cMarker as character, ;
+    cOwnField as character) as logical
+
+    local xVersion := oDataSet:FieldGet(cOwnField) as variant
+
+    if ValType(xVersion) != "C"
+        return .F.
+    endif
+
+return(!oDataSet:Eof() .and. oDataSet:FieldGet("ROW_ID") == nID .and. ;
+    oDataSet:FieldGet("MARKER") == cMarker .and. !Empty(AllTrim(xVersion)))
+
+static function ConcurrencyRecovery(oDataSet as object, lOpened as logical, nID as numeric) as logical
+
+return(lOpened .and. oDataSet:RowCount() == 1 .and. oDataSet:FieldCount() == 1 .and. ;
+    oDataSet:FieldGet("RECOVERY_ID") == nID .and. Empty(oDataSet:ErrorCode()) .and. ;
+    Empty(oDataSet:ErrorMessage()) .and. !oDataSet:FieldExist("ROW_ID") .and. ;
+    !oDataSet:FieldExist("MSSQL_ONLY") .and. !oDataSet:FieldExist("SQLITE_ONLY"))
+
+static function ConcurrencyRawMatches(jResponse as json, cDriver as character, nBase as numeric, ;
+    cMarker as character, cOwnField as character, cOtherField as character) as logical
+
+    local nRow := 0 as numeric
+    local cRow := "" as character
+    local jCell as json
+
+    if ValType(jResponse) != "J"
+        return .F.
+    endif
+    if !jResponse:HasProperty("success") .or. !jResponse:HasProperty("driver") .or. ;
+        !jResponse:HasProperty("rows") .or. !jResponse:HasProperty("header") .or. ;
+        !jResponse:HasProperty("rowCount")
+        return .F.
+    endif
+    if ValType(jResponse["success"]) != "L" .or. ValType(jResponse["driver"]) != "C" .or. ;
+        ValType(jResponse["rows"]) != "J" .or. ValType(jResponse["header"]) != "J" .or. ;
+        ValType(jResponse["rowCount"]) != "N"
+        return .F.
+    endif
+    if !jResponse["success"] .or. jResponse["driver"] != cDriver .or. jResponse["rowCount"] != 3
+        return .F.
+    endif
+    if !jResponse["header"]:HasProperty(cOwnField) .or. jResponse["header"]:HasProperty(cOtherField)
+        return .F.
+    endif
+    for nRow := 1 to 3
+        cRow := tlpp.ToStr(nRow)
+        if !jResponse["rows"]:HasProperty(cRow)
+            return .F.
+        endif
+        jCell := jResponse["rows"][cRow]
+        if ValType(jCell) != "J"
+            return .F.
+        endif
+        if !jCell:HasProperty("ROW_ID") .or. !jCell:HasProperty("MARKER") .or. !jCell:HasProperty(cOwnField)
+            return .F.
+        endif
+        if ValType(jCell["ROW_ID"]) != "N" .or. ValType(jCell["MARKER"]) != "C" .or. ;
+            ValType(jCell[cOwnField]) != "C"
+            return .F.
+        endif
+        if jCell["ROW_ID"] != nBase + nRow .or. jCell["MARKER"] != cMarker .or. Empty(AllTrim(jCell[cOwnField]))
+            return .F.
+        endif
+    next nRow
+
+return(.T.)
+
+static function ConcurrencyWaitReady(jWorkers as json, nWorkers as numeric, nStarted as numeric, nPrevious as numeric, nBudgetMs as numeric) as logical
+
+    local nWorker := 0, nReady := 0 as numeric
+
+    do while ConcurrencyRemaining(nStarted, nBudgetMs, @nPrevious) > 0 .and. !KillApp()
+        nReady := 0
+        for nWorker := 1 to nWorkers
+            if GetGlbValue(jWorkers[tlpp.ToStr(nWorker)]["readyKey"]) == "READY"
+                nReady++
+            endif
+        next nWorker
+        if nReady == nWorkers
+            return .T.
+        endif
+        Sleep(20)
+    enddo
+
+return(.F.)
+
+static function ConcurrencyWaitReleased(jWorkers as json, nWorkers as numeric, nStarted as numeric, nPrevious as numeric, nBudgetMs as numeric) as logical
+
+    local nWorker := 0, nReleased := 0 as numeric
+    local jWorker as json
+
+    do while ConcurrencyRemaining(nStarted, nBudgetMs, @nPrevious) > 0 .and. !KillApp()
+        nReleased := 0
+        for nWorker := 1 to nWorkers
+            jWorker := jWorkers[tlpp.ToStr(nWorker)]
+            if Empty(GetGlbValue(jWorker["readyKey"])) .and. ;
+                Empty(GetGlbValue(jWorker["resultKey"])) .and. Empty(GetGlbValue(jWorker["gateKey"]))
+                nReleased++
+            endif
+        next nWorker
+        if nReleased == nWorkers
+            return .T.
+        endif
+        Sleep(20)
+    enddo
+
+return(.F.)
+
+static function ConcurrencyRemaining(nStarted as numeric, nBudget as numeric, nPrevious as numeric) as numeric
+
+    local nCurrent := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs() as numeric
+    local nRemaining := HBBridge.Client.HBBridgeTime():HBBridgeRemainingMs(;
+        nStarted, nBudget, nCurrent, nPrevious) as numeric
+
+    nPrevious := nCurrent
+
+return(nRemaining)
+
+static function ConcurrencyRunning(cGateKey as character) as logical
+
+return(GetGlbValue(cGateKey) == "GO" .and. !KillApp())
+
+static procedure ConcurrencyAbortWorkers(jWorkers as json, nWorkers as numeric)
+
+    local nWorker := 0 as numeric
+    local jWorker as json
+
+    for nWorker := 1 to nWorkers
+        jWorker := jWorkers[tlpp.ToStr(nWorker)]
+        if !Empty(GetGlbValue(jWorker["readyKey"]))
+            PutGlbValue(jWorker["gateKey"], "ABORT")
+        endif
+    next nWorker
+
+return
+
+static function ConcurrencyWaitDrained(jWorkers as json, nWorkers as numeric, ;
+    nStarted as numeric, nPrevious as numeric, nBudgetMs as numeric) as logical
+
+    local nWorker := 0, nReleased := 0 as numeric
+
+    do while ConcurrencyRemaining(nStarted, nBudgetMs, @nPrevious) > 0 .and. !KillApp()
+        nReleased := 0
+        for nWorker := 1 to nWorkers
+            if Empty(GetGlbValue(jWorkers[tlpp.ToStr(nWorker)]["readyKey"]))
+                nReleased++
+            endif
+        next nWorker
+        if nReleased == nWorkers
+            return .T.
+        endif
+        Sleep(20)
+    enddo
+
+return(.F.)
+
+static procedure ConcurrencyClearWorkers(jWorkers as json, nWorkers as numeric)
+
+    local nWorker := 0 as numeric
+    local jWorker as json
+
+    for nWorker := 1 to nWorkers
+        jWorker := jWorkers[tlpp.ToStr(nWorker)]
+        PutGlbValue(jWorker["gateKey"], "ABORT")
+        ClearGlbValue(jWorker["readyKey"])
+        ClearGlbValue(jWorker["resultKey"])
+        ClearGlbValue(jWorker["gateKey"])
+    next nWorker
+
+return
+
+static procedure ConcurrencyLogPending(jWorkers as json, nWorkers as numeric, cStage as character)
+
+    local nWorker := 0 as numeric
+    local jWorker as json
+    local lReady := .F., lResult := .F., lGate := .F. as logical
+
+    for nWorker := 1 to nWorkers
+        jWorker := jWorkers[tlpp.ToStr(nWorker)]
+        lReady := !Empty(GetGlbValue(jWorker["readyKey"]))
+        lResult := !Empty(GetGlbValue(jWorker["resultKey"]))
+        lGate := !Empty(GetGlbValue(jWorker["gateKey"]))
+        if !jWorker["collected"] .or. lReady .or. lResult .or. lGate
+            ConOut("hbBridge concurrency pending: worker=" + tlpp.ToStr(nWorker) + ;
+                "; stage=" + cStage + "; collected=" + IIf(jWorker["collected"], "true", "false") + ;
+                "; readyKeyPresent=" + IIf(lReady, "true", "false") + ;
+                "; resultKeyPresent=" + IIf(lResult, "true", "false") + ;
+                "; gateKeyPresent=" + IIf(lGate, "true", "false"))
+        endif
+    next nWorker
+
+return
+
+static procedure ConcurrencyCollect(jReport as json, jWorker as json, jChecks as json, ;
+    cID as character, lHTTP as logical, nWorkerChecks as numeric, nWorkerFailures as numeric)
+
+    local cPrefix := "worker" + cID + "." as character
+    local aNames as array
+    local nCheck := 0, nFailures := 0 as numeric
+    local lValid := .T. as logical
+    local jExpected := JSONObject():New() as json
+    local aExpected as array
+
+    if !jReport:HasProperty("worker") .or. !jReport:HasProperty("http") .or. ;
+        !jReport:HasProperty("thread") .or. !jReport:HasProperty("startedMs") .or. ;
+        !jReport:HasProperty("finishedMs") .or. !jReport:HasProperty("calls") .or. ;
+        !jReport:HasProperty("failures") .or. !jReport:HasProperty("checks")
+        lValid := .F.
+    elseif ValType(jReport["worker"]) != "N" .or. ValType(jReport["http"]) != "L" .or. ;
+        ValType(jReport["thread"]) != "N" .or. ValType(jReport["startedMs"]) != "N" .or. ;
+        ValType(jReport["finishedMs"]) != "N" .or. ValType(jReport["calls"]) != "N" .or. ;
+        ValType(jReport["failures"]) != "N" .or. ValType(jReport["checks"]) != "J"
+        lValid := .F.
+    elseif jReport["worker"] != Val(cID) .or. jReport["http"] != lHTTP .or. ;
+        jReport["thread"] <= 0 .or. jReport["startedMs"] <= 0 .or. jReport["finishedMs"] < jReport["startedMs"]
+        lValid := .F.
+    endif
+    if lValid
+        ConcurrencyInitializeChecks(jExpected, lHTTP)
+        // Native GetNames requires arrays; check storage remains keyed JSON.
+        aExpected := jExpected:GetNames()
+        for nCheck := 1 to Len(aExpected)
+            if !jReport["checks"]:HasProperty(aExpected[nCheck])
+                lValid := .F.
+                exit
+            endif
+            if ValType(jReport["checks"][aExpected[nCheck]]) != "L"
+                lValid := .F.
+                exit
+            endif
+        next nCheck
+        if lValid
+            aNames := jReport["checks"]:GetNames()
+            jChecks[cPrefix + "expectedChecks"] := Len(aNames) == Len(aExpected)
+            // Reject extra keys before any logger receives report-owned names.
+            lValid := Len(aNames) == Len(aExpected)
+        endif
+        if lValid
+            nFailures := ConcurrencyCheckFailures(jReport["checks"], cPrefix, .T.)
+            nWorkerChecks += Len(aNames)
+            nWorkerFailures += nFailures
+            jChecks[cPrefix + "zeroFailures"] := nFailures == 0 .and. jReport["failures"] == nFailures
+            jChecks[cPrefix + "resourcesReleased"] := jReport["checks"]["resourcesReleased"]
+            jChecks[cPrefix + "expectedCalls"] := jReport["calls"] == HBBRIDGE_CONCURRENCY_CALLS
+            jWorker["thread"] := jReport["thread"]
+            jWorker["startedMs"] := jReport["startedMs"]
+            jWorker["finishedMs"] := jReport["finishedMs"]
+            ConOut("hbBridge concurrency " + IIf(lHTTP, "HTTP", "TCP") + " worker=" + cID + ;
+                "; thread=" + tlpp.ToStr(jReport["thread"]) + "; checks=" + tlpp.ToStr(Len(aNames)) + ;
+                "; failures=" + tlpp.ToStr(nFailures) + "; calls=" + tlpp.ToStr(jReport["calls"]) + ;
+                "; elapsedMs=" + tlpp.ToStr(jReport["finishedMs"] - jReport["startedMs"]))
+        endif
+        if ValType(aNames) == "A"
+            FWFreeArray(@aNames)
+        endif
+        FWFreeArray(@aExpected)
+    endif
+    jWorker["valid"] := lValid
+    jChecks[cPrefix + "reportValid"] := lValid
+    FreeObj(@jExpected)
+
+return
+
+static function ConcurrencyCheckFailures(jChecks as json, cLabel as character, lLog as logical) as numeric
+
+    local aNames := jChecks:GetNames() as array
+    local nCheck := 0, nFailures := 0 as numeric
+    local lPassed := .F. as logical
+
+    // GetNames is a native array API; no positional array stores test records.
+    for nCheck := 1 to Len(aNames)
+        lPassed := .F.
+        if ValType(jChecks[aNames[nCheck]]) == "L"
+            lPassed := jChecks[aNames[nCheck]]
+        endif
+        if !lPassed
+            nFailures++
+            if lLog
+                ConOut("hbBridge concurrency check " + cLabel + aNames[nCheck] + ": FAILED")
+            endif
+        endif
+    next nCheck
+    FWFreeArray(@aNames)
+
+return(nFailures)
+
+static function ConcurrencyPacingValid(xValue as variant) as logical
+
+    if ValType(xValue) != "N"
+        return .F.
+    endif
+
+return(xValue >= 0 .and. xValue <= 2147483647 .and. xValue == Int(xValue))
+
+static function ConcurrencyWorkerDelay(nWorker as numeric, nBase as numeric, nStep as numeric, nMaximum as numeric) as numeric
+
+    if nStep == 0 .or. nBase >= nMaximum
+        return Min(nBase, nMaximum)
+    endif
+    // Compare before multiplying: arbitrary valid worker counts must not
+    // construct base + worker * step beyond exact numeric representation.
+    if nWorker > Int((nMaximum - nBase) / nStep)
+        return nMaximum
+    endif
+
+return(nBase + nWorker * nStep)
+
+static function ConcurrencyLaunchPlan(nWorkers as numeric, nBase as numeric, nStep as numeric, ;
+    nMaximum as numeric, nBudget as numeric) as numeric
+
+    local nRamp := 0, nCapped := 0, nCount := 0, nEnds := 0, nTotal := 0, nDelay := 0 as numeric
+
+    if nStep == 0
+        nDelay := Min(nBase, nMaximum)
+        if nDelay == 0
+            return 0
+        endif
+        if nWorkers > Int((nBudget - 1) / nDelay)
+            return nBudget
+        endif
+        return nWorkers * nDelay
+    endif
+    // Terms 1..k form an arithmetic progression; all later terms are capped.
+    nRamp := Max(0, Min(nWorkers, Int((nMaximum - nBase) / nStep)))
+    nCapped := nWorkers - nRamp
+    if nRamp > 0
+        nCount := nRamp
+        nEnds := nBase + nStep + nBase + nRamp * nStep
+        if Mod(nCount, 2) == 0
+            nCount := nCount / 2
+        else
+            nEnds := nEnds / 2
+        endif
+        // Only sums smaller than the budget need an exact value. Reject
+        // before a multiplication could exceed native numeric precision.
+        if nCount > Int((nBudget - 1) / nEnds)
+            return nBudget
+        endif
+        nTotal := nCount * nEnds
+    endif
+    if nMaximum > 0
+        if nCapped > Int((nBudget - 1 - nTotal) / nMaximum)
+            return nBudget
+        endif
+        nTotal += nCapped * nMaximum
+    endif
+
+return(nTotal)
+
+static function ConcurrencyInteger(cNumber as character, nMaximum as numeric, lAllowZero as logical) as numeric
+
+    local nIndex := 0, nDigit := 0, nValue := 0 as numeric
+
+    if ValType(lAllowZero) == "U"
+        lAllowZero := .F.
+    endif
+    if lAllowZero .and. cNumber == "0"
+        return 0
+    endif
+    if Len(cNumber) == 0 .or. Left(cNumber, 1) == "0"
+        return -1
+    endif
+    for nIndex := 1 to Len(cNumber)
+        nDigit := Asc(SubStr(cNumber, nIndex, 1)) - Asc("0")
+        if nDigit < 0 .or. nDigit > 9 .or. nValue > Int((nMaximum - nDigit) / 10)
+            return -1
+        endif
+        nValue := nValue * 10 + nDigit
+    next nIndex
+
+return(nValue)
+
+static function ConcurrencyTextValid(xText as variant) as logical
+
+    if ValType(xText) != "C"
+        return .F.
+    endif
+
+return(!Empty(AllTrim(xText)) .and. At(Chr(0), xText) == 0 .and. ;
+    At(Chr(10), xText) == 0 .and. At(Chr(13), xText) == 0)
+
+static function ConcurrencyURLValid(xURL as variant) as logical
+
+    local cURL := "" as character
+    local cAddress := "" as character
+
+    if !ConcurrencyTextValid(xURL)
+        return .F.
+    endif
+    cURL := Lower(AllTrim(xURL))
+    if Left(cURL, 7) == "http://"
+        cAddress := SubStr(cURL, 8)
+    elseif Left(cURL, 8) == "https://"
+        cAddress := SubStr(cURL, 9)
+    else
+        return .F.
+    endif
+
+return(!Empty(cAddress) .and. Left(cAddress, 1) != "/" .and. ;
+    At("@", cAddress) == 0 .and. At("?", cAddress) == 0 .and. ;
+    At("#", cAddress) == 0 .and. At(" ", cAddress) == 0)

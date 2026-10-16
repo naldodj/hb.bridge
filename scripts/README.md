@@ -140,3 +140,13 @@ attempts remain historical; no later compiler log was supplied. Forced socket
 failures/partial sends, nondefault destinations, MSSQL and Linux remain pending.
 The [credentials proposal](../docs/credentials.md) covers portable storage;
 encrypted credential management is not implemented yet.
+
+## Opt-in SQL concurrency test
+
+`test-hbbridge-mssql.ps1 -Config C:/tmp/hbBridge.ini -Profile MSSQL/pData -Concurrency`
+builds and runs the isolated eight-worker M07 suite. `-Concurrency` cannot
+combine with `-Failures`; `-Serve` is available for either mode. In concurrency
+mode it prints test endpoints/profiles, hosts for up to 600 seconds, and stops
+on `m07.stop` in its run directory or Esc/Ctrl+Q. Final resource checks follow
+host shutdown. See the [test guide](../tests/README.md#mssql-concurrency-and-resource-release-m07)
+and [Protheus consumer](../src/tlpp/tests/protheus/hbbridge.concurrency.test/README.md).

@@ -44,6 +44,8 @@ STATIC PROCEDURE HBBridgeHTTPRun( hHTTP )
     hNative := { "BindAddress" => hConfig[ "httpHost" ], "Port" => hConfig[ "httpPort" ], ;
         "FirewallFilter" => "", ;
         "MaxWorkers" => hConfig[ "maxWorkers" ], ;
+        "ListenBacklog" => hb_HGetDef( hConfig, "httpListenBacklog", ;
+            HBBridgeRuntimeLimits()[ "socketListenBacklogDefault" ] ), ;
         "SSL" => hConfig[ "httpTLS" ], "PrivateKeyFilename" => hConfig[ "httpPrivateKey" ], ;
         "CertificateFilename" => hConfig[ "httpCertificate" ], ;
         "Ready" => {| oServer | HBBridgeHTTPReady( hHTTP, oServer ) }, ;

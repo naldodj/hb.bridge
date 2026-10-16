@@ -73,7 +73,9 @@ Duktape and CCHarbour as future packages, without adding runtime dependencies.
   [brainstorming transport review](docs/transports-sessions-security.md).
 
 Intermediate behavior: mandatory gzip, whole JSON materialization, one
-connection per call and no OS service. Optional payload/wire budgets default 0;
+logical SQL connection per call and no OS service. Physical ODBC reuse is
+opt-in and still under acceptance; its default policy is `off`.
+Optional payload/wire budgets default 0;
 buffers/timeouts/workers are settings within real runtime capacities. Pages are
 implemented; streaming/negotiation remain pending. A repeated-character Echo
 alone is not proof of fragmented/incompressible transfer; the later varied
@@ -368,20 +370,55 @@ per-value limits; tested slow-consumer/invalid-decode/disconnect behavior.
   Confirmed manual AppServer validation at 14:30:50 São Paulo, thread 13796:
   all 38 TCP/51 HTTP checks passed, resolving the earlier seven failures per
   transport. [Manual evidence](docs/acceptance.md#manual-protheus-failure-recovery-on-2026-10-14).
-- [ ] Remaining package 001 isolation and transport/memory baseline cases
-  M07–M09 in [WIP](WIP.md).
+- [ ] M07 concurrent profile isolation and owned resource release: baseline
+  accepted on 2026-10-14; reopened for the additional 140-worker failure run.
+  458 native checks, 8 workers/192 calls through local/NETIO/TCP/HTTP; 417
+  AppServer CLI checks, 4 jobs/112 TCP/HTTP calls. Zero failures. The SQL mutex
+  remains enabled; no physical ODBC/heap leak or parallel SQL guarantee.
+  Additional manual 40/100-worker runs report zero failures. Independent
+  collection/drain controls passed four-worker and controlled-abort checks;
+  the 300-second 140-worker retry returned all reports/3920 calls with
+  16329 checks/857 failures. Both backlog 10 and the OS default failed.
+  The earlier native regression passed 656/0; 32 TLPP sources compiled without
+  source errors, followed by vendor exit 0xC0000409, before configurable pacing.
+  The supplied 22 KB attachment is a pool
+  proposal/DBAccess ODBC 10048 diagnostic, not successful acceptance.
+  TIME_WAIT and Tcpip 4227 evidence records host port pressure without proving
+  one process or the sole cause. The latest reported 130-worker run completed
+  all jobs with 15159 checks/41 failures; its full log awaits review. A
+  125-worker success was reported without a fully reviewed log.
+  Current validation: isolated product build, 266 lease/configuration checks
+  and full native regression 712/0. MSSQL physical reuse remains under test;
+  the first attempt used 13 physical connections for 13 logical leases.
+  [Follow-up evidence](docs/acceptance.md#sql-concurrency-follow-up-on-2026-10-15).
+- [ ] Accept the revised TLPP launch pacing after recompilation: arguments
+  10–12 and CLI defaults 300/50/5000 ms preserve the supplied ramp and
+  `GetEnvServer()`. Planned sleeps total 431450 ms for 130 workers and
+  481450 ms for 140; `0/0/0` is a burst control. Launch consumes the test budget;
+  reject impossible plans before `StartJob`. READY/GO still releases all
+  workers together, so pacing does not imply lower query concurrency.
+- [ ] Resolve M07 follow-up before package 001 transport/memory baseline M08
+  and final checks M09 in [WIP](WIP.md).
 - [ ] Unavailable connector, broader type/null coverage and real volume in
   Protheus; unknown alias is not connector-failure proof.
 - [ ] hbodbc/hbsqlit3 direct API where operations require it.
 
 ### Data-access evolution
 
-- [ ] Analyze SQL connection reuse: measure connection/authentication apart
-  from query/count/fetch/encoding/transport; compare ODBC pooling, one reusable
-  connection per profile and a bounded host pool. Verify exclusive ownership,
-  session/transaction reset, recovery, resource limits and Windows/Linux/SQLite
-  behavior. Preserve the SQL mutex until concurrency is accepted. This is
-  independent of RPC transport persistence. [Observation](docs/sql-connections.md).
+- [x] Adapt `HBBridgeSQLPool` as a logical lease facade under the SQL lifecycle
+  mutex: hash records with unique identity/profile/owning thread, stale/double/
+  forged/foreign-thread return rejection, no acquisition retry loop and no
+  shutdown with active leases. ODBC policy configuration preserves the facade.
+  Logical native connections retain per-call lifetime; SQLite memory databases
+  remain fresh. Isolated lease/configuration checks and native regression passed.
+- [ ] Complete MSSQL physical Driver Manager reuse acceptance within M07.
+  Policy remains `off` by default; `driver` is opt-in on Windows ODBC 3.8,
+  while Linux remains `off` pending separate runtime validation. Correct
+  environment lifetime after the first 13-leases/13-physical-connections result;
+  prove reuse, clean sessions/transactions, timeout/profile isolation, caller
+  default zero and shutdown. Separate connection/authentication from query/
+  count/fetch/encoding/transport measurements. RPC persistence and parallel SQL
+  remain separate designs. [Analysis](docs/sql-connections.md).
 
 - [ ] SQL bind values and size/precision/null type metadata; identifier resolution
   stays with the caller. Generic connector/dialect registry, including Oracle
@@ -393,14 +430,14 @@ per-value limits; tested slow-consumer/invalid-decode/disconnect behavior.
 - [ ] Deferred: optional Protheus metadata addon or TLPP SQL projection rewriter
   using explicit JSON metadata for automatic CAST. Evaluate a restricted grammar,
   complete column/alias mappings and semantic preservation before implementation;
-  Zig only after measurements. Keep caller CAST while M06 advances. [Decision](docs/dataset.md#deferred-metadata-addon-and-sql-rewriting).
+  Zig only after measurements. Keep caller CAST while the current WIP advances. [Decision](docs/dataset.md#deferred-metadata-addon-and-sql-rewriting).
 - [x] Manual AppServer mock acceptance of Header, FieldInfo/FieldCount/FieldName,
   FieldExist/GetRow/GetRows, totals and previous/next/MoreToRead traversal,
   including page failure/recovery: 67 checks/31 mock calls, zero failures,
   2026-10-13 at 17:56:23 São Paulo, thread 32332. Pure helpers passed all 12
   checks at 17:56:45, thread 28300. D02's mock scope is accepted; D03's
   UTF-8/FLOAT integrity remains pending; M06 has subsequent live acceptance,
-  with M07–M09 open. These runs exercise
+  with M07 follow-up and M08–M09 open. These runs exercise
   no transport, SQL backend or ERP table. [Evidence](docs/dataset.md).
 - [x] ROW_NUMBER/BETWEEN pages, sentinel hasNext, explicit order, OpenPage/
   NextPage; gaps in business IDs do not control ordinal pagination.

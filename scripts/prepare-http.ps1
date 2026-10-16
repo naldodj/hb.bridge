@@ -80,7 +80,8 @@ try {
 }
 finally { Pop-Location }
 $patchedCore = Get-Content -LiteralPath (Join-Path $stageRoot 'hbhttpd/core.prg') -Raw
-if (-not $patchedCore.Contains('server[ "REQUEST_BODY" ] := cRequest') -or
+if (-not $patchedCore.Contains('hb_socketListen( ::hListen, ::hConfig[ "ListenBacklog" ] )') -or
+    -not $patchedCore.Contains('server[ "REQUEST_BODY" ] := cRequest') -or
     -not $patchedCore.Contains('Len( aThreads ) < ::hConfig[ "MaxWorkers" ]') -or
     -not $patchedCore.Contains('Eval( ::hConfig[ "Ready" ], Self )') -or
     -not $patchedCore.Contains('DO WHILE hb_BAt( CR_LF + CR_LF, cRequest ) == 0 .AND. ! oServer:lStop') -or

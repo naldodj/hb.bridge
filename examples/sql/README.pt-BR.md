@@ -211,3 +211,14 @@ compilação. Destinos diferentes dos padrões e cenários forçados de
 timeout/falhas/envios parciais ainda precisam de homologação; o relato não
 substitui o teste MSSQL, posteriormente aceito no núcleo e TCP em 2026-10-08
 conforme registrado acima. Veja a [matriz](../../docs/acceptance.pt-BR.md).
+
+## Homologação concorrente MSSQL/SQLite
+
+Para host isolado com ambos os bancos, executar na raiz
+`scripts/test-hbbridge-mssql.ps1 -Config C:/tmp/hbBridge.ini -Profile MSSQL/pData -Concurrency -Serve`.
+O alias MSSQL privado permanece explícito; aliases de teste só existem em
+memória. Usar as portas informadas e `m07/sqlite` em
+[U_HBBridgeConcurrencyTest](../../src/tlpp/tests/protheus/hbbridge.concurrency.test/README.pt-BR.md).
+A suíte nativa passou em 458 checks; Protheus CLI em 417, ambas sem falhas em
+2026-10-14. Verificam isolamento/liberação sob o mutex atual, sem selecionar
+pool de conexões nem garantir SQL paralelo.

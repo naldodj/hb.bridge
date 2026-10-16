@@ -5,6 +5,20 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Standardize hbBridge naming and paging)"
  */
 
+2026-10-14 21:18 UTC naldodj (Accept concurrent SQL caller isolation and cleanup)
+  + Add opt-in -Concurrency MSSQL/SQLite native fixtures: 8 workers,
+    192 calls through local/NETIO/TCP/HTTP; 458 checks, zero failures/no skips.
+  + Add Protheus StartJob TCP/HTTP tests: 4 jobs, 112 calls, 417 checks,
+    zero failures and CLI exit 0 after final worker-key cleanup.
+  ! Correct borrowed NETIO endpoint ownership and worker acknowledgment
+    shutdown races in the test fixtures; preserve product SQL mutex.
+  * Record manual 40/100-worker zero-failure reports; the reported 140-worker
+    run without OK awaits its failure log. Count actual parent checks and
+    add safe stage/pending-job diagnostics; their recompilation is pending.
+  * Update paired guides, acceptance, WIP/TODO; M08 is next, D03 remains open.
+  ; Source compilation: 32 successes/zero errors; compiler shutdown separately
+    returned 0xC0000409. No pooling, product-capacity or parallel SQL claim.
+
 2026-10-14 17:35 UTC naldodj (Accept manual Protheus SQL failure recovery)
   * Confirm U_HBBridgeTCPAndHTTPFailureTest manual AppServer validation:
     2026-10-14 14:30:50 Sao Paulo, thread 13796, all 38 TCP/51 HTTP checks

@@ -1,0 +1,6 @@
+-main=MSSQLConcurrencyTests
+-gtstd
+-ohbbridge.mssql.concurrency.test
+hbbridge.mssql.concurrency.test.hb
+hbbridge.http.test.hb
+../../../hbbridge.hbm
