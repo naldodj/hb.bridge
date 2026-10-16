@@ -9,7 +9,7 @@ Released to Public Domain.
 --------------------------------------------------------------------------------------
 */
 
-// src/tlpp/hbbridgeclient.tlpp
+// src/tlpp/hbbridge.client.tlpp
 #include "hbbridge.h"
 #include "parmtype.ch"
 #include "tlpp-core.th"
@@ -25,10 +25,14 @@ class HBBridgeClient
     private data nMaxWireBytes as numeric
     private data nReadChunkBytes as numeric
     private data cConfigurationError as character
+    private data oSocketClient as object
+    private data lBusy as logical
+    private data lClosed as logical
 
     public method New(cHost as character, nPort as numeric, nTimeout as numeric, ;
         nMaxPayloadBytes as numeric, nMaxWireBytes as numeric, nReadChunkBytes as numeric) as object
     public method CallService(cService as character, jParams as JSON) as JSON
+    public method Close() as logical
 
 endclass
 
@@ -36,6 +40,10 @@ method New(cHost, nPort, nTimeout, nMaxPayloadBytes, nMaxWireBytes, nReadChunkBy
 
     local jOverrides := JSONObject():New() as JSON
     local jConfig as JSON
+
+    self:oSocketClient := Nil
+    self:lBusy := .F.
+    self:lClosed := .F.
 
     if ValType(cHost) != "U"
         jOverrides["host"] := cHost
@@ -78,7 +86,7 @@ method CallService(cService, jParams) class HBBridgeClient
     local jReq := JSONObject():New() as JSON
     local jResp := JSONObject():New() as JSON
 
-    local lConnected := .F., lComplete := .F. as logical
+    local lComplete := .F. as logical
 
     local nFrame := 0, nRet := 0, nReceived := 0, nSent := 0 as numeric
     local nStarted := 0, nRemaining := 0, nSocketError := 0 as numeric
@@ -86,11 +94,20 @@ method CallService(cService, jParams) class HBBridgeClient
     local nExpectedSize := 0 as numeric
     local nMaxFrameBytes := 0, nSendBytes := 0 as numeric
 
-    local oSocket as object
     local xJSONError as variant
+    local xSocketError as variant
 
     paramtype 1 var cService as character
     paramtype 2 var jParams as JSON
+
+    if self:lClosed .or. self:lBusy
+        FreeObj(@jReq)
+        FreeObj(@jResp)
+        if self:lClosed
+            return ClientFailure("CLIENT_CLOSED", "The hbBridge client is closed.")
+        endif
+        return ClientFailure("CLIENT_BUSY", "The hbBridge client is already handling a request.")
+    endif
 
     if !Empty(self:cConfigurationError)
         FreeObj(@jReq)
@@ -143,138 +160,152 @@ method CallService(cService, jParams) class HBBridgeClient
         return ClientFailure("REQUEST_SIZE", "Compressed request exceeds the configured wire budget.")
     endif
 
-    oSocket := TSocketClient():New()
     nStarted := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs()
     nPrevious := nStarted
 
-    // One request and one response per connection; the server sends FIN.
-    do while .T.
-        nRet := oSocket:Connect(self:nPort, self:cHost, self:nTimeout)
-        if nRet != 0
-            nSocketError := oSocket:GetError(@cSocketError)
-            cCode := "CONNECT_FAILED"
-            cError := "Could not connect to hbBridge. Status: " + AllTrim(Str(nRet)) + "; " + cSocketError
-            exit
+    // Reuse one native component per client to avoid terminal-component growth.
+    // Connections remain per request: the server sends FIN after each response.
+    self:lBusy := .T.
+    try
+        if ValType(self:oSocketClient) != "O"
+            self:oSocketClient := TSocketClient():New()
         endif
-        lConnected := .T.
+        do while .T.
+            nRet := self:oSocketClient:Connect(self:nPort, self:cHost, self:nTimeout)
+            if nRet != 0
+                nSocketError := self:oSocketClient:GetError(@cSocketError)
+                cCode := "CONNECT_FAILED"
+                cError := "Could not connect to hbBridge. Status: " + AllTrim(Str(nRet)) + "; " + cSocketError
+                exit
+            endif
 
-        do while nSent < nFrame
-            nCurrent := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs()
-            nRemaining := HBBridge.Client.HBBridgeTime():HBBridgeRemainingMs(nStarted, self:nTimeout, nCurrent, nPrevious)
-            nPrevious := nCurrent
-            if nRemaining <= 0
-                cCode := "TIMEOUT"
-                cError := "Request deadline expired while sending data."
-                exit
-            endif
-            // Send has no timeout argument; check the deadline between calls.
-            nSendBytes := Min(self:nReadChunkBytes, nFrame - nSent)
-            nRet := oSocket:Send(SubStr(cCompressed, nSent + 1, nSendBytes))
-            nSocketError := oSocket:GetError(@cSocketError)
-            if nRet <= 0 .or. nRet > nSendBytes .or. nSocketError != 0
-                cCode := "SEND_FAILED"
-                cError := "Could not send the complete request. " + cSocketError
-                exit
-            endif
-            nSent += nRet
-        enddo
-        if !Empty(cCode)
-            exit
-        endif
-
-        cCompressed := ""
-        do while !lComplete
-            nCurrent := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs()
-            nRemaining := HBBridge.Client.HBBridgeTime():HBBridgeRemainingMs(nStarted, self:nTimeout, nCurrent, nPrevious)
-            nPrevious := nCurrent
-            if nRemaining <= 0
-                cCode := "TIMEOUT"
-                cError := "Request deadline expired while receiving data."
-                exit
-            endif
-            cChunk := Space(self:nReadChunkBytes)
-            nReceived := oSocket:Receive(@cChunk, nRemaining)
-            if nReceived < 0
-                nSocketError := oSocket:GetError(@cSocketError)
-                cCode := "RECEIVE_FAILED"
-                cError := "Could not receive the complete response. " + cSocketError
-                exit
-            elseif nReceived == 0
-                nSocketError := oSocket:GetError(@cSocketError)
-                if nSocketError != 0
-                    cCode := "RECEIVE_FAILED"
-                    cError := "Response connection ended with an error. " + cSocketError
-                else
-                    lComplete := .T.
+            do while nSent < nFrame
+                nCurrent := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs()
+                nRemaining := HBBridge.Client.HBBridgeTime():HBBridgeRemainingMs(nStarted, self:nTimeout, nCurrent, nPrevious)
+                nPrevious := nCurrent
+                if nRemaining <= 0
+                    cCode := "TIMEOUT"
+                    cError := "Request deadline expired while sending data."
+                    exit
                 endif
-            elseif nReceived > Len(cChunk)
-                cCode := "RECEIVE_FAILED"
-                cError := "Socket returned an invalid receive length."
+                // Send has no timeout argument; check the deadline between calls.
+                nSendBytes := Min(self:nReadChunkBytes, nFrame - nSent)
+                nRet := self:oSocketClient:Send(SubStr(cCompressed, nSent + 1, nSendBytes))
+                nSocketError := self:oSocketClient:GetError(@cSocketError)
+                if nRet <= 0 .or. nRet > nSendBytes .or. nSocketError != 0
+                    cCode := "SEND_FAILED"
+                    cError := "Could not send the complete request. " + cSocketError
+                    exit
+                endif
+                nSent += nRet
+            enddo
+            if !Empty(cCode)
                 exit
-            elseif self:nMaxWireBytes > 0 .and. Len(cCompressed) + nReceived > self:nMaxWireBytes
-                cCode := "RESPONSE_SIZE"
-                cError := "Compressed response exceeds the configured wire budget."
-                exit
-            else
-                cCompressed += Left(cChunk, nReceived)
             endif
+
+            cCompressed := ""
+            do while !lComplete
+                nCurrent := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs()
+                nRemaining := HBBridge.Client.HBBridgeTime():HBBridgeRemainingMs(nStarted, self:nTimeout, nCurrent, nPrevious)
+                nPrevious := nCurrent
+                if nRemaining <= 0
+                    cCode := "TIMEOUT"
+                    cError := "Request deadline expired while receiving data."
+                    exit
+                endif
+                cChunk := Space(self:nReadChunkBytes)
+                nReceived := self:oSocketClient:Receive(@cChunk, nRemaining)
+                if nReceived < 0
+                    nSocketError := self:oSocketClient:GetError(@cSocketError)
+                    cCode := "RECEIVE_FAILED"
+                    cError := "Could not receive the complete response. " + cSocketError
+                    exit
+                elseif nReceived == 0
+                    nSocketError := self:oSocketClient:GetError(@cSocketError)
+                    if nSocketError != 0
+                        cCode := "RECEIVE_FAILED"
+                        cError := "Response connection ended with an error. " + cSocketError
+                    else
+                        lComplete := .T.
+                    endif
+                elseif nReceived > Len(cChunk)
+                    cCode := "RECEIVE_FAILED"
+                    cError := "Socket returned an invalid receive length."
+                    exit
+                elseif self:nMaxWireBytes > 0 .and. Len(cCompressed) + nReceived > self:nMaxWireBytes
+                    cCode := "RESPONSE_SIZE"
+                    cError := "Compressed response exceeds the configured wire budget."
+                    exit
+                else
+                    cCompressed += Left(cChunk, nReceived)
+                endif
+            enddo
+            if !Empty(cCode)
+                exit
+            endif
+            nCurrent := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs()
+            if HBBridge.Client.HBBridgeTime():HBBridgeRemainingMs(nStarted, self:nTimeout, nCurrent, nPrevious) <= 0
+                cCode := "TIMEOUT"
+                cError := "Request deadline expired before the response completed."
+                exit
+            endif
+
+            // ISIZE is only a precheck. GzStrDecomp has no bounded-output API.
+            nExpectedSize := GzipDeclaredSize(cCompressed)
+            if nExpectedSize < 0
+                cCode := "DECOMPRESSION_FAILED"
+                cError := "Response has an invalid gzip header or trailer."
+                exit
+            endif
+            if self:nMaxPayloadBytes > 0
+                nMaxFrameBytes := self:nMaxPayloadBytes + Len(HBBRIDGE_PROTOCOL_SIGNATURE) + ;
+                    Len("|JSON|") + Len(tlpp.ToStr(self:nMaxPayloadBytes)) + 1
+                if nExpectedSize > nMaxFrameBytes
+                    cCode := "RESPONSE_SIZE"
+                    cError := "Gzip declared size exceeds the configured payload budget and its frame header."
+                    exit
+                endif
+            endif
+            if !GzStrDecomp(cCompressed, Len(cCompressed), @cResponse)
+                cCode := "DECOMPRESSION_FAILED"
+                cError := "Response gzip is invalid or incomplete."
+                exit
+            endif
+            cCompressed := ""
+            // RFC 1952 stores the expanded size modulo 2^32, including zero.
+            if (Len(cResponse) % 4294967296) != nExpectedSize
+                cCode := "RESPONSE_SIZE"
+                cError := "Expanded response does not match its gzip length."
+                exit
+            endif
+
+            cPayload := ParseResponseFrame(cResponse, self:nMaxPayloadBytes, @cCode, @cError)
+            cResponse := ""
+            if !Empty(cCode)
+                exit
+            endif
+            xJSONError := jResp:FromJSON(cPayload)
+            if ValType(xJSONError) != "U"
+                cCode := "INVALID_JSON"
+                cError := "Response contains invalid JSON."
+            endif
+            exit
         enddo
-        if !Empty(cCode)
-            exit
+    catch xSocketError
+        cCode := "SOCKET_EXCEPTION"
+        cError := "The socket request raised a native exception."
+        if (ValType(xSocketError)=="O")
+            FreeObj(@xSocketError)
         endif
-        nCurrent := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs()
-        if HBBridge.Client.HBBridgeTime():HBBridgeRemainingMs(nStarted, self:nTimeout, nCurrent, nPrevious) <= 0
-            cCode := "TIMEOUT"
-            cError := "Request deadline expired before the response completed."
-            exit
-        endif
+    endtry
 
-        // ISIZE is only a precheck. GzStrDecomp has no bounded-output API.
-        nExpectedSize := GzipDeclaredSize(cCompressed)
-        if nExpectedSize < 0
-            cCode := "DECOMPRESSION_FAILED"
-            cError := "Response has an invalid gzip header or trailer."
-            exit
-        endif
-        if self:nMaxPayloadBytes > 0
-            nMaxFrameBytes := self:nMaxPayloadBytes + Len(HBBRIDGE_PROTOCOL_SIGNATURE) + ;
-                Len("|JSON|") + Len(tlpp.ToStr(self:nMaxPayloadBytes)) + 1
-            if nExpectedSize > nMaxFrameBytes
-                cCode := "RESPONSE_SIZE"
-                cError := "Gzip declared size exceeds the configured payload budget and its frame header."
-                exit
-            endif
-        endif
-        if !GzStrDecomp(cCompressed, Len(cCompressed), @cResponse)
-            cCode := "DECOMPRESSION_FAILED"
-            cError := "Response gzip is invalid or incomplete."
-            exit
-        endif
-        cCompressed := ""
-        // RFC 1952 stores the expanded size modulo 2^32, including zero.
-        if (Len(cResponse) % 4294967296) != nExpectedSize
-            cCode := "RESPONSE_SIZE"
-            cError := "Expanded response does not match its gzip length."
-            exit
-        endif
-
-        cPayload := ParseResponseFrame(cResponse, self:nMaxPayloadBytes, @cCode, @cError)
-        cResponse := ""
-        if !Empty(cCode)
-            exit
-        endif
-        xJSONError := jResp:FromJSON(cPayload)
-        if ValType(xJSONError) != "U"
-            cCode := "INVALID_JSON"
-            cError := "Response contains invalid JSON."
-        endif
-        exit
-    enddo
-
-    if lConnected
-        oSocket:CloseConnection()
+    // Failed Connect can still allocate native state. Always attempt cleanup.
+    if !ClientSocketDisconnect(self:oSocketClient)
+        self:lClosed := .T.
+        cCode := "SOCKET_CLEANUP_FAILED"
+        cError := "The socket could not be closed; this client cannot be reused."
     endif
-    FreeObj(@oSocket)
+    self:lBusy := .F.
 
     if !Empty(cCode)
         FreeObj(@jResp)
@@ -282,6 +313,48 @@ method CallService(cService, jParams) class HBBridgeClient
     endif
 
 return(jResp)
+
+method Close() class HBBridgeClient
+
+    local lReleased := .T. as logical
+    local xError as variant
+
+    if self:lBusy
+        return .F.
+    endif
+    self:lClosed := .T.
+    lReleased := ClientSocketDisconnect(self:oSocketClient)
+    if lReleased .and. ValType(self:oSocketClient) == "O"
+        try
+            FreeObj(@self:oSocketClient)
+            self:oSocketClient := Nil
+        catch xError
+            if (ValType(xError)=="O")
+                FreeObj(@xError)
+            endif
+            lReleased := .F.
+        endtry
+    endif
+
+return(lReleased)
+
+static function ClientSocketDisconnect(oSocket as object) as logical
+
+    local lClosed := .T. as logical
+    local xError as variant
+
+    if ValType(oSocket) == "O"
+        try
+            oSocket:CloseConnection()
+        catch xError
+            if (ValType(xError)=="O")
+                FreeObj(@xError)
+            endif
+            lClosed := .F.
+        endtry
+    endif
+
+return(lClosed)
 
 static function ClientFailure(cCode as character, cMessage as character) as JSON
 

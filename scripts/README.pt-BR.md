@@ -174,3 +174,16 @@ de reuso físico/isolamento em processos separados; `-Pooling` assume `driver`.
 `-HTTPListenBacklog <inteiro positivo>` seleciona a fila solicitada no host
 isolado de concorrência. Não altera INIs privados. Veja a
 [homologação do pool](../docs/acceptance.pt-BR.md#odbc-physical-reuse-on-2026-10-15).
+
+## Referência MSSQL de tempo e memória
+
+`benchmark-hbbridge-mssql.ps1 -Config C:/tmp/hbBridge.ini -Profile MSSQL/pData`
+compila a fixture M08 somente de leitura e executa processos filhos separados,
+em sequência, para Harbour local, TCP e HTTP. O padrão é 1000 linhas, páginas
+de 100, dois aquecimentos e cinco varreduras completas medidas; concorrência um.
+`-ODBCPooling off|driver` seleciona a política do processo nativo; padrão `off`.
+O executor grava `benchmark.json`, `result.json` por rota, logs sanitizados
+e amostras de memória do SO com tempos em `tmp/mssql-benchmark-*` isolado.
+Consultar [a metodologia](../docs/benchmarking.pt-BR.md) para o escopo das medidas
+e o host opcional `-Route http -ServeSeconds 600` destinado ao
+[consumidor AppServer](../src/tlpp/tests/protheus/hbbridge.benchmark.test/README.pt-BR.md).

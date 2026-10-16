@@ -12,11 +12,11 @@ acceptance records verified results; ChangeLog and Git preserve history.
 | Item | Current value |
 | --- | --- |
 | ID | `001-mssql-acceptance` |
-| Opened / updated | 2026-10-07 / 2026-10-15 |
-| Status | D02/M06/M07 accepted within their recorded Windows/test scope. Native regression: 712/0; lease/configuration checks: 266/0; physical ODBC driver/off controls: 61/0 each; pooled native concurrency: 458/0. Manual paced-load summaries through 500 workers report 83934 checks/0. D03, M08 and final M09 checks remain pending; package stays open. |
+| Opened / updated | 2026-10-07 / 2026-10-16 |
+| Status | D02/M06/M07 retain their recorded acceptance. M08 completed for the identified Windows fixture: 43366 native benchmark checks/0 and real AppServer TCP/HTTP traversals/0, with time and available OS process memory. D03 and final M09 checks remain pending; package stays open. |
 | Goal | Accept the existing RPCRDD.Query/dataset against an identified real MSSQL database through Harbour, Protheus TCP and Protheus HTTP. |
 | Product reference | Published code `50e1c65`; checkout at package opening `bce52d2` includes the clone badge update. |
-| Next task | M08: record Harbour/TCP/HTTP time and memory with identified fixtures, volume and concurrency; preserve M07's native and manual evidence as separate scopes. Complete final build/regression/commit gates in M09. D03 remains pending. |
+| Next task | V01: finish the requested visual benchmark and client lifetime/failure diagnostics follow-up, with focused AppServer validation; then resume M09. D03 integrity remains required before package closure. |
 
 ### Decisions already made
 
@@ -251,11 +251,35 @@ new acceptance findings, not reasons to repeat the completed inventory.
   [Native ODBC evidence](docs/acceptance.md#odbc-physical-reuse-on-2026-10-15),
   [historical follow-up](docs/acceptance.md#sql-concurrency-follow-up-on-2026-10-15)
   and [manual paced-load evidence](docs/acceptance.md#manual-protheus-concurrency-on-2026-10-15)
-  retain their separate scopes. Resume M08; final M09 gates remain pending.
-- [ ] **M08 — Record a performance baseline.** Identify SQL, fixture/volume,
-  execution count and concurrency; record elapsed time and available memory
-  measurements separately for Harbour, TCP and HTTP. This is a reference,
-  not a speed guarantee or a new performance threshold.
+  retain their separate scopes. M08 has subsequent acceptance below; final M09 gates remain pending.
+- [x] **M08 — Record a performance baseline.** Completed on 2026-10-16 with
+  common read-only `m08.constant.v1`: 1000 rows, pages of 100, two warmup and
+  five measured complete traversals, concurrency one. Native direct/TCP/HTTP
+  in separate processes under off/driver policies passed 43366 benchmark
+  checks, zero failures; measured-phase OS working/private samples exist for
+  all six routes. Real AppServer TCP and HTTP passed five measured traversals
+  each, 50 calls/5000 rows per route, plus separate warmups, exit 0. External
+  client/server memory samples cover the combined AppServer lifecycle and
+  retain that scope. All 34 TLPP sources compiled with zero source errors;
+  vendor compiler finalization returned 0xC0000409; services restored and real
+  execution passed separately. No speed threshold, route ranking, Linux,
+  leak or D03 integrity acceptance follows. [Methodology](docs/benchmarking.md)
+  and [results/artifacts](docs/acceptance.md#m08-performance-baseline-on-2026-10-16).
+  Additional manual summary at 04:53:47 São Paulo passed all five measured
+  traversals and two warmups per route, means 1039.60 ms TCP/1122.12 ms HTTP.
+  Keep its unmeasured memory and unspecified pool/build/exit scope separate.
+  [Manual evidence](docs/acceptance.md#m08-manual-protheus-validation-on-2026-10-16).
+- [ ] **V01 — Add the requested visual benchmark and verify client lifetime.**
+  Reuse the M08 measurement core in a FWWebEx form with charts and JSON/HTML
+  exports. Keep profile/endpoints/credentials in the trusted server controller.
+  Replace the interim module-static socket with one reusable native component
+  per client, explicit close and independent-client/recovery checks. The large
+  manual run completed all 500 TCP iterations but failed HTTP iteration 136
+  after 135 successes, on its first call at 30020.834 ms. Its old report lacks
+  the service code and HTTP status; add safe diagnostics before assigning a
+  cause. This new workload does not invalidate the smaller M08 baseline or
+  certify the complete large run. Record compilation, focused CLI tests and
+  browser checks separately from interactive FWWebEx acceptance.
 - [ ] **M09 — Complete regressions and documentation.** Run checks appropriate
   to any changed implementation, compile changed TLPP and obtain AppServer
   acceptance. Run all three commit validators; update EN/PT instructions,
@@ -322,7 +346,7 @@ total 94 ms, concurrency 1, including connect/materialize/disconnect; memory
 was not measured. At this point M06/M07 had partial evidence. M06 has subsequent native-timeout
 and AppServer acceptance on 2026-10-14; M07 broader profile isolation has
 subsequent acceptance recorded below.
-M08 still needs TCP/HTTP and memory.
+M08 has subsequent TCP/HTTP and memory acceptance on 2026-10-16, recorded above.
 The default regression passed **566 checks, zero failures/no skips**:
 `tmp/tests-f84004277a8d4cc2905131f706a1e181/results.log`.
 
@@ -364,13 +388,13 @@ collection/drain controls were validated. Connection reuse and port-pressure
 analysis and acceptance of the adapted logical/physical connection lifecycle
 subsequently completed M07 for the recorded Windows scope. The 130-worker
 failures are reviewed; later paced-load summaries through 500 workers are
-accepted within their summary scope. Resume M08 time/memory work and preserve the SQL mutex
-and distinguish concurrent requests from parallel database execution.
+accepted within their summary scope. M08 time/memory reference completed on
+2026-10-16; resume M09 and preserve the SQL mutex, distinguishing concurrent
+requests from parallel database execution.
 D03 integrity remains pending after
 explicit reprioritization, with caller CAST retained.
 Do not repeat accepted migrations, inventory or native/TCP/HTTP cases without
-new evidence requiring it. M08–M09 and the package completion
-criteria remain.
+new evidence requiring it. M09, D03 and the package completion criteria remain.
 
 The 2026-10-12 [SQL connection-reuse observation](docs/sql-connections.md)
 was reprioritized into M07 on 2026-10-15. `HBBridgeSQLPool` now owns exclusive

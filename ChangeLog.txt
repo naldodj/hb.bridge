@@ -5,6 +5,34 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Standardize hbBridge naming and paging)"
  */
 
+2026-10-16 13:59 UTC naldodj (Add visual benchmark and bounded client socket lifetime)
+  + Reuse the M08 measurement core in a FWWebEx form with charts and JSON/HTML
+    exports; validate correlated requests without exposing endpoint credentials.
+  ! Reuse one native TSocketClient per client instance with explicit Close,
+    refusal/exception cleanup and independent-client lifecycle regression.
+  * Record the large manual run separately: TCP 500 iterations succeeded;
+    HTTP failed its first call in iteration 136 after 135 successes at 30.02 s.
+    Add safe service/status/page diagnostics; the old report does not prove cause.
+  * Track the requested V01 follow-up before M09; preserve open D03 integrity.
+
+2026-10-16 07:57 UTC naldodj (Record manual Protheus benchmark validation)
+  ; Additional manual M08 run: both routes passed five measured traversals
+    and two warmups each; 100 measured calls/10000 rows, means 1039.60 ms TCP
+    and 1122.12 ms HTTP per 1000-row traversal. Memory remains unavailable;
+    pool/build/process exit unspecified. M09 and D03 remain open.
+
+2026-10-16 07:46 UTC naldodj (Record reproducible MSSQL time and memory baseline)
+  + Add isolated native local/TCP/HTTP benchmark runner and matching TLPP
+    dataset consumer with the read-only m08.constant.v1 fixture.
+  * Separate warmup, measured traversal, startup and whole-process memory;
+    preserve JSON/CSV evidence, code hashes, policy and clock limitations.
+  ; Six native off/driver routes: 43366 benchmark checks, zero failures.
+    Actual AppServer TCP/HTTP: five measured traversals each, 50 calls/5000
+    rows per route, plus warmups; client and isolated server exit 0.
+  ; All 34 TLPP sources compiled without source errors; vendor compiler
+    finalization returned 0xC0000409 separately; normal services restored.
+  * Accept scoped M08 and resume M09; D03 and package 001 remain open.
+
 2026-10-16 02:23 UTC naldodj (Accept Windows SQL reuse and paced Protheus concurrency)
   + Adapt HBBridgeSQLPool to hash-based logical leases with unique identity,
     profile/thread ownership and checked cleanup; preserve SQL mutex/SQLite lifetime.

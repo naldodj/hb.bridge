@@ -1,0 +1,226 @@
+/* Released to Public Domain. */
+#include "totvs.ch"
+#include "tlpp-core.th"
+
+namespace HBBridge.Examples
+
+procedure U_HBBridgeBenchmark()
+
+    local bExecute as codeblock
+
+    if !FindClass("FWWebEx.Tools.FWExampleTools") .or. !FindClass("FWWebEx.WebExControl")
+        MsgStop("Install FWWebEx and its example tools in the RPO to open this example.", "hbBridge benchmark")
+        return
+    endif
+    bExecute := {||HBBridge.Examples.HBBridgeBenchmarkExample():Show()}
+    if !FWIsInCallStack("Execute")
+        FWWebEx.Tools.FWExampleTools():Execute(bExecute, "HBBridgeBenchmark", .T.)
+    else
+        Eval(bExecute)
+    endif
+
+return
+
+// This optional UI owns its controller. The benchmark core has no FWWebEx dependency.
+class HBBridgeBenchmarkExample
+
+    static method Show(cProfile as character, cHost as character, nPort as numeric, ;
+        cURL as character, cToken as character, nTimeoutSeconds as numeric)
+    static method Page(jDefaults as json, cInstance as character, cFile as character) as logical
+    static method Callback(oChannel as object, cType as character, cContent as character, ;
+        oController as object, bPrevious as variant)
+
+endclass
+
+static method Show(cProfile, cHost, nPort, cURL, cToken, nTimeoutSeconds) class HBBridgeBenchmarkExample
+
+    local jOverrides := JSONObject():New() as json
+    local jConfig as json
+    local jDefaults := JSONObject():New() as json
+    local oController as object
+    local oChannel as object
+    local oDialog as object
+    local oEngine as object
+    local oSize as object
+    local bPrevious as variant
+    local xError as variant
+    local cIniFile := GetSrvIniName() as character
+    local cInstance := UUIDRandomSeq() as character
+    local cFile := "", cNavigate := "" as character
+    local nTop := 0, nLeft := 0, nBottom := 600, nRight := 1200 as numeric
+    local lInstalled := .F. as logical
+
+    DEFAULT nTimeoutSeconds := 30
+    if ValType(nTimeoutSeconds) != "N"
+        MsgStop("Supply a positive whole request timeout in seconds.", "hbBridge benchmark")
+        FreeObj(@jDefaults)
+        FreeObj(@jOverrides)
+        return
+    endif
+    if nTimeoutSeconds < 1 .or. nTimeoutSeconds > 2147483 .or. nTimeoutSeconds != Int(nTimeoutSeconds)
+        MsgStop("Supply a positive whole request timeout in seconds.", "hbBridge benchmark")
+        FreeObj(@jDefaults)
+        FreeObj(@jOverrides)
+        return
+    endif
+    if ValType(cHost) != "U"
+        jOverrides["host"] := cHost
+    endif
+    if ValType(nPort) != "U"
+        jOverrides["port"] := nPort
+    endif
+    jOverrides["timeoutMs"] := nTimeoutSeconds * 1000
+    jConfig := HBBridge.Client.HBBridgeConfig():Read(jOverrides, cIniFile)
+    if ValType(cProfile) == "U"
+        cProfile := jConfig["sqlProfile"]
+    endif
+    if ValType(cURL) == "U"
+        cURL := GetPvProfString("hbBridge", "HTTPURL", "http://127.0.0.1:8080", cIniFile)
+    endif
+    if ValType(cToken) == "U"
+        cToken := GetPvProfString("hbBridge", "HTTPToken", "", cIniFile)
+    endif
+    if !jConfig["success"] .or. !BenchmarkExampleText(cProfile) .or. ;
+        !BenchmarkExampleText(cURL) .or. !BenchmarkExampleText(cToken)
+        MsgStop("Supply a SQL profile and valid [hbBridge] TCP/HTTP settings.", "hbBridge benchmark")
+        FreeObj(@jConfig)
+        FreeObj(@jDefaults)
+        FreeObj(@jOverrides)
+        return
+    endif
+
+    try
+        oController := HBBridge.Examples.HBBridgeBenchmarkController():New(cInstance, ;
+            cProfile, jConfig["host"], jConfig["port"], cURL, cToken)
+        // Only public fixture defaults reach the page; credentials stay in the controller.
+        jDefaults["profile"] := cProfile
+        jDefaults["rows"] := 1000
+        jDefaults["pageSize"] := 100
+        jDefaults["iterations"] := 5
+        jDefaults["warmup"] := 2
+        jDefaults["timeoutSeconds"] := nTimeoutSeconds
+        if HBBridge.Examples.HBBridgeBenchmarkExample():Page(jDefaults, cInstance, @cFile)
+            cNavigate := CpyF2Web(cFile, .F., .F., .F., .F.)
+            if Empty(cNavigate)
+                MsgStop("Unable to publish the benchmark page.", "hbBridge benchmark")
+            else
+                oChannel := FWWebEx.WebApp():GetTWebChannel()
+                bPrevious := oChannel:bJSToAdvPL
+                oChannel:bJSToAdvPL := {|oSender, cType, cContent| ;
+                    HBBridge.Examples.HBBridgeBenchmarkExample():Callback(;
+                        oSender, cType, cContent, oController, bPrevious)}
+                lInstalled := .T.
+                oSize := FWDefSize():New(.F., .F.)
+                oSize:lLateral := .F.
+                oSize:AddObject("TWebEngine", 100, 100, .T., .T.)
+                oSize:Process()
+                if oSize:aWindSize[3] > 0
+                    nTop := oSize:aWindSize[1]
+                    nLeft := oSize:aWindSize[2]
+                    nBottom := oSize:aWindSize[3]
+                    nRight := oSize:aWindSize[4]
+                endif
+                DEFINE MSDIALOG oDialog TITLE "hbBridge benchmark" FROM nTop,nLeft TO nBottom,nRight OF GetWndDefault() STATUS PIXEL
+                    if oSize:aWindSize[3] > 0
+                        nTop := oSize:GetDimension("TWebEngine", "LININI")
+                        nLeft := oSize:GetDimension("TWebEngine", "COLINI")
+                        nBottom := oSize:GetDimension("TWebEngine", "LINEND")
+                        nRight := oSize:GetDimension("TWebEngine", "COLEND")
+                    endif
+                    FreeObj(@oSize)
+                    oEngine := TWebEngine():New(oDialog, nTop, nLeft, nRight, nBottom, , oChannel:nPort)
+                    oEngine:Align := CONTROL_ALIGN_ALLCLIENT
+                    oEngine:Navigate(cNavigate)
+                ACTIVATE MSDIALOG oDialog CENTERED
+            endif
+        else
+            MsgStop("Unable to build the benchmark page. Verify FWWebEx.", "hbBridge benchmark")
+        endif
+    catch xError
+        // Native error descriptions can contain private configuration.
+        MsgStop("Unable to open the benchmark. Verify FWWebEx and the UI context.", "hbBridge benchmark")
+        if (ValType(xError)=="O")
+            FreeObj(@xError)
+        endif
+    endtry
+
+    // Restore even a previous NIL handler; do not leave a closure owning credentials.
+    if lInstalled
+        oChannel:bJSToAdvPL := bPrevious
+    endif
+    if ValType(oController) == "O"
+        oController:Close()
+    endif
+    FreeObj(@oEngine)
+    FreeObj(@oDialog)
+    FreeObj(@oSize)
+    FreeObj(@oController)
+    FreeObj(@jConfig)
+    FreeObj(@jDefaults)
+    FreeObj(@jOverrides)
+    if !Empty(cFile)
+        if File(cFile)
+            FErase(cFile)
+        endif
+    endif
+
+return
+
+static method Page(jDefaults, cInstance, cFile) class HBBridgeBenchmarkExample
+
+    local oBody := FWWebEx.WebExBody():New() as object
+    local oPage := FWWebEx.WebExPage():New("hbBridge benchmark") as object
+    local oContent := FWWebEx.WebExControl():New("div") as object
+    local cHTML := "" as character
+    local lWritten := .F. as logical
+
+    oContent:SetContent(HBBridge.Examples.HBBridgeBenchmarkPage():Render(cInstance, jDefaults))
+    oBody:AddChild(oContent)
+    oPage:SetObjPageBody(oBody)
+    oPage:DisableFooter(.T.)
+    *oPage:DisableDarkTheme(.T.)
+    lWritten := FWWebEx.WebFileTools():HTMLFromControl(;
+        oPage, oPage:GetFWWebExTmpPath(), @cFile, @cHTML, .T.)
+    oPage:Clean()
+    FreeObj(@oPage)
+
+return(lWritten)
+
+static method Callback(oChannel, cType, cContent, oController, bPrevious) class HBBridgeBenchmarkExample
+
+    local jResponse as json
+    local xError as variant
+
+    if cType != "HBBRIDGE_BENCHMARK_REQUEST"
+        if ValType(bPrevious) == "B"
+            Eval(bPrevious, oChannel, cType, cContent)
+        endif
+        return
+    endif
+    try
+        jResponse := oController:Handle(cContent)
+        if ValType(jResponse) == "J"
+            oChannel:AdvPLToJS("HBBRIDGE_BENCHMARK_RESPONSE", jResponse:ToJSON())
+        elseif ValType(bPrevious) == "B"
+            Eval(bPrevious, oChannel, cType, cContent)
+        endif
+    catch xError
+        ConOut("hbBridge benchmark callback failed: CHANNEL_ERROR")
+        if (ValType(xError)=="O")
+            FreeObj(@xError)
+        endif
+    endtry
+    if ValType(jResponse) == "J"
+        FreeObj(@jResponse)
+    endif
+
+return
+
+static function BenchmarkExampleText(xValue as variant) as logical
+
+    if ValType(xValue) != "C"
+        return .F.
+    endif
+
+return(!Empty(AllTrim(xValue)) .and. !(Chr(0) $ xValue) .and. ;
+    !(Chr(10) $ xValue) .and. !(Chr(13) $ xValue))

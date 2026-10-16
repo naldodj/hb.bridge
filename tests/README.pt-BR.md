@@ -546,3 +546,23 @@ pré-requisito falha visivelmente. Sem alterar tabelas ERP ou INIs privados.
 caso e pooling Linux ainda não têm aceite em execução. A fixture de oito
 workers com pooling passou em 458 checks, zero falhas/sem skips.
 [Evidências e limites](../docs/acceptance.pt-BR.md#odbc-physical-reuse-on-2026-10-15).
+
+## Referência MSSQL de tempo e memória (M08)
+
+Usar `scripts/benchmark-hbbridge-mssql.ps1` para processos nativos Harbour,
+TCP e HTTP separados, a fixture constante `m08.constant.v1` e amostras de
+memória pelo SO. A [metodologia](../docs/benchmarking.pt-BR.md) define a carga
+comum de 1000 linhas/páginas de 100, exclusão do aquecimento, cinco varreduras
+medidas, um cliente, precisão do relógio e limites da memória de processo.
+O [benchmark TLPP](../src/tlpp/tests/protheus/hbbridge.benchmark.test/README.pt-BR.md)
+exercita os clientes e dataset do produto no AppServer com o mesmo SQL.
+Registra suas próprias amostras por transporte, sem deduzir pooling do servidor
+ou memória a partir dos tempos. Preservar relatórios aprovados e identidade
+dos artefatos; os checks não estabelecem limiar de desempenho.
+
+`U_HBBridgeBenchmark()` abre o consumidor visual FWWebEx opcional; os testes
+do controlador e navegador exercitam validação/correlação sem SQL.
+O [teste de ciclo do cliente](../src/tlpp/tests/protheus/hbbridge.client.lifecycle.test/README.pt-BR.md)
+reutiliza um cliente em 6000 chamadas Health por padrão e verifica clientes
+independentes, recusa/recuperação e fechamento explícito. É uma regressão
+focada do componente nativo, sem medir vazamentos ou desempenho SQL.

@@ -1,0 +1,364 @@
+/* Released to Public Domain. */
+#include "totvs.ch"
+#include "tlpp-core.th"
+
+namespace HBBridge.Test
+
+class HBBridgeClientLifecycleTest
+
+    static method RunCLI(aArguments as array) as numeric
+    static method Run(cHost as character, nPort as numeric, nRefusedPort as numeric, ;
+        nCalls as numeric, nTimeoutMs as numeric) as json
+
+endclass
+
+static method RunCLI(aArguments) class HBBridgeClientLifecycleTest
+
+    local jFlags := JSONObject():New() as json
+    local jSeen := JSONObject():New() as json
+    local jReport as json
+    local cArgument := "", cKey := "", cValue := "" as character
+    local nArgument := 0, nEqual := 0, nNumber := 0, nResult := 1 as numeric
+    local lValid := ValType(aArguments) == "A" as logical
+
+    jFlags["host"] := ""
+    jFlags["port"] := 0
+    jFlags["refused-port"] := 0
+    jFlags["calls"] := 6000
+    jFlags["timeout-ms"] := 30000
+    if lValid
+        // AppServer supplies the native variadic argv array; no copy is made.
+        for nArgument := 1 to Len(aArguments)
+            if ValType(aArguments[nArgument]) != "C"
+                loop
+            endif
+            cArgument := aArguments[nArgument]
+            if Left(cArgument, 2) != "--"
+                loop
+            endif
+            nEqual := At("=", cArgument)
+            if nEqual <= 3
+                lValid := .F.
+                exit
+            endif
+            cKey := SubStr(cArgument, 3, nEqual - 3)
+            cValue := SubStr(cArgument, nEqual + 1)
+            if !jFlags:HasProperty(cKey) .or. jSeen:HasProperty(cKey)
+                lValid := .F.
+                exit
+            endif
+            jSeen[cKey] := .T.
+            if cKey == "host"
+                jFlags[cKey] := cValue
+            else
+                nNumber := LifecycleInteger(cValue)
+                if nNumber < 1
+                    lValid := .F.
+                    exit
+                endif
+                jFlags[cKey] := nNumber
+            endif
+        next nArgument
+    endif
+    if lValid
+        jReport := HBBridge.Test.HBBridgeClientLifecycleTest():Run(jFlags["host"], ;
+            jFlags["port"], jFlags["refused-port"], jFlags["calls"], jFlags["timeout-ms"])
+        ConOut("hbBridge client lifecycle summary: " + jReport:ToJSON())
+        if jReport["success"]
+            nResult := 0
+        endif
+    else
+        ConOut("hbBridge client lifecycle FAILED: supply unique valid flags and canonical positive integers.")
+    endif
+    ConOut("hbBridge client lifecycle Protheus " + IIf(nResult == 0, "OK", "FAILED"))
+    FreeObj(@jReport)
+    FreeObj(@jSeen)
+    FreeObj(@jFlags)
+
+return(nResult)
+
+static method Run(cHost, nPort, nRefusedPort, nCalls, nTimeoutMs) class HBBridgeClientLifecycleTest
+
+    local jReport := JSONObject():New() as json
+    local jChecks := JSONObject():New() as json
+    local jParams := JSONObject():New() as json
+    local jResponse as json
+    local aNames as array
+    local oFirst as object
+    local oSecond as object
+    local oRefused as object
+    local xError as variant
+    local nCall := 0, nCompleted := 0, nCheck := 0, nFailures := 0 as numeric
+    local nStarted := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs() as numeric
+    local nFinished := 0 as numeric
+    local lValid := .F. as logical
+
+    DEFAULT nCalls := 6000
+    DEFAULT nTimeoutMs := 30000
+    jReport["schemaVersion"] := 1
+    jReport["runID"] := UUIDRandom()
+    jReport["test"] := "client.component.lifetime.v1"
+    jReport["success"] := .F.
+    jReport["failureCategory"] := "INVALID_CONFIGURATION"
+    jReport["checks"] := jChecks
+    jReport["requestedHealthCalls"] := nCalls
+    jReport["completedHealthCalls"] := 0
+    jReport["firstHealthFailureCategory"] := ""
+    jReport["elapsedMs"] := Nil
+    jReport["scope"] := "one reused native component per client; per-request TCP connections; no SQL workload"
+    jReport["registryMemory"] := "not inferred; no terminal-registry or allocator counter is available to this test"
+
+    if ValType(cHost) == "C"
+        lValid := Len(cHost) > 0 .and. !(Chr(0) $ cHost) .and. ;
+            !(Chr(10) $ cHost) .and. !(Chr(13) $ cHost)
+    endif
+    lValid := LifecycleNumber(nPort, 65535) .and. ;
+        LifecycleNumber(nRefusedPort, 65535) .and. ;
+        LifecycleNumber(nCalls, 2147483647) .and. ;
+        LifecycleNumber(nTimeoutMs, 2147483647) .and. lValid
+    if lValid
+        lValid := nPort != nRefusedPort
+    endif
+    jChecks["validExplicitEndpoints"] := lValid
+    if !lValid
+        return(jReport)
+    endif
+
+    try
+        jReport["nativeMethods"] := LifecycleNativeMethods()
+        oFirst := HBBridge.Client.HBBridgeClient():New(cHost, nPort, nTimeoutMs)
+        oSecond := HBBridge.Client.HBBridgeClient():New(cHost, nPort, nTimeoutMs)
+        oRefused := HBBridge.Client.HBBridgeClient():New(cHost, nRefusedPort, nTimeoutMs)
+
+        jResponse := oFirst:CallService("Health", jParams)
+        jChecks["firstClientHealth"] := LifecycleHealth(jResponse)
+        FreeObj(@jResponse)
+        jResponse := oSecond:CallService("Health", jParams)
+        jChecks["secondClientHealth"] := LifecycleHealth(jResponse)
+        FreeObj(@jResponse)
+
+        if jChecks["firstClientHealth"] .and. jChecks["secondClientHealth"]
+            for nCall := 1 to nCalls
+                jResponse := oFirst:CallService("Health", jParams)
+                if !LifecycleHealth(jResponse)
+                    jReport["firstHealthFailureCategory"] := LifecycleFailureCode(jResponse)
+                    FreeObj(@jResponse)
+                    exit
+                endif
+                nCompleted++
+                FreeObj(@jResponse)
+                if (nCompleted % 1000) == 0
+                    ConOut("hbBridge client lifecycle Health progress: " + tlpp.ToStr(nCompleted) + "/" + tlpp.ToStr(nCalls))
+                endif
+            next nCall
+        endif
+        jReport["completedHealthCalls"] := nCompleted
+        jChecks["repeatedHealthCalls"] := nCompleted == nCalls
+
+        jResponse := oFirst:CallService("__HBBRIDGE_LIFECYCLE_MISSING__", jParams)
+        jChecks["unknownServiceRejected"] := LifecycleCode(jResponse, "SERVICE_NOT_FOUND")
+        FreeObj(@jResponse)
+        jResponse := oFirst:CallService("Health", jParams)
+        jChecks["sameClientRecoversAfterServiceError"] := LifecycleHealth(jResponse)
+        FreeObj(@jResponse)
+        jResponse := oSecond:CallService("Health", jParams)
+        jChecks["secondClientUnaffectedByServiceError"] := LifecycleHealth(jResponse)
+        FreeObj(@jResponse)
+
+        jResponse := oRefused:CallService("Health", jParams)
+        jChecks["refusedConnection"] := LifecycleCode(jResponse, "CONNECT_FAILED")
+        FreeObj(@jResponse)
+        jResponse := oRefused:CallService("Health", jParams)
+        jChecks["sameRefusedClientCanRetry"] := LifecycleCode(jResponse, "CONNECT_FAILED")
+        FreeObj(@jResponse)
+        jResponse := oFirst:CallService("Health", jParams)
+        jChecks["healthyClientUnaffectedByRefusal"] := LifecycleHealth(jResponse)
+        FreeObj(@jResponse)
+
+        jChecks["firstClose"] := oFirst:Close()
+        jChecks["firstCloseIdempotent"] := oFirst:Close()
+        jResponse := oFirst:CallService("Health", jParams)
+        jChecks["closedClientRejected"] := LifecycleCode(jResponse, "CLIENT_CLOSED")
+        FreeObj(@jResponse)
+        jResponse := oSecond:CallService("Health", jParams)
+        jChecks["secondClientSurvivesFirstClose"] := LifecycleHealth(jResponse)
+        FreeObj(@jResponse)
+        jChecks["secondClose"] := oSecond:Close()
+        jChecks["refusedClose"] := oRefused:Close()
+        jChecks["refusedCloseIdempotent"] := oRefused:Close()
+
+        // Native GetNames() array is borrowed once to summarize keyed checks.
+        aNames := jChecks:GetNames()
+        for nCheck := 1 to Len(aNames)
+            if !jChecks[aNames[nCheck]]
+                nFailures++
+            endif
+        next nCheck
+        jReport["checkCount"] := Len(aNames)
+        jReport["failureCount"] := nFailures
+        jReport["success"] := nFailures == 0
+        jReport["failureCategory"] := IIf(nFailures == 0, "", "CHECK_FAILED")
+        FWFreeArray(@aNames)
+    catch xError
+        // Native errors may contain host/configuration details; emit categories only.
+        jReport["failureCategory"] := "RUNTIME_EXCEPTION"
+        jReport["success"] := .F.
+        if (ValType(xError)=="O")
+            FreeObj(@xError)
+        endif
+    endtry
+    jReport["completedHealthCalls"] := nCompleted
+
+    if ValType(oFirst) == "O"
+        oFirst:Close()
+        FreeObj(@oFirst)
+    endif
+    if ValType(oSecond) == "O"
+        oSecond:Close()
+        FreeObj(@oSecond)
+    endif
+    if ValType(oRefused) == "O"
+        oRefused:Close()
+        FreeObj(@oRefused)
+    endif
+    nFinished := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs()
+    if nFinished >= nStarted
+        jReport["elapsedMs"] := nFinished - nStarted
+    else
+        jReport["failureCategory"] := "CLOCK_REGRESSION"
+        jReport["success"] := .F.
+    endif
+    FreeObj(@jResponse)
+    FreeObj(@jParams)
+
+return(jReport)
+
+static function LifecycleNativeMethods() as json
+
+    local jMethods := JSONObject():New() as json
+    local aMethods as array
+    local oProbe as object
+    local xError as variant
+    local cName := "" as character
+    local nMethod := 0 as numeric
+
+    jMethods["reflectionAvailable"] := .F.
+    jMethods["closeConnection"] := .F.
+    jMethods["reset"] := .F.
+    jMethods["end"] := .F.
+    jMethods["destroy"] := .F.
+    try
+        oProbe := TSocketClient():New()
+        // ClassMethArray is a native positional reflection contract; no copy.
+        aMethods := ClassMethArray(oProbe)
+        if ValType(aMethods) == "A"
+            jMethods["reflectionAvailable"] := .T.
+            for nMethod := 1 to Len(aMethods)
+                cName := ""
+                if ValType(aMethods[nMethod]) == "A"
+                    if Len(aMethods[nMethod]) > 0
+                        if ValType(aMethods[nMethod][1]) == "C"
+                            cName := Upper(aMethods[nMethod][1])
+                        endif
+                    endif
+                elseif ValType(aMethods[nMethod]) == "C"
+                    cName := Upper(aMethods[nMethod])
+                endif
+                do case
+                case cName == "CLOSECONNECTION"
+                    jMethods["closeConnection"] := .T.
+                case cName == "RESET"
+                    jMethods["reset"] := .T.
+                case cName == "END"
+                    jMethods["end"] := .T.
+                case cName == "DESTROY"
+                    jMethods["destroy"] := .T.
+                endcase
+            next nMethod
+        endif
+    catch xError
+        jMethods["reflectionAvailable"] := .F.
+        if (ValType(xError)=="O")
+            FreeObj(@xError)
+        endif
+    endtry
+    if ValType(aMethods) == "A"
+        FWFreeArray(@aMethods)
+    endif
+    if ValType(oProbe) == "O"
+        try
+            oProbe:CloseConnection()
+        catch xError
+            jMethods["probeCloseFailed"] := .T.
+        endtry
+        FreeObj(@oProbe)
+    endif
+
+return(jMethods)
+
+static function LifecycleHealth(jResponse as json) as logical
+
+    if ValType(jResponse) != "J"
+        return .F.
+    endif
+    if !jResponse:HasProperty("success") .or. !jResponse:HasProperty("message")
+        return .F.
+    endif
+
+return(jResponse["success"] == .T. .and. jResponse["message"] == "hbBridge Zig Engine Active")
+
+static function LifecycleCode(jResponse as json, cCode as character) as logical
+
+    if ValType(jResponse) != "J"
+        return .F.
+    endif
+    if !jResponse:HasProperty("success") .or. !jResponse:HasProperty("code")
+        return .F.
+    endif
+
+return(jResponse["success"] == .F. .and. jResponse["code"] == cCode)
+
+static function LifecycleFailureCode(jResponse as json) as character
+
+    local cCode := "INVALID_HEALTH_RESPONSE" as character
+    local cKnown := "|CONNECT_FAILED|SEND_FAILED|RECEIVE_FAILED|TIMEOUT|" + ;
+        "SOCKET_EXCEPTION|SOCKET_CLEANUP_FAILED|CLIENT_CLOSED|CLIENT_BUSY|" + ;
+        "INVALID_JSON|INVALID_FRAME|DECOMPRESSION_FAILED|RESPONSE_SIZE|" as character
+
+    if ValType(jResponse) == "J"
+        if jResponse:HasProperty("code")
+            if ValType(jResponse["code"]) == "C"
+                // Return only the client's fixed transport categories.
+                if ("|" + jResponse["code"] + "|") $ cKnown
+                    cCode := jResponse["code"]
+                endif
+            endif
+        endif
+    endif
+
+return(cCode)
+
+static function LifecycleNumber(nValue as variant, nMaximum as numeric) as logical
+
+    if ValType(nValue) != "N"
+        return .F.
+    endif
+
+return(nValue >= 1 .and. nValue <= nMaximum .and. nValue == Int(nValue))
+
+static function LifecycleInteger(cText as character) as numeric
+
+    local nIndex := 0, nDigit := 0, nValue := 0 as numeric
+
+    if Len(cText) == 0 .or. (Len(cText) > 1 .and. Left(cText, 1) == "0")
+        return -1
+    endif
+    for nIndex := 1 to Len(cText)
+        nDigit := Asc(SubStr(cText, nIndex, 1)) - 48
+        if nDigit < 0 .or. nDigit > 9 .or. nValue > Int((2147483647 - nDigit) / 10)
+            return -1
+        endif
+        nValue := nValue * 10 + nDigit
+    next nIndex
+
+return(nValue)

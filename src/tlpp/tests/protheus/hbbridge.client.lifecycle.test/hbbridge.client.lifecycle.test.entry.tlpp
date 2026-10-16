@@ -1,0 +1,19 @@
+/* Released to Public Domain. */
+#include "totvs.ch"
+#include "tlpp-core.th"
+
+// Native variadic argv is borrowed. Host and both ports must be explicit.
+function U_HBBridgeClientLifecycleCLI(oArguments as variadic)
+return(HBBridge.Test.HBBridgeClientLifecycleTest():RunCLI(oArguments:vArgs))
+
+function U_HBBridgeClientLifecycleTest(cHost, nPort, nRefusedPort, nCalls, nTimeoutMs)
+
+    local jReport := HBBridge.Test.HBBridgeClientLifecycleTest():Run(cHost, nPort, ;
+        nRefusedPort, nCalls, nTimeoutMs) as json
+    local nResult := IIf(jReport["success"], 0, 1) as numeric
+
+    ConOut("hbBridge client lifecycle summary: " + jReport:ToJSON())
+    ConOut("hbBridge client lifecycle Protheus " + IIf(nResult == 0, "OK", "FAILED"))
+    FreeObj(@jReport)
+
+return(nResult)

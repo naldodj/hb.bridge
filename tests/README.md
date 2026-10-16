@@ -430,3 +430,23 @@ missing prerequisites fail visibly. No ERP table changes or private INI edits.
 that case and Linux pooling have no runtime acceptance yet. The pooled
 eight-worker fixture passed 458 checks, zero failures/no skips.
 [Evidence and limits](../docs/acceptance.md#odbc-physical-reuse-on-2026-10-15).
+
+## MSSQL time and memory baseline (M08)
+
+Use `scripts/benchmark-hbbridge-mssql.ps1` for separate native Harbour,
+TCP and HTTP processes, the constant `m08.constant.v1` fixture and OS memory
+samples. The [methodology](../docs/benchmarking.md) defines the common
+1000-row/100-row-page workload, warmup exclusion, five measured traversals,
+one-client scope, clock precision and process memory limitations.
+The [TLPP benchmark](../src/tlpp/tests/protheus/hbbridge.benchmark.test/README.md)
+exercises the production clients and dataset in the AppServer with the same SQL.
+It records its own transport samples without inferring server pooling or
+memory from timings. Preserve successful reports and artifact identities;
+no performance threshold is part of these checks.
+
+`U_HBBridgeBenchmark()` opens the optional FWWebEx visual consumer; its
+controller and browser tests exercise validation/correlation independently
+of SQL. The [client lifecycle test](../src/tlpp/tests/protheus/hbbridge.client.lifecycle.test/README.md)
+reuses one client for 6000 Health calls by default, checks independent
+clients, refusal/recovery and explicit close. This is a focused native
+component regression, not a SQL throughput or memory-leak benchmark.

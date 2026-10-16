@@ -1,0 +1,5 @@
+-main=MSSQLBenchmarkTests
+-gtstd
+-ohbbridge.mssql.benchmark.test
+hbbridge.mssql.benchmark.test.hb
+../../../hbbridge.hbm

@@ -12,11 +12,11 @@ registra resultados verificados; ChangeLog e Git preservam o histórico.
 | Item | Valor atual |
 | --- | --- |
 | ID | `001-mssql-acceptance` |
-| Abertura / atualização | 2026-10-07 / 2026-10-15 |
-| Situação | D02/M06/M07 homologadas nos escopos Windows/teste registrados. Regressão nativa: 712/0; checks de leases/configuração: 266/0; controles físicos ODBC driver/off: 61/0 cada; concorrência nativa com pooling: 458/0. Resumos manuais com espaçamento até 500 workers informam 83934 checks/0. D03, M08 e checks finais M09 continuam pendentes; pacote aberto. |
+| Abertura / atualização | 2026-10-07 / 2026-10-16 |
+| Situação | D02/M06/M07 mantêm seus aceites registrados. M08 concluída para a fixture Windows identificada: 43366 checks nativos do benchmark/0 e varreduras reais AppServer TCP/HTTP/0, com tempo e memória de processo pelo SO disponível. D03 e checks finais M09 continuam pendentes; pacote aberto. |
 | Objetivo | Homologar RPCRDD.Query/dataset existentes em banco MSSQL real identificado, por Harbour, TCP Protheus e HTTP Protheus. |
 | Referência do produto | Código publicado `50e1c65`; checkout na abertura `bce52d2` inclui atualização do badge de clones. |
-| Próxima tarefa | M08: registrar tempo e memória Harbour/TCP/HTTP com fixture, volume e concorrência identificados; preservar evidências nativas e manuais de M07 em escopos separados. Concluir build/regressões/validadores finais em M09. D03 continua pendente. |
+| Próxima tarefa | V01: concluir o benchmark visual solicitado e a revisão de ciclo do cliente/diagnósticos, com validação AppServer focada; depois retomar M09. Integridade D03 continua obrigatória antes do fechamento do pacote. |
 
 ### Decisões já tomadas
 
@@ -255,11 +255,37 @@ constatações de aceite, sem motivo para repetir o inventário concluído.
   [Evidências ODBC nativas](docs/acceptance.pt-BR.md#odbc-physical-reuse-on-2026-10-15),
   [complemento histórico](docs/acceptance.pt-BR.md#sql-concurrency-follow-up-on-2026-10-15)
   e [evidências manuais com espaçamento](docs/acceptance.pt-BR.md#manual-protheus-concurrency-on-2026-10-15)
-  mantêm seus escopos separados. Retomar M08; checks finais M09 permanecem pendentes.
-- [ ] **M08 — Registrar referência de desempenho.** Identificar SQL, fixture/
-  volume, quantidade de execuções e concorrência; registrar tempo e medições
-  de memória disponíveis por Harbour, TCP e HTTP. É uma referência, sem
-  garantia de velocidade nem novo limiar de desempenho.
+  mantêm seus escopos separados. M08 tem aceite posterior abaixo; checks finais M09 permanecem pendentes.
+- [x] **M08 — Registrar referência de desempenho.** Concluída em 2026-10-16
+  com a fixture comum somente de leitura `m08.constant.v1`: 1000 linhas,
+  páginas de 100, dois aquecimentos e cinco varreduras completas medidas,
+  concorrência um. Harbour direto/TCP/HTTP nativos em processos separados
+  com políticas off/driver passaram em 43366 checks do benchmark, zero falhas;
+  há amostras working/private do SO na fase medida das seis rotas. AppServer
+  TCP e HTTP reais passaram nas cinco varreduras medidas de cada um,
+  50 chamadas/5000 linhas por rota, além dos aquecimentos, saída 0. Memória
+  externa de cliente/servidor cobre o ciclo AppServer combinado e mantém esse
+  escopo. Os 34 fontes TLPP compilaram sem erros de fonte; finalização do
+  compilador do fornecedor retornou 0xC0000409; serviços restaurados e execução
+  real aprovadas separadamente. Sem limiar de velocidade, ranking de rotas,
+  aceite Linux/vazamentos ou integridade D03. [Metodologia](docs/benchmarking.pt-BR.md)
+  e [resultados/artefatos](docs/acceptance.pt-BR.md#m08-performance-baseline-on-2026-10-16).
+  Resumo manual adicional às 04:53:47 São Paulo aprovou as cinco varreduras
+  medidas e dois aquecimentos por rota, médias 1039.60 ms TCP/1122.12 ms HTTP.
+  Manter memória não medida e pool/build/saída não informados em escopo separado.
+  [Evidência manual](docs/acceptance.pt-BR.md#m08-manual-protheus-validation-on-2026-10-16).
+- [ ] **V01 — Adicionar benchmark visual e verificar ciclo do cliente.**
+  Reutilizar o núcleo M08 em formulário FWWebEx com gráficos e exportação
+  JSON/HTML. Perfil/endpoints/credenciais ficam no controlador confiável do
+  servidor. Substituir o socket estático provisório por um componente nativo
+  reutilizado por cliente, fechamento explícito e checks de independência e
+  recuperação. A rodada manual ampliada concluiu as 500 iterações TCP, mas
+  falhou na primeira chamada da iteração HTTP 136, após 135 sucessos, em
+  30020.834 ms. O relatório antigo não registra código de serviço/status HTTP;
+  adicionar diagnóstico seguro antes de atribuir causa. Essa carga nova não
+  invalida a referência M08 menor nem homologa a rodada ampliada completa.
+  Registrar compilação, testes CLI e navegador separadamente do aceite
+  interativo FWWebEx.
 - [ ] **M09 — Concluir regressões e documentação.** Executar checks adequados
   à implementação alterada, compilar TLPP modificado e obter aceite AppServer.
   Executar os três validadores de commit; atualizar instruções EN/PT, TODO,
@@ -327,7 +353,7 @@ A referência do núcleo leu 1000 linhas constantes em três execuções:
 desconexão; memória não medida. Naquela etapa M06/M07 tinham evidência parcial.
 M06 tem aceite posterior em 2026-10-14; isolamento ampliado de perfis de M07
 tem aceite posterior registrado abaixo.
-M08 ainda exige TCP/HTTP e memória. A regressão padrão passou em **566 checks,
+M08 tem aceite posterior TCP/HTTP e memória em 2026-10-16, registrado acima. A regressão padrão passou em **566 checks,
 zero falhas/sem skips**: `tmp/tests-f84004277a8d4cc2905131f706a1e181/results.log`.
 
 Informadas execuções TCP manuais no AppServer em 2026-10-08, horário de São Paulo:
@@ -369,13 +395,12 @@ após validar controles independentes de coleta/limpeza. Análises de reuso de
 conexões, pressão de portas e aceite do ciclo lógico/físico adaptado concluíram
 depois M07 no escopo Windows registrado. As falhas com 130 foram analisadas;
 resumos posteriores com espaçamento até 500 workers estão homologados no seu
-escopo. Retomar medições M08.
+escopo. A referência de tempo/memória M08 foi concluída em 2026-10-16; retomar M09.
 Preservar mutex SQL e distinguir requisições concorrentes de execução paralela
 no banco. Integridade D03 continua
 pendente após o ajuste explícito da prioridade, mantendo CAST no chamador.
 Sem nova evidência que exija revisão, não repetir migração, inventário ou
-casos nativos/TCP/HTTP homologados. M08–M09 e critérios do
-pacote permanecem.
+casos nativos/TCP/HTTP homologados. M09, D03 e critérios do pacote permanecem.
 
 A [observação de reuso de conexões SQL](docs/sql-connections.pt-BR.md) de
 2026-10-12 foi repriorizada para M07 em 2026-10-15. `HBBridgeSQLPool` agora

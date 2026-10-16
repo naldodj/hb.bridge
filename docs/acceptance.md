@@ -1329,3 +1329,213 @@ manual runs, speed gain, maximum worker count or parallel SQL guarantee follows.
 M07 is complete within the native Windows and manual paced-summary scopes
 recorded above. Resume M08 time/memory measurements; final M09 validation and
 D03 UTF-8/FLOAT remain open, so package 001 is not closed.
+
+<a id="m08-performance-baseline-on-2026-10-16"></a>
+
+## M08 performance baseline on 2026-10-16
+
+Recorded the common read-only fixture `m08.constant.v1` against explicit
+profile `MSSQL/pData`, database `pData`, SQL Server **16.0.1210.3**. It generates
+1000 rows with ID/name/`DECIMAL(15,2)` quarter amounts, pages of 100 ordered
+by ascending ID. No ERP tables are read or changed. Native and TLPP SQL
+match byte for byte: 537 ASCII bytes, SHA256
+`A5F3569517A2A638BEDAFED9D4CA348ADCA9C737C90213A18147B8D4078BDCC5`.
+See [methodology/reproduction](benchmarking.md).
+
+Each route uses one client, two complete warmup traversals and five measured
+complete traversals. Each measured traversal validates all 1000 rows and ten
+pages, including field order, values, totals and final-page state. Each page
+uses one Query call and the product's separate SELECT/COUNT statements.
+Per route: 20 warmup calls/2000 rows and 50 measured calls/5000 rows. Warmup
+samples remain visible and excluded from statistics. A setup identity query
+precedes native warmup; no cold-connection or cold-database-cache claim follows.
+
+### Native clients and OS memory
+
+Separate sequential processes measured direct Harbour dispatch, native TCP
+and native HTTP under each explicit pooling policy. All six routes returned
+success and exit 0: **43366 benchmark assertions, zero failures**, covering
+warmup/measured values, owned shutdown, zero active leases and caller workarea/
+default-connection restoration. These are benchmark assertions, separate from
+the earlier 712-check product regression.
+
+| Policy | Native client | Mean ms / complete traversal | Min–max ms | Measured sampled peak working/private MiB | Measured memory samples |
+| --- | --- | --- | --- | --- | --- |
+| off | Harbour direct | 2881.20 | 2344–3546 | 21.35 / 4.93 | 180 |
+| off | TCP | 2300.00 | 1938–2687 | 18.04 / 6.03 | 151 |
+| off | HTTP | 2496.80 | 1891–3203 | 18.52 / 6.51 | 156 |
+| driver | Harbour direct | 1159.40 | 985–1344 | 23.37 / 5.00 | 78 |
+| driver | TCP | 1531.40 | 1235–1875 | 19.89 / 6.12 | 94 |
+| driver | HTTP | 1303.00 | 969–1718 | 20.50 / 6.61 | 87 |
+
+All six reports have `memory.available=true` and measured-phase samples.
+Memory is the whole route process, including client and isolated server for
+TCP/HTTP, not a per-query allocation. Working set/private bytes are OS process
+counters; lifetime high-water observations remain separate in JSON. Requested
+sample spacing is 50 ms plus collection overhead; CSV timestamps record actual
+spacing. MiB is bytes divided by 1048576. Native timings use coarse Windows
+`GetTickCount64` ticks; fractional means are derived aggregate values.
+
+Artifacts:
+
+- off: `tmp/mssql-benchmark-65e82528313e404e8395b801db49c2c7/benchmark.json`,
+  per-route `result.json`/`results.log`/`memory.csv`;
+  launcher log `tmp/m08-native-baseline-off-20261016.log`.
+- driver: `tmp/mssql-benchmark-458ec3e6699b4508aae6df881d16e31d/benchmark.json`,
+  corresponding per-route artifacts;
+  launcher log `tmp/m08-native-baseline-driver-20261016.log`.
+- Executable SHA256 off:
+  `6E992FA6FCD4C85315E5269B0E759457B9EEBA452390933099D2674E194225FD`;
+  driver: `4F10EC0BF5F7DF8028832CA94ECF3F7482335F153B8932E4FFE468F374DD235B`.
+  Reports also identify owned sources, dependency manifest/revisions,
+  Zig 0.16.0 and managed ODBC patch/library hashes.
+
+### Real Protheus clients
+
+The complete TLPP tree compiled **34 sources, zero source errors**, including
+the new benchmark class and entry. The vendor compiler subsequently returned
+**0xC0000409** during finalization, separate from source compilation. Stop/start
+scripts returned 0 and normal services were restored. Receipts:
+`tmp/m08-totvs-build-result-20261016.json`,
+`tmp/totvs-m08-compile-20261016.log` and
+`tmp/m08-totvs-lifecycle-20261016.log`.
+An invalid `--rows=0` CLI invocation returned exit 1 with the expected harness
+validation message, confirming the compiled entry rejects that input.
+
+Actual `U_HBBridgeBenchmarkCLI` execution through the licensed AppServer passed
+both production clients/dataset, with **exit 0** and complete successful JSON.
+The selected isolated hbBridge used explicit policy `driver` and its identified
+native executable above. Its preliminary fixture request is separate from
+AppServer measurements. The host's final cleanup checks passed with exit 0.
+
+| TLPP client | Measured traversals | Mean ms / complete traversal | Min–max ms | Measured calls / rows |
+| --- | --- | --- | --- | --- |
+| TCP | 5 | 1118.14 | 991.05–1263.63 | 50 / 5000 |
+| HTTP | 5 | 1491.91 | 1299.71–1641.31 | 50 / 5000 |
+
+Both routes additionally passed two warmup traversals each. Timing includes
+dataset navigation/value checks and Close, using normalized `TimeCounter()`.
+TCP precedes HTTP. The complete harness took about 19.016 s; process runtime
+including initialization/finalization was about 33.232 s. These intervals are
+distinct from the means above. The in-test memory field stays `UNAVAILABLE`;
+an external sampler supplied whole-process memory:
+
+| Observed process during the combined TCP/HTTP lifecycle | Samples | Sampled peak working MiB | Sampled peak private MiB |
+| --- | --- | --- | --- |
+| Isolated AppServer client | 405 | 297.98 | 310.72 |
+| Separate isolated hbBridge server | 405 | 20.88 | 6.91 |
+
+These external samples include client initialization/cleanup and both routes;
+they are not measured-phase or per-route memory figures. Process snapshots do
+not establish a leak or allocate shared runtime memory to a thread.
+Artifacts: `tmp/m08-protheus-benchmark-c05255b72a8b48b68ef794b9329f7366/benchmark.json`,
+`protheus.log`, `memory.csv` and `server/result.json`/`results.log`.
+Sampler source is preserved at `tmp/run-m08-protheus-benchmark-20261016.ps1`
+and identified by hash in that receipt. The private CLI INI is outside Git,
+beside AppServer; its parser requires a basename in `-ini`. The active
+`appserver.ini` and private hbBridge SQL configuration were not edited.
+
+Class SHA256: `1A9C40240C0B8D36300DAA13518EA595F947DE8595BD75C7B4350D76C210B487`;
+entry SHA256: `C5A355E64DA8442079C3B35151C4363AD6268287F659AAD5AD25F344575BD533`.
+The RPO reports 31489542 bytes, last updated 04:33:17 São Paulo; its hash was
+unavailable due to the running runtime's file lock. This limitation is explicit;
+successful invocation and source compiler receipts identify the exercised entry.
+
+### Scope and follow-up
+
+Reference runs used the same shared Windows x64 workstation, 12 logical CPUs,
+Balanced power scheme, regular AppServer/DBAccess/hbBridge also present. Other
+machine activity and shared SQL caches were uncontrolled. Preparatory trials
+overlapped service compilation/restart and are preserved separately, excluded
+from the tables. No agent compilation ran during these selected measurements.
+Installed Driver 18 inventory reports binary version `2018.0187.0001.01`;
+effective connection-driver version remains `NOT_OBSERVED` by this harness.
+
+The short `-Route http -Rows 17 -PageSize 7 -Iterations 1 -Warmup 0
+-ServeSeconds 1` smoke also passed, exercising a partial final page,
+zero warmup, endpoint publication and owned host shutdown:
+`tmp/mssql-benchmark-f00628fbfb824bb7bee7e3a65bc9170a/benchmark.json` and
+`tmp/m08-benchmark-serve-smoke-20261016.log`.
+
+M08 is complete for this identified Windows/reference workload. The figures
+are not a statistically isolated pooling comparison, speed guarantee,
+production capacity, parallel-SQL or memory-leak acceptance. No Linux, HTTPS,
+ERP business-volume or D03 UTF-8/raw-FLOAT acceptance is inferred. Resume M09
+final checks/documentation; D03 remains required before closing package 001.
+
+M08 tooling validation: all three mandatory validators passed 205 files;
+local links exist across 81 documents, PowerShell syntax and whitespace
+checks passed. Receipt: `tmp/m08-commit-check-20261016.log`. These checks do
+not close M09's remaining package regression/integrity requirements.
+
+<a id="m08-manual-protheus-validation-on-2026-10-16"></a>
+
+## Additional manual M08 Protheus validation on 2026-10-16
+
+Manual validation recorded from the supplied summary and final
+`hbBridge benchmark Protheus OK` line. Run ID
+`614056ED784ECE4AB68EAAE1EE863D89`, start **04:53:47 São Paulo**, fixture
+`m08.constant.v1`, explicit alias `MSSQL/pData`, Windows normalization
+(`serverUnix=false`). Workload: 1000 rows, pages of 100, one client,
+two warmup and five measured complete traversals per transport, TCP then HTTP.
+
+| Transport | Measured traversals | Mean ms / complete traversal | Min–max ms | Measured calls / rows |
+| --- | --- | --- | --- | --- |
+| TCP | 5 | 1039.60 | 770.08–1257.06 | 50 / 5000 |
+| HTTP | 5 | 1122.12 | 951.03–1388.17 | 50 / 5000 |
+
+Every measured and warmup sample reports success, 1000 rows, ten pages and
+ten calls. Recalculation confirms totals/min/max/means within floating-point
+rounding. Both transports together measured **100 calls / 10000 rows**,
+excluding **40 warmup calls / 4000 rows**. The measured intervals sum to
+10808.610 ms; complete harness duration is **14887.055 ms**. The remaining
+4078.445 ms includes warmup and other work outside measured intervals;
+it is not solely warmup time.
+
+Evidence: `tmp/protheus-benchmark-manual-20261016-614056ed.log`, SHA256
+`921B63D9F26D08B4294F938BD265739E3010B62F679CE55551DD33372A0D1DD7`.
+This is a separate manual summary, not another locally automated execution.
+Memory remains `UNAVAILABLE` in this report. Effective destination, server
+binary/backend version, physical pooling policy, compilation receipt and
+process exit code were not supplied; they are not inherited from the previous
+automated run or its external memory samples. No causal optimization or
+capacity comparison follows. This adds manual evidence to accepted M08;
+M09 and D03 remain open.
+
+<a id="m08-large-protheus-follow-up-on-2026-10-16"></a>
+
+## Large manual benchmark follow-up on 2026-10-16
+
+The supplied `C:/totvs/protheus1212410/protheusdata/logs/console_appserver_hbbridge.log`
+contains run `93A0CC16D629E74FAA54843567C86E58`, started 07:09:41 São Paulo.
+Fixture `m08.constant.v1`, `MSSQL/pData`: 100000 rows, pages of 10000,
+500 measured iterations, two warmups, concurrency one, TCP then HTTP,
+30-second request timeout. The overall result is **FAILED**.
+
+| Transport | Successful measured iterations | Calls / rows in successful measurements | Mean ms / traversal |
+| --- | --- | --- | --- |
+| TCP | 500 / 500 | 5000 / 50000000 | 7747.32 |
+| HTTP | 135 / 500 | 1350 / 13500000 | 22312.04 |
+
+Both transports completed two warmups. HTTP measured sample **136** failed
+on its first call: `QUERY_FAILED`, 30020.834 ms, zero completed pages/rows.
+That attempted call is retained in the failed sample and excluded from the
+successful aggregate. Harness duration was 6967715.110 ms. The failure duration
+is close to the configured 30-second request deadline; the old summary lacks
+service code/HTTP status and does not establish a transport, server or SQL cause.
+Memory/pool/build identity cannot be inherited from the smaller baseline.
+
+The earlier terminal-component fatal error was supplied separately at
+06:45:23, before the interim module-static socket change. The retry no longer
+reported that fatal error, but its HTTP failure remains distinct. The owned
+client now reuses one native component per instance and exposes `Close()`;
+connections still close after each response. The focused
+[lifecycle test](../src/tlpp/tests/protheus/hbbridge.client.lifecycle.test/README.md)
+and safe service-code/status/page diagnostics support follow-up without
+claiming the complete large workload has passed.
+
+Sanitized summary/final line: `tmp/protheus-benchmark-large-static-20261016-93a0cc16.log`;
+SHA256 `AC62382489B97B9CC00B41C1010A8AC5D9C60A6A3D24BEBDB444A403C4FCC986`.
+The supplied interim source is preserved at
+`tmp/hbbridge.client.user-static-20261016.tlpp`. V01 tracks this requested
+follow-up and visual consumer; M09 and D03 remain open.

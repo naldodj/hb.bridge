@@ -1,0 +1,322 @@
+/* Released to Public Domain. */
+#include "totvs.ch"
+#include "tlpp-core.th"
+
+// Pure callback contract checks: no browser, INI, socket or SQL connection.
+function U_HBBridgeBenchmarkVisualTest()
+
+    local jState := JSONObject():New() as json
+    local jChecks := JSONObject():New() as json
+    local jInvalid := JSONObject():New() as json
+    local jRequest as json
+    local jResponse as json
+    local oController as object
+    local bMeasure as codeblock
+    // GetNames() exposes the native JSON enumeration array; it is borrowed.
+    local aNames as array
+    local cName := "", cSaved := "" as character
+    local nCheck := 0, nCalls := 0 as numeric
+    local lOK := .T. as logical
+
+    jState["calls"] := 0
+    jState["mode"] := "success"
+    bMeasure := {|cProfile, cHost, nPort, cURL, cToken, nTimeout, nRows, nPageSize, nIterations, nWarmup| ;
+        BenchmarkVisualMock(jState, oController, cProfile, cHost, nPort, cURL, cToken, ;
+        nTimeout, nRows, nPageSize, nIterations, nWarmup)}
+    oController := HBBridge.Examples.HBBridgeBenchmarkController():New("visual-instance", ;
+        "opaque/profile", "trusted-host", 1512, "https://trusted-host:8080", "private-token", bMeasure)
+
+    jResponse := oController:Handle("malformed JSON")
+    jChecks["malformedIsForwarded"] := ValType(jResponse) == "U" .and. jState["calls"] == 0
+    jResponse := oController:Handle("[]")
+    jChecks["arrayEnvelopeIsForwarded"] := ValType(jResponse) == "U" .and. jState["calls"] == 0
+    jRequest := BenchmarkVisualRequest("other-instance")
+    jRequest["instance"] := "another-dialog"
+    jResponse := oController:Handle(jRequest:ToJSON())
+    jChecks["otherInstanceIsForwarded"] := ValType(jResponse) == "U" .and. jState["calls"] == 0
+    jRequest["instance"] := "visual-instance"
+    jRequest["requestID"] := 1
+    jResponse := oController:Handle(jRequest:ToJSON())
+    jChecks["numericCorrelationIsForwarded"] := ValType(jResponse) == "U" .and. jState["calls"] == 0
+    jRequest["requestID"] := ""
+    jResponse := oController:Handle(jRequest:ToJSON())
+    jChecks["emptyCorrelationIsForwarded"] := ValType(jResponse) == "U" .and. jState["calls"] == 0
+    jRequest["requestID"] := "a" + Chr(0) + "b"
+    jResponse := oController:Handle(jRequest:ToJSON())
+    jChecks["nulCorrelationIsForwarded"] := ValType(jResponse) == "U" .and. jState["calls"] == 0
+    FreeObj(@jRequest)
+
+    jRequest := BenchmarkVisualRequest("first-request")
+    jResponse := oController:Handle(jRequest:ToJSON())
+    jChecks["validRequestMeasuresOnce"] := jState["calls"] == 1 .and. jResponse["report"]["success"]
+    jChecks["responseCorrelation"] := jResponse["instance"] == "visual-instance" .and. ;
+        jResponse["requestID"] == "first-request"
+    jChecks["trustedConnectionArguments"] := jState["profile"] == "opaque/profile" .and. ;
+        jState["host"] == "trusted-host" .and. jState["port"] == 1512 .and. ;
+        jState["url"] == "https://trusted-host:8080" .and. jState["token"] == "private-token"
+    jChecks["validatedMeasurementArguments"] := jState["timeout"] == 30 .and. ;
+        jState["rows"] == 1000 .and. jState["pageSize"] == 100 .and. ;
+        jState["iterations"] == 5 .and. jState["warmup"] == 2
+    cSaved := jResponse:ToJSON()
+    jChecks["credentialsAreNotReturned"] := !("private-token" $ cSaved) .and. ;
+        !("trusted-host" $ cSaved) .and. !("opaque/profile" $ cSaved)
+    jResponse["report"]["tcp"]["avgMs"] := 999
+    FreeObj(@jResponse)
+    jRequest["params"]["rows"] := 999
+    jResponse := oController:Handle(jRequest:ToJSON())
+    jChecks["duplicateRequestDoesNotMeasure"] := jState["calls"] == 1
+    jChecks["cachedResponseIsDefensive"] := jResponse:ToJSON() == cSaved .and. ;
+        jResponse["report"]["tcp"]["avgMs"] == 1.5
+    FreeObj(@jResponse)
+    FreeObj(@jRequest)
+
+    jInvalid:FromJSON('{"zeroRows":{"field":"rows","value":0},' + ;
+        '"negativeRows":{"field":"rows","value":-1},' + ;
+        '"largeRows":{"field":"rows","value":100001},' + ;
+        '"fractionalRows":{"field":"rows","value":1.5},' + ;
+        '"textRows":{"field":"rows","value":"1000"},' + ;
+        '"logicalRows":{"field":"rows","value":true},' + ;
+        '"nullRows":{"field":"rows","value":null},' + ;
+        '"arrayRows":{"field":"rows","value":[]},' + ;
+        '"objectRows":{"field":"rows","value":{}},' + ;
+        '"zeroPageSize":{"field":"pageSize","value":0},' + ;
+        '"largePageSize":{"field":"pageSize","value":100001},' + ;
+        '"fractionalPageSize":{"field":"pageSize","value":2.5},' + ;
+        '"zeroIterations":{"field":"iterations","value":0},' + ;
+        '"largeIterations":{"field":"iterations","value":1000001},' + ;
+        '"fractionalIterations":{"field":"iterations","value":2.5},' + ;
+        '"negativeWarmup":{"field":"warmup","value":-1},' + ;
+        '"largeWarmup":{"field":"warmup","value":1000001},' + ;
+        '"fractionalWarmup":{"field":"warmup","value":0.5},' + ;
+        '"zeroTimeout":{"field":"timeoutSeconds","value":0},' + ;
+        '"largeTimeout":{"field":"timeoutSeconds","value":2147484},' + ;
+        '"fractionalTimeout":{"field":"timeoutSeconds","value":0.5}}')
+    aNames := jInvalid:GetNames()
+    for nCheck := 1 to Len(aNames)
+        cName := aNames[nCheck]
+        jRequest := BenchmarkVisualRequest("reject-" + cName)
+        jRequest["params"][jInvalid[cName]["field"]] := jInvalid[cName]["value"]
+        jChecks[cName] := BenchmarkVisualRejected(oController, jState, jRequest)
+        FreeObj(@jRequest)
+    next nCheck
+
+    jRequest := BenchmarkVisualRequest("extra-profile")
+    jRequest["params"]["profile"] := "untrusted/profile"
+    jChecks["rejectBrowserProfile"] := BenchmarkVisualRejected(oController, jState, jRequest)
+    FreeObj(@jRequest)
+    jRequest := BenchmarkVisualRequest("extra-sql")
+    jRequest["params"]["sql"] := "SELECT 1"
+    jChecks["rejectBrowserSQL"] := BenchmarkVisualRejected(oController, jState, jRequest)
+    FreeObj(@jRequest)
+    jRequest := BenchmarkVisualRequest("extra-host")
+    jRequest["params"]["host"] := "untrusted-host"
+    jChecks["rejectBrowserHost"] := BenchmarkVisualRejected(oController, jState, jRequest)
+    FreeObj(@jRequest)
+    jRequest := BenchmarkVisualRequest("extra-token")
+    jRequest["params"]["token"] := "untrusted-token"
+    jChecks["rejectBrowserToken"] := BenchmarkVisualRejected(oController, jState, jRequest)
+    FreeObj(@jRequest)
+    jRequest := BenchmarkVisualRequest("extra-envelope")
+    jRequest["sql"] := "SELECT 1"
+    jChecks["rejectExtraEnvelopeField"] := BenchmarkVisualRejected(oController, jState, jRequest)
+    FreeObj(@jRequest)
+    jRequest := BenchmarkVisualRequest("array-params")
+    // An explicit array fixture verifies rejection of the wrong JSON shape.
+    jRequest:FromJSON('{"instance":"visual-instance","requestID":"array-params","params":[]}')
+    jChecks["rejectArrayParams"] := BenchmarkVisualRejected(oController, jState, jRequest)
+    FreeObj(@jRequest)
+    jRequest := JSONObject():New()
+    jRequest:FromJSON('{"instance":"visual-instance","requestID":"missing-param",' + ;
+        '"params":{"rows":1000,"pageSize":100,"iterations":5,"warmup":2}}')
+    jChecks["rejectMissingParameter"] := BenchmarkVisualRejected(oController, jState, jRequest)
+    FreeObj(@jRequest)
+
+    jRequest := BenchmarkVisualRequest("upper-boundaries")
+    jRequest["params"]["rows"] := 100000
+    jRequest["params"]["pageSize"] := 100000
+    jRequest["params"]["iterations"] := 1000000
+    jRequest["params"]["warmup"] := 1000000
+    jRequest["params"]["timeoutSeconds"] := 2147483
+    nCalls := jState["calls"]
+    jResponse := oController:Handle(jRequest:ToJSON())
+    jChecks["upperBoundariesAccepted"] := jResponse["report"]["success"] .and. ;
+        jState["calls"] == nCalls + 1 .and. jState["rows"] == 100000 .and. ;
+        jState["warmup"] == 1000000 .and. jState["timeout"] == 2147483
+    FreeObj(@jResponse)
+    FreeObj(@jRequest)
+    jRequest := BenchmarkVisualRequest("lower-boundaries")
+    jRequest["params"]["rows"] := 1
+    jRequest["params"]["pageSize"] := 1
+    jRequest["params"]["iterations"] := 1
+    jRequest["params"]["warmup"] := 0
+    jRequest["params"]["timeoutSeconds"] := 1
+    jResponse := oController:Handle(jRequest:ToJSON())
+    jChecks["lowerBoundariesAccepted"] := jResponse["report"]["success"] .and. ;
+        jState["rows"] == 1 .and. jState["warmup"] == 0 .and. jState["timeout"] == 1
+    FreeObj(@jResponse)
+    FreeObj(@jRequest)
+
+    jState["mode"] := "failure"
+    jRequest := BenchmarkVisualRequest("scenario-failure")
+    jResponse := oController:Handle(jRequest:ToJSON())
+    jChecks["measuredFailureRemainsReport"] := !jResponse["report"]["success"] .and. ;
+        jResponse["report"]["failureCategory"] == "SCENARIO_FAILED"
+    FreeObj(@jResponse)
+    FreeObj(@jRequest)
+    jState["mode"] := "throw"
+    jRequest := BenchmarkVisualRequest("callback-throws")
+    jResponse := oController:Handle(jRequest:ToJSON())
+    jChecks["callbackExceptionIsCategorical"] := jResponse["error"] == "RUNTIME_EXCEPTION" .and. ;
+        !("private-exception" $ jResponse:ToJSON())
+    FreeObj(@jResponse)
+    FreeObj(@jRequest)
+    jState["mode"] := "invalid"
+    jRequest := BenchmarkVisualRequest("invalid-report")
+    jResponse := oController:Handle(jRequest:ToJSON())
+    jChecks["invalidReportIsCategorical"] := jResponse["error"] == "INVALID_REPORT"
+    FreeObj(@jResponse)
+    FreeObj(@jRequest)
+    jState["mode"] := "minimal-configuration"
+    jRequest := BenchmarkVisualRequest("minimal-configuration")
+    jResponse := oController:Handle(jRequest:ToJSON())
+    jChecks["minimalConfigurationFailureIsVisible"] := jResponse["error"] == "INVALID_CONFIGURATION"
+    FreeObj(@jResponse)
+    FreeObj(@jRequest)
+    jState["mode"] := "minimal-runtime"
+    jRequest := BenchmarkVisualRequest("minimal-runtime")
+    jResponse := oController:Handle(jRequest:ToJSON())
+    jChecks["minimalRuntimeFailureIsVisible"] := jResponse["error"] == "RUNTIME_EXCEPTION"
+    FreeObj(@jResponse)
+    FreeObj(@jRequest)
+    jState["mode"] := "cleanup-failure"
+    jRequest := BenchmarkVisualRequest("cleanup-failure")
+    jResponse := oController:Handle(jRequest:ToJSON())
+    jChecks["cleanupFailureKeepsPartialResults"] := !jResponse["report"]["success"] .and. ;
+        jResponse["report"]["failureCategory"] == "CLIENT_CLEANUP_FAILED" .and. ;
+        jResponse["report"]["tcp"]["avgMs"] == 1.5
+    FreeObj(@jResponse)
+    FreeObj(@jRequest)
+    jState["mode"] := "reentrant"
+    jRequest := BenchmarkVisualRequest("busy-parent")
+    nCalls := jState["calls"]
+    jResponse := oController:Handle(jRequest:ToJSON())
+    jChecks["reentrantRequestIsBusy"] := jState["nestedError"] == "BUSY" .and. ;
+        jState["calls"] == nCalls + 1 .and. jResponse["report"]["success"]
+    FreeObj(@jResponse)
+    FreeObj(@jRequest)
+    jState["mode"] := "success"
+    jRequest := BenchmarkVisualRequest("recovery")
+    jResponse := oController:Handle(jRequest:ToJSON())
+    jChecks["successAfterFailures"] := jResponse["report"]["success"]
+    FreeObj(@jResponse)
+    FreeObj(@jRequest)
+    jRequest := BenchmarkVisualRequest("first-request")
+    nCalls := jState["calls"]
+    jResponse := oController:Handle(jRequest:ToJSON())
+    jChecks["newRequestClearsPreviousCache"] := jState["calls"] == nCalls + 1 .and. ;
+        jResponse["report"]["success"]
+    FreeObj(@jResponse)
+    nCalls := jState["calls"]
+    oController:Close()
+    oController:Close()
+    jResponse := oController:Handle(jRequest:ToJSON())
+    jChecks["closedControllerDoesNotMeasure"] := jResponse["error"] == "CLOSED" .and. ;
+        jState["calls"] == nCalls
+    jChecks["closeKeepsCallerStateOwned"] := jState["mode"] == "success" .and. ;
+        jState["token"] == "private-token"
+    FreeObj(@jResponse)
+    FreeObj(@jRequest)
+
+    aNames := jChecks:GetNames()
+    for nCheck := 1 to Len(aNames)
+        lOK := jChecks[aNames[nCheck]] .and. lOK
+        ConOut("hbBridge benchmark visual check " + aNames[nCheck] + ": " + ;
+            IIf(jChecks[aNames[nCheck]], "PASS", "FAILED"))
+    next nCheck
+    ConOut("hbBridge benchmark visual checks: " + AllTrim(Str(Len(aNames))) + "; " + ;
+        IIf(lOK, "OK", "FAILED"))
+    FreeObj(@oController)
+    FreeObj(@jInvalid)
+    FreeObj(@jChecks)
+    FreeObj(@jState)
+
+return(IIf(lOK, 0, 1))
+
+static function BenchmarkVisualRequest(cRequestID as character) as json
+
+    local jRequest := JSONObject():New() as json
+
+    jRequest:FromJSON('{"instance":"visual-instance","requestID":"",' + ;
+        '"params":{"rows":1000,"pageSize":100,"iterations":5,"warmup":2,"timeoutSeconds":30}}')
+    jRequest["requestID"] := cRequestID
+
+return(jRequest)
+
+static function BenchmarkVisualRejected(oController as object, jState as json, jRequest as json) as logical
+
+    local nCalls := jState["calls"] as numeric
+    local jResponse := oController:Handle(jRequest:ToJSON()) as json
+    local lRejected := ValType(jResponse) == "J" as logical
+
+    if lRejected
+        lRejected := jResponse:HasProperty("error")
+    endif
+    if lRejected
+        lRejected := jResponse["error"] == "INVALID_PARAMETERS" .and. jState["calls"] == nCalls
+    endif
+    FreeObj(@jResponse)
+
+return(lRejected)
+
+static function BenchmarkVisualMock(jState as json, oController as object, cProfile as character, ;
+    cHost as character, nPort as numeric, cURL as character, cToken as character, ;
+    nTimeout as numeric, nRows as numeric, nPageSize as numeric, nIterations as numeric, nWarmup as numeric) as json
+
+    local jReport := JSONObject():New() as json
+    local jRequest as json
+    local jResponse as json
+
+    jState["calls"]++
+    jState["profile"] := cProfile
+    jState["host"] := cHost
+    jState["port"] := nPort
+    jState["url"] := cURL
+    jState["token"] := cToken
+    jState["timeout"] := nTimeout
+    jState["rows"] := nRows
+    jState["pageSize"] := nPageSize
+    jState["iterations"] := nIterations
+    jState["warmup"] := nWarmup
+    if jState["mode"] == "throw"
+        FreeObj(@jReport)
+        throw "private-exception"
+    endif
+    if jState["mode"] == "invalid"
+        return jReport
+    endif
+    if jState["mode"] == "reentrant"
+        jRequest := BenchmarkVisualRequest("nested-request")
+        jResponse := oController:Handle(jRequest:ToJSON())
+        jState["nestedError"] := jResponse["error"]
+        FreeObj(@jResponse)
+        FreeObj(@jRequest)
+    endif
+    if jState["mode"] == "minimal-configuration" .or. jState["mode"] == "minimal-runtime"
+        jReport["schemaVersion"] := 1
+        jReport["success"] := .F.
+        jReport["failureCategory"] := IIf(jState["mode"] == "minimal-configuration", ;
+            "INVALID_CONFIGURATION", "RUNTIME_EXCEPTION")
+        return jReport
+    endif
+    jReport:FromJSON('{"schemaVersion":1,"success":true,"failureCategory":"",' + ;
+        '"tcp":{"success":true,"avgMs":1.5},"http":{"success":true,"avgMs":2.5}}')
+    if jState["mode"] == "failure"
+        jReport["success"] := .F.
+        jReport["failureCategory"] := "SCENARIO_FAILED"
+    endif
+    if jState["mode"] == "cleanup-failure"
+        jReport["success"] := .F.
+        jReport["failureCategory"] := "CLIENT_CLEANUP_FAILED"
+    endif
+
+return(jReport)

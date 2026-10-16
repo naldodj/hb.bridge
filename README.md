@@ -764,7 +764,10 @@ are tracked in [WIP](WIP.md).
 but is not integrated into lifecycle/RPC yet.
 Broader identity/token policies, credential management, module trust and deployment policies
 remain work. The active [WIP](WIP.md) records accepted dataset, failure/recovery
-and concurrent-caller work, followed by M08 time/memory measurements.
+and concurrent-caller work. M08 adds a [time/memory baseline](docs/benchmarking.md)
+with the same read-only fixture for native Harbour, TCP/HTTP and TLPP clients.
+The [visual benchmark example](src/tlpp/tests/protheus/hbbridge.benchmark.test/README.md)
+provides a FWWebEx form, charts and JSON/HTML exports through the same core.
 D03 UTF-8/FLOAT integrity remains open;
 blocks, DBF, TLPP VF,
 services, jobs/batches and functional C/Zig extensions follow incrementally.

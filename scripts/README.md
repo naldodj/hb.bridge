@@ -159,3 +159,16 @@ reuse/session-isolation test in separate processes; `-Pooling` defaults to
 `-HTTPListenBacklog <positive integer>` selects the isolated concurrency host's
 queue request. These overrides do not modify private INIs. See
 [pooling acceptance](../docs/acceptance.md#odbc-physical-reuse-on-2026-10-15).
+
+## MSSQL time and memory baseline
+
+`benchmark-hbbridge-mssql.ps1 -Config C:/tmp/hbBridge.ini -Profile MSSQL/pData`
+builds the read-only M08 fixture and runs separate sequential child processes
+for local Harbour, TCP and HTTP. Default counts are 1000 rows, pages of 100,
+two warmups and five measured complete traversals; concurrency is one.
+`-ODBCPooling off|driver` selects the native process policy; default is `off`.
+The runner writes `benchmark.json`, per-route `result.json`, sanitized logs
+and timestamped OS memory samples in its isolated `tmp/mssql-benchmark-*` run.
+Use [the methodology](../docs/benchmarking.md) for measurement scope and the
+optional `-Route http -ServeSeconds 600` host for the
+[AppServer consumer](../src/tlpp/tests/protheus/hbbridge.benchmark.test/README.md).

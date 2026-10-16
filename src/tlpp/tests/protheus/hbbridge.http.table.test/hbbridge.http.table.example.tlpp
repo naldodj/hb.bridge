@@ -269,7 +269,7 @@ static method Page(jDefinition, cInstance, nWaitMs, cFile) class HBBridgeHTTPTab
     oBody:AddChild(oTable)
     oPage:SetObjPageBody(oBody)
     oPage:DisableFooter(.T.)
-    oPage:DisableDarkTheme(.T.)
+    *oPage:DisableDarkTheme(.T.)
     lWritten := FWWebEx.WebFileTools():HTMLFromControl(oPage, oPage:GetFWWebExTmpPath(), @cFile, @cHTML, .T.)
     oPage:Clean()
     FreeObj(@oPage)

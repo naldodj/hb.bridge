@@ -1,0 +1,612 @@
+/* Released to Public Domain. */
+#include "totvs.ch"
+#include "tlpp-core.th"
+
+namespace HBBridge.Test
+
+class HBBridgeBenchmarkTest
+
+    static method RunCLI(aArguments as array) as numeric
+    static method Run(cProfile as character, cHost as character, nPort as numeric, ;
+        cURL as character, cToken as character, nTimeoutSeconds as numeric, ;
+        nRows as numeric, nPageSize as numeric, nIterations as numeric, nWarmup as numeric) as numeric
+    static method Measure(cProfile as character, cHost as character, nPort as numeric, ;
+        cURL as character, cToken as character, nTimeoutSeconds as numeric, ;
+        nRows as numeric, nPageSize as numeric, nIterations as numeric, nWarmup as numeric) as json
+
+endclass
+
+static method RunCLI(aArguments) class HBBridgeBenchmarkTest
+
+    local jFlags := JSONObject():New() as json
+    local jSeen := JSONObject():New() as json
+    local cArgument := "", cKey := "", cValue := "" as character
+    local nArgument := 0, nEqual := 0, nValue := 0, nMaximum := 0, nResult := 1 as numeric
+    local lValid := .T. as logical
+
+    jFlags["profile"] := ""
+    jFlags["host"] := Nil
+    jFlags["port"] := Nil
+    jFlags["url"] := Nil
+    jFlags["token"] := Nil
+    jFlags["timeout"] := 30
+    jFlags["rows"] := 1000
+    jFlags["page-size"] := 100
+    jFlags["iterations"] := 5
+    jFlags["warmup"] := 2
+
+    // Only the native variadic argument contract uses an array. No argv copy.
+    if ValType(aArguments) != "A"
+        lValid := .F.
+    else
+        for nArgument := 1 to Len(aArguments)
+            if ValType(aArguments[nArgument]) != "C"
+                loop
+            endif
+            cArgument := aArguments[nArgument]
+            if Left(cArgument, 2) != "--"
+                loop
+            endif
+            nEqual := At("=", cArgument)
+            cKey := SubStr(cArgument, 3)
+            if nEqual > 0
+                cKey := SubStr(cArgument, 3, nEqual - 3)
+            endif
+            if !jFlags:HasProperty(cKey)
+                loop
+            endif
+            if nEqual <= 3 .or. jSeen:HasProperty(cKey)
+                lValid := .F.
+                exit
+            endif
+            jSeen[cKey] := .T.
+            cValue := SubStr(cArgument, nEqual + 1)
+            if cKey == "port" .or. cKey == "timeout" .or. cKey == "rows" .or. ;
+                cKey == "page-size" .or. cKey == "iterations" .or. cKey == "warmup"
+                nMaximum := 1000000
+                if cKey == "port"
+                    nMaximum := 65535
+                elseif cKey == "timeout"
+                    nMaximum := 2147483
+                elseif cKey == "rows" .or. cKey == "page-size"
+                    nMaximum := 100000
+                endif
+                nValue := BenchmarkInteger(cValue, nMaximum, cKey == "warmup")
+                if nValue < 0
+                    lValid := .F.
+                    exit
+                endif
+                jFlags[cKey] := nValue
+            else
+                if !BenchmarkTextValid(cValue)
+                    lValid := .F.
+                    exit
+                endif
+                jFlags[cKey] := cValue
+            endif
+        next nArgument
+    endif
+
+    if lValid
+        nResult := HBBridge.Test.HBBridgeBenchmarkTest():Run(jFlags["profile"], ;
+            jFlags["host"], jFlags["port"], jFlags["url"], jFlags["token"], ;
+            jFlags["timeout"], jFlags["rows"], jFlags["page-size"], ;
+            jFlags["iterations"], jFlags["warmup"])
+    else
+        ConOut("hbBridge benchmark FAILED: supply unique valid flags and canonical decimal integers.")
+    endif
+    FreeObj(@jSeen)
+    FreeObj(@jFlags)
+
+return(nResult)
+
+static method Run(cProfile, cHost, nPort, cURL, cToken, nTimeoutSeconds, ;
+    nRows, nPageSize, nIterations, nWarmup) class HBBridgeBenchmarkTest
+
+    local jReport := HBBridge.Test.HBBridgeBenchmarkTest():Measure(cProfile, cHost, nPort, ;
+        cURL, cToken, nTimeoutSeconds, nRows, nPageSize, nIterations, nWarmup) as json
+    local nResult := IIf(jReport["success"], 0, 1) as numeric
+
+    if jReport["failureCategory"] == "INVALID_CONFIGURATION"
+        ConOut("hbBridge benchmark FAILED: supply an explicit profile, valid TCP/HTTP settings and valid fixture counts.")
+    else
+        ConOut("hbBridge benchmark summary: " + jReport:ToJSON())
+        if !jReport["success"]
+            BenchmarkLogFailure(jReport, "tcp")
+            BenchmarkLogFailure(jReport, "http")
+        endif
+        ConOut("hbBridge benchmark Protheus " + IIf(nResult == 0, "OK", "FAILED"))
+    endif
+    FreeObj(@jReport)
+
+return(nResult)
+
+static method Measure(cProfile, cHost, nPort, cURL, cToken, nTimeoutSeconds, ;
+    nRows, nPageSize, nIterations, nWarmup) class HBBridgeBenchmarkTest
+
+    local jReport := JSONObject():New() as json
+    local jMemory as json
+    local jTCP as json
+    local jHTTP as json
+    local oTCP as object
+    local oHTTP as object
+    local xError as variant
+    local cIniFile := GetSrvIniName() as character
+    local cSQL := "" as character
+    local nStarted := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs() as numeric
+    local nFinished := 0 as numeric
+    local lValid := .T. as logical
+
+    jReport["schemaVersion"] := 1
+    jReport["success"] := .F.
+    jReport["failureCategory"] := "INVALID_CONFIGURATION"
+
+    if ValType(cHost) == "U"
+        cHost := GetPvProfString("hbBridge", "Host", "127.0.0.1", cIniFile)
+    endif
+    if ValType(nPort) == "U"
+        nPort := BenchmarkInteger(GetPvProfString("hbBridge", "Port", "1512", cIniFile), 65535, .F.)
+    endif
+    if ValType(cURL) == "U"
+        cURL := GetPvProfString("hbBridge", "HTTPURL", "http://127.0.0.1:8080", cIniFile)
+    endif
+    if ValType(cToken) == "U"
+        cToken := GetPvProfString("hbBridge", "HTTPToken", "", cIniFile)
+    endif
+    DEFAULT nTimeoutSeconds := 30
+    DEFAULT nRows := 1000
+    DEFAULT nPageSize := 100
+    DEFAULT nIterations := 5
+    DEFAULT nWarmup := 2
+
+    lValid := BenchmarkTextValid(cProfile) .and. BenchmarkTextValid(cHost) .and. ;
+        BenchmarkURLValid(cURL) .and. BenchmarkTextValid(cToken)
+    lValid := BenchmarkNumberValid(nPort, 1, 65535) .and. ;
+        BenchmarkNumberValid(nTimeoutSeconds, 1, 2147483) .and. lValid
+    lValid := BenchmarkNumberValid(nRows, 1, 100000) .and. ;
+        BenchmarkNumberValid(nPageSize, 1, 100000) .and. ;
+        BenchmarkNumberValid(nIterations, 1, 1000000) .and. ;
+        BenchmarkNumberValid(nWarmup, 0, 1000000) .and. lValid
+    if !lValid
+        return jReport
+    endif
+
+    jReport["runID"] := UUIDRandom()
+    jReport["fixture"] := "m08.constant.v1"
+    jReport["profile"] := cProfile
+    jReport["rowsPerIteration"] := nRows
+    jReport["pageSize"] := nPageSize
+    jReport["iterations"] := nIterations
+    jReport["warmupIterations"] := nWarmup
+    jReport["concurrency"] := 1
+    jReport["transportOrder"] := "TCP,HTTP"
+    jReport["clock"] := "HBBridgeTime.TimeCounter.normalized.ms"
+    jReport["serverUnix"] := IsSrvUnix()
+    jReport["startedLocal"] := DToS(Date()) + "/" + Time()
+    jReport["timingScope"] := "full paged traversal including client calls, value checks and dataset close"
+    jReport["clientConstructionTimed"] := .F.
+    jReport["warmupExcludedFromMeasuredStatistics"] := .T.
+    jReport["clientPolicy"] := "production TCP and HTTP client defaults; no benchmark-specific compression policy"
+    jReport["physicalPooling"] := "not inferred; record the hbBridge process configuration separately"
+    jMemory := JSONObject():New()
+    jMemory["status"] := "UNAVAILABLE"
+    jMemory["scope"] := "sample the AppServer process externally; no per-thread or peak memory estimate"
+    jReport["memory"] := jMemory
+    jMemory := Nil
+    jReport["failureCategory"] := "RUNTIME_EXCEPTION"
+    cSQL := BenchmarkSQL(nRows)
+
+    try
+        oTCP := HBBridge.Client.HBBridgeClient():New(cHost, nPort, nTimeoutSeconds * 1000)
+        oHTTP := HBBridge.Client.HBBridgeHTTPClient():New(cURL, cToken, nTimeoutSeconds)
+        jTCP := BenchmarkSeries(oTCP, cProfile, cSQL, nRows, nPageSize, nIterations, nWarmup, .F.)
+        jReport["tcp"] := jTCP
+        jHTTP := BenchmarkSeries(oHTTP, cProfile, cSQL, nRows, nPageSize, nIterations, nWarmup, .T.)
+        jReport["http"] := jHTTP
+        jReport["success"] := jTCP["success"] .and. jHTTP["success"]
+        jReport["failureCategory"] := IIf(jReport["success"], "", "SCENARIO_FAILED")
+    catch xError
+        // Never print exception descriptions, endpoints, credentials or SQL.
+        jReport["success"] := .F.
+        jReport["failureCategory"] := "RUNTIME_EXCEPTION"
+        if (ValType(xError)=="O")
+            FreeObj(xError)
+        endif
+    endtry
+
+    if ValType(oTCP) == "O"
+        if !oTCP:Close()
+            jReport["success"] := .F.
+            jReport["failureCategory"] := "CLIENT_CLEANUP_FAILED"
+        endif
+        FreeObj(@oTCP)
+    endif
+    if ValType(oHTTP) == "O"
+        FreeObj(@oHTTP)
+    endif
+    nFinished := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs()
+    jReport["runElapsedMs"] := Nil
+    if nFinished >= nStarted
+        jReport["runElapsedMs"] := nFinished - nStarted
+    else
+        jReport["success"] := .F.
+        jReport["failureCategory"] := "CLOCK_REGRESSION"
+    endif
+    // The caller owns the report, including its nested transport/sample JSON.
+    jTCP := Nil
+    jHTTP := Nil
+
+return(jReport)
+
+static function BenchmarkSeries(oClient as object, cProfile as character, cSQL as character, ;
+    nRows as numeric, nPageSize as numeric, nIterations as numeric, nWarmup as numeric, lHTTP as logical) as json
+
+    local jSeries := JSONObject():New() as json
+    local jSamples := JSONObject():New() as json
+    local jWarmupSamples := JSONObject():New() as json
+    local jSample as json
+    local oDataSet as object
+    local xError as variant
+    local nIteration := 0, nCompleted := 0, nWarmupCompleted := 0 as numeric
+    local nTotalMs := 0, nMinMs := 0, nMaxMs := 0 as numeric
+    local lWarmupOK := .T. as logical
+
+    jSeries["success"] := .F.
+    jSeries["completedIterations"] := 0
+    jSeries["warmupCompleted"] := 0
+    jSeries["totalMs"] := Nil
+    jSeries["minMs"] := Nil
+    jSeries["maxMs"] := Nil
+    jSeries["avgMs"] := Nil
+    jSeries["measuredCalls"] := 0
+    jSeries["measuredRows"] := 0
+    jSeries["samples"] := jSamples
+    jSeries["warmupSamples"] := jWarmupSamples
+    jSeries["failureCategory"] := "RUNTIME_EXCEPTION"
+    jSeries["failurePhase"] := ""
+    jSeries["failureIteration"] := 0
+    try
+        oDataSet := HBBridge.RDD.HBBridgeRPCDataSet():New(oClient)
+        oDataSet:SetAliasProfile(cProfile)
+        for nIteration := 1 to nWarmup
+            jSample := BenchmarkIteration(oDataSet, oClient, cSQL, nRows, nPageSize, lHTTP)
+            jWarmupSamples[AllTrim(Str(nIteration))] := jSample
+            if !jSample["success"]
+                lWarmupOK := .F.
+                jSeries["failureCategory"] := "WARMUP_FAILED"
+                jSeries["failurePhase"] := "warmup"
+                jSeries["failureIteration"] := nIteration
+                jSample := Nil
+                exit
+            endif
+            nWarmupCompleted++
+            jSample := Nil
+        next nIteration
+        if lWarmupOK
+            for nIteration := 1 to nIterations
+                jSample := BenchmarkIteration(oDataSet, oClient, cSQL, nRows, nPageSize, lHTTP)
+                jSamples[AllTrim(Str(nIteration))] := jSample
+                if !jSample["success"]
+                    jSeries["failureCategory"] := "MEASURED_ITERATION_FAILED"
+                    jSeries["failurePhase"] := "measured"
+                    jSeries["failureIteration"] := nIteration
+                    jSample := Nil
+                    exit
+                endif
+                nCompleted++
+                nTotalMs += jSample["elapsedMs"]
+                if nCompleted == 1
+                    nMinMs := jSample["elapsedMs"]
+                    nMaxMs := nMinMs
+                else
+                    nMinMs := Min(nMinMs, jSample["elapsedMs"])
+                    nMaxMs := Max(nMaxMs, jSample["elapsedMs"])
+                endif
+                jSeries["measuredCalls"] += jSample["rpcCalls"]
+                jSeries["measuredRows"] += jSample["rowsRead"]
+                jSample := Nil
+            next nIteration
+        endif
+        jSeries["success"] := lWarmupOK .and. nCompleted == nIterations
+        if jSeries["success"]
+            jSeries["failureCategory"] := ""
+        endif
+    catch xError
+        jSeries["failureCategory"] := "RUNTIME_EXCEPTION"
+        if (ValType(xError)=="O")
+            FreeObj(xError)
+        endif
+    endtry
+    if ValType(oDataSet) == "O"
+        try
+            oDataSet:Close()
+        catch xError
+            jSeries["success"] := .F.
+            jSeries["failureCategory"] := "RUNTIME_EXCEPTION"
+            if (ValType(xError)=="O")
+                FreeObj(xError)
+            endif
+        endtry
+        FreeObj(@oDataSet)
+    endif
+    jSeries["completedIterations"] := nCompleted
+    jSeries["warmupCompleted"] := nWarmupCompleted
+    jSeries["statisticsScope"] := "successful measured iterations only; inspect success before comparison"
+    if nCompleted > 0
+        jSeries["totalMs"] := nTotalMs
+        jSeries["minMs"] := nMinMs
+        jSeries["maxMs"] := nMaxMs
+        jSeries["avgMs"] := nTotalMs / nCompleted
+    endif
+    // The returned report owns its nested samples through JSON references.
+    jSamples := Nil
+    jWarmupSamples := Nil
+
+return(jSeries)
+
+static function BenchmarkIteration(oDataSet as object, oClient as object, cSQL as character, ;
+    nRows as numeric, nPageSize as numeric, lHTTP as logical) as json
+
+    local jSample := JSONObject():New() as json
+    local xError as variant
+    local xID, xName, xAmount as variant
+    local cFailure := "", cServiceCode := "" as character
+    local nHTTPStatus := 0 as numeric
+    local nStarted := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs() as numeric
+    local nPrevious := nStarted, nCurrent := 0 as numeric
+    local nPage := 0, nRowsRead := 0, nPagesRead := 0, nCalls := 0 as numeric
+    local nRow := 0, nID := 0, nExpectedRows := 0 as numeric
+    local nExpectedPages := Int((nRows - 1) / nPageSize) + 1 as numeric
+    local lOpened := .F. as logical
+
+    try
+        for nPage := 1 to nExpectedPages
+            nCurrent := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs()
+            if nCurrent < nPrevious
+                cFailure := "CLOCK_REGRESSION"
+                exit
+            endif
+            nPrevious := nCurrent
+            nCalls++
+            if nPage == 1
+                lOpened := oDataSet:OpenPage(cSQL, 1, nPageSize, "ID ASC")
+            else
+                lOpened := oDataSet:NextPage()
+            endif
+            if lHTTP
+                nHTTPStatus := oClient:StatusCode()
+            endif
+            if !lOpened
+                cFailure := "QUERY_FAILED"
+                cServiceCode := BenchmarkSafeCode(oDataSet:ErrorCode())
+                exit
+            endif
+            if lHTTP
+                if oClient:StatusCode() != 200
+                    cFailure := "HTTP_STATUS_FAILED"
+                    exit
+                endif
+            endif
+            nExpectedRows := Min(nPageSize, nRows - (nPage - 1) * nPageSize)
+            if oDataSet:FieldCount() != 3 .or. oDataSet:FieldName(1) != "ID" .or. ;
+                oDataSet:FieldName(2) != "NAME" .or. oDataSet:FieldName(3) != "AMOUNT"
+                cFailure := "METADATA_MISMATCH"
+                exit
+            endif
+            if !oDataSet:HasTotals() .or. oDataSet:TotalRows() != nRows .or. ;
+                oDataSet:TotalPages() != nExpectedPages .or. oDataSet:PageNumber() != nPage .or. ;
+                oDataSet:PageSize() != nPageSize .or. oDataSet:RowCount() != nExpectedRows .or. ;
+                oDataSet:HasNextPage() != (nPage < nExpectedPages)
+                cFailure := "PAGE_MISMATCH"
+                exit
+            endif
+            for nRow := 1 to nExpectedRows
+                if oDataSet:Eof()
+                    cFailure := "ROW_COUNT_MISMATCH"
+                    exit
+                endif
+                nID := (nPage - 1) * nPageSize + nRow
+                xID := oDataSet:FieldGet("ID")
+                xName := oDataSet:FieldGet("NAME")
+                xAmount := oDataSet:FieldGet("AMOUNT")
+                if ValType(xID) != "N" .or. ValType(xName) != "C" .or. ValType(xAmount) != "N"
+                    cFailure := "VALUE_TYPE_MISMATCH"
+                    exit
+                endif
+                if xID != nID .or. AllTrim(xName) != "hbbridge-" + AllTrim(Str(nID)) .or. ;
+                    xAmount != nID / 4
+                    cFailure := "VALUE_MISMATCH"
+                    exit
+                endif
+                nRowsRead++
+                oDataSet:Skip()
+            next nRow
+            if !Empty(cFailure)
+                exit
+            endif
+            if !oDataSet:Eof()
+                cFailure := "ROW_COUNT_MISMATCH"
+                exit
+            endif
+            nPagesRead++
+        next nPage
+        if Empty(cFailure)
+            if nRowsRead != nRows .or. nPagesRead != nExpectedPages .or. !Empty(oDataSet:ErrorCode())
+                cFailure := "TRAVERSAL_MISMATCH"
+            endif
+        endif
+    catch xError
+        cFailure := "RUNTIME_EXCEPTION"
+        if (ValType(xError)=="O")
+            FreeObj(xError)
+        endif
+    endtry
+    try
+        oDataSet:Close()
+    catch xError
+        cFailure := "RUNTIME_EXCEPTION"
+        if (ValType(xError)=="O")
+            FreeObj(xError)
+        endif
+    endtry
+    nCurrent := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs()
+    jSample["elapsedMs"] := Nil
+    if nCurrent < nPrevious
+        cFailure := "CLOCK_REGRESSION"
+    else
+        jSample["elapsedMs"] := nCurrent - nStarted
+    endif
+    jSample["success"] := Empty(cFailure)
+    jSample["failureCategory"] := cFailure
+    jSample["rowsRead"] := nRowsRead
+    jSample["pagesRead"] := nPagesRead
+    jSample["rpcCalls"] := nCalls
+    jSample["serviceCode"] := cServiceCode
+    jSample["httpStatus"] := IIf(lHTTP, nHTTPStatus, Nil)
+    jSample["failedPage"] := Nil
+    if !Empty(cFailure) .and. nPage >= 1 .and. nPage <= nExpectedPages
+        jSample["failedPage"] := nPage
+    endif
+
+return(jSample)
+
+static function BenchmarkSafeCode(xCode as variant) as character
+
+    local nCharacter := 0 as numeric
+    local cCode := "" as character
+
+    if ValType(xCode) != "C"
+        return "UNCLASSIFIED_CLIENT_ERROR"
+    endif
+    cCode := Upper(xCode)
+    if Empty(cCode) .or. Len(cCode) > 80
+        return "UNCLASSIFIED_CLIENT_ERROR"
+    endif
+    for nCharacter := 1 to Len(cCode)
+        if !(SubStr(cCode, nCharacter, 1) $ "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_")
+            return "UNCLASSIFIED_CLIENT_ERROR"
+        endif
+    next nCharacter
+
+return(cCode)
+
+static procedure BenchmarkLogFailure(jReport as json, cRoute as character)
+
+    local jSeries as json
+    local jSample as json
+    local cPhase := "", cKey := "", cLine := "" as character
+
+    if !jReport:HasProperty(cRoute)
+        return
+    endif
+    jSeries := jReport[cRoute]
+    if ValType(jSeries) != "J"
+        return
+    endif
+    if jSeries["success"]
+        return
+    endif
+    cLine := "hbBridge benchmark failure: transport=" + cRoute + ;
+        "; category=" + BenchmarkSafeCode(jSeries["failureCategory"])
+    if jSeries:HasProperty("failureIteration")
+        cPhase := jSeries["failurePhase"]
+        cKey := AllTrim(Str(jSeries["failureIteration"]))
+        cLine += "; phase=" + cPhase + "; iteration=" + cKey
+        if cPhase == "warmup"
+            jSample := jSeries["warmupSamples"][cKey]
+        elseif cPhase == "measured"
+            jSample := jSeries["samples"][cKey]
+        endif
+        if ValType(jSample) == "J"
+            cLine += "; sample=" + BenchmarkSafeCode(jSample["failureCategory"]) + ;
+                "; serviceCode=" + BenchmarkSafeCode(jSample["serviceCode"])
+            if ValType(jSample["failedPage"]) == "N"
+                cLine += "; page=" + AllTrim(Str(jSample["failedPage"]))
+            endif
+            if ValType(jSample["httpStatus"]) == "N"
+                cLine += "; httpStatus=" + AllTrim(Str(jSample["httpStatus"]))
+            endif
+        endif
+    endif
+    ConOut(cLine)
+
+return
+
+static function BenchmarkSQL(nRows as numeric) as character
+
+    local cDigits := "(VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9))" as character
+
+return("SELECT ID, CAST('hbbridge-' + CAST(ID AS VARCHAR(10)) AS VARCHAR(32)) AS NAME, " + ;
+    "CAST(ID * 0.25 AS DECIMAL(15,2)) AS AMOUNT FROM (SELECT 1 + A.N + 10 * B.N + " + ;
+    "100 * C.N + 1000 * D.N + 10000 * E.N AS ID FROM " + cDigits + " A(N) CROSS JOIN " + ;
+    cDigits + " B(N) CROSS JOIN " + cDigits + " C(N) CROSS JOIN " + cDigits + ;
+    " D(N) CROSS JOIN " + cDigits + " E(N)) F WHERE ID <= " + AllTrim(Str(nRows)))
+
+static function BenchmarkNumberValid(xValue as variant, nMinimum as numeric, nMaximum as numeric) as logical
+
+    if ValType(xValue) != "N"
+        return .F.
+    endif
+
+return(xValue >= nMinimum .and. xValue <= nMaximum .and. xValue == Int(xValue))
+
+static function BenchmarkInteger(cValue as character, nMaximum as numeric, lAllowZero as logical) as numeric
+
+    local nDigit := 0, nValue := 0 as numeric
+    local cDigit := "" as character
+
+    if Empty(cValue) .or. Len(cValue) > Len(AllTrim(Str(nMaximum)))
+        return -1
+    endif
+    if Len(cValue) > 1 .and. Left(cValue, 1) == "0"
+        return -1
+    endif
+    for nDigit := 1 to Len(cValue)
+        cDigit := SubStr(cValue, nDigit, 1)
+        if !(cDigit $ "0123456789")
+            return -1
+        endif
+        nValue := nValue * 10 + Val(cDigit)
+        if nValue > nMaximum
+            return -1
+        endif
+    next nDigit
+    if nValue == 0 .and. !lAllowZero
+        return -1
+    endif
+
+return(nValue)
+
+static function BenchmarkTextValid(xValue as variant) as logical
+
+    if ValType(xValue) != "C"
+        return .F.
+    endif
+
+return(!Empty(AllTrim(xValue)) .and. !(Chr(0) $ xValue) .and. ;
+    !(Chr(10) $ xValue) .and. !(Chr(13) $ xValue))
+
+static function BenchmarkURLValid(xValue as variant) as logical
+
+    local cValue := "", cAuthority := "" as character
+    local nStart := 0, nSlash := 0 as numeric
+
+    if !BenchmarkTextValid(xValue)
+        return .F.
+    endif
+    cValue := AllTrim(xValue)
+    if Lower(Left(cValue, 7)) == "http://"
+        nStart := 8
+    elseif Lower(Left(cValue, 8)) == "https://"
+        nStart := 9
+    else
+        return .F.
+    endif
+    cAuthority := SubStr(cValue, nStart)
+    nSlash := At("/", cAuthority)
+    if nSlash > 0
+        cAuthority := Left(cAuthority, nSlash - 1)
+    endif
+
+return(!Empty(cAuthority) .and. !("@" $ cValue) .and. !("?" $ cValue) .and. ;
+    !("#" $ cValue) .and. !(" " $ cValue) .and. !(Chr(9) $ cValue))

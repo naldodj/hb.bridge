@@ -590,9 +590,13 @@ testado; somente versões e capacidades efetivamente implementadas são anunciad
   READY/GO ainda libera todos em conjunto, sem implicar menor concorrência SQL.
   Os resumos fornecidos com 5–500 workers contêm os novos campos e informam
   zero falhas; sem recibo de compilação ou rastro completo por worker.
-- [x] Concluir M07 no escopo Windows/nativo/manual registrado. Retomar
-  baseline de transporte/memória M08; checks finais M09 e D03 continuam
-  abertos no [WIP](WIP.pt-BR.md).
+- [x] Concluir M07 no escopo Windows/nativo/manual registrado.
+- [x] Registrar referência de tempo/memória M08 do pacote 001: fixture comum
+  paginada de 1000 linhas, processos Harbour/TCP/HTTP nativos off/driver e
+  AppServer TCP/HTTP reais, aquecimento separado, artefatos identificados e
+  amostras do processo pelo SO.
+  [Resultados e escopo](docs/acceptance.pt-BR.md#m08-performance-baseline-on-2026-10-16).
+  Checks finais M09 e D03 continuam abertos no [WIP](WIP.pt-BR.md).
 - [ ] Avaliar `hbodbc`/`hbsqlit3` quando a operação exigir a API direta.
 - [x] Implementar `RPCRDD.Query` no registro/dispatcher, com perfil lógico,
   `alias`, `sql`, metadados e retorno por chave com contagem/versão explícitas.
@@ -658,8 +662,8 @@ testado; somente versões e capacidades efetivamente implementadas são anunciad
   zero falhas, em 2026-10-13 às 17:56:23 São Paulo, thread 32332. Helpers puros
   passaram nos 12 checks às 17:56:45, thread 28300. O escopo de mocks de D02
   está homologado; integridade UTF-8/FLOAT de D03 permanece pendente. M06 tem
-  aceite isolado posterior; M07 está homologada no escopo registrado e M08–M09
-  permanecem abertos. Essas rodadas não exercitam transporte, backend SQL nem
+  aceite isolado posterior; M07/M08 estão homologadas nos escopos registrados e M09
+  permanece aberto. Essas rodadas não exercitam transporte, backend SQL nem
   tabela ERP. [Evidência](docs/dataset.pt-BR.md).
 
 - [ ] Adicionar parâmetros SQL e metadados de tipo, tamanho, precisão e nulos,

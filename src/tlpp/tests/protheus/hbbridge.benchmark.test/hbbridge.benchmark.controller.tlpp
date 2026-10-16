@@ -1,0 +1,239 @@
+/* Released to Public Domain. */
+#include "tlpp-core.th"
+
+namespace HBBridge.Examples
+
+class HBBridgeBenchmarkController
+
+    private data cInstance as character
+    private data cProfile as character
+    private data cHost as character
+    private data nPort as numeric
+    private data cURL as character
+    private data cToken as character
+    private data bMeasure as codeblock
+    private data cLastRequestID as character
+    private data cLastResponse as character
+    private data lRunning as logical
+    private data lClosed as logical
+
+    public method New(cInstance as character, cProfile as character, cHost as character, ;
+        nPort as numeric, cURL as character, cToken as character, bMeasure as codeblock) as object
+    public method Handle(cContent as character) as json
+    public method Close()
+
+endclass
+
+method New(cInstance, cProfile, cHost, nPort, cURL, cToken, bMeasure) class HBBridgeBenchmarkController
+
+    self:cInstance := cInstance
+    self:cProfile := cProfile
+    self:cHost := cHost
+    self:nPort := nPort
+    self:cURL := cURL
+    self:cToken := cToken
+    self:bMeasure := bMeasure
+    self:cLastRequestID := ""
+    self:cLastResponse := ""
+    self:lRunning := .F.
+    self:lClosed := .F.
+
+return(self)
+
+method Handle(cContent) class HBBridgeBenchmarkController
+
+    local jEnvelope := JSONObject():New() as json
+    local jResponse as json
+    local jReport as json
+    local xError as variant
+    local cRequestID := "" as character
+    local lRouted := .F., lValid := .F. as logical
+
+    try
+        if ValType(cContent) == "C"
+            if ValType(jEnvelope:FromJSON(cContent)) == "U"
+                if jEnvelope:HasProperty("instance") .and. jEnvelope:HasProperty("requestID")
+                    if ValType(jEnvelope["instance"]) == "C"
+                        lRouted := jEnvelope["instance"] == self:cInstance .and. ;
+                            BenchmarkCorrelationValid(jEnvelope["requestID"])
+                    endif
+                endif
+            endif
+        endif
+    catch xError
+        lRouted := .F.
+        if (ValType(xError)=="O")
+            FreeObj(@xError)
+        endif
+    endtry
+    if !lRouted
+        FreeObj(@jEnvelope)
+        return Nil
+    endif
+
+    cRequestID := jEnvelope["requestID"]
+    if self:lClosed
+        FreeObj(@jEnvelope)
+        return BenchmarkControllerError(self:cInstance, cRequestID, "CLOSED")
+    endif
+    if self:lRunning
+        FreeObj(@jEnvelope)
+        return BenchmarkControllerError(self:cInstance, cRequestID, "BUSY")
+    endif
+    if cRequestID == self:cLastRequestID .and. !Empty(self:cLastResponse)
+        jResponse := JSONObject():New()
+        jResponse:FromJSON(self:cLastResponse)
+        FreeObj(@jEnvelope)
+        return jResponse
+    endif
+
+    // One serialized response prevents duplicate execution and alias mutation.
+    self:cLastRequestID := cRequestID
+    self:cLastResponse := ""
+    lValid := BenchmarkEnvelopeValid(jEnvelope)
+    if !lValid
+        jResponse := BenchmarkControllerError(self:cInstance, cRequestID, "INVALID_PARAMETERS")
+    else
+        self:lRunning := .T.
+        try
+            if ValType(self:bMeasure) == "B"
+                jReport := Eval(self:bMeasure, self:cProfile, self:cHost, self:nPort, ;
+                    self:cURL, self:cToken, jEnvelope["params"]["timeoutSeconds"], ;
+                    jEnvelope["params"]["rows"], jEnvelope["params"]["pageSize"], ;
+                    jEnvelope["params"]["iterations"], jEnvelope["params"]["warmup"])
+            else
+                jReport := HBBridge.Test.HBBridgeBenchmarkTest():Measure(self:cProfile, ;
+                    self:cHost, self:nPort, self:cURL, self:cToken, ;
+                    jEnvelope["params"]["timeoutSeconds"], jEnvelope["params"]["rows"], ;
+                    jEnvelope["params"]["pageSize"], jEnvelope["params"]["iterations"], ;
+                    jEnvelope["params"]["warmup"])
+            endif
+            if self:lClosed
+                jResponse := BenchmarkControllerError(self:cInstance, cRequestID, "CLOSED")
+            elseif BenchmarkReportValid(jReport)
+                if !jReport["success"] .and. ;
+                    (!jReport:HasProperty("tcp") .or. !jReport:HasProperty("http"))
+                    jResponse := BenchmarkControllerError(self:cInstance, cRequestID, jReport["failureCategory"])
+                else
+                    jResponse := JSONObject():New()
+                    jResponse["instance"] := self:cInstance
+                    jResponse["requestID"] := cRequestID
+                    jResponse["report"] := jReport
+                    jReport := Nil
+                endif
+            else
+                jResponse := BenchmarkControllerError(self:cInstance, cRequestID, "INVALID_REPORT")
+            endif
+        catch xError
+            jResponse := BenchmarkControllerError(self:cInstance, cRequestID, "RUNTIME_EXCEPTION")
+        endtry
+        self:lRunning := .F.
+    endif
+    if ValType(jReport) == "J"
+        FreeObj(@jReport)
+    endif
+    FreeObj(@jEnvelope)
+    if !self:lClosed
+        self:cLastResponse := jResponse:ToJSON()
+    endif
+
+return(jResponse)
+
+method Close() class HBBridgeBenchmarkController
+
+    self:lClosed := .T.
+    self:cProfile := ""
+    self:cHost := ""
+    self:nPort := 0
+    self:cURL := ""
+    self:cToken := ""
+    self:bMeasure := Nil
+    self:cLastRequestID := ""
+    self:cLastResponse := ""
+
+return
+
+static function BenchmarkControllerError(cInstance as character, cRequestID as character, ;
+    cCategory as character) as json
+
+    local jResponse := JSONObject():New() as json
+
+    jResponse["instance"] := cInstance
+    jResponse["requestID"] := cRequestID
+    jResponse["error"] := cCategory
+
+return(jResponse)
+
+static function BenchmarkCorrelationValid(xValue as variant) as logical
+
+    if ValType(xValue) != "C"
+        return .F.
+    endif
+
+return(!Empty(AllTrim(xValue)) .and. Len(xValue) <= 128 .and. ;
+    !(Chr(0) $ xValue) .and. !(Chr(10) $ xValue) .and. !(Chr(13) $ xValue))
+
+static function BenchmarkEnvelopeValid(jEnvelope as json) as logical
+
+    local jParams as json
+    // GetNames() requires a native array; no copy or repeated key searches.
+    local aNames as array
+
+    aNames := jEnvelope:GetNames()
+    if Len(aNames) != 3 .or. !jEnvelope:HasProperty("params")
+        return .F.
+    endif
+    if ValType(jEnvelope["params"]) != "J"
+        return .F.
+    endif
+    jParams := jEnvelope["params"]
+    aNames := jParams:GetNames()
+    if Len(aNames) != 5
+        return .F.
+    endif
+    if !jParams:HasProperty("rows") .or. !jParams:HasProperty("pageSize") .or. ;
+        !jParams:HasProperty("iterations") .or. !jParams:HasProperty("warmup") .or. ;
+        !jParams:HasProperty("timeoutSeconds")
+        return .F.
+    endif
+
+return(BenchmarkControllerInteger(jParams["rows"], 1, 100000) .and. ;
+    BenchmarkControllerInteger(jParams["pageSize"], 1, 100000) .and. ;
+    BenchmarkControllerInteger(jParams["iterations"], 1, 1000000) .and. ;
+    BenchmarkControllerInteger(jParams["warmup"], 0, 1000000) .and. ;
+    BenchmarkControllerInteger(jParams["timeoutSeconds"], 1, 2147483))
+
+static function BenchmarkControllerInteger(xValue as variant, nMinimum as numeric, ;
+    nMaximum as numeric) as logical
+
+    if ValType(xValue) != "N"
+        return .F.
+    endif
+
+return(xValue >= nMinimum .and. xValue <= nMaximum .and. xValue == Int(xValue))
+
+static function BenchmarkReportValid(jReport as variant) as logical
+
+    if ValType(jReport) != "J"
+        return .F.
+    endif
+    if !jReport:HasProperty("schemaVersion") .or. !jReport:HasProperty("success") .or. ;
+        !jReport:HasProperty("failureCategory")
+        return .F.
+    endif
+    if ValType(jReport["schemaVersion"]) != "N" .or. ValType(jReport["success"]) != "L" .or. ;
+        ValType(jReport["failureCategory"]) != "C"
+        return .F.
+    endif
+    if jReport["schemaVersion"] != 1
+        return .F.
+    endif
+    if jReport["success"]
+        return jReport["failureCategory"] == ""
+    endif
+
+return(jReport["failureCategory"] == "INVALID_CONFIGURATION" .or. ;
+    jReport["failureCategory"] == "SCENARIO_FAILED" .or. ;
+    jReport["failureCategory"] == "RUNTIME_EXCEPTION" .or. ;
+    jReport["failureCategory"] == "CLIENT_CLEANUP_FAILED" .or. ;
+    jReport["failureCategory"] == "CLOCK_REGRESSION")

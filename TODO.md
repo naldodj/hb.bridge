@@ -411,9 +411,12 @@ per-value limits; tested slow-consumer/invalid-decode/disconnect behavior.
   workers together, so pacing does not imply lower query concurrency.
   Supplied 5–500-worker summaries include the new pacing fields and report
   zero failures; no compiler receipt or full per-worker trace was supplied.
-- [x] Complete M07 within its recorded Windows/native/manual scope. Resume
-  package 001 transport/memory baseline M08; final M09 checks and D03 remain
-  open in [WIP](WIP.md).
+- [x] Complete M07 within its recorded Windows/native/manual scope.
+- [x] Record package 001 M08 time/memory baseline: common 1000-row paged
+  fixture, native Harbour/TCP/HTTP off/driver processes and real AppServer
+  TCP/HTTP, separate warmups, identified artifacts and OS process samples.
+  [Results and scope](docs/acceptance.md#m08-performance-baseline-on-2026-10-16).
+  Final M09 checks and D03 remain open in [WIP](WIP.md).
 - [ ] Unavailable connector, broader type/null coverage and real volume in
   Protheus; unknown alias is not connector-failure proof.
 - [ ] hbodbc/hbsqlit3 direct API where operations require it.
@@ -456,7 +459,7 @@ per-value limits; tested slow-consumer/invalid-decode/disconnect behavior.
   2026-10-13 at 17:56:23 São Paulo, thread 32332. Pure helpers passed all 12
   checks at 17:56:45, thread 28300. D02's mock scope is accepted; D03's
   UTF-8/FLOAT integrity remains pending; M06 has subsequent live acceptance,
-  with M07 now accepted in its recorded scope and M08–M09 open. These runs exercise
+  with M07/M08 now accepted in their recorded scopes and M09 open. These runs exercise
   no transport, SQL backend or ERP table. [Evidence](docs/dataset.md).
 - [x] ROW_NUMBER/BETWEEN pages, sentinel hasNext, explicit order, OpenPage/
   NextPage; gaps in business IDs do not control ordinal pagination.

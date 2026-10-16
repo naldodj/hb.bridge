@@ -5,6 +5,34 @@
    Caminhos antigos descrevem os arquivos existentes na época.
  */
 
+2026-10-16 13:59 UTC naldodj (Adicionar benchmark visual e limitar ciclo do socket cliente)
+  + Reutilizar núcleo M08 em formulário FWWebEx com gráficos e exportação
+    JSON/HTML; validar requisições correlacionadas sem expor credenciais.
+  ! Reutilizar um TSocketClient nativo por instância com Close explícito,
+    limpeza após recusa/exceção e regressão de clientes independentes.
+  * Registrar rodada manual ampliada separadamente: TCP concluiu 500 iterações;
+    HTTP falhou na primeira chamada da iteração 136 após 135 sucessos, em 30.02 s.
+    Adicionar código/status/página seguros; relatório antigo não comprova causa.
+  * Registrar complemento V01 solicitado antes de M09; integridade D03 aberta.
+
+2026-10-16 07:57 UTC naldodj (Registrar validação manual do benchmark Protheus)
+  ; Rodada manual M08 adicional: duas rotas passaram nas cinco varreduras
+    medidas e dois aquecimentos cada; 100 chamadas/10000 linhas medidas,
+    médias 1039.60 ms TCP e 1122.12 ms HTTP por varredura de 1000 linhas.
+    Memória indisponível; pool/build/saída não informados. M09 e D03 abertos.
+
+2026-10-16 07:46 UTC naldodj (Registrar referência reproduzível MSSQL de tempo e memória)
+  + Adicionar executor nativo local/TCP/HTTP isolado e consumidor dataset
+    TLPP equivalente, com fixture somente de leitura m08.constant.v1.
+  * Separar aquecimento, varredura medida, inicialização e memória de processo;
+    preservar evidências JSON/CSV, hashes, política e limitações do relógio.
+  ; Seis rotas nativas off/driver: 43366 checks do benchmark, zero falhas.
+    AppServer TCP/HTTP reais: cinco varreduras medidas cada, 50 chamadas/5000
+    linhas por rota, além dos aquecimentos; cliente e servidor isolado saída 0.
+  ; Os 34 fontes TLPP compilaram sem erros de fonte; finalização do compilador
+    do fornecedor retornou 0xC0000409 separadamente; serviços normais restaurados.
+  * Homologar M08 no escopo registrado e retomar M09; D03 e pacote 001 abertos.
+
 2026-10-16 02:23 UTC naldodj (Homologar reuso SQL Windows e concorrência Protheus com pausas)
   + Adaptar HBBridgeSQLPool para leases em hashes com identidade única,
     propriedade por perfil/thread e limpeza verificada; manter mutex SQL/SQLite.

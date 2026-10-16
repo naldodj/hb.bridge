@@ -1,0 +1,13 @@
+/* Released to Public Domain. */
+#include "totvs.ch"
+#include "tlpp-core.th"
+
+// Variadic:vArgs is the native AppServer CLI argument array; it is borrowed.
+function U_HBBridgeBenchmarkCLI(oArguments as variadic)
+return(HBBridge.Test.HBBridgeBenchmarkTest():RunCLI(oArguments:vArgs))
+
+// An opaque SQL alias is required. Omitted transport settings use [hbBridge].
+function U_HBBridgeBenchmarkTest(cProfile, cHost, nPort, cURL, cToken, nTimeoutSeconds, ;
+    nRows, nPageSize, nIterations, nWarmup)
+return(HBBridge.Test.HBBridgeBenchmarkTest():Run(cProfile, cHost, nPort, cURL, cToken, ;
+    nTimeoutSeconds, nRows, nPageSize, nIterations, nWarmup))

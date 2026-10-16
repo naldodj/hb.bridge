@@ -1408,3 +1408,220 @@ ou garantia de SQL paralelo.
 M07 está concluída nos escopos nativo Windows e de resumos manuais com
 espaçamento registrados acima. Retomar medições M08 de tempo/memória; checks
 finais M09 e D03 UTF-8/FLOAT continuam abertos, sem encerrar o pacote 001.
+
+<a id="m08-performance-baseline-on-2026-10-16"></a>
+
+## Referência de desempenho M08 em 2026-10-16
+
+Registrada a fixture comum somente de leitura `m08.constant.v1` com perfil
+explícito `MSSQL/pData`, banco `pData`, SQL Server **16.0.1210.3**. Gera 1000
+linhas com ID/nome/valores em quartos com `DECIMAL(15,2)`, páginas de 100
+ordenadas por ID crescente. Nenhuma tabela ERP é lida ou alterada. SQL Harbour
+e TLPP são idênticos byte a byte: 537 bytes ASCII, SHA256
+`A5F3569517A2A638BEDAFED9D4CA348ADCA9C737C90213A18147B8D4078BDCC5`.
+Consultar [metodologia/reprodução](benchmarking.pt-BR.md).
+
+Cada rota usa um cliente, duas varreduras completas de aquecimento e cinco
+completas medidas. Cada varredura medida valida as 1000 linhas e dez páginas,
+incluindo ordem dos campos, valores, totais e estado da última página.
+Cada página usa uma chamada Query e as instruções SELECT/COUNT separadas
+do produto. Por rota: 20 chamadas/2000 linhas de aquecimento e 50 chamadas/
+5000 linhas medidas. As amostras de aquecimento ficam visíveis e fora das
+estatísticas. Uma consulta de identificação precede o aquecimento nativo;
+não representa conexão fria nem cache frio do SGBD.
+
+### Clientes nativos e memória do SO
+
+Processos separados, em sequência, mediram dispatcher Harbour direto, TCP
+nativo e HTTP nativo em cada política explícita de pooling. As seis rotas
+retornaram sucesso e saída 0: **43366 verificações do benchmark, zero falhas**,
+incluindo valores de aquecimento/medição, encerramento próprio, zero leases
+ativos e restauração da workarea/conexão padrão do chamador. São checks do
+benchmark, separados da regressão anterior de 712 checks do produto.
+
+| Política | Cliente nativo | Média ms / varredura completa | Mín–máx ms | Pico amostrado working/private MiB na medição | Amostras de memória na medição |
+| --- | --- | --- | --- | --- | --- |
+| off | Harbour direto | 2881.20 | 2344–3546 | 21.35 / 4.93 | 180 |
+| off | TCP | 2300.00 | 1938–2687 | 18.04 / 6.03 | 151 |
+| off | HTTP | 2496.80 | 1891–3203 | 18.52 / 6.51 | 156 |
+| driver | Harbour direto | 1159.40 | 985–1344 | 23.37 / 5.00 | 78 |
+| driver | TCP | 1531.40 | 1235–1875 | 19.89 / 6.12 | 94 |
+| driver | HTTP | 1303.00 | 969–1718 | 20.50 / 6.61 | 87 |
+
+Os seis relatórios têm `memory.available=true` e amostras na fase medida.
+A memória pertence ao processo completo de cada rota, incluindo cliente e
+servidor isolado em TCP/HTTP; não representa alocação por query. Working set/
+private bytes são contadores do processo no SO; observações do pico vitalício
+ficam separadas no JSON. O intervalo solicitado é 50 ms mais o custo da coleta;
+os tempos no CSV registram o espaçamento real. MiB corresponde a bytes divididos
+por 1048576. O tempo nativo usa ticks Windows `GetTickCount64`; médias
+fracionárias são valores derivados do agregado.
+
+Artefatos:
+
+- off: `tmp/mssql-benchmark-65e82528313e404e8395b801db49c2c7/benchmark.json`,
+  `result.json`/`results.log`/`memory.csv` por rota;
+  log `tmp/m08-native-baseline-off-20261016.log`.
+- driver: `tmp/mssql-benchmark-458ec3e6699b4508aae6df881d16e31d/benchmark.json`,
+  artefatos correspondentes por rota;
+  log `tmp/m08-native-baseline-driver-20261016.log`.
+- SHA256 do executável off:
+  `6E992FA6FCD4C85315E5269B0E759457B9EEBA452390933099D2674E194225FD`;
+  driver: `4F10EC0BF5F7DF8028832CA94ECF3F7482335F153B8932E4FFE468F374DD235B`.
+  Os relatórios identificam também fontes próprios, manifesto/revisões das
+  dependências, Zig 0.16.0 e hashes do patch/biblioteca ODBC gerenciados.
+
+### Clientes reais do Protheus
+
+A árvore TLPP completa compilou **34 fontes, zero erros de fonte**, incluindo
+classe e entrada do benchmark. Depois, o compilador do fornecedor retornou
+**0xC0000409** na finalização, separado da compilação dos fontes. Os scripts
+de parada/inicialização retornaram 0 e os serviços normais foram restaurados.
+Recibos: `tmp/m08-totvs-build-result-20261016.json`,
+`tmp/totvs-m08-compile-20261016.log` e
+`tmp/m08-totvs-lifecycle-20261016.log`.
+Uma chamada CLI inválida com `--rows=0` retornou saída 1 e a validação esperada
+do executor, confirmando a rejeição dessa entrada pelo programa compilado.
+
+A execução real de `U_HBBridgeBenchmarkCLI` pelo AppServer licenciado passou
+nos dois clientes/dataset do produto, com **saída 0** e JSON completo aprovado.
+O hbBridge isolado usou política explícita `driver` e o executável nativo
+identificado acima. Sua requisição preliminar da fixture fica separada das
+medições AppServer. Os checks finais de limpeza do host passaram com saída 0.
+
+| Cliente TLPP | Varreduras medidas | Média ms / varredura completa | Mín–máx ms | Chamadas / linhas medidas |
+| --- | --- | --- | --- | --- |
+| TCP | 5 | 1118.14 | 991.05–1263.63 | 50 / 5000 |
+| HTTP | 5 | 1491.91 | 1299.71–1641.31 | 50 / 5000 |
+
+As duas rotas passaram também nos dois aquecimentos de cada uma. O tempo inclui
+navegação/validação de valores e Close do dataset, usando `TimeCounter()`
+normalizado. TCP precede HTTP. O executor completo levou cerca de 19.016 s;
+a duração do processo com inicialização/finalização foi de 33.232 s.
+São intervalos distintos das médias acima. O campo interno de memória permanece
+`UNAVAILABLE`; um amostrador externo forneceu memória do processo completo:
+
+| Processo observado no ciclo combinado TCP/HTTP | Amostras | Pico working amostrado MiB | Pico private amostrado MiB |
+| --- | --- | --- | --- |
+| Cliente AppServer isolado | 405 | 297.98 | 310.72 |
+| Servidor hbBridge isolado separado | 405 | 20.88 | 6.91 |
+
+Essas amostras externas incluem inicialização/limpeza do cliente e as duas
+rotas; não são memória da fase medida nem por rota. Snapshots do processo
+não comprovam vazamento nem atribuem memória compartilhada do runtime à thread.
+Artefatos: `tmp/m08-protheus-benchmark-c05255b72a8b48b68ef794b9329f7366/benchmark.json`,
+`protheus.log`, `memory.csv` e `server/result.json`/`results.log`.
+O fonte do amostrador está preservado em
+`tmp/run-m08-protheus-benchmark-20261016.ps1`, identificado por hash no recibo.
+O INI CLI privado fica fora do Git, junto ao AppServer; seu parser exige apenas
+o nome em `-ini`. O `appserver.ini` ativo e a configuração SQL privada do
+hbBridge não foram editados.
+
+SHA256 da classe: `1A9C40240C0B8D36300DAA13518EA595F947DE8595BD75C7B4350D76C210B487`;
+entrada: `C5A355E64DA8442079C3B35151C4363AD6268287F659AAD5AD25F344575BD533`.
+O RPO informa 31489542 bytes, atualizado às 04:33:17 São Paulo; seu hash não
+estava disponível devido ao bloqueio do arquivo pelo runtime em execução.
+A limitação fica explícita; chamada aprovada e recibos do compilador
+identificam a entrada exercitada.
+
+### Escopo e sequência
+
+As referências usaram a mesma estação Windows x64 compartilhada, 12 CPUs
+lógicas, plano Equilibrado e AppServer/DBAccess/hbBridge normais também presentes.
+Outras atividades da máquina e caches SQL compartilhados não foram controlados.
+Rodadas preparatórias coincidiram com compilação/reinicialização dos serviços
+e ficam preservadas separadamente, fora das tabelas. Não houve compilação do
+agente durante as medições selecionadas. O inventário do Driver 18 instalado
+informa versão de binário `2018.0187.0001.01`; a versão efetiva do driver da
+conexão permanece `NOT_OBSERVED` pelo executor.
+
+O smoke curto `-Route http -Rows 17 -PageSize 7 -Iterations 1 -Warmup 0
+-ServeSeconds 1` também passou: última página parcial, aquecimento zero,
+publicação de endpoints e encerramento do host próprio.
+Artefatos: `tmp/mssql-benchmark-f00628fbfb824bb7bee7e3a65bc9170a/benchmark.json`
+e `tmp/m08-benchmark-serve-smoke-20261016.log`.
+
+M08 concluída para essa carga de referência Windows identificada. Os números
+não representam comparação estatística isolada de pooling, garantia de
+velocidade, capacidade de produção, SQL paralelo ou aceite de vazamentos.
+Não se deduz aceite Linux, HTTPS, volume de negócio ERP ou D03 UTF-8/FLOAT
+bruto. Retomar checks/documentação finais M09; D03 continua obrigatório
+antes do fechamento do pacote 001.
+
+Validação das ferramentas M08: os três validadores obrigatórios aprovaram
+205 arquivos; links locais dos 81 documentos, sintaxe PowerShell e whitespace
+passaram. Recibo: `tmp/m08-commit-check-20261016.log`. Esses checks não encerram
+as exigências restantes de regressão/integridade do pacote em M09.
+
+<a id="m08-manual-protheus-validation-on-2026-10-16"></a>
+
+## Validação manual adicional M08 Protheus em 2026-10-16
+
+Registrada validação manual a partir do resumo fornecido e da linha final
+`hbBridge benchmark Protheus OK`. Run ID
+`614056ED784ECE4AB68EAAE1EE863D89`, início **04:53:47 São Paulo**, fixture
+`m08.constant.v1`, alias explícito `MSSQL/pData`, normalização Windows
+(`serverUnix=false`). Carga: 1000 linhas, páginas de 100, um cliente,
+dois aquecimentos e cinco varreduras completas medidas por transporte,
+primeiro TCP, depois HTTP.
+
+| Transporte | Varreduras medidas | Média ms / varredura completa | Mín–máx ms | Chamadas / linhas medidas |
+| --- | --- | --- | --- | --- |
+| TCP | 5 | 1039.60 | 770.08–1257.06 | 50 / 5000 |
+| HTTP | 5 | 1122.12 | 951.03–1388.17 | 50 / 5000 |
+
+Todas as amostras medidas e de aquecimento informam sucesso, 1000 linhas,
+dez páginas e dez chamadas. O recálculo confirma totais/mínimo/máximo/médias
+dentro do arredondamento de ponto flutuante. Somados os transportes:
+**100 chamadas / 10000 linhas medidas**, excluídas **40 chamadas / 4000 linhas
+de aquecimento**. Os intervalos medidos somam 10808.610 ms; o executor completo
+levou **14887.055 ms**. Os 4078.445 ms restantes incluem aquecimento e demais
+atividades fora dos intervalos medidos; não correspondem apenas ao aquecimento.
+
+Evidência: `tmp/protheus-benchmark-manual-20261016-614056ed.log`, SHA256
+`921B63D9F26D08B4294F938BD265739E3010B62F679CE55551DD33372A0D1DD7`.
+É um resumo manual separado, sem nova execução automatizada local.
+A memória permanece `UNAVAILABLE` neste relatório. Não foram fornecidos
+destino efetivo, binário/versão do backend, política de pooling físico,
+recibo de compilação nem código de saída do processo; esses dados não são
+herdados da execução automatizada anterior nem de suas amostras externas de
+memória. Não se deduz causalidade de otimização nem comparação de capacidade.
+Acrescentada evidência manual ao M08 homologado; M09 e D03 continuam abertos.
+
+<a id="m08-large-protheus-follow-up-on-2026-10-16"></a>
+
+## Complemento do benchmark manual ampliado em 2026-10-16
+
+O log `C:/totvs/protheus1212410/protheusdata/logs/console_appserver_hbbridge.log`
+contém a rodada `93A0CC16D629E74FAA54843567C86E58`, iniciada às 07:09:41 São Paulo.
+Fixture `m08.constant.v1`, `MSSQL/pData`: 100000 linhas, páginas de 10000,
+500 iterações medidas, dois aquecimentos, concorrência um, TCP seguido de HTTP,
+timeout de 30 segundos por requisição. Resultado geral **FAILED**.
+
+| Transporte | Iterações medidas aprovadas | Chamadas / linhas das medições aprovadas | Média ms / varredura |
+| --- | --- | --- | --- |
+| TCP | 500 / 500 | 5000 / 50000000 | 7747.32 |
+| HTTP | 135 / 500 | 1350 / 13500000 | 22312.04 |
+
+Ambos concluíram dois aquecimentos. A amostra HTTP medida **136** falhou na
+primeira chamada: `QUERY_FAILED`, 30020.834 ms, zero páginas/linhas concluídas.
+Essa chamada tentada permanece na amostra de falha, fora do agregado de
+sucessos. O núcleo durou 6967715.110 ms. A duração da falha está próxima do
+prazo de 30 segundos; o resumo antigo não registra código de serviço/status
+HTTP e não comprova origem no transporte, servidor ou SQL. Memória/pool/build
+não são herdados da referência menor.
+
+O erro fatal anterior de componentes por terminal foi fornecido separadamente,
+às 06:45:23, antes da alteração provisória com socket estático de módulo.
+A repetição deixou de apresentar esse erro fatal, mas sua falha HTTP continua
+distinta. O cliente agora reutiliza um componente nativo por instância e expõe
+`Close()`; as conexões continuam fechadas por requisição. O
+[teste de ciclo](../src/tlpp/tests/protheus/hbbridge.client.lifecycle.test/README.pt-BR.md)
+e os diagnósticos seguros de código/status/página apoiam a análise sem homologar
+a carga ampliada completa.
+
+Resumo/linha final sanitizados: `tmp/protheus-benchmark-large-static-20261016-93a0cc16.log`;
+SHA256 `AC62382489B97B9CC00B41C1010A8AC5D9C60A6A3D24BEBDB444A403C4FCC986`.
+O fonte provisório fornecido foi preservado em
+`tmp/hbbridge.client.user-static-20261016.tlpp`. V01 registra esse complemento
+solicitado e o consumidor visual; M09 e D03 continuam abertos.
