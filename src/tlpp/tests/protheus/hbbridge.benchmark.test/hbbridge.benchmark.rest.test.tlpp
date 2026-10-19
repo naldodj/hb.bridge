@@ -1,0 +1,230 @@
+/* Released to Public Domain. */
+#include "totvs.ch"
+#include "tlpp-core.th"
+
+// Pure adapter/validation checks. No INI, listener, SQL or StartJob is used.
+function U_HBBridgeBenchmarkRESTTest()
+
+    local jChecks := JSONObject():New() as json
+    local jState := JSONObject():New() as json
+    local jCases := JSONObject():New() as json
+    local jReply as json
+    local jBody as json
+    local jParams := JSONObject():New() as json
+    local jPage := JSONObject():New() as json
+    local jResponse as json
+    local oClient as object
+    local bPage as codeblock
+    // GetNames() supplies the native enumeration arrays; no copy is made.
+    local aNames as array
+    local cName := "", cResult := "" as character
+    local cRequest := '{"rows":1,"pageNumber":1,"pageSize":1}' as character
+    local cAuthorization := "Basic " + Encode64("benchmark-test-user:private-test-password") as character
+    local nCheck := 0, nBeforeArea := Select(), nCallsBefore := 0 as numeric
+    local lOK := .T., lAreaOK := .T. as logical
+
+    jState["calls"] := 0
+    jState["mode"] := "success"
+    bPage := {|cBody|BenchmarkRESTMockPage(jState, cBody)}
+
+    jReply := HBBridge.Examples.HBBridgeBenchmarkRest():Handle(cRequest, cAuthorization, .F., bPage)
+    jChecks["frameworkAuthenticationRequired"] := BenchmarkRESTReplyIs(jReply, 401, "UNAUTHORIZED")
+    FreeObj(@jReply)
+    jReply := HBBridge.Examples.HBBridgeBenchmarkRest():Handle(cRequest, "", .T., bPage)
+    jChecks["missingBasicHeaderRejected"] := BenchmarkRESTReplyIs(jReply, 401, "UNAUTHORIZED")
+    FreeObj(@jReply)
+    jReply := HBBridge.Examples.HBBridgeBenchmarkRest():Handle(cRequest, "Bearer obsolete-test-token", .T., bPage)
+    jChecks["customBearerIsNotAccepted"] := BenchmarkRESTReplyIs(jReply, 401, "UNAUTHORIZED")
+    FreeObj(@jReply)
+    jReply := HBBridge.Examples.HBBridgeBenchmarkRest():Handle(cRequest, "Basic !!!=", .T., bPage)
+    jChecks["malformedBasicBase64Rejected"] := BenchmarkRESTReplyIs(jReply, 401, "UNAUTHORIZED")
+    FreeObj(@jReply)
+    jReply := HBBridge.Examples.HBBridgeBenchmarkRest():Handle(cRequest, "Basic " + Encode64("without-colon"), .T., bPage)
+    jChecks["missingBasicColonRejected"] := BenchmarkRESTReplyIs(jReply, 401, "UNAUTHORIZED")
+    FreeObj(@jReply)
+    jReply := HBBridge.Examples.HBBridgeBenchmarkRest():Handle(cRequest, "Basic " + Encode64(":password"), .T., bPage)
+    jChecks["emptyBasicUserRejected"] := BenchmarkRESTReplyIs(jReply, 401, "UNAUTHORIZED")
+    FreeObj(@jReply)
+    jChecks["unauthorizedRequestsDoNotCallPage"] := jState["calls"] == 0
+
+    jState["mode"] := "invalidRequest"
+    jReply := HBBridge.Examples.HBBridgeBenchmarkRest():Handle("malformed JSON", cAuthorization, .T., bPage)
+    jChecks["invalidBodyUsesPageValidation"] := BenchmarkRESTReplyIs(jReply, 400, "INVALID_REQUEST")
+    FreeObj(@jReply)
+    jState["mode"] := "invalidParameters"
+    jReply := HBBridge.Examples.HBBridgeBenchmarkRest():Handle(cRequest, cAuthorization, .T., bPage)
+    jChecks["invalidParametersMapTo400"] := BenchmarkRESTReplyIs(jReply, 400, "INVALID_REQUEST")
+    FreeObj(@jReply)
+    jState["mode"] := "invalidPage"
+    jReply := HBBridge.Examples.HBBridgeBenchmarkRest():Handle(cRequest, cAuthorization, .T., bPage)
+    jChecks["invalidPageMapsTo400"] := BenchmarkRESTReplyIs(jReply, 400, "INVALID_REQUEST")
+    FreeObj(@jReply)
+
+    jState["mode"] := "queryError"
+    jReply := HBBridge.Examples.HBBridgeBenchmarkRest():Handle(cRequest, cAuthorization, .T., bPage)
+    jChecks["queryErrorMapsTo500"] := BenchmarkRESTReplyIs(jReply, 500, "QUERY_FAILED")
+    jChecks["nativeQueryDetailsAreRemoved"] := !("PRIVATE_NATIVE_DETAILS" $ jReply["body"])
+    FreeObj(@jReply)
+    jState["mode"] := "cleanupError"
+    jReply := HBBridge.Examples.HBBridgeBenchmarkRest():Handle(cRequest, cAuthorization, .T., bPage)
+    jChecks["cleanupCodeIsPreservedSafely"] := BenchmarkRESTReplyIs(jReply, 500, "CLEANUP_FAILED") .and. ;
+        !("PRIVATE_NATIVE_DETAILS" $ jReply["body"])
+    FreeObj(@jReply)
+
+    jState["mode"] := "invalidJSON"
+    jReply := HBBridge.Examples.HBBridgeBenchmarkRest():Handle(cRequest, cAuthorization, .T., bPage)
+    jChecks["invalidFactoryJSONIsSafe500"] := BenchmarkRESTReplyIs(jReply, 500, "QUERY_FAILED") .and. ;
+        !("PRIVATE_NATIVE_DETAILS" $ jReply["body"])
+    FreeObj(@jReply)
+    jState["mode"] := "throw"
+    jReply := HBBridge.Examples.HBBridgeBenchmarkRest():Handle(cRequest, cAuthorization, .T., bPage)
+    jChecks["factoryExceptionIsSafe500"] := BenchmarkRESTReplyIs(jReply, 500, "QUERY_FAILED") .and. ;
+        !("PRIVATE_NATIVE_DETAILS" $ jReply["body"])
+    FreeObj(@jReply)
+
+    jState["mode"] := "success"
+    jReply := HBBridge.Examples.HBBridgeBenchmarkRest():Handle(cRequest, cAuthorization, .T., bPage)
+    jBody := JSONObject():New()
+    jChecks["successMapsTo200"] := jReply["status"] == 200 .and. ;
+        ValType(jBody:FromJSON(jReply["body"])) == "U"
+    jChecks["recoveryAfterFactoryException"] := jBody["success"] == .T.
+    jChecks["keyedPageIsPreserved"] := jBody["resultVersion"] == 1 .and. ;
+        jBody["rowCount"] == 1 .and. jBody["rows"]["1"]["ID"] == 1 .and. ;
+        jBody["rows"]["1"]["NAME"] == "hbbridge-1" .and. ;
+        jBody["rows"]["1"]["AMOUNT"] == 0.25 .and. ;
+        jBody["header"]["AMOUNT"]["decimals"] == 2 .and. ;
+        jBody["page"]["number"] == 1 .and. jBody["page"]["hasNext"] == .F. .and. ;
+        jBody["totalRows"] == 1 .and. jBody["totalPages"] == 1
+    jChecks["factoryReceivesOnlyBody"] := jState["lastBody"] == cRequest
+    FreeObj(@jReply)
+    FreeObj(@jBody)
+
+    jCases["malformedPageJSON"] := "malformed JSON"
+    jCases["arrayPageBody"] := "[]"
+    jCases["missingPageFields"] := "{}"
+    jCases["missingRows"] := '{"pageNumber":1,"pageSize":1}'
+    jCases["extraSQLIsRejected"] := '{"rows":1,"pageNumber":1,"pageSize":1,"sql":"SELECT PRIVATE_NATIVE_DETAILS"}'
+    jCases["extraProfileIsRejected"] := '{"rows":1,"pageNumber":1,"pageSize":1,"profile":"other/profile"}'
+    jCases["extraTenantIsRejected"] := '{"rows":1,"pageNumber":1,"pageSize":1,"tenantID":"other"}'
+    jCases["textRows"] := '{"rows":"1","pageNumber":1,"pageSize":1}'
+    jCases["zeroRows"] := '{"rows":0,"pageNumber":1,"pageSize":1}'
+    jCases["fractionalRows"] := '{"rows":1.5,"pageNumber":1,"pageSize":1}'
+    jCases["fixtureRowsOverflow"] := '{"rows":100001,"pageNumber":1,"pageSize":1}'
+    jCases["zeroPageNumber"] := '{"rows":1,"pageNumber":0,"pageSize":1}'
+    jCases["fractionalPageNumber"] := '{"rows":1,"pageNumber":1.5,"pageSize":1}'
+    jCases["textPageNumber"] := '{"rows":1,"pageNumber":"1","pageSize":1}'
+    jCases["zeroPageSize"] := '{"rows":1,"pageNumber":1,"pageSize":0}'
+    jCases["fractionalPageSize"] := '{"rows":1,"pageNumber":1,"pageSize":1.5}'
+    jCases["fixturePageSizeOverflow"] := '{"rows":1,"pageNumber":1,"pageSize":100001}'
+    jCases["unsafePageBounds"] := '{"rows":1,"pageNumber":9007199254740991,"pageSize":100000}'
+    aNames := jCases:GetNames()
+    for nCheck := 1 to Len(aNames)
+        cName := aNames[nCheck]
+        cResult := HBBridge.Test.HBBridgeBenchmarkProtheus():Page(jCases[cName])
+        jBody := JSONObject():New()
+        jChecks[cName] := ValType(jBody:FromJSON(cResult)) == "U"
+        if jChecks[cName]
+            jChecks[cName] := jBody["success"] == .F. .and. ;
+                (jBody["code"] == "INVALID_REQUEST" .or. ;
+                jBody["code"] == "INVALID_PARAMETERS" .or. jBody["code"] == "INVALID_PAGE")
+        endif
+        lAreaOK := Select() == nBeforeArea .and. lAreaOK
+        FreeObj(@jBody)
+    next nCheck
+    FWFreeArray(@aNames)
+    jChecks["invalidPagesPreserveCallerArea"] := lAreaOK
+
+    oClient := HBBridge.Test.HBBridgeBenchmarkNativeClient():New("startjob", 5, 30)
+    jParams["alias"] := "comparison/fixture"
+    jParams["sql"] := "SELECT 0 AS MUTATED_FIXTURE"
+    jPage["number"] := 1
+    jPage["size"] := 2
+    jPage["orderBy"] := "ID ASC"
+    jParams["page"] := jPage
+    nCallsBefore := jState["calls"]
+    jResponse := oClient:CallService("RPCRDD.Query", jParams)
+    jChecks["mutatedSQLRejectedBeforeStartJob"] := BenchmarkRESTFailureIs(jResponse, "INVALID_REQUEST")
+    FreeObj(@jResponse)
+    jParams["sql"] := HBBridge.Test.HBBridgeBenchmarkTest():FixtureSQL(5)
+    jPage["orderBy"] := "ID DESC"
+    jResponse := oClient:CallService("RPCRDD.Query", jParams)
+    jChecks["mutatedOrderRejectedBeforeStartJob"] := BenchmarkRESTFailureIs(jResponse, "INVALID_REQUEST")
+    FreeObj(@jResponse)
+    jPage["orderBy"] := "ID ASC"
+    jResponse := oClient:CallService("ADDON.Execute", jParams)
+    jChecks["otherServiceRejectedBeforeStartJob"] := BenchmarkRESTFailureIs(jResponse, "INVALID_REQUEST")
+    FreeObj(@jResponse)
+    jChecks["nativeValidationDoesNotCallFactory"] := jState["calls"] == nCallsBefore
+    jChecks["nativeClientClose"] := oClient:Close()
+    FreeObj(@oClient)
+    // jParams owns its nested page; detach the additional local reference.
+    jPage := Nil
+    FreeObj(@jParams)
+
+    aNames := jChecks:GetNames()
+    for nCheck := 1 to Len(aNames)
+        lOK := jChecks[aNames[nCheck]] .and. lOK
+    next nCheck
+    ConOut("hbBridge benchmark REST checks: " + jChecks:ToJSON())
+    ConOut("hbBridge benchmark REST Protheus " + IIf(lOK, "OK", "FAILED") + ;
+        "; checks=" + tlpp.ToStr(Len(aNames)) + "; mock page calls=" + tlpp.ToStr(jState["calls"]))
+    FWFreeArray(@aNames)
+    FreeObj(@jCases)
+    FreeObj(@jState)
+    FreeObj(@jChecks)
+
+return(IIf(lOK, 0, 1))
+
+static function BenchmarkRESTReplyIs(jReply as json, nStatus as numeric, cCode as character) as logical
+
+    local jBody := JSONObject():New() as json
+    local lValid := .F. as logical
+
+    if jReply["status"] == nStatus
+        if ValType(jBody:FromJSON(jReply["body"])) == "U"
+            lValid := BenchmarkRESTFailureIs(jBody, cCode)
+        endif
+    endif
+    FreeObj(@jBody)
+
+return(lValid)
+
+static function BenchmarkRESTFailureIs(jBody as json, cCode as character) as logical
+
+    if ValType(jBody) != "J"
+        return .F.
+    endif
+    if !jBody:HasProperty("success") .or. !jBody:HasProperty("code")
+        return .F.
+    endif
+
+return(jBody["success"] == .F. .and. jBody["code"] == cCode)
+
+static function BenchmarkRESTMockPage(jState as json, cBody as character) as character
+
+    jState["calls"]++
+    jState["lastBody"] := cBody
+    do case
+    case jState["mode"] == "invalidRequest"
+        return '{"success":false,"code":"INVALID_REQUEST","error":"PRIVATE_NATIVE_DETAILS"}'
+    case jState["mode"] == "invalidParameters"
+        return '{"success":false,"code":"INVALID_PARAMETERS","error":"PRIVATE_NATIVE_DETAILS"}'
+    case jState["mode"] == "invalidPage"
+        return '{"success":false,"code":"INVALID_PAGE","error":"PRIVATE_NATIVE_DETAILS"}'
+    case jState["mode"] == "queryError"
+        return '{"success":false,"code":"QUERY_FAILED","error":"PRIVATE_NATIVE_DETAILS"}'
+    case jState["mode"] == "cleanupError"
+        return '{"success":false,"code":"CLEANUP_FAILED","error":"PRIVATE_NATIVE_DETAILS"}'
+    case jState["mode"] == "invalidJSON"
+        return "PRIVATE_NATIVE_DETAILS"
+    case jState["mode"] == "throw"
+        throw "PRIVATE_NATIVE_DETAILS"
+    endcase
+
+return('{"success":true,"resultVersion":1,"header":{' + ;
+    '"ID":{"position":1,"type":"N","length":10,"decimals":0},' + ;
+    '"NAME":{"position":2,"type":"C","length":32,"decimals":0},' + ;
+    '"AMOUNT":{"position":3,"type":"N","length":15,"decimals":2}},' + ;
+    '"rows":{"1":{"ID":1,"NAME":"hbbridge-1","AMOUNT":0.25}},"rowCount":1,' + ;
+    '"totalRows":1,"totalPages":1,"page":{"number":1,"size":1,' + ;
+    '"hasNext":false,"firstRow":1,"lastRow":1}}')

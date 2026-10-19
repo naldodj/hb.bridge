@@ -12,11 +12,11 @@ registra resultados verificados; ChangeLog e Git preservam o histórico.
 | Item | Valor atual |
 | --- | --- |
 | ID | `001-mssql-acceptance` |
-| Abertura / atualização | 2026-10-07 / 2026-10-16 |
+| Abertura / atualização | 2026-10-07 / 2026-10-18 |
 | Situação | D02/M06/M07 mantêm seus aceites registrados. M08 concluída para a fixture Windows identificada: 43366 checks nativos do benchmark/0 e varreduras reais AppServer TCP/HTTP/0, com tempo e memória de processo pelo SO disponível. D03 e checks finais M09 continuam pendentes; pacote aberto. |
 | Objetivo | Homologar RPCRDD.Query/dataset existentes em banco MSSQL real identificado, por Harbour, TCP Protheus e HTTP Protheus. |
 | Referência do produto | Código publicado `50e1c65`; checkout na abertura `bce52d2` inclui atualização do badge de clones. |
-| Próxima tarefa | V01: concluir o benchmark visual solicitado e a revisão de ciclo do cliente/diagnósticos, com validação AppServer focada; depois retomar M09. Integridade D03 continua obrigatória antes do fechamento do pacote. |
+| Próxima tarefa | V01/V02: validar benchmark visual, quatro rotas cliente e addon no servidor. Reutilizar um único REST 2.0 Protheus autenticado antes das medições; depois retomar M09. D03 permanece obrigatória para encerrar o pacote. |
 
 ### Decisões já tomadas
 
@@ -286,6 +286,16 @@ constatações de aceite, sem motivo para repetir o inventário concluído.
   invalida a referência M08 menor nem homologa a rodada ampliada completa.
   Registrar compilação, testes CLI e navegador separadamente do aceite
   interativo FWWebEx.
+- [ ] **V02 — Comparar onde executar.** Solicitação explícita de 2026-10-16/18:
+  comparar hbBridge TCP/HTTP com DBAccess via StartJob e REST 2.0 Protheus,
+  usando a mesma fixture/páginas/COUNT e checks do dataset. Adicionar HRB que
+  consome páginas no próprio hbBridge e devolve somente métricas; separar
+  tempo de varredura no servidor do tempo total da chamada. Credenciais ERP
+  ficam na configuração confiável do AppServer. Reutilizar porta 4323,
+  Security=1 e um worker, sem listener adicional/provedor bearer próprio.
+  Efetuado backup do INI ativo antes da consolidação autorizada. Verificar
+  credenciais ausentes/incorretas/válidas no framework real e registrar
+  evidências. Manter limites do executor genérico e D03/M09 abertas.
 - [ ] **M09 — Concluir regressões e documentação.** Executar checks adequados
   à implementação alterada, compilar TLPP modificado e obter aceite AppServer.
   Executar os três validadores de commit; atualizar instruções EN/PT, TODO,

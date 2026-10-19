@@ -5,6 +5,16 @@
    Caminhos antigos descrevem os arquivos existentes na época.
  */
 
+2026-10-19 00:50 UTC naldodj (Ampliar benchmark com rotas Protheus e addon no servidor)
+  + Adicionar comparação opcional Protheus StartJob/REST junto a hbBridge
+    TCP/HTTP; preservar fixture fixa, páginas SELECT/COUNT e aquecimento separado.
+  + Adicionar addon Harbour confiável que mede varreduras locais completas e
+    retorna apenas estatísticas; informar sua chamada ADDON.Execute separadamente.
+  * Reutilizar um listener REST 2.0 autenticado existente e credenciais Basic
+    no servidor; manter contexto ERP no Protheus e omitir credenciais do navegador.
+  + Adicionar scripts gerenciados de build/regressão isolada do addon com
+    comparação do SQL da fixture. Aceite ampliado pendente; M09/D03 abertos.
+
 2026-10-16 13:59 UTC naldodj (Adicionar benchmark visual e limitar ciclo do socket cliente)
   + Reutilizar núcleo M08 em formulário FWWebEx com gráficos e exportação
     JSON/HTML; validar requisições correlacionadas sem expor credenciais.

@@ -1,0 +1,5 @@
+-main=BenchmarkAddonTests
+-gtstd
+-ohbbridge.benchmark.addon.test
+hbbridge.benchmark.addon.test.hb
+../../../hbbridge.hbm

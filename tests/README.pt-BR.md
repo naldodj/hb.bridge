@@ -566,3 +566,14 @@ O [teste de ciclo do cliente](../src/tlpp/tests/protheus/hbbridge.client.lifecyc
 reutiliza um cliente em 6000 chamadas Health por padrão e verifica clientes
 independentes, recusa/recuperação e fechamento explícito. É uma regressão
 focada do componente nativo, sem medir vazamentos ou desempenho SQL.
+
+A comparação opcional adiciona StartJob/REST Protheus via DBAccess e um HRB
+que processa a carga dentro do hbBridge. Compilar o HRB com
+`scripts/build-hbbridge-benchmark-addon.ps1`; executar os testes isolados do
+registro com `scripts/test-hbbridge-benchmark-addon.ps1`. Esses testes não usam
+banco nem listener e não homologam tempos MSSQL reais. O
+[guia de configuração](../config/hbbridge.benchmark.rest.pt-BR.md) reutiliza o
+REST 2.0 autenticado existente. Os testes de contrato AppServer são
+`U_HBBridgeBenchmarkVisualTest()` e `U_HBBridgeBenchmarkRESTTest()`; as rodadas
+reais usam `--compare-protheus=1 --with-addon=1` e empresa/filial explícitas do
+Protheus. Preservar o tempo interno do addon separado da RPC completa.

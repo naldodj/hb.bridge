@@ -1,0 +1,235 @@
+/* Released to Public Domain. */
+#include "tlpp-core.th"
+#include "tlpp-rest.th"
+
+namespace HBBridge.Examples
+
+// Optional native TLPP REST route for the fixed Protheus/DBAccess fixture.
+class HBBridgeBenchmarkRest
+
+    public method New() as object
+
+    @Post(endpoint="/hbbridge/benchmark/page", description="Read one page of the fixed benchmark fixture")
+    public method PostPage() as logical
+
+    static method Handle(cBody as character, cAuthorization as character, ;
+        lFrameworkAuthenticated as logical, bPage as codeblock) as json
+
+endclass
+
+method New() class HBBridgeBenchmarkRest
+return(self)
+
+method PostPage() class HBBridgeBenchmarkRest
+
+    local jHeaders as json
+    local jReply as json
+    local xError as variant
+    local cAuthorization := "", cBody := "" as character
+    local lSent := .F. as logical
+
+    try
+        if BenchmarkRestFrameworkReady()
+            // REST 2.0 Security=1 validates the ERP user before dispatch here.
+            // The deployment guard is not a second password validator.
+            jHeaders := oRest:GetHeaderRequest()
+            cAuthorization := BenchmarkRestAuthorization(jHeaders)
+            cBody := oRest:GetBodyRequest()
+            jReply := HBBridge.Examples.HBBridgeBenchmarkRest():Handle(cBody, cAuthorization, .T.)
+        else
+            jReply := BenchmarkRestReply(503, "SERVICE_DISABLED", ;
+                "Use the configured authenticated Protheus REST 2.0 service.")
+        endif
+    catch xError
+        jReply := BenchmarkRestReply(500, "QUERY_FAILED", "The benchmark request could not be completed.")
+        if (ValType(xError)=="O")
+            FreeObj(@xError)
+        endif
+    endtry
+    jHeaders := Nil
+    cAuthorization := ""
+    try
+        oRest:ResetMessageResponse()
+        oRest:SetKeyHeaderResponse("Content-Type", "application/json; charset=utf-8")
+        oRest:SetKeyHeaderResponse("Cache-Control", "no-store")
+        if jReply["status"] == 401
+            oRest:SetKeyHeaderResponse("WWW-Authenticate", 'Basic realm="Access to REST"')
+        endif
+        oRest:SetStatusCode(jReply["status"])
+        lSent := oRest:SetResponse(jReply["body"])
+    catch xError
+        // Native descriptions may contain configuration or credentials.
+        lSent := .F.
+    endtry
+    FreeObj(@jReply)
+
+return(lSent)
+
+static method Handle(cBody, cAuthorization, lFrameworkAuthenticated, bPage) class HBBridgeBenchmarkRest
+
+    local jPage := JSONObject():New() as json
+    local jReply as json
+    local xError as variant
+    local cPage := "", cCode := "" as character
+
+    if ValType(lFrameworkAuthenticated) != "L"
+        FreeObj(@jPage)
+        return BenchmarkRestReply(401, "UNAUTHORIZED", "Native Protheus authentication is required.")
+    endif
+    if !lFrameworkAuthenticated
+        FreeObj(@jPage)
+        return BenchmarkRestReply(401, "UNAUTHORIZED", "Native Protheus authentication is required.")
+    endif
+    if !BenchmarkRestBasic(cAuthorization)
+        FreeObj(@jPage)
+        return BenchmarkRestReply(401, "UNAUTHORIZED", "Supply a valid HTTP Basic authorization header.")
+    endif
+    if ValType(cBody) != "C"
+        FreeObj(@jPage)
+        return BenchmarkRestReply(400, "INVALID_REQUEST", "Supply the fixed fixture page parameters as JSON.")
+    endif
+
+    try
+        // Page validates exactly the fixture count/page/size; it accepts no SQL,
+        // database profile, endpoint, credentials or Protheus business context.
+        if ValType(bPage) == "B"
+            cPage := Eval(bPage, cBody)
+        else
+            cPage := HBBridge.Test.HBBridgeBenchmarkProtheus():Page(cBody)
+        endif
+        if ValType(cPage) == "C"
+            if ValType(jPage:FromJSON(cPage)) == "U"
+                if jPage:HasProperty("success")
+                    if ValType(jPage["success"]) == "L"
+                        if jPage["success"]
+                            jReply := JSONObject():New()
+                            jReply["status"] := 200
+                            jReply["body"] := cPage
+                        elseif jPage:HasProperty("code")
+                            if ValType(jPage["code"]) == "C"
+                                cCode := jPage["code"]
+                            endif
+                        endif
+                    endif
+                endif
+            endif
+        endif
+    catch xError
+        cCode := ""
+        if (ValType(xError)=="O")
+            FreeObj(@xError)
+        endif
+    endtry
+    FreeObj(@jPage)
+    if ValType(jReply) == "J"
+        return jReply
+    endif
+    if cCode == "INVALID_REQUEST" .or. cCode == "INVALID_PARAMETERS" .or. ;
+        cCode == "INVALID_PAGE" .or. cCode == "INVALID_JSON"
+        return BenchmarkRestReply(400, "INVALID_REQUEST", "Supply valid fixed fixture page parameters.")
+    endif
+    if cCode == "CLEANUP_FAILED"
+        return BenchmarkRestReply(500, "CLEANUP_FAILED", "The benchmark query resources could not be released.")
+    endif
+
+return(BenchmarkRestReply(500, "QUERY_FAILED", "The benchmark query could not be completed."))
+
+static function BenchmarkRestAuthorization(jHeaders as variant) as character
+
+    local aNames as array
+    local cAuthorization := "" as character
+    local nName := 0, nMatches := 0 as numeric
+
+    if ValType(jHeaders) != "J"
+        return ""
+    endif
+    // GetNames() supplies a native array; request/header values stay keyed.
+    aNames := jHeaders:GetNames()
+    for nName := 1 to Len(aNames)
+        if Lower(aNames[nName]) == "authorization"
+            nMatches++
+            if ValType(jHeaders[aNames[nName]]) == "C"
+                cAuthorization := jHeaders[aNames[nName]]
+            endif
+        endif
+    next nName
+    FWFreeArray(@aNames)
+    if nMatches != 1
+        cAuthorization := ""
+    endif
+
+return(cAuthorization)
+
+static function BenchmarkRestFrameworkReady() as logical
+
+    local cIni := GetSrvIniName() as character
+    local cPort := AllTrim(GetPvProfString("HTTPREST", "Port", "", cIni)) as character
+    local cEnvironment := AllTrim(GetPvProfString("HTTPJOB", "Environment", "", cIni)) as character
+    local nPort := Val(cPort), nServicePort := 0 as numeric
+    local lReady := .F. as logical
+    local xError as variant
+
+    try
+        if AllTrim(GetPvProfString("HTTPV11", "Enable", "0", cIni)) == "1" .and. ;
+            AllTrim(GetPvProfString("HTTPREST", "Security", "0", cIni)) == "1" .and. ;
+            !Empty(cEnvironment) .and. Upper(cEnvironment) == Upper(GetEnvServer()) .and. ;
+            nPort >= 1 .and. nPort <= 65535 .and. cPort == AllTrim(Str(nPort))
+            nServicePort := oRest:GetThreadPoolServicePort()
+            lReady := nServicePort == nPort
+        endif
+    catch xError
+        lReady := .F.
+        if (ValType(xError)=="O")
+            FreeObj(xError)
+        endif
+    endtry
+
+return(lReady)
+
+static function BenchmarkRestBasic(xAuthorization as variant) as logical
+
+    local cEncoded := "", cDecoded := "" as character
+    local lValid := .F. as logical
+    local xError as variant
+
+    if ValType(xAuthorization) != "C"
+        return .F.
+    endif
+    if Upper(Left(xAuthorization, 6)) != "BASIC "
+        return .F.
+    endif
+    cEncoded := SubStr(xAuthorization, 7)
+    if Empty(cEncoded) .or. (Len(cEncoded) % 4) != 0 .or. ;
+        Chr(0) $ cEncoded .or. Chr(10) $ cEncoded .or. Chr(13) $ cEncoded
+        return .F.
+    endif
+    try
+        cDecoded := Decode64(cEncoded)
+        if ValType(cDecoded) == "C"
+            // This checks syntax only. The REST framework verifies the password.
+            lValid := Encode64(cDecoded) == cEncoded .and. At(":", cDecoded) > 1 .and. ;
+                !(Chr(0) $ cDecoded) .and. !(Chr(10) $ cDecoded) .and. !(Chr(13) $ cDecoded)
+        endif
+    catch xError
+        lValid := .F.
+        if (ValType(xError)=="O")
+            FreeObj(xError)
+        endif
+    endtry
+    cDecoded := ""
+
+return(lValid)
+
+static function BenchmarkRestReply(nStatus as numeric, cCode as character, cError as character) as json
+
+    local jReply := JSONObject():New() as json
+    local jFailure := JSONObject():New() as json
+
+    jFailure["success"] := .F.
+    jFailure["code"] := cCode
+    jFailure["error"] := cError
+    jReply["status"] := nStatus
+    jReply["body"] := jFailure:ToJSON()
+    FreeObj(@jFailure)
+
+return(jReply)

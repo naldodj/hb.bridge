@@ -9,10 +9,13 @@ class HBBridgeBenchmarkTest
     static method RunCLI(aArguments as array) as numeric
     static method Run(cProfile as character, cHost as character, nPort as numeric, ;
         cURL as character, cToken as character, nTimeoutSeconds as numeric, ;
-        nRows as numeric, nPageSize as numeric, nIterations as numeric, nWarmup as numeric) as numeric
+        nRows as numeric, nPageSize as numeric, nIterations as numeric, nWarmup as numeric, jComparison as json) as numeric
     static method Measure(cProfile as character, cHost as character, nPort as numeric, ;
         cURL as character, cToken as character, nTimeoutSeconds as numeric, ;
-        nRows as numeric, nPageSize as numeric, nIterations as numeric, nWarmup as numeric) as json
+        nRows as numeric, nPageSize as numeric, nIterations as numeric, nWarmup as numeric, ;
+        jComparison as json) as json
+    static method FixtureSQL(nRows as numeric) as character
+    static method ComparisonSettings(lProtheus as logical, lAddon as logical) as json
 
 endclass
 
@@ -20,6 +23,7 @@ static method RunCLI(aArguments) class HBBridgeBenchmarkTest
 
     local jFlags := JSONObject():New() as json
     local jSeen := JSONObject():New() as json
+    local jComparison as json
     local cArgument := "", cKey := "", cValue := "" as character
     local nArgument := 0, nEqual := 0, nValue := 0, nMaximum := 0, nResult := 1 as numeric
     local lValid := .T. as logical
@@ -34,6 +38,10 @@ static method RunCLI(aArguments) class HBBridgeBenchmarkTest
     jFlags["page-size"] := 100
     jFlags["iterations"] := 5
     jFlags["warmup"] := 2
+    jFlags["compare-protheus"] := "0"
+    jFlags["with-addon"] := "0"
+    jFlags["company"] := Nil
+    jFlags["branch"] := Nil
 
     // Only the native variadic argument contract uses an array. No argv copy.
     if ValType(aArguments) != "A"
@@ -88,23 +96,38 @@ static method RunCLI(aArguments) class HBBridgeBenchmarkTest
     endif
 
     if lValid
+        if !(jFlags["compare-protheus"] $ "01") .or. Len(jFlags["compare-protheus"]) != 1 .or. ;
+            !(jFlags["with-addon"] $ "01") .or. Len(jFlags["with-addon"]) != 1
+            lValid := .F.
+        endif
+    endif
+    if lValid
+        jComparison := HBBridge.Test.HBBridgeBenchmarkTest():ComparisonSettings(;
+            jFlags["compare-protheus"] == "1", jFlags["with-addon"] == "1")
+        if ValType(jFlags["company"]) == "C"
+            jComparison["company"] := jFlags["company"]
+        endif
+        if ValType(jFlags["branch"]) == "C"
+            jComparison["branch"] := jFlags["branch"]
+        endif
         nResult := HBBridge.Test.HBBridgeBenchmarkTest():Run(jFlags["profile"], ;
             jFlags["host"], jFlags["port"], jFlags["url"], jFlags["token"], ;
             jFlags["timeout"], jFlags["rows"], jFlags["page-size"], ;
-            jFlags["iterations"], jFlags["warmup"])
+            jFlags["iterations"], jFlags["warmup"], jComparison)
     else
         ConOut("hbBridge benchmark FAILED: supply unique valid flags and canonical decimal integers.")
     endif
     FreeObj(@jSeen)
     FreeObj(@jFlags)
+    FreeObj(@jComparison)
 
 return(nResult)
 
 static method Run(cProfile, cHost, nPort, cURL, cToken, nTimeoutSeconds, ;
-    nRows, nPageSize, nIterations, nWarmup) class HBBridgeBenchmarkTest
+    nRows, nPageSize, nIterations, nWarmup, jComparison) class HBBridgeBenchmarkTest
 
     local jReport := HBBridge.Test.HBBridgeBenchmarkTest():Measure(cProfile, cHost, nPort, ;
-        cURL, cToken, nTimeoutSeconds, nRows, nPageSize, nIterations, nWarmup) as json
+        cURL, cToken, nTimeoutSeconds, nRows, nPageSize, nIterations, nWarmup, jComparison) as json
     local nResult := IIf(jReport["success"], 0, 1) as numeric
 
     if jReport["failureCategory"] == "INVALID_CONFIGURATION"
@@ -114,6 +137,9 @@ static method Run(cProfile, cHost, nPort, cURL, cToken, nTimeoutSeconds, ;
         if !jReport["success"]
             BenchmarkLogFailure(jReport, "tcp")
             BenchmarkLogFailure(jReport, "http")
+            BenchmarkLogFailure(jReport, "protheusStartJob")
+            BenchmarkLogFailure(jReport, "protheusRest")
+            BenchmarkLogFailure(jReport, "hbbridgeAddon")
         endif
         ConOut("hbBridge benchmark Protheus " + IIf(nResult == 0, "OK", "FAILED"))
     endif
@@ -122,7 +148,7 @@ static method Run(cProfile, cHost, nPort, cURL, cToken, nTimeoutSeconds, ;
 return(nResult)
 
 static method Measure(cProfile, cHost, nPort, cURL, cToken, nTimeoutSeconds, ;
-    nRows, nPageSize, nIterations, nWarmup) class HBBridgeBenchmarkTest
+    nRows, nPageSize, nIterations, nWarmup, jComparison) class HBBridgeBenchmarkTest
 
     local jReport := JSONObject():New() as json
     local jMemory as json
@@ -130,12 +156,20 @@ static method Measure(cProfile, cHost, nPort, cURL, cToken, nTimeoutSeconds, ;
     local jHTTP as json
     local oTCP as object
     local oHTTP as object
+    local oStartJob as object
+    local oProtheusRest as object
+    local oAddon as object
+    local jStartJob as json
+    local jProtheusRest as json
+    local jAddon as json
     local xError as variant
     local cIniFile := GetSrvIniName() as character
     local cSQL := "" as character
     local nStarted := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs() as numeric
     local nFinished := 0 as numeric
     local lValid := .T. as logical
+    local lCompare := .F. as logical
+    local lAddon := .F. as logical
 
     jReport["schemaVersion"] := 1
     jReport["success"] := .F.
@@ -159,6 +193,20 @@ static method Measure(cProfile, cHost, nPort, cURL, cToken, nTimeoutSeconds, ;
     DEFAULT nIterations := 5
     DEFAULT nWarmup := 2
 
+    if ValType(jComparison) == "J"
+        if jComparison:HasProperty("enabled")
+            lCompare := ValType(jComparison["enabled"]) == "L"
+            if lCompare
+                lCompare := jComparison["enabled"]
+            endif
+        endif
+        if jComparison:HasProperty("addonEnabled")
+            if ValType(jComparison["addonEnabled"]) == "L"
+                lAddon := jComparison["addonEnabled"]
+            endif
+        endif
+    endif
+
     lValid := BenchmarkTextValid(cProfile) .and. BenchmarkTextValid(cHost) .and. ;
         BenchmarkURLValid(cURL) .and. BenchmarkTextValid(cToken)
     lValid := BenchmarkNumberValid(nPort, 1, 65535) .and. ;
@@ -167,6 +215,22 @@ static method Measure(cProfile, cHost, nPort, cURL, cToken, nTimeoutSeconds, ;
         BenchmarkNumberValid(nPageSize, 1, 100000) .and. ;
         BenchmarkNumberValid(nIterations, 1, 1000000) .and. ;
         BenchmarkNumberValid(nWarmup, 0, 1000000) .and. lValid
+    if lCompare
+        if !jComparison:HasProperty("restURL") .or. !jComparison:HasProperty("authorization")
+            lValid := .F.
+        else
+            lValid := BenchmarkURLValid(jComparison["restURL"]) .and. ;
+                BenchmarkTextValid(jComparison["authorization"]) .and. lValid
+        endif
+    endif
+    if lAddon
+        if !jComparison:HasProperty("addonModule") .or. !jComparison:HasProperty("addonTimeoutSeconds")
+            lValid := .F.
+        else
+            lValid := BenchmarkTextValid(jComparison["addonModule"]) .and. ;
+                BenchmarkNumberValid(jComparison["addonTimeoutSeconds"], 1, 2147483) .and. lValid
+        endif
+    endif
     if !lValid
         return jReport
     endif
@@ -180,6 +244,15 @@ static method Measure(cProfile, cHost, nPort, cURL, cToken, nTimeoutSeconds, ;
     jReport["warmupIterations"] := nWarmup
     jReport["concurrency"] := 1
     jReport["transportOrder"] := "TCP,HTTP"
+    jReport["protheusComparison"] := lCompare
+    jReport["addonComparison"] := lAddon
+    if lCompare
+        jReport["transportOrder"] := "TCP,HTTP,ProtheusStartJob,ProtheusREST"
+        jReport["protheusEnvironment"] := GetEnvServer()
+        jReport["comparisonScope"] := "same constant SQL, SELECT plus COUNT per page and dataset validation; StartJob is an in-process job, not TCP"
+        jReport["comparisonTimeout"] := "HTTP/TCP timeout per request; synchronous StartJob is checked after return and cannot be cancelled by this harness"
+        jReport["comparisonBackend"] := "Protheus uses its environment DBAccess configuration; verify it targets the same MSSQL database as the explicit hbBridge alias"
+    endif
     jReport["clock"] := "HBBridgeTime.TimeCounter.normalized.ms"
     jReport["serverUnix"] := IsSrvUnix()
     jReport["startedLocal"] := DToS(Date()) + "/" + Time()
@@ -204,6 +277,23 @@ static method Measure(cProfile, cHost, nPort, cURL, cToken, nTimeoutSeconds, ;
         jHTTP := BenchmarkSeries(oHTTP, cProfile, cSQL, nRows, nPageSize, nIterations, nWarmup, .T.)
         jReport["http"] := jHTTP
         jReport["success"] := jTCP["success"] .and. jHTTP["success"]
+        if lCompare
+            oStartJob := HBBridge.Test.HBBridgeBenchmarkNativeClient():New("startjob", nRows, nTimeoutSeconds, "", "", jComparison)
+            oProtheusRest := HBBridge.Test.HBBridgeBenchmarkNativeClient():New("rest", nRows, nTimeoutSeconds, ;
+                jComparison["restURL"], jComparison["authorization"])
+            jStartJob := BenchmarkSeries(oStartJob, cProfile, cSQL, nRows, nPageSize, nIterations, nWarmup, .F.)
+            jReport["protheusStartJob"] := jStartJob
+            jProtheusRest := BenchmarkSeries(oProtheusRest, cProfile, cSQL, nRows, nPageSize, nIterations, nWarmup, .T.)
+            jReport["protheusRest"] := jProtheusRest
+            jReport["success"] := jReport["success"] .and. jStartJob["success"] .and. jProtheusRest["success"]
+        endif
+        if lAddon
+            oAddon := HBBridge.Client.HBBridgeClient():New(cHost, nPort, jComparison["addonTimeoutSeconds"] * 1000)
+            jAddon := BenchmarkAddon(oAddon, cProfile, jComparison["addonModule"], ;
+                nRows, nPageSize, nIterations, nWarmup)
+            jReport["hbbridgeAddon"] := jAddon
+            jReport["success"] := jReport["success"] .and. jAddon["success"]
+        endif
         jReport["failureCategory"] := IIf(jReport["success"], "", "SCENARIO_FAILED")
     catch xError
         // Never print exception descriptions, endpoints, credentials or SQL.
@@ -224,6 +314,21 @@ static method Measure(cProfile, cHost, nPort, cURL, cToken, nTimeoutSeconds, ;
     if ValType(oHTTP) == "O"
         FreeObj(@oHTTP)
     endif
+    if ValType(oStartJob) == "O"
+        oStartJob:Close()
+        FreeObj(@oStartJob)
+    endif
+    if ValType(oProtheusRest) == "O"
+        oProtheusRest:Close()
+        FreeObj(@oProtheusRest)
+    endif
+    if ValType(oAddon) == "O"
+        if !oAddon:Close()
+            jReport["success"] := .F.
+            jReport["failureCategory"] := "CLIENT_CLEANUP_FAILED"
+        endif
+        FreeObj(@oAddon)
+    endif
     nFinished := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs()
     jReport["runElapsedMs"] := Nil
     if nFinished >= nStarted
@@ -235,8 +340,171 @@ static method Measure(cProfile, cHost, nPort, cURL, cToken, nTimeoutSeconds, ;
     // The caller owns the report, including its nested transport/sample JSON.
     jTCP := Nil
     jHTTP := Nil
+    jStartJob := Nil
+    jProtheusRest := Nil
+    jAddon := Nil
 
 return(jReport)
+
+static method FixtureSQL(nRows) class HBBridgeBenchmarkTest
+
+    if !BenchmarkNumberValid(nRows, 1, 100000)
+        return ""
+    endif
+
+return(BenchmarkSQL(nRows))
+
+static method ComparisonSettings(lProtheus, lAddon) class HBBridgeBenchmarkTest
+
+    local jSettings := JSONObject():New() as json
+    local cIni := GetSrvIniName() as character
+    local cSection := GetPvProfString("hbBridge", "BenchmarkProtheusCredentialSection", ;
+        "FWWEBEX_" + GetEnvServer(), cIni) as character
+    local cUser := GetPvProfString(cSection, "UserName", "", cIni) as character
+    local cPassword := GetPvProfString(cSection, "Password", "", cIni) as character
+
+    DEFAULT lProtheus := .T.
+    DEFAULT lAddon := .T.
+    jSettings["enabled"] := lProtheus
+    jSettings["restURL"] := GetPvProfString("hbBridge", "BenchmarkProtheusURL", "https://localhost:4323/rest", cIni)
+    jSettings["authorization"] := ""
+    jSettings["credentialSection"] := cSection
+    jSettings["company"] := GetPvProfString("hbBridge", "BenchmarkProtheusCompany", "", cIni)
+    jSettings["branch"] := GetPvProfString("hbBridge", "BenchmarkProtheusBranch", "", cIni)
+    if Type("cEmpAnt") == "C"
+        jSettings["company"] := cEmpAnt
+    endif
+    if Type("cFilAnt") == "C"
+        jSettings["branch"] := cFilAnt
+    endif
+    if BenchmarkTextValid(cUser) .and. !(":" $ cUser) .and. ;
+        !(Chr(0) $ cPassword) .and. !(Chr(10) $ cPassword) .and. !(Chr(13) $ cPassword)
+        // Native REST 2.0 validates the Protheus user/password. Never send this to HTML.
+        jSettings["authorization"] := "Basic " + Encode64(cUser + ":" + cPassword)
+    endif
+    cUser := ""
+    cPassword := ""
+    jSettings["addonEnabled"] := lAddon
+    jSettings["addonModule"] := GetPvProfString("hbBridge", "BenchmarkAddonModule", "examples/hbbridgebenchmarkaddon.hrb", cIni)
+    jSettings["addonTimeoutSeconds"] := BenchmarkInteger(;
+        GetPvProfString("hbBridge", "BenchmarkAddonTimeoutSeconds", "600", cIni), 2147483, .F.)
+
+return(jSettings)
+
+static function BenchmarkAddon(oClient as object, cProfile as character, cModule as character, ;
+    nRows as numeric, nPageSize as numeric, nIterations as numeric, nWarmup as numeric) as json
+
+    local jRequest := JSONObject():New() as json
+    local jParams := JSONObject():New() as json
+    local jResponse as json
+    local jSeries := JSONObject():New() as json
+    local nStarted := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs() as numeric
+    local nFinished := 0 as numeric
+
+    jSeries["success"] := .F.
+    jSeries["failureCategory"] := "ADDON_CALL_FAILED"
+    jSeries["failurePhase"] := "call"
+    jSeries["failureIteration"] := 0
+    jSeries["avgMs"] := Nil
+    jSeries["minMs"] := Nil
+    jSeries["maxMs"] := Nil
+    jSeries["completedIterations"] := 0
+    jSeries["warmupCompleted"] := 0
+    jSeries["samples"] := JSONObject():New()
+    jSeries["warmupSamples"] := JSONObject():New()
+    jParams["profile"] := cProfile
+    jParams["rows"] := nRows
+    jParams["pageSize"] := nPageSize
+    jParams["iterations"] := nIterations
+    jParams["warmup"] := nWarmup
+    jRequest["module"] := cModule
+    jRequest["params"] := jParams
+    jResponse := oClient:CallService("ADDON.Execute", jRequest)
+    nFinished := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs()
+    if ValType(jResponse) == "J"
+        if BenchmarkAddonValid(jResponse, cProfile, nRows, nPageSize, nIterations, nWarmup)
+            FreeObj(@jSeries)
+            jSeries := jResponse["series"]
+            jResponse := Nil
+        elseif jResponse:HasProperty("code")
+            jSeries["serviceCode"] := BenchmarkSafeCode(jResponse["code"])
+        endif
+    endif
+    jSeries["callElapsedMs"] := Nil
+    if nFinished >= nStarted
+        jSeries["callElapsedMs"] := nFinished - nStarted
+    else
+        jSeries["success"] := .F.
+        jSeries["failureCategory"] := "CLOCK_REGRESSION"
+    endif
+    jSeries["transport"] := "TCP"
+    jSeries["networkCalls"] := 1
+    jSeries["returnedDatasetRows"] := 0
+    jSeries["callTimingScope"] := "one complete ADDON.Execute call, including HRB loading, all warmups/traversals, JSON and network; separate from server samples"
+    FreeObj(@jRequest)
+    FreeObj(@jResponse)
+    // The request owns its nested input; never FreeObj its shared alias twice.
+    jParams := Nil
+
+return(jSeries)
+
+static function BenchmarkAddonValid(jResponse as json, cProfile as character, ;
+    nRows as numeric, nPageSize as numeric, nIterations as numeric, nWarmup as numeric) as logical
+
+    local jSeries as json
+    local nCompleted := 0 as numeric
+
+    if !jResponse:HasProperty("schemaVersion") .or. !jResponse:HasProperty("success") .or. ;
+        !jResponse:HasProperty("series") .or. !jResponse:HasProperty("fixture") .or. ;
+        !jResponse:HasProperty("profile") .or. !jResponse:HasProperty("rowsPerIteration") .or. ;
+        !jResponse:HasProperty("pageSize") .or. !jResponse:HasProperty("iterations") .or. ;
+        !jResponse:HasProperty("warmupIterations")
+        return .F.
+    endif
+    if jResponse["schemaVersion"] != 1 .or. ValType(jResponse["success"]) != "L" .or. ;
+        ValType(jResponse["series"]) != "J" .or. jResponse["fixture"] != "m08.constant.v1" .or. ;
+        jResponse["profile"] != cProfile .or. jResponse["rowsPerIteration"] != nRows .or. ;
+        jResponse["pageSize"] != nPageSize .or. jResponse["iterations"] != nIterations .or. ;
+        jResponse["warmupIterations"] != nWarmup
+        return .F.
+    endif
+    jSeries := jResponse["series"]
+    if !jSeries:HasProperty("success") .or. !jSeries:HasProperty("completedIterations") .or. ;
+        !jSeries:HasProperty("warmupCompleted") .or. !jSeries:HasProperty("failureCategory") .or. ;
+        !jSeries:HasProperty("samples") .or. !jSeries:HasProperty("warmupSamples") .or. ;
+        !jSeries:HasProperty("avgMs") .or. !jSeries:HasProperty("totalMs") .or. ;
+        !jSeries:HasProperty("minMs") .or. !jSeries:HasProperty("maxMs") .or. ;
+        !jSeries:HasProperty("measuredRows") .or. !jSeries:HasProperty("measuredCalls")
+        return .F.
+    endif
+    if ValType(jSeries["success"]) != "L" .or. ValType(jSeries["failureCategory"]) != "C" .or. ;
+        ValType(jSeries["samples"]) != "J" .or. ValType(jSeries["warmupSamples"]) != "J" .or. ;
+        !BenchmarkNumberValid(jSeries["completedIterations"], 0, nIterations) .or. ;
+        !BenchmarkNumberValid(jSeries["warmupCompleted"], 0, nWarmup)
+        return .F.
+    endif
+    nCompleted := jSeries["completedIterations"]
+    if jResponse["success"] != jSeries["success"] .or. ;
+        jSeries["measuredRows"] != nCompleted * nRows .or. ;
+        jSeries["measuredCalls"] != nCompleted * (Int((nRows - 1) / nPageSize) + 1)
+        return .F.
+    endif
+    if jSeries["success"]
+        if nCompleted != nIterations .or. jSeries["warmupCompleted"] != nWarmup .or. ;
+            !Empty(jSeries["failureCategory"])
+            return .F.
+        endif
+    endif
+    if nCompleted > 0
+        if ValType(jSeries["avgMs"]) != "N" .or. ValType(jSeries["minMs"]) != "N" .or. ;
+            ValType(jSeries["maxMs"]) != "N" .or. ValType(jSeries["totalMs"]) != "N"
+            return .F.
+        endif
+        return jSeries["minMs"] >= 0 .and. jSeries["maxMs"] >= jSeries["minMs"] .and. ;
+            jSeries["avgMs"] >= jSeries["minMs"] .and. jSeries["avgMs"] <= jSeries["maxMs"]
+    endif
+
+return(!jSeries["success"] .and. ValType(jSeries["avgMs"]) == "U")
 
 static function BenchmarkSeries(oClient as object, cProfile as character, cSQL as character, ;
     nRows as numeric, nPageSize as numeric, nIterations as numeric, nWarmup as numeric, lHTTP as logical) as json

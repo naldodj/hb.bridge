@@ -338,6 +338,12 @@ from explicit parameters. Modules resolve under `addonRoot`.
 NETIO exposes the same service. Publishing, versions, trust and live updates
 remain pending.
 
+Trusted installed addons can receive an optional second native argument with
+the current service context; the JSON argument/result stay compatible. This
+call-owned context must not be retained or serialized. Nested calls use the
+same registry and permissions. The [benchmark addon](docs/benchmarking.md)
+uses it to process pages inside hbBridge and return measurements only.
+
 ### SQL: RPCRDD.Query with database-side pages
 
 | Database/interface | Harbour components |

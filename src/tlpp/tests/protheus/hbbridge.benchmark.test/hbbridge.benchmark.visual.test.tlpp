@@ -41,9 +41,19 @@ function U_HBBridgeBenchmarkVisualTest()
     jRequest["requestID"] := ""
     jResponse := oController:Handle(jRequest:ToJSON())
     jChecks["emptyCorrelationIsForwarded"] := ValType(jResponse) == "U" .and. jState["calls"] == 0
-    jRequest["requestID"] := "a" + Chr(0) + "b"
-    jResponse := oController:Handle(jRequest:ToJSON())
+    // Do not use ToJSON here: it can discard NUL before Handle receives it.
+    jResponse := oController:Handle(BenchmarkVisualRawRequest("a" + Chr(92) + "u0000b"))
     jChecks["nulCorrelationIsForwarded"] := ValType(jResponse) == "U" .and. jState["calls"] == 0
+    jResponse := oController:Handle(BenchmarkVisualRawRequest(Chr(92) + "u0000a"))
+    jChecks["leadingUnicodeNulIsForwarded"] := ValType(jResponse) == "U" .and. jState["calls"] == 0
+    jResponse := oController:Handle(BenchmarkVisualRawRequest("a" + Chr(92) + "u0000"))
+    jChecks["trailingUnicodeNulIsForwarded"] := ValType(jResponse) == "U" .and. jState["calls"] == 0
+    jResponse := oController:Handle(BenchmarkVisualRawRequest("a" + Chr(0) + "b"))
+    jChecks["internalRawNulIsForwarded"] := ValType(jResponse) == "U" .and. jState["calls"] == 0
+    jResponse := oController:Handle(BenchmarkVisualRawRequest(Chr(0) + "a"))
+    jChecks["leadingRawNulIsForwarded"] := ValType(jResponse) == "U" .and. jState["calls"] == 0
+    jResponse := oController:Handle(BenchmarkVisualRawRequest("a" + Chr(0)))
+    jChecks["trailingRawNulIsForwarded"] := ValType(jResponse) == "U" .and. jState["calls"] == 0
     FreeObj(@jRequest)
 
     jRequest := BenchmarkVisualRequest("first-request")
@@ -69,6 +79,17 @@ function U_HBBridgeBenchmarkVisualTest()
         jResponse["report"]["tcp"]["avgMs"] == 1.5
     FreeObj(@jResponse)
     FreeObj(@jRequest)
+
+    nCalls := jState["calls"]
+    jResponse := oController:Handle(BenchmarkVisualRawRequest("literal" + Chr(92) + Chr(92) + "u0000"))
+    jChecks["escapedBackslashNulTextIsAccepted"] := jState["calls"] == nCalls + 1 .and. ;
+        jResponse["report"]["success"] .and. jResponse["requestID"] == "literal" + Chr(92) + "u0000"
+    FreeObj(@jResponse)
+    nCalls := jState["calls"]
+    jResponse := oController:Handle(BenchmarkVisualRawRequest("unicode-backslash" + Chr(92) + "u005cu0000"))
+    jChecks["unicodeBackslashNulTextIsAccepted"] := jState["calls"] == nCalls + 1 .and. ;
+        jResponse["report"]["success"] .and. jResponse["requestID"] == "unicode-backslash" + Chr(92) + "u0000"
+    FreeObj(@jResponse)
 
     jInvalid:FromJSON('{"zeroRows":{"field":"rows","value":0},' + ;
         '"negativeRows":{"field":"rows","value":-1},' + ;
@@ -241,6 +262,11 @@ function U_HBBridgeBenchmarkVisualTest()
     FreeObj(@jState)
 
 return(IIf(lOK, 0, 1))
+
+static function BenchmarkVisualRawRequest(cRawRequestID as character) as character
+
+return('{"instance":"visual-instance","requestID":"' + cRawRequestID + ;
+    '","params":{"rows":1000,"pageSize":100,"iterations":5,"warmup":2,"timeoutSeconds":30}}')
 
 static function BenchmarkVisualRequest(cRequestID as character) as json
 

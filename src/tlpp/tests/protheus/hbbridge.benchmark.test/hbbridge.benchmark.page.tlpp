@@ -25,6 +25,14 @@ static method Render(cInstance, jDefaults) class HBBridgeBenchmarkPage
     jConfig["iterations"] := jDefaults["iterations"]
     jConfig["warmup"] := jDefaults["warmup"]
     jConfig["timeoutSeconds"] := jDefaults["timeoutSeconds"]
+    jConfig["protheusComparison"] := .F.
+    jConfig["addonComparison"] := .F.
+    if jDefaults:HasProperty("protheusComparison")
+        jConfig["protheusComparison"] := jDefaults["protheusComparison"]
+    endif
+    if jDefaults:HasProperty("addonComparison")
+        jConfig["addonComparison"] := jDefaults["addonComparison"]
+    endif
     cConfig := jConfig:ToJSON()
     // JSON remains data, including aliases containing an HTML closing tag.
     cConfig := StrTran(cConfig, "<", "\u003c")
@@ -80,16 +88,25 @@ static method HTML() class HBBridgeBenchmarkPage
     #hbb-benchmark .hbb-status[data-state="running"] { border-color: var(--hbb-tcp); background: #eaf5f5; }
     #hbb-benchmark .hbb-status[data-state="failed"] { border-color: #b14542; background: #fff0ee; color: #923b37; }
     #hbb-benchmark .hbb-status[data-state="passed"] { border-color: #287848; background: #edf7f0; color: #25653e; }
-    #hbb-benchmark .hbb-cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 18px; }
+    #hbb-benchmark .hbb-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 18px; }
     #hbb-benchmark .hbb-card { border: 1px solid var(--hbb-line); border-radius: 12px; padding: 18px; background: #fff; }
     #hbb-benchmark .hbb-card-label { display: block; font-size: 11px; color: var(--hbb-muted); font-weight: 700; text-transform: uppercase; letter-spacing: .8px; }
     #hbb-benchmark .hbb-value { display: block; font-size: clamp(21px, 2.4vw, 30px); line-height: 1.3; margin: 8px 0 3px; font-weight: 750; letter-spacing: -.6px; }
     #hbb-benchmark .hbb-tcp { color: var(--hbb-tcp); }
     #hbb-benchmark .hbb-http { color: var(--hbb-http); }
+    #hbb-benchmark .hbb-startjob { color: #c76b21; }
+    #hbb-benchmark .hbb-rest { color: #316bb0; }
+    #hbb-benchmark .hbb-addon { color: #496b32; }
+    #hbb-benchmark .hbb-progress { display: flex; align-items: center; gap: 11px; margin-bottom: 16px; color: #43536a; font-size: 13px; }
+    #hbb-benchmark .hbb-spinner { width: 18px; height: 18px; border: 2px solid #b8d8dc; border-top-color: var(--hbb-tcp); border-radius: 50%; animation: HBBenchmarkSpin .85s linear infinite; }
+    #hbb-benchmark .hbb-elapsed { font-variant-numeric: tabular-nums; font-weight: 700; }
+    #hbb-benchmark .hbb-addon-panel { border-color: #c4d6b4; background: #fcfef9; }
+    @keyframes HBBenchmarkSpin { to { transform: rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) { #hbb-benchmark .hbb-spinner { animation: none; } }
     #hbb-benchmark .hbb-charts { display: grid; grid-template-columns: 1fr 1.45fr; gap: 18px; }
     #hbb-benchmark .hbb-chart-box { min-width: 0; }
     #hbb-benchmark .hbb-chart-box svg { display: block; width: 100%; height: auto; min-height: 160px; }
-    #hbb-benchmark .hbb-legend { display: flex; gap: 16px; font-size: 12px; margin: 9px 0 0; color: var(--hbb-muted); }
+    #hbb-benchmark .hbb-legend { display: flex; flex-wrap: wrap; gap: 16px; font-size: 12px; margin: 9px 0 0; color: var(--hbb-muted); }
     #hbb-benchmark .hbb-dot { display: inline-block; width: 9px; height: 9px; margin-right: 6px; border-radius: 50%; background: currentColor; }
     #hbb-benchmark .hbb-scroll { overflow-x: auto; }
     #hbb-benchmark table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -121,9 +138,9 @@ static method HTML() class HBBridgeBenchmarkPage
         <div>
             <p class="hbb-eyebrow">hbBridge / measurement lab</p>
             <h1>Benchmark explorer</h1>
-            <p class="hbb-muted">Compare complete paged traversals through TCP and HTTP.</p>
+            <p id="hbb-description" class="hbb-muted">Compare complete paged traversals through TCP and HTTP.</p>
         </div>
-        <span class="hbb-badge">M08 · One client · Two transports</span>
+        <span id="hbb-route-badge" class="hbb-badge">M08 · One client · Two routes</span>
     </header>
     <form id="hbb-form" class="hbb-panel" novalidate>
         <div class="hbb-panel-head">
@@ -141,10 +158,16 @@ static method HTML() class HBBridgeBenchmarkPage
         </div>
         <div class="hbb-actions">
             <button id="hbb-run" class="hbb-primary" type="submit" disabled>Run benchmark</button>
-            <span class="hbb-help">Fixed fixture. Concurrency 1. TCP runs before HTTP. Warmup is excluded.</span>
+            <span id="hbb-run-help" class="hbb-help">Fixed fixture. Concurrency 1. TCP runs before HTTP. Warmup is excluded.</span>
         </div>
     </form>
     <p id="hbb-status" class="hbb-status" role="status" aria-live="polite" data-state="idle">Connecting to the Protheus channel...</p>
+    <div id="hbb-progress" class="hbb-progress" hidden>
+        <span id="hbb-spinner" class="hbb-spinner" aria-hidden="true"></span>
+        <span id="hbb-elapsed-label">Interface elapsed</span>
+        <output id="hbb-elapsed" class="hbb-elapsed" aria-label="Elapsed time while waiting for Protheus">00:00:00</output>
+        <span class="hbb-help">Waiting time is separate from the measured server results.</span>
+    </div>
     <section id="hbb-results" aria-label="Benchmark results" hidden>
         <div class="hbb-panel-head">
             <h2>Measurement results</h2>
@@ -154,6 +177,8 @@ static method HTML() class HBBridgeBenchmarkPage
         <div class="hbb-cards">
             <div class="hbb-card"><span class="hbb-card-label">TCP average</span><strong id="hbb-tcp-average" class="hbb-value hbb-tcp">—</strong><span class="hbb-help">per complete traversal</span></div>
             <div class="hbb-card"><span class="hbb-card-label">HTTP average</span><strong id="hbb-http-average" class="hbb-value hbb-http">—</strong><span class="hbb-help">per complete traversal</span></div>
+            <div id="hbb-startjob-card" class="hbb-card" hidden><span class="hbb-card-label">Protheus StartJob average</span><strong id="hbb-startjob-average" class="hbb-value hbb-startjob">—</strong><span class="hbb-help">in-process job, complete traversal</span></div>
+            <div id="hbb-rest-card" class="hbb-card" hidden><span class="hbb-card-label">Protheus REST average</span><strong id="hbb-rest-average" class="hbb-value hbb-rest">—</strong><span class="hbb-help">per complete traversal</span></div>
             <div class="hbb-card"><span class="hbb-card-label">Measured rows</span><strong id="hbb-measured-rows" class="hbb-value">—</strong><span class="hbb-help">successful measured iterations</span></div>
             <div class="hbb-card"><span class="hbb-card-label">Complete run</span><strong id="hbb-run-time" class="hbb-value">—</strong><span class="hbb-help">includes warmup and orchestration</span></div>
         </div>
@@ -166,23 +191,44 @@ static method HTML() class HBBridgeBenchmarkPage
             <section class="hbb-panel hbb-chart-box" aria-labelledby="hbb-sample-title">
                 <h2 id="hbb-sample-title">Iteration latency</h2>
                 <div id="hbb-sample-chart"></div>
-                <div class="hbb-legend"><span class="hbb-tcp"><i class="hbb-dot"></i>TCP</span><span class="hbb-http"><i class="hbb-dot"></i>HTTP</span></div>
+                <div id="hbb-route-legend" class="hbb-legend"></div>
                 <p id="hbb-chart-note" class="hbb-help">Warmup is separate. Missing or failed samples create gaps.</p>
             </section>
         </div>
         <section class="hbb-panel hbb-scroll" aria-label="Measured transport statistics">
             <table>
                 <caption>Complete paged traversal, including client calls, value checks and dataset close.</caption>
-                <thead><tr><th scope="col">Transport</th><th scope="col">Result</th><th scope="col">Iterations</th><th scope="col">Min ms</th><th scope="col">Average ms</th><th scope="col">Max ms</th><th scope="col">RPC calls</th><th scope="col">Rows</th></tr></thead>
+                <thead><tr><th scope="col">Execution route</th><th scope="col">Result</th><th scope="col">Iterations</th><th scope="col">Min ms</th><th scope="col">Average ms</th><th scope="col">Max ms</th><th scope="col">Page calls</th><th scope="col">Rows</th></tr></thead>
                 <tbody id="hbb-stats-body"></tbody>
             </table>
+        </section>
+        <section id="hbb-addon-panel" class="hbb-panel hbb-addon-panel" aria-labelledby="hbb-addon-title" hidden>
+            <div class="hbb-panel-head">
+                <h2 id="hbb-addon-title">hbBridge addon · server execution</h2>
+                <span id="hbb-addon-state" class="hbb-badge">Different timing scope</span>
+            </div>
+            <p class="hbb-help">The complete paged SQL traversal runs inside Harbour. One TCP call returns benchmark metrics instead of transferring every data page. Server execution is displayed separately from the client traversal comparison.</p>
+            <div class="hbb-cards hbb-actions">
+                <div class="hbb-card"><span class="hbb-card-label">Server traversal average</span><strong id="hbb-addon-average" class="hbb-value hbb-addon">—</strong><span class="hbb-help">successful measured iterations</span></div>
+                <div class="hbb-card"><span class="hbb-card-label">Call elapsed</span><strong id="hbb-addon-call" class="hbb-value">—</strong><span class="hbb-help">one TCP round trip, including all warmup and measured iterations</span></div>
+                <div class="hbb-card"><span class="hbb-card-label">Measured server rows</span><strong id="hbb-addon-rows" class="hbb-value">—</strong><span class="hbb-help">rows consumed within Harbour</span></div>
+            </div>
+            <div id="hbb-addon-chart" class="hbb-chart-box"></div>
+            <p id="hbb-addon-chart-note" class="hbb-help">Server iteration latency. Warmup is excluded. This timing scope differs from the four client traversal routes.</p>
+            <div class="hbb-scroll">
+                <table>
+                    <caption>Harbour server traversal statistics; call elapsed includes the complete addon request.</caption>
+                    <thead><tr><th scope="col">Scope</th><th scope="col">Result</th><th scope="col">Iterations</th><th scope="col">Min ms</th><th scope="col">Average ms</th><th scope="col">Max ms</th><th scope="col">Rows</th></tr></thead>
+                    <tbody id="hbb-addon-stats-body"></tbody>
+                </table>
+            </div>
         </section>
         <details class="hbb-panel">
             <summary>Warmup observations — excluded from measured statistics</summary>
             <div class="hbb-scroll">
                 <table>
                     <caption id="hbb-warmup-caption">Warmup samples by transport.</caption>
-                    <thead><tr><th scope="col">Transport</th><th scope="col">Iteration</th><th scope="col">Result</th><th scope="col">Elapsed ms</th><th scope="col">RPC calls</th><th scope="col">Rows</th></tr></thead>
+                    <thead><tr><th scope="col">Execution route / scope</th><th scope="col">Iteration</th><th scope="col">Result</th><th scope="col">Elapsed ms</th><th scope="col">Calls</th><th scope="col">Rows</th></tr></thead>
                     <tbody id="hbb-warmup-body"></tbody>
                 </table>
             </div>
@@ -221,7 +267,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
             warmup: {min: 0, max: 1000000, label: 'Warmup iterations'},
             timeoutSeconds: {min: 1, max: 2147483, label: 'Call timeout'}
         };
-        const State = {busy: false, closed: false, pending: '', report: null, sequence: 0, notice: null};
+        const State = {busy: false, closed: false, pending: '', report: null, sequence: 0, notice: null, started: null, ticker: null};
         const Bridge = window.FWWebEx && window.FWWebEx.TWebChannel;
         const Finite = value => typeof value === 'number' && Number.isFinite(value) && value >= 0;
         const Format = (value, decimals = 0) => Finite(value) ? value.toLocaleString('en-US', {
@@ -231,7 +277,28 @@ document.addEventListener("DOMContentLoaded", ()=>{
         const Record = value => value && typeof value === 'object' && !Array.isArray(value);
         const Category = value => typeof value === 'string' && /^[A-Z][A-Z0-9_]{0,63}$/.test(value) ? value : 'Unavailable';
         const Text = (name, value) => { Element(name).textContent = value; };
+        const RouteDefinitions = [
+            {key: 'tcp', name: 'hbBridge TCP', color: '#087f8c'},
+            {key: 'http', name: 'hbBridge HTTP', color: '#6d55b5'},
+            {key: 'protheusStartJob', name: 'Protheus StartJob', color: '#c76b21'},
+            {key: 'protheusRest', name: 'Protheus REST', color: '#316bb0'}
+        ];
         let Unsubscribe = null;
+
+        function Routes(report) {
+            const compare = report.protheusComparison === true || Record(report.protheusStartJob) || Record(report.protheusRest);
+            return RouteDefinitions.filter((route, index) => index < 2 || compare).map(route => ({
+                ...route, data: Record(report[route.key]) ? report[route.key] : {}
+            }));
+        }
+
+        function Heading(compare, addon) {
+            Text('description', compare ? 'Compare the same paged fixture through hbBridge and Protheus execution routes.' :
+                'Compare complete paged traversals through TCP and HTTP.');
+            Text('route-badge', 'M08 · One client · ' + (compare ? 'Four routes' : 'Two routes') + (addon ? ' + server addon' : ''));
+            Text('run-help', compare ? 'Fixed fixture. Concurrency 1. TCP, HTTP, Protheus StartJob, then Protheus REST. Warmup is excluded.' :
+                'Fixed fixture. Concurrency 1. TCP runs before HTTP. Warmup is excluded.');
+        }
 
         function Status(message, state = 'idle') {
             Text('status', message);
@@ -244,6 +311,29 @@ document.addEventListener("DOMContentLoaded", ()=>{
             Element('run').textContent = value ? 'Benchmark running...' : 'Run benchmark';
             Object.keys(Fields).forEach(name => { Element(name).disabled = value; });
             Root.setAttribute('aria-busy', value ? 'true' : 'false');
+            if (value) {
+                State.started = performance.now();
+                Element('progress').hidden = false;
+                Element('spinner').hidden = false;
+                Text('elapsed-label', 'Interface elapsed');
+                UpdateElapsed();
+                if (State.ticker !== null) clearInterval(State.ticker);
+                State.ticker = setInterval(UpdateElapsed, 1000);
+            } else {
+                if (State.ticker !== null) clearInterval(State.ticker);
+                State.ticker = null;
+                if (State.started !== null) UpdateElapsed();
+                Element('spinner').hidden = true;
+                Text('elapsed-label', 'Last request elapsed');
+            }
+        }
+
+        function UpdateElapsed() {
+            if (State.closed || State.started === null) return;
+            const seconds = Math.max(0, Math.floor((performance.now() - State.started) / 1000));
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor(seconds / 60) % 60;
+            Text('elapsed', [hours, minutes, seconds % 60].map(value => String(value).padStart(2, '0')).join(':'));
         }
 
         function Complete() {
@@ -287,20 +377,18 @@ document.addEventListener("DOMContentLoaded", ()=>{
             return svg;
         }
 
-        function AverageChart(report) {
-            const svg = Chart('average-chart', 'Average complete traversal in milliseconds for TCP and HTTP. Exact values are available in the statistics table.');
-            const entries = [
-                {name: 'TCP', value: report.tcp.avgMs, color: '#087f8c'},
-                {name: 'HTTP', value: report.http.avgMs, color: '#6d55b5'}
-            ];
+        function AverageChart(routes) {
+            const svg = Chart('average-chart', 'Average complete client traversal in milliseconds. Exact values are available in the statistics table.');
+            svg.setAttribute('viewBox', '0 0 600 ' + (routes.length * 88 + 40));
+            const entries = routes.map(route => ({name: route.name, value: route.data.avgMs, color: route.color}));
             const maximum = Math.max(1, ...entries.filter(entry => Finite(entry.value)).map(entry => entry.value));
             entries.forEach((entry, index) => {
-                const y = 60 + index * 90;
-                svg.appendChild(SVGNode('text', {x: 15, y: y + 26, fill: '#43536a', 'font-size': 16}, entry.name));
+                const y = 42 + index * 88;
+                svg.appendChild(SVGNode('text', {x: 15, y: y - 9, fill: '#43536a', 'font-size': 16}, entry.name));
                 if (Finite(entry.value)) {
-                    svg.appendChild(SVGNode('rect', {x: 83, y, width: 370 * entry.value / maximum, height: 39, rx: 6, fill: entry.color}));
+                    svg.appendChild(SVGNode('rect', {x: 15, y, width: 370 * entry.value / maximum, height: 30, rx: 6, fill: entry.color}));
                 }
-                svg.appendChild(SVGNode('text', {x: 83, y: y + 61, fill: '#64748b', 'font-size': 15}, Milliseconds(entry.value)));
+                svg.appendChild(SVGNode('text', {x: 405, y: y + 22, fill: '#64748b', 'font-size': 15}, Milliseconds(entry.value)));
             });
         }
 
@@ -309,14 +397,11 @@ document.addEventListener("DOMContentLoaded", ()=>{
                 Number.isSafeInteger(Number(key))).sort((left, right) => Number(left) - Number(right)) : [];
         }
 
-        function SampleChart(report) {
-            const svg = Chart('sample-chart', 'Measured iteration latency in milliseconds. Missing and failed samples create gaps.');
-            const declared = Finite(report.iterations) ? report.iterations : 0;
+        function SampleChart(routes, iterations, chartName = 'sample-chart', noteName = 'chart-note') {
+            const svg = Chart(chartName, 'Measured iteration latency in milliseconds. Missing and failed samples create gaps.');
+            const declared = Finite(iterations) ? iterations : 0;
             let maximumIteration = Math.max(1, declared);
-            const series = [
-                {data: report.tcp.samples, keys: SampleKeys(report.tcp.samples), color: '#087f8c'},
-                {data: report.http.samples, keys: SampleKeys(report.http.samples), color: '#6d55b5'}
-            ];
+            const series = routes.map(route => ({data: route.data.samples, keys: SampleKeys(route.data.samples), color: route.color}));
             let maximumTime = 1;
             series.forEach(item => item.keys.forEach(key => {
                 maximumIteration = Math.max(maximumIteration, Number(key));
@@ -358,38 +443,69 @@ document.addEventListener("DOMContentLoaded", ()=>{
                 });
                 svg.appendChild(SVGNode('path', {d: path, fill: 'none', stroke: item.color, 'stroke-width': 2}));
             });
-            Text('chart-note', series.some(item => item.keys.length > 600) ?
-                'Chart shows at most about 600 recorded samples per transport. Full samples remain in JSON. Missing or failed samples create gaps.' :
+            Text(noteName, series.some(item => item.keys.length > 600) ?
+                'Chart shows at most about 600 recorded samples per route. Full samples remain in JSON. Missing or failed samples create gaps.' :
                 'Warmup is separate. Missing or failed samples create gaps.');
         }
 
         function RenderReport(report) {
-            // A runtime failure may leave one transport without a series object.
             State.report = report;
-            report = {...report, tcp: Record(report.tcp) ? report.tcp : {}, http: Record(report.http) ? report.http : {}};
-            const passed = report.success === true && report.tcp.success === true && report.http.success === true;
-            const rows = Finite(report.tcp.measuredRows) && Finite(report.http.measuredRows) ?
-                report.tcp.measuredRows + report.http.measuredRows : null;
+            // A runtime failure may leave a configured route without a series.
+            const routes = Routes(report);
+            const addon = Record(report.hbbridgeAddon) ? report.hbbridgeAddon : null;
+            const passed = report.success === true && routes.every(route => route.data.success === true) && (!addon || addon.success === true);
+            const rows = routes.every(route => Finite(route.data.measuredRows)) ?
+                routes.reduce((total, route) => total + route.data.measuredRows, 0) : null;
+            Heading(routes.length > 2, !!addon);
             Text('result-state', passed ? 'PASSED' : 'FAILED / partial results');
             Text('result-meta', 'Run ' + String(report.runID || 'unavailable') + ' · ' + String(report.startedLocal || 'date unavailable') +
                 ' · Profile ' + String(report.profile || Config.profile) + ' · ' + Format(report.rowsPerIteration) + ' rows / ' + Format(report.pageSize) +
-                ' per page · ' + Format(report.iterations) + ' measured + ' + Format(report.warmupIterations) + ' warmup / transport');
-            Text('tcp-average', Milliseconds(report.tcp.avgMs));
-            Text('http-average', Milliseconds(report.http.avgMs));
+                ' per page · ' + Format(report.iterations) + ' measured + ' + Format(report.warmupIterations) + ' warmup / route');
+            Text('tcp-average', Milliseconds(routes[0].data.avgMs));
+            Text('http-average', Milliseconds(routes[1].data.avgMs));
+            Element('startjob-card').hidden = routes.length < 4;
+            Element('rest-card').hidden = routes.length < 4;
+            Text('startjob-average', Milliseconds(routes.length > 2 ? routes[2].data.avgMs : null));
+            Text('rest-average', Milliseconds(routes.length > 3 ? routes[3].data.avgMs : null));
             Text('measured-rows', Format(rows));
             Text('run-time', Finite(report.runElapsedMs) ? Format(report.runElapsedMs / 1000, 2) + ' s' : 'Unavailable');
             const body = Element('stats-body');
             body.replaceChildren();
-            [['TCP', report.tcp], ['HTTP', report.http]].forEach(([name, transport]) => {
+            routes.forEach(({name, data: transport}) => {
                 Row(body, [name, transport.success === true ? 'PASS' : 'FAILED', Format(transport.completedIterations),
                     Format(transport.minMs, 2), Format(transport.avgMs, 2), Format(transport.maxMs, 2),
                     Format(transport.measuredCalls), Format(transport.measuredRows)]);
             });
+            const legend = Element('route-legend');
+            legend.replaceChildren();
+            routes.forEach(route => {
+                const label = document.createElement('span');
+                label.style.color = route.color;
+                const dot = document.createElement('i');
+                dot.className = 'hbb-dot';
+                dot.setAttribute('aria-hidden', 'true');
+                label.appendChild(dot);
+                label.appendChild(document.createTextNode(route.name));
+                legend.appendChild(label);
+            });
+            Element('addon-panel').hidden = !addon;
+            if (addon) {
+                Text('addon-state', addon.success === true ? 'PASS · Server timing' : 'FAILED · Partial server timing');
+                Text('addon-average', Milliseconds(addon.avgMs));
+                Text('addon-call', Milliseconds(addon.callElapsedMs));
+                Text('addon-rows', Format(addon.measuredRows));
+                const addonBody = Element('addon-stats-body');
+                addonBody.replaceChildren();
+                Row(addonBody, ['Harbour server', addon.success === true ? 'PASS' : 'FAILED', Format(addon.completedIterations),
+                    Format(addon.minMs, 2), Format(addon.avgMs, 2), Format(addon.maxMs, 2), Format(addon.measuredRows)]);
+                SampleChart([{data: addon, color: '#496b32'}], report.iterations, 'addon-chart', 'addon-chart-note');
+            }
+            const diagnosticRoutes = addon ? [...routes, {name: 'hbBridge addon (server)', data: addon}] : routes;
             const warmup = Element('warmup-body');
             warmup.replaceChildren();
             let warmupCount = 0;
             let warmupShown = 0;
-            [['TCP', report.tcp], ['HTTP', report.http]].forEach(([name, transport]) => {
+            diagnosticRoutes.forEach(({name, data: transport}) => {
                 SampleKeys(transport.warmupSamples).forEach(key => {
                     warmupCount++;
                     if (warmupShown >= 100) return;
@@ -406,19 +522,20 @@ document.addEventListener("DOMContentLoaded", ()=>{
             const failures = Element('failures-body');
             failures.replaceChildren();
             let failureCount = 0;
-            [['TCP', report.tcp], ['HTTP', report.http]].forEach(([name, transport]) => {
+            diagnosticRoutes.forEach(({name, data: transport}) => {
+                let routeFailures = 0;
                 [['measured', transport.samples], ['warmup', transport.warmupSamples]].forEach(([phase, samples]) => {
                     SampleKeys(samples).forEach(key => {
                         const sample = samples[key];
                         if (!Record(sample) || sample.success !== false) return;
+                        routeFailures++;
                         failureCount++;
                         if (failureCount > 20) return;
                         Row(failures, [name + ' / ' + phase, key, Category(sample.failureCategory), Category(sample.serviceCode),
                             Format(sample.httpStatus), Format(sample.failedPage)]);
                     });
                 });
-                if (transport.success === false && !SampleKeys(transport.samples).some(key => transport.samples[key] && transport.samples[key].success === false) &&
-                    !SampleKeys(transport.warmupSamples).some(key => transport.warmupSamples[key] && transport.warmupSamples[key].success === false)) {
+                if (transport.success === false && routeFailures === 0) {
                     failureCount++;
                     if (failureCount <= 20) Row(failures, [name + ' / ' + String(transport.failurePhase || 'unavailable'),
                         Format(transport.failureIteration), Category(transport.failureCategory), 'Unavailable', 'Unavailable', 'Unavailable']);
@@ -431,19 +548,21 @@ document.addEventListener("DOMContentLoaded", ()=>{
                 'Safe service categories and failing pages. No native error details are included.');
             Text('scope', 'Concurrency ' + Format(report.concurrency) + '. Order: ' + String(report.transportOrder || 'unavailable') +
                 '. Statistics include successful measured iterations only. Client construction is excluded. ' +
-                'The production client compression policy applies. This is a traversal comparison, not a parallel SQL capacity test.');
+                'The production client compression policy applies. This is a traversal comparison, not a parallel SQL capacity test.' +
+                (routes.length > 2 ? ' Protheus StartJob is an in-process job, not a TCP transport. Its synchronous call cannot be cancelled by this harness. Verify DBAccess and the hbBridge alias target the same database.' : '') +
+                (addon ? ' The addon runs the traversal inside Harbour and returns metrics in one TCP call; its server timings are a separate scope.' : ''));
             const memory = Record(report.memory) ? report.memory : {};
             Text('memory', memory.status === 'UNAVAILABLE' ?
                 'AppServer memory is unavailable in this report; sample the process externally. Physical ODBC reuse is not inferred from timing; record the hbBridge process configuration separately.' :
                 'Memory status: ' + String(memory.status || 'UNAVAILABLE') +
                 '. Physical ODBC reuse is not inferred from timing; record the hbBridge process configuration separately.');
-            AverageChart(report);
-            SampleChart(report);
+            AverageChart(routes);
+            SampleChart(routes, report.iterations);
             Element('results').hidden = false;
             Element('exports').hidden = false;
             Element('export-json').disabled = false;
             Element('export-html').disabled = false;
-            Status(passed ? 'Benchmark complete. Both transports passed all measured and warmup traversals.' :
+            Status(passed ? 'Benchmark complete. All configured scenarios passed their measured and warmup traversals.' :
                 'Benchmark failed. Available measurements are partial; do not compare them as a successful run.', passed ? 'passed' : 'failed');
         }
 
@@ -492,7 +611,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
             State.pending = requestID;
             ClearResults();
             Busy(true);
-            Status('Running TCP, then HTTP. Warmup is excluded from measured statistics. Wait for the result before starting another run.', 'running');
+            Status('Running the configured benchmark scenarios. Warmup is excluded from measured statistics. Wait for the result before starting another run.', 'running');
             // A UI notice never cancels SQL or releases the outstanding-run guard.
             State.notice = setTimeout(() => {
                 if (State.busy && State.pending === requestID && !State.closed) {
@@ -539,6 +658,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
         });
 
         Object.keys(Fields).forEach(name => { Element(name).value = String(Config[name]); });
+        Heading(Config.protheusComparison === true, Config.addonComparison === true);
         Text('profile', typeof Config.profile === 'string' ? Config.profile : 'Unavailable');
         if (!Bridge || typeof Bridge.send !== 'function' || typeof Bridge.onAdvplToJs !== 'function') {
             Status('Open this example in Protheus with FWWebEx to run a benchmark. This standalone page has no execution channel.');
@@ -555,11 +675,13 @@ document.addEventListener("DOMContentLoaded", ()=>{
         window.addEventListener('pagehide', () => {
             State.closed = true;
             if (State.notice !== null) clearTimeout(State.notice);
+            if (State.ticker !== null) clearInterval(State.ticker);
+            State.ticker = null;
             if (typeof Unsubscribe === 'function') Unsubscribe();
             Element('run').disabled = true;
         }, {once: true});
         if (typeof globalThis.__HBBridgeBenchmarkTestHook === 'function') {
-            globalThis.__HBBridgeBenchmarkTestHook({Receive, RenderReport, State, SampleKeys});
+            globalThis.__HBBridgeBenchmarkTestHook({Receive, RenderReport, State, SampleKeys, UpdateElapsed});
         }
     })();
 });

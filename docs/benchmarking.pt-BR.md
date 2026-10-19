@@ -136,3 +136,53 @@ A regressão de ciclo envia 6000 Health no mesmo cliente por padrão e verifica
 independência/recuperação. Seu resultado é separado de desempenho SQL,
 contadores do alocador/registro do terminal e da
 [rodada ampliada](acceptance.pt-BR.md#m08-large-protheus-follow-up-on-2026-10-16).
+
+## Comparação Protheus e execução dentro de addon
+
+O exemplo visual ampliado mede quatro varreduras completas no cliente:
+hbBridge TCP, hbBridge HTTP, Protheus StartJob e REST nativo TLPP. Todos usam
+a fixture MSSQL constante, SELECT paginado mais COUNT, o mesmo tamanho de
+página e checks do dataset. StartJob cria worker síncrono por página e inclui
+sua inicialização; é um job dentro do AppServer, sem transporte TCP. REST TLPP
+usa o pool configurado e DBAccess. Seu endpoint aceita somente
+`{rows,pageNumber,pageSize}`, sem SQL externo nem credenciais de banco.
+Protheus usa o banco do seu ambiente; o alias hbBridge não seleciona nem altera
+esse ambiente. Verificar que ambos apontam para o mesmo banco MSSQL.
+
+Um cenário adicional em addon consome todas as páginas no hbBridge pelo mesmo
+registro `RPCRDD.Query` com verificação de permissões. Retorna apenas checks e
+medições, separando aquecimentos. `hbbridgeAddon.samples.*.elapsedMs` mede
+varredura, SQL e validação de hashes/valores no servidor; exclui carga do HRB
+e rede. `hbbridgeAddon.callElapsedMs` mede uma chamada completa, incluindo
+carga do HRB, todos os aquecimentos/iterações e transporte. A página apresenta
+esses escopos separadamente. A diferença de transferência e trabalho no cliente
+permite comparar onde executar; a média do servidor não substitui as quatro
+barras de tempo total das varreduras no cliente.
+
+Compilar/instalar o HRB opcional com
+`scripts/build-hbbridge-benchmark-addon.ps1`; saída padrão
+`addons/examples/hbbridgebenchmarkaddon.hrb`. Instalar sob `addonRoot` do
+servidor ativo e recompilar hbBridge para o contexto nativo opcional do addon.
+Nenhuma credencial SQL é enviada: o host fornece seu registro local como segundo
+argumento nativo opcional. Addons existentes preservam primeiro argumento JSON
+e contrato de retorno. O contexto pertence à chamada, não deve ser retido nem
+serializado; chamadas internas continuam sujeitas às permissões.
+
+A [configuração REST privada](../config/hbbridge.benchmark.rest.pt-BR.md) inclui
+`BenchmarkProtheusURL`, `BenchmarkProtheusCredentialSection`, `BenchmarkAddonModule` e
+`BenchmarkAddonTimeoutSeconds` em `[hbBridge]`. O exemplo visual habilita todas
+as comparações; o CLI habilita com `--compare-protheus=1 --with-addon=1`.
+Sem essas flags, o CLI mantém a referência de duas rotas. REST 2.0 valida
+Basic com `UserName`/`Password` da seção privada referenciada, sem bearer
+adicional do benchmark. Autorização e módulo ficam na configuração confiável.
+O visual captura `cEmpAnt`/`cFilAnt` já selecionadas no Protheus e as passa
+ao StartJob. No CLI, informar `--company=99 --branch=01`, ou chaves privadas
+`BenchmarkProtheusCompany`/`BenchmarkProtheusBranch`. Somente o job prepara
+e fecha seu ambiente com `RpcSetEnv()`/`RpcClearEnv()`. `FWGetTopInfo()` fornece
+a configuração DBAccess necessária. REST mantém sua sessão preparada pelo
+framework; contexto ERP não é enviado ao addon nem inferido pelo hbBridge.
+
+O timeout do addon vale pela RPC completa, não por página SQL; dimensionar pela
+carga inteira solicitada. StartJob verifica o prazo após retornar, sem interrupção
+pelo executor. Timeout do cliente não comprova encerramento do worker. Spinner
+e tempo decorrido indicam requisição pendente, sem percentual real ou cancelamento.

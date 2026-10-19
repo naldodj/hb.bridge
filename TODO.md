@@ -417,6 +417,15 @@ per-value limits; tested slow-consumer/invalid-decode/disconnect behavior.
   TCP/HTTP, separate warmups, identified artifacts and OS process samples.
   [Results and scope](docs/acceptance.md#m08-performance-baseline-on-2026-10-16).
   Final M09 checks and D03 remain open in [WIP](WIP.md).
+- [x] Extend the visual benchmark with optional Protheus StartJob/REST and
+  hbBridge TCP/HTTP comparisons plus a server-side Harbour addon. Keep the
+  fixed fixture, warmups and distinct timing scopes; the addon returns statistics
+  instead of dataset rows. Provide managed addon build/regression scripts and
+  reuse one existing REST 2.0 listener with native Protheus Basic authentication.
+- [ ] Accept the expanded visual/comparison/addon package in the AppServer,
+  including authentication, owned-resource cleanup and failure recovery.
+  Code and isolated checks do not complete its runtime acceptance or M09/D03.
+  See the [benchmark guide](src/tlpp/tests/protheus/hbbridge.benchmark.test/README.md).
 - [ ] Unavailable connector, broader type/null coverage and real volume in
   Protheus; unknown alias is not connector-failure proof.
 - [ ] hbodbc/hbsqlit3 direct API where operations require it.

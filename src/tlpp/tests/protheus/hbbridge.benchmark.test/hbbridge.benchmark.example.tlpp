@@ -37,6 +37,7 @@ static method Show(cProfile, cHost, nPort, cURL, cToken, nTimeoutSeconds) class 
     local jOverrides := JSONObject():New() as json
     local jConfig as json
     local jDefaults := JSONObject():New() as json
+    local jComparison as json
     local oController as object
     local oChannel as object
     local oDialog as object
@@ -90,8 +91,9 @@ static method Show(cProfile, cHost, nPort, cURL, cToken, nTimeoutSeconds) class 
     endif
 
     try
+        jComparison := HBBridge.Test.HBBridgeBenchmarkTest():ComparisonSettings(.T., .T.)
         oController := HBBridge.Examples.HBBridgeBenchmarkController():New(cInstance, ;
-            cProfile, jConfig["host"], jConfig["port"], cURL, cToken)
+            cProfile, jConfig["host"], jConfig["port"], cURL, cToken, Nil, jComparison)
         // Only public fixture defaults reach the page; credentials stay in the controller.
         jDefaults["profile"] := cProfile
         jDefaults["rows"] := 1000
@@ -99,6 +101,8 @@ static method Show(cProfile, cHost, nPort, cURL, cToken, nTimeoutSeconds) class 
         jDefaults["iterations"] := 5
         jDefaults["warmup"] := 2
         jDefaults["timeoutSeconds"] := nTimeoutSeconds
+        jDefaults["protheusComparison"] := .T.
+        jDefaults["addonComparison"] := .T.
         if HBBridge.Examples.HBBridgeBenchmarkExample():Page(jDefaults, cInstance, @cFile)
             cNavigate := CpyF2Web(cFile, .F., .F., .F., .F.)
             if Empty(cNavigate)
@@ -157,6 +161,7 @@ static method Show(cProfile, cHost, nPort, cURL, cToken, nTimeoutSeconds) class 
     FreeObj(@oController)
     FreeObj(@jConfig)
     FreeObj(@jDefaults)
+    FreeObj(@jComparison)
     FreeObj(@jOverrides)
     if !Empty(cFile)
         if File(cFile)

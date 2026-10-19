@@ -502,6 +502,13 @@ O teste Protheus chama `ADDON.Execute` com
 serviço está disponível pelo NETIO nativo. As regras de publicação, versão e
 atualização dos módulos continuam no roadmap.
 
+Addons instalados e confiáveis podem receber um segundo argumento nativo
+opcional com o contexto atual de serviços; argumento e resultado JSON mantêm
+compatibilidade. Esse contexto pertence à chamada e não pode ser retido nem
+serializado. Chamadas internas usam o mesmo registro e permissões. O
+[addon de benchmark](docs/benchmarking.pt-BR.md) utiliza esse recurso para
+processar páginas dentro do hbBridge e devolver somente medições.
+
 ### SQL: RPCRDD.Query com páginas no SGBD
 
 Para SQL, `rddsql` é a contrib que fornece os RDDs `SQLBASE` e `SQLMIX`

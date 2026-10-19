@@ -75,7 +75,10 @@ FUNCTION HBBridgeServiceAddon( hParams, hContext )
         ENDIF
     NEXT
     /* Existing addons take/return JSON. Keep their ABI explicit here. */
-    cJson := ExecuteAddonHRB( cModule, hParams[ "params" ], hContext[ "addonRoot" ] )
+    /* Optional native second argument lets trusted addons call the same
+     * permission-checked registry. It is never part of request/response JSON.
+     */
+    cJson := ExecuteAddonHRB( cModule, hParams[ "params" ], hContext[ "addonRoot" ], hContext )
     IF ! HB_ISSTRING( cJson ) .OR. Empty( cJson )
         RETURN HBBridgeError( "ADDON_RESULT", "Addon is missing or returned no response" )
     ENDIF

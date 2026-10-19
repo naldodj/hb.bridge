@@ -1,0 +1,227 @@
+/* Released to Public Domain. */
+#include "totvs.ch"
+#include "topconn.ch"
+#include "tlpp-core.th"
+
+namespace HBBridge.Test
+
+class HBBridgeBenchmarkProtheus
+
+    static method Page(cRequestJSON as character) as character
+
+endclass
+
+static method Page(cRequestJSON) class HBBridgeBenchmarkProtheus
+
+    local jRequest := JSONObject():New() as json
+    local jResult as json
+    local jHeader := JSONObject():New() as json
+    local jRows := JSONObject():New() as json
+    local jRow as json
+    local jPage := JSONObject():New() as json
+    local xError as variant
+    local cCode := "INVALID_REQUEST", cResult := "" as character
+    local cFixture := "", cSQL := "", cAlias := "", cCountAlias := "" as character
+    local nPreviousArea := Select(), nQueryArea := 0, nCountArea := 0 as numeric
+    local nRows := 0, nNumber := 0, nSize := 0, nFirst := 0, nEnd := 0 as numeric
+    local nRow := 0, nTotalRows := 0, nTotalPages := 0 as numeric
+    local lHasNext := .F., lValid := .F., lCleanupOK := .T. as logical
+    // Native JSONObject enumeration requires one array of names.
+    local aNames as array
+
+    try
+        if ValType(cRequestJSON) == "C"
+            if ValType(jRequest:FromJSON(cRequestJSON)) == "U"
+                aNames := jRequest:GetNames()
+                lValid := Len(aNames) == 3 .and. jRequest:HasProperty("rows") .and. ;
+                    jRequest:HasProperty("pageNumber") .and. jRequest:HasProperty("pageSize")
+            endif
+        endif
+        if !lValid
+            throw "Invalid benchmark request."
+        endif
+        cCode := "INVALID_PARAMETERS"
+        if !ProtheusBenchmarkInteger(jRequest["rows"], 1, 100000)
+            throw "Invalid benchmark rows."
+        endif
+        cCode := "INVALID_PAGE"
+        if !ProtheusBenchmarkInteger(jRequest["pageSize"], 1, 100000) .or. ;
+            !ProtheusBenchmarkInteger(jRequest["pageNumber"], 1, 9007199254740991)
+            throw "Invalid benchmark page."
+        endif
+        nRows := jRequest["rows"]
+        nNumber := jRequest["pageNumber"]
+        nSize := jRequest["pageSize"]
+        if nNumber > Int((9007199254740991 - 1) / nSize)
+            throw "Invalid benchmark page bounds."
+        endif
+        nFirst := (nNumber - 1) * nSize + 1
+        nEnd := nNumber * nSize + 1
+        cCode := "QUERY_FAILED"
+        cFixture := HBBridge.Test.HBBridgeBenchmarkTest():FixtureSQL(nRows)
+        cSQL := "SELECT HBBPAGE.* FROM (SELECT ROW_NUMBER() OVER (ORDER BY HBBSRC.[ID] ASC)" + ;
+            " AS __HBBRIDGE_ROWNO, HBBSRC.* FROM (" + cFixture + ") AS HBBSRC) AS HBBPAGE " + ;
+            "WHERE HBBPAGE.__HBBRIDGE_ROWNO BETWEEN " + AllTrim(Str(nFirst, 20, 0)) + ;
+            " AND " + AllTrim(Str(nEnd, 20, 0)) + " ORDER BY HBBPAGE.__HBBRIDGE_ROWNO"
+
+        DbSelectArea(0)
+        nQueryArea := Select()
+        cAlias := GetNextAlias()
+        DbUseArea(.F., "TOPCONN", TCGenQry(Nil, Nil, cSQL), cAlias, .T., .T.)
+        if Select(cAlias) != nQueryArea
+            throw "Benchmark query did not open."
+        endif
+        TCSetField(cAlias, "ID", "N", 10, 0)
+        TCSetField(cAlias, "AMOUNT", "N", 15, 2)
+        jHeader["ID"] := ProtheusBenchmarkField(1, "N", 10, 0)
+        jHeader["NAME"] := ProtheusBenchmarkField(2, "C", 32, 0)
+        jHeader["AMOUNT"] := ProtheusBenchmarkField(3, "N", 15, 2)
+        while !(cAlias)->(Eof())
+            if nRow == nSize
+                lHasNext := .T.
+                exit
+            endif
+            jRow := JSONObject():New()
+            jRow["ID"] := (cAlias)->(FieldGet(FieldPos("ID")))
+            jRow["NAME"] := (cAlias)->(FieldGet(FieldPos("NAME")))
+            jRow["AMOUNT"] := (cAlias)->(FieldGet(FieldPos("AMOUNT")))
+            nRow++
+            jRows[AllTrim(Str(nRow))] := jRow
+            jRow := Nil
+            (cAlias)->(DbSkip())
+        enddo
+        (cAlias)->(DbCloseArea())
+        if Used()
+            throw "Benchmark reader did not close."
+        endif
+
+        // Match hbBridge's second statement; do not substitute the known size.
+        cSQL := "SELECT COUNT_BIG(*) AS QTOTAL FROM (" + cFixture + ") AS HBBCOUNT"
+        DbSelectArea(0)
+        nCountArea := Select()
+        cCountAlias := GetNextAlias()
+        DbUseArea(.F., "TOPCONN", TCGenQry(Nil, Nil, cSQL), cCountAlias, .T., .T.)
+        if Select(cCountAlias) != nCountArea
+            throw "Benchmark count did not open."
+        endif
+        TCSetField(cCountAlias, "QTOTAL", "N", 18, 0)
+        if (cCountAlias)->(Eof())
+            throw "Benchmark count is unavailable."
+        endif
+        nTotalRows := (cCountAlias)->(FieldGet(FieldPos("QTOTAL")))
+        if !ProtheusBenchmarkInteger(nTotalRows, 0, 100000)
+            throw "Benchmark count is invalid."
+        endif
+        (cCountAlias)->(DbCloseArea())
+        if Used()
+            throw "Benchmark count did not close."
+        endif
+        nTotalPages := Int(nTotalRows / nSize) + IIf(Mod(nTotalRows, nSize) == 0, 0, 1)
+
+        jPage["number"] := nNumber
+        jPage["size"] := nSize
+        jPage["hasNext"] := lHasNext
+        jPage["firstRow"] := IIf(nRow == 0, 0, nFirst)
+        jPage["lastRow"] := IIf(nRow == 0, 0, nFirst + nRow - 1)
+        jResult := JSONObject():New()
+        jResult["success"] := .T.
+        jResult["resultVersion"] := 1
+        jResult["driver"] := "protheus-dbaccess"
+        jResult["header"] := jHeader
+        jResult["rows"] := jRows
+        jResult["rowCount"] := nRow
+        jResult["page"] := jPage
+        jResult["totalRows"] := nTotalRows
+        jResult["totalPages"] := nTotalPages
+        jHeader := Nil
+        jRows := Nil
+        jPage := Nil
+    catch xError
+        jResult := ProtheusBenchmarkFailure(cCode)
+        if (ValType(xError)=="O")
+            FreeObj(@xError)
+        endif
+    endtry
+
+    // The reserved free areas belong to this call, including failed opens.
+    try
+        if nQueryArea > 0
+            DbSelectArea(nQueryArea)
+            if Used()
+                DbCloseArea()
+                lCleanupOK := !Used() .and. lCleanupOK
+            endif
+        endif
+        if nCountArea > 0
+            DbSelectArea(nCountArea)
+            if Used()
+                DbCloseArea()
+                lCleanupOK := !Used() .and. lCleanupOK
+            endif
+        endif
+    catch xError
+        lCleanupOK := .F.
+    endtry
+    try
+        // Rejected input never reserved or changed a work area. In particular,
+        // DbSelectArea(0) selects a new free area rather than restoring no area.
+        if (nQueryArea > 0 .or. nCountArea > 0) .and. nPreviousArea > 0
+            if Select() != nPreviousArea
+                DbSelectArea(nPreviousArea)
+            endif
+        endif
+    catch xError
+        lCleanupOK := .F.
+    endtry
+    if !lCleanupOK
+        FreeObj(@jResult)
+        jResult := ProtheusBenchmarkFailure("CLEANUP_FAILED")
+    endif
+    cResult := jResult:ToJSON()
+    FreeObj(@jResult)
+    FreeObj(@jRequest)
+    if ValType(jRow) == "J"
+        FreeObj(@jRow)
+    endif
+    if ValType(jHeader) == "J"
+        FreeObj(@jHeader)
+    endif
+    if ValType(jRows) == "J"
+        FreeObj(@jRows)
+    endif
+    if ValType(jPage) == "J"
+        FreeObj(@jPage)
+    endif
+
+return(cResult)
+
+static function ProtheusBenchmarkInteger(xValue as variant, nMinimum as numeric, ;
+    nMaximum as numeric) as logical
+
+    if ValType(xValue) != "N"
+        return .F.
+    endif
+
+return(xValue >= nMinimum .and. xValue <= nMaximum .and. xValue == Int(xValue))
+
+static function ProtheusBenchmarkField(nPosition as numeric, cType as character, ;
+    nLength as numeric, nDecimals as numeric) as json
+
+    local jField := JSONObject():New() as json
+
+    jField["position"] := nPosition
+    jField["type"] := cType
+    jField["length"] := nLength
+    jField["decimals"] := nDecimals
+
+return(jField)
+
+static function ProtheusBenchmarkFailure(cCode as character) as json
+
+    local jFailure := JSONObject():New() as json
+
+    jFailure["success"] := .F.
+    jFailure["code"] := cCode
+    jFailure["error"] := "The Protheus benchmark fixture could not be read."
+
+return(jFailure)

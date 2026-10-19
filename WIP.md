@@ -12,11 +12,11 @@ acceptance records verified results; ChangeLog and Git preserve history.
 | Item | Current value |
 | --- | --- |
 | ID | `001-mssql-acceptance` |
-| Opened / updated | 2026-10-07 / 2026-10-16 |
+| Opened / updated | 2026-10-07 / 2026-10-18 |
 | Status | D02/M06/M07 retain their recorded acceptance. M08 completed for the identified Windows fixture: 43366 native benchmark checks/0 and real AppServer TCP/HTTP traversals/0, with time and available OS process memory. D03 and final M09 checks remain pending; package stays open. |
 | Goal | Accept the existing RPCRDD.Query/dataset against an identified real MSSQL database through Harbour, Protheus TCP and Protheus HTTP. |
 | Product reference | Published code `50e1c65`; checkout at package opening `bce52d2` includes the clone badge update. |
-| Next task | V01: finish the requested visual benchmark and client lifetime/failure diagnostics follow-up, with focused AppServer validation; then resume M09. D03 integrity remains required before package closure. |
+| Next task | V01/V02: validate the visual benchmark, four client routes and server-only addon. Reuse the single authenticated Protheus REST 2.0 listener before further measurements; then resume M09. D03 remains required for package closure. |
 
 ### Decisions already made
 
@@ -280,6 +280,16 @@ new acceptance findings, not reasons to repeat the completed inventory.
   cause. This new workload does not invalidate the smaller M08 baseline or
   certify the complete large run. Record compilation, focused CLI tests and
   browser checks separately from interactive FWWebEx acceptance.
+- [ ] **V02 — Compare execution placement.** Added by explicit request on
+  2026-10-16/18: compare hbBridge TCP/HTTP with DBAccess through Protheus
+  StartJob and native REST 2.0, using the same fixture/pages/COUNT and dataset
+  checks. Add an HRB scenario which consumes pages locally in hbBridge and
+  returns metrics only; separate server traversal time from whole-call time.
+  Keep ERP credentials in the trusted AppServer configuration. Reuse port 4323
+  with Security=1 and one worker, not another listener/custom bearer provider.
+  The active INI was backed up before the authorized consolidation. Verify
+  missing/incorrect/valid credentials against the actual framework and record
+  runtime evidence. Preserve generic executor boundaries and open D03/M09.
 - [ ] **M09 — Complete regressions and documentation.** Run checks appropriate
   to any changed implementation, compile changed TLPP and obtain AppServer
   acceptance. Run all three commit validators; update EN/PT instructions,

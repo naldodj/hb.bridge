@@ -188,3 +188,40 @@ Sua aceitação é separada; reutilizar o componente não comprova ausência de
 vazamentos no alocador/registro nativo do terminal. Relatórios novos preservam
 diagnósticos seguros de fase/iteração/página da falha, status HTTP e código do
 serviço quando disponíveis.
+
+## Quatro rotas cliente e um addon no servidor
+
+O visual inclui Protheus StartJob/REST 2.0 e hbBridge TCP/HTTP com a mesma
+fixture, checks do dataset e SELECT mais COUNT por página. StartJob inclui
+inicialização do worker/ambiente por página; não representa tráfego TCP.
+FWWebEx fornece `cEmpAnt`/`cFilAnt` selecionadas. O job prepara seu ambiente
+com `RpcSetEnv()` e libera recursos próprios. `FWGetTopInfo()` fornece
+configuração DBAccess. REST mantém seu ambiente preparado pelo framework.
+
+Reutilizar o HTTPS REST 2.0 existente com `Security=1`; veja o
+[fragmento de configuração](../../../../../config/hbbridge.benchmark.rest.pt-BR.md).
+Chaves privadas `[hbBridge]`: `BenchmarkProtheusURL` (ex.
+`https://localhost:4323/rest`), `BenchmarkProtheusCredentialSection`
+(`FWWEBEX_PROTHEUS`), `BenchmarkAddonModule`, `BenchmarkAddonTimeoutSeconds`.
+A seção `UserName`/`Password` referenciada fornece Basic; esses dados não
+chegam ao HTML/relatórios. Não há bearer adicional do benchmark.
+
+Compilar HRB opcional com `scripts/build-hbbridge-benchmark-addon.ps1` e testar
+com `scripts/test-hbbridge-benchmark-addon.ps1`. Instalar
+`addons/examples/hbbridgebenchmarkaddon.hrb` sob `addonRoot` do servidor
+atualizado. Seu contexto nativo da chamada invoca `RPCRDD.Query` localmente;
+retornam apenas métricas/checks. O painel separado distingue média de varredura
+no servidor de uma chamada TCP completa com carga do HRB, aquecimentos e todas
+as iterações. Esses escopos não são intercambiáveis.
+
+No CLI, habilitar a comparação preservando o padrão original de duas rotas:
+
+```text
+-run=U_HBBridgeBenchmarkCLI -env=PROTHEUS --profile=MSSQL/pData --rows=1000 --page-size=100 --iterations=5 --warmup=2 --timeout=30 --compare-protheus=1 --with-addon=1 --company=99 --branch=01
+```
+
+O indicador anima e mostra tempo decorrido no navegador até resposta/erro
+correspondente. Não representa percentual do servidor nem cancela job síncrono.
+Checks Chromium cobrem correlação, falha de envio, quatro rotas, addon separado,
+falha parcial, exportação e séries grandes. Evidências de execução ficam no
+[aceite](../../../../../docs/acceptance.pt-BR.md).

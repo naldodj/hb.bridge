@@ -597,6 +597,15 @@ testado; somente versões e capacidades efetivamente implementadas são anunciad
   amostras do processo pelo SO.
   [Resultados e escopo](docs/acceptance.pt-BR.md#m08-performance-baseline-on-2026-10-16).
   Checks finais M09 e D03 continuam abertos no [WIP](WIP.pt-BR.md).
+- [x] Ampliar benchmark visual com comparação opcional Protheus StartJob/REST
+  e hbBridge TCP/HTTP, além de addon Harbour no servidor. Preservar fixture fixa,
+  aquecimentos e escopos de tempo distintos; addon retorna estatísticas em vez
+  de linhas do dataset. Disponibilizar scripts gerenciados de build/regressão e
+  reutilizar um listener REST 2.0 com autenticação Basic nativa do Protheus.
+- [ ] Homologar pacote visual/comparação/addon ampliado no AppServer, incluindo
+  autenticação, limpeza dos recursos próprios e recuperação de falhas.
+  Código e checks isolados não concluem seu aceite runtime nem M09/D03.
+  Veja o [guia do benchmark](src/tlpp/tests/protheus/hbbridge.benchmark.test/README.pt-BR.md).
 - [ ] Avaliar `hbodbc`/`hbsqlit3` quando a operação exigir a API direta.
 - [x] Implementar `RPCRDD.Query` no registro/dispatcher, com perfil lógico,
   `alias`, `sql`, metadados e retorno por chave com contagem/versão explícitas.

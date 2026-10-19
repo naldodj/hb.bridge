@@ -179,3 +179,40 @@ static mitigation and the earlier component-per-call allocation. The
 Its runtime acceptance is separate; component reuse does not establish native
 allocator/terminal-registry leak freedom. New reports retain safe failure
 phase/iteration/page, HTTP status and service-code diagnostics where available.
+
+## Four client routes and a server-only addon
+
+The visual form includes Protheus StartJob/REST 2.0 and hbBridge TCP/HTTP,
+using the same fixture, dataset checks and SELECT plus COUNT per page.
+StartJob includes worker/environment startup per page; it is not TCP traffic.
+FWWebEx supplies the selected `cEmpAnt`/`cFilAnt`. The job prepares its own
+environment with `RpcSetEnv()` and releases owned resources. `FWGetTopInfo()`
+provides DBAccess configuration. REST keeps its framework-prepared environment.
+
+Reuse the existing HTTPS REST 2.0 listener with `Security=1`; see the
+[configuration fragment](../../../../../config/hbbridge.benchmark.rest.md).
+Private `[hbBridge]` keys: `BenchmarkProtheusURL` (e.g.
+`https://localhost:4323/rest`), `BenchmarkProtheusCredentialSection`
+(`FWWEBEX_PROTHEUS`), `BenchmarkAddonModule`, `BenchmarkAddonTimeoutSeconds`.
+The referenced `UserName`/`Password` section supplies Basic credentials;
+these never reach HTML/reports. No additional benchmark bearer is required.
+
+Build the optional HRB with `scripts/build-hbbridge-benchmark-addon.ps1` and
+check it with `scripts/test-hbbridge-benchmark-addon.ps1`. Install
+`addons/examples/hbbridgebenchmarkaddon.hrb` under the updated server's
+`addonRoot`. Its native call-owned context invokes `RPCRDD.Query` locally;
+only measurements/checks return. The separate panel distinguishes server
+traversal average from one complete TCP call including HRB loading, warmups
+and all iterations. Those timing scopes are not interchangeable.
+
+Opt into the comparison on CLI, retaining the original two-route default:
+
+```text
+-run=U_HBBridgeBenchmarkCLI -env=PROTHEUS --profile=MSSQL/pData --rows=1000 --page-size=100 --iterations=5 --warmup=2 --timeout=30 --compare-protheus=1 --with-addon=1 --company=99 --branch=01
+```
+
+The pending indicator animates and shows browser elapsed time until a matching
+response/error. It does not claim a server progress percentage or cancel a
+synchronous job. Chromium checks cover correlation, send failures, four routes,
+separate addon results, partial failure, exports and large sample collections.
+Runtime evidence is recorded in [acceptance](../../../../../docs/acceptance.md).

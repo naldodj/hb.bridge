@@ -1,0 +1,131 @@
+/* Released to Public Domain. */
+#include "tlpp-core.th"
+
+// StartJob receives and returns strings; the fixture never accepts caller SQL.
+function U_HBBridgeBenchmarkJob(cRequestJSON, cCompany, cBranch, cCredentialSection)
+
+    local aFWGetTopInfo as array
+    local cDatabase := "", cAlias := "", cServer := "" as character
+    local cUser := "", cPassword := "", cCode := "ENVIRONMENT_FAILED" as character
+    local cResult := "" as character
+    local nConnection := -1, nPort := 0 as numeric
+    local lOwned := .F., lEnvironmentOwned := .F., lExistingEnvironment := .F. as logical
+    local lFailed := .F. as logical
+    local xError as variant
+
+    if ValType(cCompany) != "C" .or. ValType(cBranch) != "C"
+        return BenchmarkJobFailure("PROTHEUS_CONTEXT_REQUIRED")
+    endif
+    if Empty(cCompany) .or. Empty(cBranch)
+        return BenchmarkJobFailure("PROTHEUS_CONTEXT_REQUIRED")
+    endif
+    DEFAULT cCredentialSection := "FWWEBEX_" + GetEnvServer()
+    try
+        // Preserve FWGetTopInfo as the authoritative DBAccess configuration.
+        // Connect before RpcSetEnv so framework initialization can use the
+        // installed DBAccess library. REST never runs this worker wrapper.
+        cCode := "CONNECTION_FAILED"
+        if !TCIsConnected()
+            aFWGetTopInfo:=FWGetTopInfo()
+            if ((Empty(aFWGetTopInfo)).or.(Len(aFWGetTopInfo)<5))
+                cCode := "INVALID_CONFIGURATION"
+                throw "The DBAccess configuration is incomplete."
+            endif
+            cServer := aFWGetTopInfo[1]
+            nPort := aFWGetTopInfo[3]
+            cDatabase := aFWGetTopInfo[4]
+            cAlias := aFWGetTopInfo[5]
+            FWFreeArray(@aFWGetTopInfo)
+            if Empty(cDatabase) .or. Empty(cAlias) .or. Empty(cServer) .or. ;
+                nPort < 1 .or. nPort > 65535
+                cCode := "INVALID_CONFIGURATION"
+                throw "The DBAccess configuration is invalid."
+            endif
+            nConnection := TCLink(cDatabase + "/" + cAlias, cServer, nPort)
+            if nConnection < 0
+                throw "The DBAccess worker connection could not be opened."
+            endif
+            lOwned := .T.
+        endif
+        cCode := "ENVIRONMENT_FAILED"
+        // PRIVATE context is not inherited by StartJob. Protheus passes its
+        // selected company/branch explicitly; hbBridge never resolves them.
+        lExistingEnvironment := Type("cEmpAnt") == "C" .and. Type("cFilAnt") == "C"
+        if lExistingEnvironment
+            lExistingEnvironment := !Empty(cEmpAnt) .and. !Empty(cFilAnt)
+        endif
+        if lExistingEnvironment
+            if cEmpAnt != cCompany .or. cFilAnt != cBranch
+                cCode := "PROTHEUS_CONTEXT_MISMATCH"
+                throw "An existing Protheus context must not be replaced."
+            endif
+        else
+            cUser := GetPvProfString(cCredentialSection, "UserName", "", GetSrvIniName())
+            cPassword := GetPvProfString(cCredentialSection, "Password", "", GetSrvIniName())
+            RpcSetType(3)
+            lEnvironmentOwned := .T.
+            if !RpcSetEnv(cCompany, cBranch, cUser, cPassword)
+                throw "The Protheus worker environment could not be prepared."
+            endif
+            cUser := ""
+            cPassword := ""
+        endif
+        cCode := "CONNECTION_FAILED"
+        if !TCIsConnected()
+            throw "The prepared worker has no DBAccess connection."
+        endif
+        cCode := "QUERY_FAILED"
+        cResult := HBBridge.Test.HBBridgeBenchmarkProtheus():Page(cRequestJSON)
+    catch xError
+        lFailed := .T.
+        cResult := BenchmarkJobFailure(cCode)
+        if (ValType(xError)=="O")
+            FreeObj(xError)
+        endif
+    endtry
+    // RpcClearEnv may need the connection opened while preparing the context.
+    // Preserve the primary failure if partial preparation also fails to close.
+    if lEnvironmentOwned
+        try
+            RpcClearEnv()
+        catch xError
+            if !lFailed
+                cResult := BenchmarkJobFailure("ENVIRONMENT_CLOSE_FAILED")
+                lFailed := .T.
+            endif
+        endtry
+    endif
+    if lOwned
+        try
+            if TCIsConnected(nConnection)
+                TCUnlink(nConnection)
+                if TCIsConnected(nConnection) .and. !lFailed
+                    cResult := BenchmarkJobFailure("CONNECTION_CLOSE_FAILED")
+                endif
+            endif
+        catch xError
+            if !lFailed
+                cResult := BenchmarkJobFailure("CONNECTION_CLOSE_FAILED")
+            endif
+        endtry
+    endif
+    if ValType(aFWGetTopInfo) == "A"
+        FWFreeArray(@aFWGetTopInfo)
+    endif
+    cUser := ""
+    cPassword := ""
+
+return(cResult)
+
+static function BenchmarkJobFailure(cCode as character) as character
+
+    local jFailure := JSONObject():New() as json
+    local cResult := "" as character
+
+    jFailure["success"] := .F.
+    jFailure["code"] := cCode
+    jFailure["error"] := "The benchmark worker could not complete its DBAccess request."
+    cResult := jFailure:ToJSON()
+    FreeObj(@jFailure)
+
+return(cResult)

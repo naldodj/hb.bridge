@@ -11,6 +11,7 @@ class HBBridgeBenchmarkController
     private data nPort as numeric
     private data cURL as character
     private data cToken as character
+    private data cComparison as character
     private data bMeasure as codeblock
     private data cLastRequestID as character
     private data cLastResponse as character
@@ -18,13 +19,13 @@ class HBBridgeBenchmarkController
     private data lClosed as logical
 
     public method New(cInstance as character, cProfile as character, cHost as character, ;
-        nPort as numeric, cURL as character, cToken as character, bMeasure as codeblock) as object
+        nPort as numeric, cURL as character, cToken as character, bMeasure as codeblock, jComparison as json) as object
     public method Handle(cContent as character) as json
     public method Close()
 
 endclass
 
-method New(cInstance, cProfile, cHost, nPort, cURL, cToken, bMeasure) class HBBridgeBenchmarkController
+method New(cInstance, cProfile, cHost, nPort, cURL, cToken, bMeasure, jComparison) class HBBridgeBenchmarkController
 
     self:cInstance := cInstance
     self:cProfile := cProfile
@@ -32,6 +33,10 @@ method New(cInstance, cProfile, cHost, nPort, cURL, cToken, bMeasure) class HBBr
     self:nPort := nPort
     self:cURL := cURL
     self:cToken := cToken
+    self:cComparison := ""
+    if ValType(jComparison) == "J"
+        self:cComparison := jComparison:ToJSON()
+    endif
     self:bMeasure := bMeasure
     self:cLastRequestID := ""
     self:cLastResponse := ""
@@ -45,12 +50,18 @@ method Handle(cContent) class HBBridgeBenchmarkController
     local jEnvelope := JSONObject():New() as json
     local jResponse as json
     local jReport as json
+    local jComparison as json
     local xError as variant
     local cRequestID := "" as character
     local lRouted := .F., lValid := .F. as logical
 
     try
         if ValType(cContent) == "C"
+            // JSONObject may drop NUL during parsing; inspect raw JSON first.
+            if BenchmarkJSONHasNul(cContent)
+                FreeObj(@jEnvelope)
+                return Nil
+            endif
             if ValType(jEnvelope:FromJSON(cContent)) == "U"
                 if jEnvelope:HasProperty("instance") .and. jEnvelope:HasProperty("requestID")
                     if ValType(jEnvelope["instance"]) == "C"
@@ -102,11 +113,15 @@ method Handle(cContent) class HBBridgeBenchmarkController
                     jEnvelope["params"]["rows"], jEnvelope["params"]["pageSize"], ;
                     jEnvelope["params"]["iterations"], jEnvelope["params"]["warmup"])
             else
+                if !Empty(self:cComparison)
+                    jComparison := JSONObject():New()
+                    jComparison:FromJSON(self:cComparison)
+                endif
                 jReport := HBBridge.Test.HBBridgeBenchmarkTest():Measure(self:cProfile, ;
                     self:cHost, self:nPort, self:cURL, self:cToken, ;
                     jEnvelope["params"]["timeoutSeconds"], jEnvelope["params"]["rows"], ;
                     jEnvelope["params"]["pageSize"], jEnvelope["params"]["iterations"], ;
-                    jEnvelope["params"]["warmup"])
+                    jEnvelope["params"]["warmup"], jComparison)
             endif
             if self:lClosed
                 jResponse := BenchmarkControllerError(self:cInstance, cRequestID, "CLOSED")
@@ -133,6 +148,7 @@ method Handle(cContent) class HBBridgeBenchmarkController
         FreeObj(@jReport)
     endif
     FreeObj(@jEnvelope)
+    FreeObj(@jComparison)
     if !self:lClosed
         self:cLastResponse := jResponse:ToJSON()
     endif
@@ -147,6 +163,7 @@ method Close() class HBBridgeBenchmarkController
     self:nPort := 0
     self:cURL := ""
     self:cToken := ""
+    self:cComparison := ""
     self:bMeasure := Nil
     self:cLastRequestID := ""
     self:cLastResponse := ""
@@ -172,6 +189,36 @@ static function BenchmarkCorrelationValid(xValue as variant) as logical
 
 return(!Empty(AllTrim(xValue)) .and. Len(xValue) <= 128 .and. ;
     !(Chr(0) $ xValue) .and. !(Chr(10) $ xValue) .and. !(Chr(13) $ xValue))
+
+static function BenchmarkJSONHasNul(cJSON as character) as logical
+
+    local nPosition := 1, nLength := Len(cJSON) as numeric
+    local cCharacter := "" as character
+    local lString := .F. as logical
+
+    if Chr(0) $ cJSON
+        return .T.
+    endif
+    while nPosition <= nLength
+        cCharacter := SubStr(cJSON, nPosition, 1)
+        if !lString
+            if cCharacter == Chr(34)
+                lString := .T.
+            endif
+        elseif cCharacter == Chr(34)
+            lString := .F.
+        elseif cCharacter == Chr(92)
+            if SubStr(cJSON, nPosition + 1, 5) == "u0000"
+                return .T.
+            endif
+            // Consume the escaped character, including a literal backslash.
+            // Thus JSON "\\u0000" remains text rather than a NUL escape.
+            nPosition++
+        endif
+        nPosition++
+    enddo
+
+return(.F.)
 
 static function BenchmarkEnvelopeValid(jEnvelope as json) as logical
 

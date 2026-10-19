@@ -5,6 +5,16 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Standardize hbBridge naming and paging)"
  */
 
+2026-10-19 00:50 UTC naldodj (Extend the benchmark with Protheus routes and server-side addon)
+  + Add optional Protheus StartJob/REST comparisons beside hbBridge TCP/HTTP;
+    keep the fixed fixture, SELECT/COUNT paging and warmup separation.
+  + Add a trusted Harbour addon that measures complete local traversals and
+    returns statistics only; report its one ADDON.Execute call separately.
+  * Reuse one existing authenticated REST 2.0 listener and server-side Basic
+    credentials; keep ERP context in Protheus and omit browser credentials.
+  + Add managed addon build and isolated regression scripts with fixture SQL
+    identity checks. Expanded runtime acceptance remains pending; M09/D03 open.
+
 2026-10-16 13:59 UTC naldodj (Add visual benchmark and bounded client socket lifetime)
   + Reuse the M08 measurement core in a FWWebEx form with charts and JSON/HTML
     exports; validate correlated requests without exposing endpoint credentials.

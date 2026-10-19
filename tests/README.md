@@ -450,3 +450,14 @@ of SQL. The [client lifecycle test](../src/tlpp/tests/protheus/hbbridge.client.l
 reuses one client for 6000 Health calls by default, checks independent
 clients, refusal/recovery and explicit close. This is a focused native
 component regression, not a SQL throughput or memory-leak benchmark.
+
+The optional comparison adds Protheus StartJob/REST over DBAccess and an HRB
+which processes the workload inside hbBridge. Build the HRB with
+`scripts/build-hbbridge-benchmark-addon.ps1`; run its isolated registry tests
+with `scripts/test-hbbridge-benchmark-addon.ps1`. Those tests use no database
+or listener and do not establish real-MSSQL timing acceptance. The
+[configuration guide](../config/hbbridge.benchmark.rest.md) reuses the existing
+authenticated REST 2.0 listener. AppServer contract tests are
+`U_HBBridgeBenchmarkVisualTest()` and `U_HBBridgeBenchmarkRESTTest()`; actual
+comparison runs use `--compare-protheus=1 --with-addon=1` and explicit Protheus
+company/branch. Preserve server-addon time separately from the complete RPC.

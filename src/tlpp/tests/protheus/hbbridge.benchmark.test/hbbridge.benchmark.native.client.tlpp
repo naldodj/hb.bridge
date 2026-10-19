@@ -1,0 +1,265 @@
+/* Released to Public Domain. */
+#include "totvs.ch"
+#include "tlpp-core.th"
+
+namespace HBBridge.Test
+
+class HBBridgeBenchmarkNativeClient
+
+    private data cMode as character
+    private data nRows as numeric
+    private data nTimeoutSeconds as numeric
+    private data cRestURL as character
+    private data cAuthorization as character
+    private data cCompany as character
+    private data cBranch as character
+    private data cCredentialSection as character
+    private data nHTTPStatus as numeric
+    private data lValid as logical
+    private data lClosed as logical
+
+    public method New(cMode as character, nRows as numeric, nTimeoutSeconds as numeric, ;
+        cRestURL as character, cAuthorization as character, jContext as json) as object
+    public method CallService(cService as character, jParams as json) as json
+    public method StatusCode() as numeric
+    public method Close() as logical
+
+endclass
+
+method New(cMode, nRows, nTimeoutSeconds, cRestURL, cAuthorization, jContext) class HBBridgeBenchmarkNativeClient
+
+    self:cMode := cMode
+    self:nRows := nRows
+    self:nTimeoutSeconds := nTimeoutSeconds
+    self:cRestURL := cRestURL
+    self:cAuthorization := cAuthorization
+    self:cCompany := ""
+    self:cBranch := ""
+    self:cCredentialSection := "FWWEBEX_" + GetEnvServer()
+    if ValType(jContext) == "J"
+        if jContext:HasProperty("company")
+            self:cCompany := jContext["company"]
+        endif
+        if jContext:HasProperty("branch")
+            self:cBranch := jContext["branch"]
+        endif
+        if jContext:HasProperty("credentialSection")
+            self:cCredentialSection := jContext["credentialSection"]
+        endif
+    endif
+    self:nHTTPStatus := 0
+    self:lClosed := .F.
+    self:lValid := (cMode == "startjob" .or. cMode == "rest") .and. ;
+        NativeBenchmarkInteger(nRows, 1, 100000) .and. ;
+        NativeBenchmarkInteger(nTimeoutSeconds, 1, 2147483)
+    if cMode == "rest"
+        self:lValid := self:lValid .and. NativeBenchmarkURL(cRestURL) .and. NativeBenchmarkToken(cAuthorization)
+    endif
+
+return(self)
+
+method CallService(cService, jParams) class HBBridgeBenchmarkNativeClient
+
+    local jRequest := JSONObject():New() as json
+    local jResponse := JSONObject():New() as json
+    local oREST as object
+    local xError as variant
+    local cResponse := "", cFailure := "INVALID_REQUEST" as character
+    local cURL := "", cBody := "" as character
+    local nStarted := 0, nFinished := 0 as numeric
+    local lConnected := .F. as logical
+    // FWRest requires its native array of HTTP header strings.
+    local aHeaders as array
+
+    self:nHTTPStatus := 0
+    if self:lClosed .or. !self:lValid
+        FreeObj(@jRequest)
+        FreeObj(@jResponse)
+        return NativeBenchmarkFailure("INVALID_CONFIGURATION")
+    endif
+    try
+        if cService != "RPCRDD.Query" .or. !NativeBenchmarkParams(jParams, self:nRows)
+            throw "Invalid benchmark query contract."
+        endif
+        jRequest["rows"] := self:nRows
+        jRequest["pageNumber"] := jParams["page"]["number"]
+        jRequest["pageSize"] := jParams["page"]["size"]
+        cBody := jRequest:ToJSON()
+        nStarted := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs()
+        if self:cMode == "startjob"
+            if !NativeBenchmarkToken(self:cCompany) .or. !NativeBenchmarkToken(self:cBranch)
+                cFailure := "PROTHEUS_CONTEXT_REQUIRED"
+                throw "Supply the existing Protheus company and branch context."
+            endif
+            cFailure := "STARTJOB_FAILED"
+            cResponse := StartJob("U_HBBridgeBenchmarkJob", GetEnvServer(), .T., cBody, ;
+                self:cCompany, self:cBranch, self:cCredentialSection)
+        else
+            cFailure := "HTTP_TRANSPORT_FAILED"
+            cURL := AllTrim(self:cRestURL)
+            while Right(cURL, 1) == "/"
+                cURL := Left(cURL, Len(cURL) - 1)
+            enddo
+            aHeaders := {"Accept: application/json", ;
+                "Content-Type: application/json; charset=utf-8", ;
+                "Accept-Encoding: identity", "Authorization: " + self:cAuthorization}
+            oREST := FWRest():New(cURL)
+            oREST:SetPath("/hbbridge/benchmark/page")
+            oREST:SetTimeOut(self:nTimeoutSeconds)
+            oREST:SetChkStatus(.F.)
+            oREST:SetPostParams(EncodeUTF8(cBody))
+            lConnected := oREST:Post(aHeaders)
+            self:nHTTPStatus := Val(oREST:GetHTTPCode())
+            cResponse := oREST:GetResult()
+            if !lConnected .or. self:nHTTPStatus == 0
+                throw "No benchmark REST response."
+            endif
+        endif
+        nFinished := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs()
+        if nFinished < nStarted
+            cFailure := "CLOCK_REGRESSION"
+            throw "Benchmark clock regressed."
+        endif
+        if nFinished - nStarted > self:nTimeoutSeconds * 1000
+            cFailure := "REQUEST_TIMEOUT"
+            throw "Benchmark request timeout observed."
+        endif
+        cFailure := "INVALID_RESULT"
+        if ValType(cResponse) != "C"
+            throw "Benchmark result is not serialized JSON."
+        endif
+        if ValType(jResponse:FromJSON(cResponse)) != "U"
+            throw "Benchmark result is invalid JSON."
+        endif
+        if !jResponse:HasProperty("success")
+            throw "Benchmark result has no success flag."
+        endif
+        if ValType(jResponse["success"]) != "L"
+            throw "Benchmark result success flag is invalid."
+        endif
+        if self:cMode == "rest" .and. jResponse["success"]
+            if self:nHTTPStatus < 200 .or. self:nHTTPStatus >= 300
+                cFailure := "HTTP_STATUS_FAILED"
+                throw "Benchmark HTTP status does not match its body."
+            endif
+        endif
+    catch xError
+        FreeObj(@jResponse)
+        jResponse := NativeBenchmarkFailure(cFailure)
+        if (ValType(xError)=="O")
+            FreeObj(@xError)
+        endif
+    endtry
+    if ValType(oREST) == "O"
+        FreeObj(@oREST)
+    endif
+    FreeObj(@jRequest)
+
+return(jResponse)
+
+method StatusCode() class HBBridgeBenchmarkNativeClient
+return(self:nHTTPStatus)
+
+method Close() class HBBridgeBenchmarkNativeClient
+
+    self:lClosed := .T.
+    self:cRestURL := ""
+    self:cAuthorization := ""
+    self:cCompany := ""
+    self:cBranch := ""
+    self:cCredentialSection := ""
+    self:nHTTPStatus := 0
+
+return(.T.)
+
+static function NativeBenchmarkParams(jParams as variant, nRows as numeric) as logical
+
+    local jPage as json
+    // Native JSON field enumeration requires one array at each object level.
+    local aNames as array
+
+    if ValType(jParams) != "J"
+        return .F.
+    endif
+    aNames := jParams:GetNames()
+    if Len(aNames) != 3 .or. !jParams:HasProperty("alias") .or. ;
+        !jParams:HasProperty("sql") .or. !jParams:HasProperty("page")
+        return .F.
+    endif
+    if ValType(jParams["alias"]) != "C" .or. ValType(jParams["sql"]) != "C" .or. ;
+        ValType(jParams["page"]) != "J"
+        return .F.
+    endif
+    if jParams["sql"] != HBBridge.Test.HBBridgeBenchmarkTest():FixtureSQL(nRows)
+        return .F.
+    endif
+    jPage := jParams["page"]
+    aNames := jPage:GetNames()
+    if Len(aNames) != 3 .or. !jPage:HasProperty("number") .or. ;
+        !jPage:HasProperty("size") .or. !jPage:HasProperty("orderBy")
+        return .F.
+    endif
+    if ValType(jPage["orderBy"]) != "C"
+        return .F.
+    endif
+    if jPage["orderBy"] != "ID ASC" .or. ;
+        !NativeBenchmarkInteger(jPage["number"], 1, 9007199254740991) .or. ;
+        !NativeBenchmarkInteger(jPage["size"], 1, 100000)
+        return .F.
+    endif
+
+return(jPage["number"] <= Int((9007199254740991 - 1) / jPage["size"]))
+
+static function NativeBenchmarkInteger(xValue as variant, nMinimum as numeric, nMaximum as numeric) as logical
+
+    if ValType(xValue) != "N"
+        return .F.
+    endif
+
+return(xValue >= nMinimum .and. xValue <= nMaximum .and. xValue == Int(xValue))
+
+static function NativeBenchmarkURL(xValue as variant) as logical
+
+    local cValue := "", cAuthority := "" as character
+    local nStart := 0, nSlash := 0 as numeric
+
+    if !NativeBenchmarkToken(xValue)
+        return .F.
+    endif
+    cValue := AllTrim(xValue)
+    if Lower(Left(cValue, 7)) == "http://"
+        nStart := 8
+    elseif Lower(Left(cValue, 8)) == "https://"
+        nStart := 9
+    else
+        return .F.
+    endif
+    if "@" $ cValue .or. "?" $ cValue .or. "#" $ cValue .or. " " $ cValue .or. Chr(9) $ cValue
+        return .F.
+    endif
+    cAuthority := SubStr(cValue, nStart)
+    nSlash := At("/", cAuthority)
+    if nSlash > 0
+        cAuthority := Left(cAuthority, nSlash - 1)
+    endif
+
+return(!Empty(cAuthority))
+
+static function NativeBenchmarkToken(xValue as variant) as logical
+
+    if ValType(xValue) != "C"
+        return .F.
+    endif
+
+return(!Empty(AllTrim(xValue)) .and. !(Chr(0) $ xValue) .and. ;
+    !(Chr(10) $ xValue) .and. !(Chr(13) $ xValue))
+
+static function NativeBenchmarkFailure(cCode as character) as json
+
+    local jFailure := JSONObject():New() as json
+
+    jFailure["success"] := .F.
+    jFailure["code"] := cCode
+    jFailure["error"] := "The Protheus benchmark request could not be completed."
+
+return(jFailure)

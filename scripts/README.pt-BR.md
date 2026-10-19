@@ -187,3 +187,40 @@ e amostras de memória do SO com tempos em `tmp/mssql-benchmark-*` isolado.
 Consultar [a metodologia](../docs/benchmarking.pt-BR.md) para o escopo das medidas
 e o host opcional `-Route http -ServeSeconds 600` destinado ao
 [consumidor AppServer](../src/tlpp/tests/protheus/hbbridge.benchmark.test/README.pt-BR.md).
+
+## Comparação Protheus e addon de benchmark opcionais
+
+O [benchmark visual](../src/tlpp/tests/protheus/hbbridge.benchmark.test/README.pt-BR.md)
+compara hbBridge TCP/HTTP com Protheus StartJob/REST e um addon Harbour adicional.
+Todos usam a fixture paginada fixa. StartJob inclui preparação do worker/ambiente
+por página; não simula tráfego TCP pela rede. O addon executa varreduras completas
+dentro do hbBridge e retorna apenas estatísticas. Suas medidas internas excluem
+transporte e carga do HRB; a chamada `ADDON.Execute` única possui tempo decorrido
+informado separadamente.
+
+Compilar e testar o addon com a toolchain gerenciada:
+
+```powershell
+./scripts/build-hbbridge-benchmark-addon.ps1
+./scripts/test-hbbridge-benchmark-addon.ps1
+```
+
+O build grava `addons/examples/hbbridgebenchmarkaddon.hrb`; `-Output` seleciona
+outro destino. O teste compila HRBs e fixture nativa isolados, compara o SQL dos
+fontes TLPP/addon/teste e exercita despacho simulado, erros, recarga e limpeza.
+O log fica em `tmp/benchmark-addon-tests-<id>/results.log`. Exige dependências
+gerenciadas de build ODBC/Zig, mas não credenciais MSSQL reais. Esses checks
+não homologam AppServer nem MSSQL real.
+
+Mesclar o [fragmento REST](../config/hbbridge.benchmark.rest.pt-BR.md) à instalação
+existente: reutilizar um listener REST 2.0 com `Security=1`, sua configuração TLS
+e preparação de empresa/filial definida na implantação. `BenchmarkProtheusURL`
+inclui `/rest`; `BenchmarkProtheusCredentialSection` seleciona seção existente
+no servidor com `UserName`/`Password`. Protheus valida as credenciais HTTP Basic
+antes do endpoint. Não exige listener adicional nem bearer próprio do benchmark.
+A entrada do navegador não fornece SQL, contexto ERP ou credenciais; o contexto
+e a configuração confiáveis do AppServer fornecem esses dados.
+`BenchmarkAddonModule` seleciona o HRB instalado e `BenchmarkAddonTimeoutSeconds`
+define o orçamento da chamada completa.
+A validação runtime ampliada continua pendente no [WIP](../WIP.pt-BR.md),
+separadamente da referência M08 homologada.

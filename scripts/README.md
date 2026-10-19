@@ -172,3 +172,40 @@ and timestamped OS memory samples in its isolated `tmp/mssql-benchmark-*` run.
 Use [the methodology](../docs/benchmarking.md) for measurement scope and the
 optional `-Route http -ServeSeconds 600` host for the
 [AppServer consumer](../src/tlpp/tests/protheus/hbbridge.benchmark.test/README.md).
+
+## Optional Protheus comparison and benchmark addon
+
+The [visual benchmark](../src/tlpp/tests/protheus/hbbridge.benchmark.test/README.md#four-client-routes-and-a-server-only-addon)
+compares hbBridge TCP/HTTP with Protheus StartJob/REST and an additional Harbour
+addon. All use the fixed paged fixture. StartJob includes worker/environment
+preparation per page; it does not simulate TCP network traffic. The addon runs
+complete traversals inside hbBridge and returns statistics only. Its internal
+measurements exclude transport and HRB loading; the enclosing single
+`ADDON.Execute` call has a separate elapsed time.
+
+Build and test the addon with the managed toolchain:
+
+```powershell
+./scripts/build-hbbridge-benchmark-addon.ps1
+./scripts/test-hbbridge-benchmark-addon.ps1
+```
+
+The build writes `addons/examples/hbbridgebenchmarkaddon.hrb`; `-Output` selects
+another target. The test builds isolated HRBs and a native fixture, checks SQL
+identity across TLPP/addon/test sources and exercises mocked dispatch, errors,
+reload and cleanup. Its log is `tmp/benchmark-addon-tests-<id>/results.log`.
+It requires the managed ODBC/Zig build dependencies, but no live MSSQL credentials.
+These checks do not establish AppServer or real MSSQL acceptance.
+
+Merge the [REST configuration fragment](../config/hbbridge.benchmark.rest.md)
+into the existing deployment: reuse one REST 2.0 listener with `Security=1`,
+its TLS configuration and deployment-owned company/branch preparation.
+`BenchmarkProtheusURL` includes `/rest`; `BenchmarkProtheusCredentialSection`
+selects an existing server-side `UserName`/`Password` section. Protheus validates
+HTTP Basic credentials before the endpoint. No extra listener or benchmark
+bearer token is required. Browser input cannot supply SQL, ERP context or
+credentials; the trusted AppServer context and configuration supply them.
+`BenchmarkAddonModule` selects the installed HRB and
+`BenchmarkAddonTimeoutSeconds` budgets its complete call. Expanded runtime
+validation remains pending in [WIP](../WIP.md), separately from the accepted
+M08 baseline.
