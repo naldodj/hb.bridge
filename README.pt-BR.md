@@ -1049,8 +1049,11 @@ O [WIP](WIP.pt-BR.md) registra dataset, falhas/recuperação e chamadores
 concorrentes homologados. M08 acrescenta uma [referência de tempo/memória](docs/benchmarking.pt-BR.md)
 com a mesma fixture somente de leitura para Harbour nativo, TCP/HTTP e clientes TLPP.
 O [exemplo visual de benchmark](src/tlpp/tests/protheus/hbbridge.benchmark.test/README.pt-BR.md)
-oferece formulário FWWebEx, gráficos e exportação JSON/HTML pelo mesmo núcleo. A integridade
-UTF-8/FLOAT em D03 permanece aberta.
+oferece formulário FWWebEx, gráficos e exportação JSON/HTML pelo mesmo núcleo.
+O aceite manual AppServer/FWWebEx de 2026-10-19 abrange três rodadas das quatro
+rotas cliente e do addon restrito ao servidor: 105 amostras e 684 checks dos
+relatórios/zero falhas. Veja o [escopo e as evidências V01/V02](docs/acceptance.pt-BR.md#v01-v02-benchmark-acceptance-on-2026-10-19).
+A integridade UTF-8/FLOAT de D03 é a próxima tarefa; checks finais M09 permanecem abertos.
 Serviço e conectores estão implementados; o launcher aceita
 perfis em JSON ou INI, como `-Config config/examples/sqlite.ini`.
 Em paralelo, a base de integração

@@ -5,6 +5,31 @@
    Caminhos antigos descrevem os arquivos existentes na época.
  */
 
+2026-10-19 15:28 UTC naldodj (Registrar aceite CLI e benchmarks nativos futuros)
+  ; Registrar CLI manual 7482F7E8: dez linhas, uma página/varredura por transporte,
+    sem aquecimento; TCP 94.799800 ms e HTTP 124.020300 ms (200), resultado OK.
+  * Separar CLI TCP/HTTP aprovado da inicialização StartJob isolada anterior;
+    registrar contexto de carga elevada/timeout inadequado da rodada ampliada.
+  + Planejar processadores de addon C/Zig recebendo JSON SQL do hbBridge e
+    retornando métricas; manter controle Harbour equivalente e tempos separados.
+  + Registrar docker-protheus-2610 como referência futura PostgreSQL/Protheus
+    12.1.2610 com pré-requisitos de conector/dialeto/codificação/build explícitos.
+    Cenários ainda não implementados; D03 é a próxima, M09/pacote 001 abertos.
+
+2026-10-19 11:11 UTC naldodj (Homologar benchmark visual e comparações de execução V01/V02)
+  * Homologar três rodadas manuais AppServer/FWWebEx das quatro rotas cliente
+    e do addon restrito ao servidor: cinco varreduras medidas e dois aquecimentos
+    por rota/rodada, 105 amostras ao todo (75 medidas/30 de aquecimento), todas OK.
+  ; Auditar relatórios JSON/HTML salvos: 684 checks, zero falhas; a aritmética
+    dos tempos agregados difere no máximo 4.95e-10 ms. Preservar checks locais do
+    controlador, REST, ciclo, navegador e addon como evidências de escopo separado.
+  ; Revalidar o listener REST existente: credenciais ausentes/incorretas/
+    válidas 401/401/200, parâmetros inválidos 400 e recuperação 200.
+  * Atualizar aceites, guias de benchmark, README, WIP e TODO pareados; concluir
+    V01/V02 no escopo registrado. D03 UTF-8/FLOAT é a próxima; M09/pacote 001 abertos.
+    Manter comparação CLI anterior com falha e falha HTTP na iteração 136 como
+    acompanhamentos separados; sem inferir aceite repetido da carga maior.
+
 2026-10-19 00:50 UTC naldodj (Ampliar benchmark com rotas Protheus e addon no servidor)
   + Adicionar comparação opcional Protheus StartJob/REST junto a hbBridge
     TCP/HTTP; preservar fixture fixa, páginas SELECT/COUNT e aquecimento separado.

@@ -39,9 +39,12 @@ Parâmetros inválidos de requisições autenticadas retornam 400; páginas vál
 retornam 200; falhas de consulta/limpeza retornam envelopes fixos seguros em
 inglês com status 500. Compilar todos os fontes TLPP e validar no listener
 reutilizado os casos sem credenciais, credenciais incorretas, credenciais
-válidas, parâmetros inválidos e recuperação. A autenticação anterior ao
-handler e essa rota REST ainda exigem aceite próprio pela rede; verificações
-puras do adaptador não comprovam esse aceite.
+válidas, parâmetros inválidos e recuperação. O listener de desenvolvimento
+existente passou nessa matriz pela rede em 2026-10-19: 401/401/200/400/200. Veja
+[escopo e recibo](../docs/acceptance.pt-BR.md#v01-v02-benchmark-acceptance-on-2026-10-19).
+A prova local ignorou validação do certificado somente em suas requisições;
+não homologa certificados nem outro deployment. Checks puros do adaptador
+continuam separados da autenticação pela rede.
 
 Consultar a distinção oficial entre
 [REST 2.0 e REST tlppCore](https://tdn.totvs.com/display/framework/Entendendo%2Bas%2Bnovidades%2Bdo%2BREST)

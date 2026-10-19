@@ -60,6 +60,11 @@ nativo nem memória do processo; requisições repetidas aprovadas não comprova
 ausência de vazamentos. A reflexão usa o array posicional fornecido pela API
 nativa; verificações e relatórios permanecem em objetos JSON com chaves.
 
-A implementação e este teste específico aguardam compilação/aceitação próprias.
-As medições anteriores do M08 preservam seu escopo registrado; a rodada manual
-extensa TCP/HTTP continua reprovada conforme o guia do benchmark.
+O aceite focado no AppServer CLI em 2026-10-18 passou em 6000 chamadas
+Health e 17 checks, saída 0. Evidência:
+`tmp/comparison-protheus-0d6eed2eb4554737acfe9a05f902d8da/validation.json`,
+`results.lifecycle`. O fonte atual do cliente corresponde ao snapshot registrado.
+[Evidência V01 consolidada](../../../../../docs/acceptance.pt-BR.md#v01-v02-benchmark-acceptance-on-2026-10-19).
+O resultado homologa o ciclo/recuperação exercitado, sem comprovar ausência de
+vazamentos no alocador/registro do terminal. M08 mantém seu escopo anterior;
+a repetição manual TCP/HTTP ampliada continua reprovada.

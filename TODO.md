@@ -422,10 +422,28 @@ per-value limits; tested slow-consumer/invalid-decode/disconnect behavior.
   fixed fixture, warmups and distinct timing scopes; the addon returns statistics
   instead of dataset rows. Provide managed addon build/regression scripts and
   reuse one existing REST 2.0 listener with native Protheus Basic authentication.
-- [ ] Accept the expanded visual/comparison/addon package in the AppServer,
-  including authentication, owned-resource cleanup and failure recovery.
-  Code and isolated checks do not complete its runtime acceptance or M09/D03.
+- [x] Accept V01/V02 visual/comparison/addon execution for the recorded scope.
+  Three manual AppServer/FWWebEx runs on 2026-10-19 passed all four client routes
+  and the server-only addon, each with five measured traversals and two warmups:
+  105 samples, 75 measured and 30 warmup. Report audit: 684 checks, zero failures.
+  Local controller, REST, client-lifecycle, browser and addon checks retain their
+  separate validation scope. Authentication, owned-resource cleanup and recovery
+  evidence is recorded in the [acceptance](docs/acceptance.md#v01-v02-benchmark-acceptance-on-2026-10-19).
+  D03 UTF-8/FLOAT integrity is next; final M09 checks and package 001 remain open.
+  Manual TCP/HTTP CLI also passed a separate ten-row run; see
+  [CLI scope and workload/timeout clarification](docs/acceptance.md#m08-manual-cli-validation-on-2026-10-19).
+  Earlier isolated StartJob CLI initialization failures remain a distinct record.
   See the [benchmark guide](src/tlpp/tests/protheus/hbbridge.benchmark.test/README.md).
+- [ ] Add a C addon-processing benchmark: hbBridge queries/serializes results;
+  C consumes the result JSON and returns checks/metrics. Use a matched Harbour
+  JSON control and separated native/SQL/RPC timings.
+- [ ] Add the equivalent Zig addon-processing benchmark with identical JSON,
+  algorithm and expected results. Native C/Zig processing is future work, not
+  an implementation claim. [Design](docs/benchmark-evolution.md).
+- [ ] Validate PostgreSQL and Protheus 12.1.2610 against the supplied Docker
+  reference after connector/dialect/SDK/encoding preparation. Pin actual builds
+  and image digests; isolate the existing environment and record backend/OS
+  changes. [Reference and acceptance plan](docs/benchmark-evolution.md#postgresql-and-the-protheus-1212610-reference-environment).
 - [ ] Unavailable connector, broader type/null coverage and real volume in
   Protheus; unknown alias is not connector-failure proof.
 - [ ] hbodbc/hbsqlit3 direct API where operations require it.

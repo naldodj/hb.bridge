@@ -60,6 +60,11 @@ allocator or process memory, so successful repeated requests are not proof of
 leak freedom. Native reflection uses the positional array supplied by that API;
 checks and reports remain keyed JSON objects.
 
-The implementation and this focused test await their own compilation/runtime
-acceptance. Earlier M08 measurements retain their recorded scope; the large
-manual TCP/HTTP retry remains failed as described in the benchmark guide.
+Focused AppServer CLI acceptance on 2026-10-18 passed 6000 Health calls
+and all 17 checks, exit 0. Evidence:
+`tmp/comparison-protheus-0d6eed2eb4554737acfe9a05f902d8da/validation.json`,
+`results.lifecycle`. The current client source matches that recorded snapshot.
+[Consolidated V01 evidence](../../../../../docs/acceptance.md#v01-v02-benchmark-acceptance-on-2026-10-19).
+This accepts the exercised component lifetime/recovery behavior, without
+allocator/terminal-registry leak claims. Earlier M08 measurements retain their
+scope; the larger manual TCP/HTTP retry remains failed.

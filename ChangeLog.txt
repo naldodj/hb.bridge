@@ -5,6 +5,31 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Standardize hbBridge naming and paging)"
  */
 
+2026-10-19 15:28 UTC naldodj (Record CLI acceptance and future native benchmarks)
+  ; Record manual CLI run 7482F7E8: ten rows, one page/traversal per transport,
+    no warmup; TCP 94.799800 ms and HTTP 124.020300 ms (200), overall OK.
+  * Separate successful two-route CLI from earlier isolated StartJob setup;
+    record excessive workload/inadequate timeout context for the large run.
+  + Plan C/Zig addon processors receiving SQL-result JSON from hbBridge and
+    returning metrics; retain matched Harbour control and distinct timings.
+  + Record docker-protheus-2610 as future PostgreSQL/Protheus 12.1.2610
+    reference with explicit connector/dialect/encoding/build prerequisites.
+    These scenarios remain unimplemented; D03 stays next, M09/package 001 open.
+
+2026-10-19 11:11 UTC naldodj (Accept V01/V02 visual benchmark and execution comparisons)
+  * Accept three manual AppServer/FWWebEx runs of four client routes and the
+    server-only addon: five measured traversals and two warmups per route/run,
+    105 samples in total (75 measured/30 warmup), all routes passed.
+  ; Audit the saved JSON/HTML reports: 684 checks, zero failures; aggregate
+    timing arithmetic differs by at most 4.95e-10 ms. Preserve local controller,
+    REST, lifecycle, browser and addon checks as separately scoped evidence.
+  ; Recheck the existing REST listener: absent/invalid/valid credentials
+    401/401/200, invalid parameters 400 and successful recovery 200.
+  * Update paired acceptance, benchmark guides, README, WIP and TODO; complete
+    V01/V02 for the recorded scope. D03 UTF-8/FLOAT is next; M09/package 001 open.
+    Keep the earlier failed CLI comparison and HTTP iteration-136 failure as
+    separate follow-ups; no repeated large-workload acceptance is inferred.
+
 2026-10-19 00:50 UTC naldodj (Extend the benchmark with Protheus routes and server-side addon)
   + Add optional Protheus StartJob/REST comparisons beside hbBridge TCP/HTTP;
     keep the fixed fixture, SELECT/COUNT paging and warmup separation.

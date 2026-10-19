@@ -184,3 +184,38 @@ set it for the requested total workload. StartJob checks elapsed time after
 return and cannot be interrupted by this harness. A client timeout does not
 prove the worker stopped. The browser spinner and elapsed indicator show that
 a request is pending; they are not a server progress percentage or cancellation.
+
+## Accepted visual comparison and whole packages on 2026-10-19
+
+V01/V02 are complete for the recorded manual AppServer scope and focused
+automated evidence. Three runs passed all five routes: 75 measured and 30
+warmup samples; the paired JSON/HTML audit passed 684 checks. See
+[results, hashes and limits](acceptance.md#v01-v02-benchmark-acceptance-on-2026-10-19). D03 is next; M09 remains open.
+
+Use an additional whole-package comparison when the addon performs all work
+and returns metrics: compare its complete RPC with the sum of the same seven
+client traversal intervals, including two warmups on both sides. Across the
+three runs, addon calls total 17.677854 s versus 26.260709 s REST Protheus
+(32.68% less time). This differs from the 15-sample means excluding warmup.
+The addon returns metrics; clients receive and validate pages. Client sums
+exclude inter-iteration harness bookkeeping; addon calls include internal
+orchestration. Each package replaces 70 external page calls with one RPC and
+70 local dispatches. Whole-call minus server-run residual was 4.375-9.622 ms,
+under 0.17% observed, including HRB/JSON/transport/clock effects. It is not an
+isolated network timer or a prediction for returning the full dataset.
+
+The manual two-route CLI passed separately with ten rows and no warmup.
+[Scope and workload/timeout clarification](acceptance.md#m08-manual-cli-validation-on-2026-10-19)
+distinguish it from isolated StartJob CLI initialization failures and the
+large workload with an inadequately sized request budget.
+
+
+## Future C/Zig processors and PostgreSQL/2610 reference
+
+The two requested additional addon benchmarks keep SQL execution in hbBridge,
+pass result JSON to C or Zig and return metrics. A matched Harbour JSON control
+and separate SQL/serialization/parsing/processing/RPC intervals are planned.
+The supplied Docker Protheus 12.1.2610/PostgreSQL environment is a future
+compatibility reference, requiring its own connector, dialect, SDK, encoding
+and deployment acceptance. See [design and plan](benchmark-evolution.md).
+These are future tasks; D03 and final M09 remain the active priorities.

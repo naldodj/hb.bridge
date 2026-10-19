@@ -12,11 +12,11 @@ registra resultados verificados; ChangeLog e Git preservam o histórico.
 | Item | Valor atual |
 | --- | --- |
 | ID | `001-mssql-acceptance` |
-| Abertura / atualização | 2026-10-07 / 2026-10-18 |
-| Situação | D02/M06/M07 mantêm seus aceites registrados. M08 concluída para a fixture Windows identificada: 43366 checks nativos do benchmark/0 e varreduras reais AppServer TCP/HTTP/0, com tempo e memória de processo pelo SO disponível. D03 e checks finais M09 continuam pendentes; pacote aberto. |
+| Abertura / atualização | 2026-10-07 / 2026-10-19 |
+| Situação | D02/M06/M07/M08 mantêm seus aceites registrados. V01/V02 concluídas em 2026-10-19 para o escopo visual/AppServer demonstrado e checks focados registrados separadamente. D03 é a próxima tarefa; checks finais M09 e encerramento do pacote continuam pendentes. |
 | Objetivo | Homologar RPCRDD.Query/dataset existentes em banco MSSQL real identificado, por Harbour, TCP Protheus e HTTP Protheus. |
 | Referência do produto | Código publicado `50e1c65`; checkout na abertura `bce52d2` inclui atualização do badge de clones. |
-| Próxima tarefa | V01/V02: validar benchmark visual, quatro rotas cliente e addon no servidor. Reutilizar um único REST 2.0 Protheus autenticado antes das medições; depois retomar M09. D03 permanece obrigatória para encerrar o pacote. |
+| Próxima tarefa | D03: reproduzir e corrigir integridade UTF-8/FLOAT bruto por Harbour, TCP/HTTP e Protheus. Manter escala de negócio/CAST definida pelo chamador. Depois concluir M09; pacote 001 permanece aberto. |
 
 ### Decisões já tomadas
 
@@ -274,28 +274,30 @@ constatações de aceite, sem motivo para repetir o inventário concluído.
   medidas e dois aquecimentos por rota, médias 1039.60 ms TCP/1122.12 ms HTTP.
   Manter memória não medida e pool/build/saída não informados em escopo separado.
   [Evidência manual](docs/acceptance.pt-BR.md#m08-manual-protheus-validation-on-2026-10-16).
-- [ ] **V01 — Adicionar benchmark visual e verificar ciclo do cliente.**
-  Reutilizar o núcleo M08 em formulário FWWebEx com gráficos e exportação
-  JSON/HTML. Perfil/endpoints/credenciais ficam no controlador confiável do
-  servidor. Substituir o socket estático provisório por um componente nativo
-  reutilizado por cliente, fechamento explícito e checks de independência e
-  recuperação. A rodada manual ampliada concluiu as 500 iterações TCP, mas
-  falhou na primeira chamada da iteração HTTP 136, após 135 sucessos, em
-  30020.834 ms. O relatório antigo não registra código de serviço/status HTTP;
-  adicionar diagnóstico seguro antes de atribuir causa. Essa carga nova não
-  invalida a referência M08 menor nem homologa a rodada ampliada completa.
-  Registrar compilação, testes CLI e navegador separadamente do aceite
-  interativo FWWebEx.
-- [ ] **V02 — Comparar onde executar.** Solicitação explícita de 2026-10-16/18:
-  comparar hbBridge TCP/HTTP com DBAccess via StartJob e REST 2.0 Protheus,
-  usando a mesma fixture/páginas/COUNT e checks do dataset. Adicionar HRB que
-  consome páginas no próprio hbBridge e devolve somente métricas; separar
-  tempo de varredura no servidor do tempo total da chamada. Credenciais ERP
-  ficam na configuração confiável do AppServer. Reutilizar porta 4323,
-  Security=1 e um worker, sem listener adicional/provedor bearer próprio.
-  Efetuado backup do INI ativo antes da consolidação autorizada. Verificar
-  credenciais ausentes/incorretas/válidas no framework real e registrar
-  evidências. Manter limites do executor genérico e D03/M09 abertas.
+- [x] **V01 — Adicionar benchmark visual e verificar ciclo do cliente.**
+  Concluída no escopo Windows/AppServer demonstrado em 2026-10-19. Três
+  exportações manuais JSON/HTML registram execução bem-sucedida do formulário;
+  controlador 61 checks, contrato REST 43 checks e Chromium 3 testes/46 checks
+  possuem evidências automatizadas separadas. O ciclo do cliente passou em
+  6000 chamadas Health e 17 checks de independência, recuperação e Close.
+  A compilação registrou 45 fontes aprovados; saída final 0xC0000409 do
+  compilador permanece separada. A falha HTTP da amostra 136 na antiga carga
+  de 100000 linhas/500 iterações preserva o resultado daquela carga/prazo;
+  o esclarecimento posterior informa parâmetros elevados e timeout inadequado. Veja o
+  [aceite](docs/acceptance.pt-BR.md#v01-v02-benchmark-acceptance-on-2026-10-19).
+- [x] **V02 — Comparar onde executar.** Concluída nas três rodadas visuais
+  manuais de 2026-10-19: hbBridge TCP/HTTP, Protheus StartJob/REST e HRB local
+  passaram. Fixture: 1000 linhas, páginas de 100, cinco varreduras medidas e
+  dois aquecimentos por rota/rodada, concorrência um. As 75 amostras medidas
+  e 30 de aquecimento passaram; auditoria dos exports passou em 684 checks.
+  Separar tempo interno do addon, RPC completa e a comparação adicional de
+  pacotes que inclui aquecimentos. REST real passou em 401/401/200/400/200
+  para credenciais ausentes/incorretas/válidas, parâmetros inválidos e
+  recuperação. Os recibos de inicialização StartJob CLI isolada mantêm suas
+  falhas; o CLI TCP/HTTP manual 7482F7E8 passou separadamente (dez linhas, uma
+  varredura, zero aquecimentos). São registros distintos do aceite visual. Não deduzir identidade de binário,
+  backend ou configuração pelos exports.
+  [Evidências e limites](docs/acceptance.pt-BR.md#v01-v02-benchmark-acceptance-on-2026-10-19).
 - [ ] **M09 — Concluir regressões e documentação.** Executar checks adequados
   à implementação alterada, compilar TLPP modificado e obter aceite AppServer.
   Executar os três validadores de commit; atualizar instruções EN/PT, TODO,
@@ -405,7 +407,8 @@ após validar controles independentes de coleta/limpeza. Análises de reuso de
 conexões, pressão de portas e aceite do ciclo lógico/físico adaptado concluíram
 depois M07 no escopo Windows registrado. As falhas com 130 foram analisadas;
 resumos posteriores com espaçamento até 500 workers estão homologados no seu
-escopo. A referência de tempo/memória M08 foi concluída em 2026-10-16; retomar M09.
+escopo. M08 foi concluída em 2026-10-16; V01/V02 foram concluídas no escopo
+registrado em 2026-10-19. Retomar D03 e depois os checks finais M09.
 Preservar mutex SQL e distinguir requisições concorrentes de execução paralela
 no banco. Integridade D03 continua
 pendente após o ajuste explícito da prioridade, mantendo CAST no chamador.
@@ -448,6 +451,19 @@ renovar token do cofre não altera a senha SQL. OpenBao não bloqueia o pacote M
 hbdebug pode avançar como item paralelo com escopo explícito; HBDAP e HTTP Zig
 opcional ficam para depois. Correções/dependências necessárias ao pacote atual
 entram em seu escopo registrado, sem abrir outra frente silenciosamente.
+
+### Referências futuras de benchmark e compatibilidade registradas em 2026-10-19
+
+- [ ] Adicionar cenários de benchmark em addon C e Zig: hbBridge executa SQL
+  e fornece o JSON do resultado ao processador escolhido, que retorna checks/
+  métricas. Incluir controle Harbour com o mesmo JSON e separar tempos SQL,
+  serialização, parsing/processamento, invocação e RPC completa.
+- [ ] Preparar validação PostgreSQL e Protheus 12.1.2610 usando o ambiente
+  Docker indicado como referência. Conector/dialeto, SDK, codificação e aceite
+  de implantação são pré-requisitos, sem suporte entregue presumido.
+
+[Desenho, ambiente de referência e sequência de aceite](docs/benchmark-evolution.pt-BR.md).
+As tarefas futuras mantêm a próxima ação: D03, depois checks finais M09.
 
 ## Atualização e renovação do WIP
 

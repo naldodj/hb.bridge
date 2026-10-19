@@ -56,9 +56,10 @@ Instance/request identifiers reject stale responses. Large counts can make
 the synchronous AppServer callback run for a long time; start with the defaults.
 
 `U_HBBridgeBenchmarkVisualTest()` is the separate deterministic controller
-regression, without SQL/HTTP execution. Visual and lifecycle additions require
-their own compilation/runtime acceptance; previous M08 results below retain
-their original scope. M09 and D03 remain pending in the active WIP.
+regression, without SQL/HTTP execution. V01/V02 acceptance on 2026-10-19
+combines three manual five-route runs with separate controller/REST/lifecycle
+and Chromium checks. [Evidence and limits](../../../../../docs/acceptance.md#v01-v02-benchmark-acceptance-on-2026-10-19).
+Earlier M08 results retain their own scope. D03 is next; M09 remains pending.
 
 ## Programmatic measurement and command line
 
@@ -216,3 +217,22 @@ response/error. It does not claim a server progress percentage or cancel a
 synchronous job. Chromium checks cover correlation, send failures, four routes,
 separate addon results, partial failure, exports and large sample collections.
 Runtime evidence is recorded in [acceptance](../../../../../docs/acceptance.md).
+
+## Acceptance on 2026-10-19
+
+The three supplied visual runs passed all four client routes and the server
+addon: 1000 rows, page size 100, 5 measured + 2 warmup traversals, concurrency
+one. All 105 samples passed; 684 export-audit checks passed. Mean client times
+across 15 measured samples: TCP 990.62 ms, HTTP 1123.13 ms, StartJob 25899.95 ms,
+Protheus REST 1221.15 ms. Addon server-only mean is 825 ms; complete RPCs cover
+all seven traversals and must not be divided by five. An additional whole-package
+comparison includes warmups on both sides; see
+[methodology](../../../../../docs/benchmarking.md#accepted-visual-comparison-and-whole-packages-on-2026-10-19)
+and [acceptance](../../../../../docs/acceptance.md#v01-v02-benchmark-acceptance-on-2026-10-19).
+
+The two-route CLI also passed manual run 7482F7E8 on 2026-10-19: ten rows,
+one page/traversal, zero warmups, TCP 94.799800 ms and HTTP 124.020300 ms (200).
+[CLI evidence and timeout context](../../../../../docs/acceptance.md#m08-manual-cli-validation-on-2026-10-19).
+Earlier isolated StartJob CLI initialization failures are separate. The large
+100000-row/500-iteration outcome retains the reported excessive-workload and
+inadequate-timeout context. D03 and final M09 checks remain open.

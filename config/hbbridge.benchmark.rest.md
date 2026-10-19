@@ -37,8 +37,12 @@ Authenticated invalid fixture parameters return 400; valid pages return 200;
 query/cleanup failures return safe fixed English envelopes with status 500.
 Compile all TLPP sources, then validate the actual reused listener with absent
 credentials, incorrect credentials, valid credentials, invalid parameters and
-recovery. Upstream authentication and this REST route still require their own
-network acceptance; pure adapter checks do not establish that acceptance.
+recovery. The existing development listener passed that network matrix on
+2026-10-19: 401/401/200/400/200. See
+[scope and receipt](../docs/acceptance.md#v01-v02-benchmark-acceptance-on-2026-10-19).
+The local probe bypassed certificate verification only for its requests; it
+does not accept certificate validation or another deployment. Pure adapter
+checks remain separate from network authentication.
 
 See the official distinction between
 [REST 2.0 and REST tlppCore](https://tdn.totvs.com/display/framework/Entendendo%2Bas%2Bnovidades%2Bdo%2BREST)

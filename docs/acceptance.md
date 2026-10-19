@@ -1524,6 +1524,8 @@ successful aggregate. Harness duration was 6967715.110 ms. The failure duration
 is close to the configured 30-second request deadline; the old summary lacks
 service code/HTTP status and does not establish a transport, server or SQL cause.
 Memory/pool/build identity cannot be inherited from the smaller baseline.
+The [2026-10-19 clarification](#m08-manual-cli-validation-on-2026-10-19) records excessive workload
+parameters and an inadequately sized timeout as operational context.
 
 The earlier terminal-component fatal error was supplied separately at
 06:45:23, before the interim module-static socket change. The retry no longer
@@ -1539,3 +1541,170 @@ SHA256 `AC62382489B97B9CC00B41C1010A8AC5D9C60A6A3D24BEBDB444A403C4FCC986`.
 The supplied interim source is preserved at
 `tmp/hbbridge.client.user-static-20261016.tlpp`. V01 tracks this requested
 follow-up and visual consumer; M09 and D03 remain open.
+
+<a id="v01-v02-benchmark-acceptance-on-2026-10-19"></a>
+
+## V01/V02 benchmark acceptance on 2026-10-19
+
+V01/V02 are complete for the demonstrated Windows/AppServer workflow. Three
+manual visual runs supplied paired JSON/HTML exports on 2026-10-19. All four
+client routes (hbBridge TCP/HTTP, Protheus StartJob/REST) and the server-only
+Harbour addon passed. These manual results are separate from focused automated
+tests, earlier failed CLI comparisons and the historical larger workload.
+D03 UTF-8/raw-FLOAT integrity, final M09 checks and package 001 remain open.
+
+### Manual run scope and arithmetic
+
+Each route/run traversed the constant `m08.constant.v1` fixture: explicit alias
+`MSSQL/pData`, environment reported as `PROTHEUS_NGROK`, 1000 rows, pages of
+100, five measured traversals and two warmups, concurrency one. All 75 measured
+and 30 warmup samples passed; each sample reports 1000 rows, ten pages/calls
+and no failure. The 75000 measured row visits repeatedly traverse the fixture;
+they are not distinct business records. Warmups are excluded from these means.
+
+| Reported local start | Run ID | Mean ms: TCP / HTTP / StartJob / Protheus REST |
+| --- | --- | --- |
+| 20261019/06:50:35 | `3FF23D3FFFA5984889F09C1DFAFF2459` | 835.00 / 1178.44 / 24876.41 / 1170.96 |
+| 20261019/07:03:57 | `B7D7F6E890176D45BB3DC912EC61E8BA` | 1151.27 / 1090.36 / 27085.53 / 1189.93 |
+| 20261019/07:09:26 | `E3D8EB828C914C48926D2633219F0724` | 985.58 / 1100.60 / 25737.92 / 1302.56 |
+
+Across 15 measured samples per route, means are **990.62 ms TCP, 1123.13 ms
+HTTP, 25899.95 ms StartJob and 1221.15 ms Protheus REST**. Addon server-only
+mean is **825.00 ms**, with a different scope. TCP time is descriptively 18.88%
+lower than REST overall; HTTP 8.03% lower. HTTP was 0.64% slower than REST in
+the first run; TCP lost to HTTP in one run. Fixed order and the small sample
+do not establish statistical significance or general performance superiority.
+
+The export audit passed **684 consistency checks**, including all measured
+HTML chart values and means, JSON completion/status/page/row counts and
+recalculated sums/means/minima/maxima. Largest arithmetic difference is
+4.95e-10 ms from floating-point rounding. Reconstructing complete harness time
+from all client samples plus the one addon RPC leaves 8.59-14.06 ms per run
+outside those intervals, consistent with harness preparation/cleanup.
+
+StartJob starts a synchronous worker per page, including environment/connection
+preparation and cleanup; REST uses its prepared worker. The StartJob/TCP ratio
+does not isolate SQL-engine or language performance. Addon `rpcCalls=10` per
+sample and `measuredCalls=50` per run are local dispatches. `networkCalls=1`
+covers the complete seven-traversal package and returns metrics, zero dataset
+rows. Whole-call times are 5884.622 / 5598.375 / 6194.857 ms; those include HRB
+loading, warmups, measured traversals and response transport.
+
+An additional package comparison includes warmups on both sides: three whole
+addon RPCs total **17.677854 s**, versus **20.638174 s TCP, 23.892302 s HTTP
+and 26.260709 s Protheus REST** for the sum of the same 21 client traversal
+intervals. Addon time is 32.68% lower than REST in that sum. It returns metrics
+instead of client-side pages; execution placement and payload differ. Client
+intervals omit inter-iteration harness bookkeeping, while addon calls include
+their internal orchestration. This is separate from the measured-only means.
+Whole-call minus addon server-run time is 4.375-9.622 ms (under 0.17% observed);
+it combines HRB/serialization/transport and clock quantization, not isolated
+network time. The Windows addon clock has system-tick granularity.
+
+### Focused evidence and network acceptance
+
+| Validation method | Result and scope | Local evidence |
+| --- | --- | --- |
+| AppServer CLI lifecycle | 6000 actual Health calls, 17 checks/0, exit 0; reused per-instance native component, independent clients, refusal/recovery/Close; no SQL or leak measurement. | `tmp/comparison-protheus-0d6eed2eb4554737acfe9a05f902d8da/validation.json`, `results.lifecycle`. |
+| AppServer CLI controller | 61 checks/OK, exit 0; deterministic request validation/ownership, no SQL. | `tmp/comparison-protheus-e95c292052a44a1f943d84bcc16a7fe7/controller.log`. |
+| AppServer CLI REST contract | 43 checks/OK, exit 0; eight mock page calls, authentication/header/status/error contracts and rejected-input workarea preservation. | Same run's `rest-contract.log`. |
+| Chromium template | Three tests, 46 checks/0; request lifecycle/spinner, charts, correlation, standalone exports and large collections; comparison fixtures are simulated. | `tmp/benchmark-browser-validation-20261018.log`, `tmp/benchmark-browser-35740/result.json`. |
+| Native addon | 47 checks/0; fake query registry, permissions, old one-argument ABI, no database/listener; runner also checks fixture identity at three row counts. | `tmp/benchmark-addon-tests-51e2a7520b2048648bf2a1517db70c17/results.log`. |
+| Native product regression | 712 checks/0; separate historical regression after optional addon context. | `tmp/tests-78d22ed883da4f57b2d5aabb7f2bf91c/results.log`. |
+| Actual existing Protheus REST listener | Repeated 2026-10-19: absent/incorrect/valid credentials 401/401/200; authenticated invalid fixture 400; recovery 200. Successful pages have seven rows, total 17, first ID 1. | `tmp/v01-v02-acceptance-20261019/rest-network.json`. |
+
+The REST probe reused `https://localhost:4323/rest`, HTTPV11/REST 2.0,
+Security=1 and the existing private credential section. No extra listener,
+service restart or configuration change was required for closure. The probe
+bypassed certificate verification only for that local HTTPS request; it does
+not accept certificate validation or other TLS deployments. Private credentials
+are absent from receipts. The prior INI consolidation backup remains private:
+`appserver.ini.benchmark-backup-20261018-162739.bak` beside the active INI.
+
+The last worker-connect compilation recorded **45 successful sources, zero
+source errors**. Its process finalization remained **0xC0000409**; stop/start
+scripts returned zero. Evidence:
+`tmp/comparison-worker-connect-build-output-20261018.log` and
+`tmp/comparison-worker-connect-totvs-build-result-20261018.json`. No product
+source changed in this documentation closure; recompilation was not repeated.
+
+### Provenance and remaining limits
+
+Original exports remain in `C:/Users/marin/Downloads/hbbridge-benchmark`.
+Verified copies and the 684-check audit are retained in
+`tmp/v01-v02-acceptance-20261019/`; `closure.json` records the current 12-file
+TLPP source snapshot and separates manual/local outcomes. Those hashes match
+the latest focused source snapshot; they do not identify the binaries/RPO
+executed in the supplied manual runs. SHA256 of each original export:
+
+| File | SHA256 |
+| --- | --- |
+| `hbbridge-benchmark-3FF23D3FFFA5984889F09C1DFAFF2459.json` | `7cee8cbfd3b12bb9f9998a968f72f65f4aa01fbf984af536b4a013e3743821e9` |
+| `hbbridge-benchmark-3FF23D3FFFA5984889F09C1DFAFF2459.html` | `8531b39b2d3270cfb5a75cb28c57bfc2f5253302b3c2b37625ecc79182710c1c` |
+| `hbbridge-benchmark-B7D7F6E890176D45BB3DC912EC61E8BA.json` | `f292597a78b8323232353470b71d311c28c957a3d8fd2ab39a2990e2f9957588` |
+| `hbbridge-benchmark-B7D7F6E890176D45BB3DC912EC61E8BA.html` | `f0d314994c5da523ea1945cf5e5831abc9b1ea17c3cf6261cd040fa56d9007c3` |
+| `hbbridge-benchmark-E3D8EB828C914C48926D2633219F0724.json` | `daee9ca75807cb2a9d5abd3005ca6d0234a99b48da2e5e2d4a505e8e4343da6e` |
+| `hbbridge-benchmark-E3D8EB828C914C48926D2633219F0724.html` | `c148285e5b2e3fd1af403a1039cfd7408be7a86a17c9e456e15920616deff5fe` |
+
+Earlier aggregate automated receipts remain failed: `e95c2920...` recorded
+StartJob `ENVIRONMENT_FAILED`; `ea7029a0...` recorded `CONNECTION_FAILED`.
+Use their passing individual controller/REST/lifecycle evidence only. An
+intermediate REST test process failed before its entrypoint with APPMAP/file
+sharing, not an assertion failure; the subsequent 43-check run passed. Later
+manual success accepts its demonstrated environment without changing those
+isolated StartJob CLI outcomes. The later two-route CLI passed separately;
+the larger HTTP sample-136 outcome has workload/timeout context recorded
+[below](#m08-manual-cli-validation-on-2026-10-19), without a generic CLI defect claim.
+
+Exports do not attest the same physical backend, builds, driver, pooling,
+hardware, endpoints/TLS/topology or background load. The environment name does
+not establish a tunnel and `startedLocal` has no timezone offset. Memory is
+UNAVAILABLE and CPU unmeasured. `transportOrder` omits addon although code runs
+it last; timing fields retain their declared scopes. ASCII/explicit DECIMAL
+CAST success does not accept D03 Unicode/binary/raw-FLOAT cases. Next: D03,
+then M09 final package validation; the earlier isolated StartJob CLI
+environment preparation remains a separate record, not a general CLI failure.
+
+Documentation closure checks passed on 2026-10-19: all three required
+validators (`check.hb`, `commit.hb`, read-only `3rdpatch.hb`) accepted 227 files;
+local links exist across 85 documents and whitespace checks passed. Receipt:
+`tmp/v01-v02-acceptance-20261019/commit-check.log`. These gates cover this
+closure and do not complete pending D03/final M09 package work.
+
+<a id="m08-manual-cli-validation-on-2026-10-19"></a>
+
+## Additional manual TCP/HTTP CLI validation on 2026-10-19
+
+The supplied fragment records run `7482F7E82956EC4E961CEEE6C3A82222` at
+2026-10-19T08:13:33.576000-03:00, prefix 35364, with overall success and final
+`hbBridge benchmark Protheus OK`. This is manual CLI evidence, not another
+automated execution. Fixture `m08.constant.v1`, alias `MSSQL/pData`: ten rows,
+page size ten, one measured traversal per transport, zero warmups, concurrency
+one. `protheusComparison=false` and `addonComparison=false`.
+
+| Route | Elapsed ms | Completed pages / calls / rows | Result |
+| --- | --- | --- | --- |
+| hbBridge TCP | 94.799800 | 1 / 1 / 10 | Success, no service error. |
+| hbBridge HTTP | 124.020300 | 1 / 1 / 10 | Success, HTTP 200. |
+
+Each one-sample total/minimum/maximum/mean equals that sample. The two timed
+traversals sum to 218.820100 ms; complete run 232.731400 ms leaves 13.911300 ms
+outside sample intervals. This confirms the two-route CLI workflow for its
+reported parameters, without accepting expanded StartJob/REST/addon CLI or
+replacing the separate 1000-row benchmark statistics. Invocation, timeout,
+executed binary/RPO identity and process exit code were not supplied; memory
+is UNAVAILABLE. Archived summary/review:
+`tmp/v01-v02-acceptance-20261019/cli-manual-20261019-7482f7e8.json` and
+`cli-manual-20261019-7482f7e8-review.json`. The archive hash identifies this
+preserved fragment, not an original complete console log.
+
+Operational clarification recorded on 2026-10-19: the earlier 100000-row,
+500-iteration CLI workload used excessive values without an adequately sized
+request timeout. The earlier invocation had a 30-second request budget; the
+clarification concerns its suitability, not absence of a numeric setting.
+Keep HTTP sample 136's FAILED result as that workload/deadline outcome, with
+workload/budget sizing as its operational context; it does not demonstrate a
+generic CLI defect. No independent rerun or isolated cause measurement is
+inferred. Earlier isolated StartJob CLI `ENVIRONMENT_FAILED`/`CONNECTION_FAILED`
+initialization attempts are a different configuration-specific record.
+V01/V02 remain complete; D03 is next and M09/package 001 remain open.

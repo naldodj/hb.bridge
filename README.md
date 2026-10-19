@@ -774,8 +774,11 @@ and concurrent-caller work. M08 adds a [time/memory baseline](docs/benchmarking.
 with the same read-only fixture for native Harbour, TCP/HTTP and TLPP clients.
 The [visual benchmark example](src/tlpp/tests/protheus/hbbridge.benchmark.test/README.md)
 provides a FWWebEx form, charts and JSON/HTML exports through the same core.
-D03 UTF-8/FLOAT integrity remains open;
-blocks, DBF, TLPP VF,
+Manual AppServer/FWWebEx acceptance on 2026-10-19 covers three runs of the four
+client routes and server-only addon: 105 samples and 684 report checks/zero failures.
+See the [V01/V02 scope and evidence](docs/acceptance.md#v01-v02-benchmark-acceptance-on-2026-10-19).
+D03 UTF-8/FLOAT integrity is next; final M09 checks remain open.
+Blocks, DBF, TLPP VF,
 services, jobs/batches and functional C/Zig extensions follow incrementally.
 Discover only delivered capabilities; metrics for correlation, latency,
 wire/expanded bytes, memory/errors/resources guide concurrency/compression.

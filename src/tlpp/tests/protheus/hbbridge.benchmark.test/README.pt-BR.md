@@ -59,9 +59,10 @@ o callback síncrono do AppServer executando por bastante tempo; iniciar pelos
 padrões.
 
 `U_HBBridgeBenchmarkVisualTest()` é a regressão determinística separada do
-controlador, sem executar SQL/HTTP. Os acréscimos visuais e de ciclo de vida
-exigem compilação/aceitação próprias; os resultados anteriores do M08 abaixo
-mantêm seu escopo original. M09 e D03 continuam pendentes no WIP ativo.
+controlador, sem executar SQL/HTTP. O aceite V01/V02 em 2026-10-19 reúne
+três rodadas manuais nas cinco rotas e checks separados de controlador/REST/
+ciclo e Chromium. [Evidências e limites](../../../../../docs/acceptance.pt-BR.md#v01-v02-benchmark-acceptance-on-2026-10-19).
+M08 mantém seu escopo anterior. D03 é a próxima tarefa; M09 continua pendente.
 
 ## Medição programática e linha de comando
 
@@ -225,3 +226,22 @@ correspondente. Não representa percentual do servidor nem cancela job síncrono
 Checks Chromium cobrem correlação, falha de envio, quatro rotas, addon separado,
 falha parcial, exportação e séries grandes. Evidências de execução ficam no
 [aceite](../../../../../docs/acceptance.pt-BR.md).
+
+## Aceite em 2026-10-19
+
+As três rodadas visuais fornecidas passaram nas quatro rotas cliente e no addon:
+1000 linhas, página de 100, 5 varreduras medidas + 2 aquecimentos, concorrência
+um. Passaram as 105 amostras e os 684 checks da auditoria dos exports. Médias
+cliente das 15 amostras medidas: TCP 990.62 ms, HTTP 1123.13 ms, StartJob
+25899.95 ms, REST Protheus 1221.15 ms. Média interna do addon 825 ms; RPCs
+completas abrangem sete varreduras e não devem ser divididas por cinco.
+A comparação adicional de pacotes inclui aquecimentos dos dois lados; veja
+[metodologia](../../../../../docs/benchmarking.pt-BR.md#comparação-visual-e-pacotes-homologados-em-2026-10-19)
+e [aceite](../../../../../docs/acceptance.pt-BR.md#v01-v02-benchmark-acceptance-on-2026-10-19).
+
+O CLI TCP/HTTP também passou na rodada manual 7482F7E8 em 2026-10-19: dez
+linhas, uma página/varredura, zero aquecimentos, TCP 94.799800 ms e HTTP
+124.020300 ms (200). [Evidência CLI e contexto do timeout](../../../../../docs/acceptance.pt-BR.md#m08-manual-cli-validation-on-2026-10-19).
+Falhas anteriores de inicialização StartJob CLI isolada ficam separadas. O
+resultado da carga 100000 linhas/500 iterações preserva o esclarecimento sobre
+parâmetros elevados e timeout inadequado. D03 e checks finais M09 seguem abertos.

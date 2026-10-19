@@ -602,10 +602,28 @@ testado; somente versões e capacidades efetivamente implementadas são anunciad
   aquecimentos e escopos de tempo distintos; addon retorna estatísticas em vez
   de linhas do dataset. Disponibilizar scripts gerenciados de build/regressão e
   reutilizar um listener REST 2.0 com autenticação Basic nativa do Protheus.
-- [ ] Homologar pacote visual/comparação/addon ampliado no AppServer, incluindo
-  autenticação, limpeza dos recursos próprios e recuperação de falhas.
-  Código e checks isolados não concluem seu aceite runtime nem M09/D03.
-  Veja o [guia do benchmark](src/tlpp/tests/protheus/hbbridge.benchmark.test/README.pt-BR.md).
+- [x] Homologar execução visual/comparação/addon V01/V02 no escopo registrado.
+  Três rodadas manuais AppServer/FWWebEx em 2026-10-19 passaram nas quatro rotas
+  cliente e no addon restrito ao servidor, cada um com cinco varreduras medidas
+  e dois aquecimentos: 105 amostras, 75 medidas e 30 de aquecimento. Auditoria
+  dos relatórios: 684 checks, zero falhas. Checks locais do controlador, REST,
+  ciclo dos clientes, navegador e addon mantêm seu escopo separado de validação.
+  Evidências de autenticação, limpeza dos recursos próprios e recuperação
+  constam no [aceite](docs/acceptance.pt-BR.md#v01-v02-benchmark-acceptance-on-2026-10-19).
+  A integridade UTF-8/FLOAT de D03 é a próxima tarefa; checks finais M09 e pacote
+  001 permanecem abertos. O CLI TCP/HTTP também passou em rodada de dez linhas;
+  veja [escopo CLI e esclarecimento da carga/timeout](docs/acceptance.pt-BR.md#m08-manual-cli-validation-on-2026-10-19).
+  Falhas anteriores de inicialização StartJob CLI isolada são outro registro. Veja o [guia do benchmark](src/tlpp/tests/protheus/hbbridge.benchmark.test/README.pt-BR.md).
+- [ ] Adicionar benchmark de processamento em addon C: hbBridge consulta/
+  serializa; C consome o JSON dos resultados e retorna checks/métricas. Usar
+  controle Harbour com o mesmo JSON e tempos separados de nativo/SQL/RPC.
+- [ ] Adicionar benchmark equivalente em addon Zig com JSON, algoritmo e
+  resultados esperados idênticos. Processamento nativo C/Zig é trabalho futuro,
+  sem implementação presumida. [Desenho](docs/benchmark-evolution.pt-BR.md).
+- [ ] Validar PostgreSQL e Protheus 12.1.2610 no ambiente Docker indicado após
+  preparar conector/dialeto/SDK/codificação. Fixar builds e digests das imagens;
+  isolar o ambiente atual e registrar mudanças de banco/SO.
+  [Referência e plano de aceite](docs/benchmark-evolution.pt-BR.md#postgresql-e-ambiente-de-referência-protheus-1212610).
 - [ ] Avaliar `hbodbc`/`hbsqlit3` quando a operação exigir a API direta.
 - [x] Implementar `RPCRDD.Query` no registro/dispatcher, com perfil lógico,
   `alias`, `sql`, metadados e retorno por chave com contagem/versão explícitas.

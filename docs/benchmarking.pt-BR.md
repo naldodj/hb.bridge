@@ -186,3 +186,39 @@ O timeout do addon vale pela RPC completa, não por página SQL; dimensionar pel
 carga inteira solicitada. StartJob verifica o prazo após retornar, sem interrupção
 pelo executor. Timeout do cliente não comprova encerramento do worker. Spinner
 e tempo decorrido indicam requisição pendente, sem percentual real ou cancelamento.
+
+## Comparação visual e pacotes homologados em 2026-10-19
+
+V01/V02 concluídas no escopo AppServer manual e evidências focadas registrados.
+Três rodadas passaram nas cinco rotas: 75 amostras medidas e 30 aquecimentos;
+auditoria dos pares JSON/HTML passou em 684 checks. Veja
+[resultados, hashes e limites](acceptance.pt-BR.md#v01-v02-benchmark-acceptance-on-2026-10-19). D03 é a próxima
+tarefa; M09 permanece aberta.
+
+Quando o addon executa tudo e retorna métricas, uma comparação adicional de
+pacotes usa sua RPC completa frente à soma dos intervalos das mesmas sete
+varreduras cliente, incluindo dois aquecimentos dos dois lados. Nas três
+rodadas: 17.677854 s em RPCs do addon frente a 26.260709 s REST Protheus
+(32.68% menos tempo). Essa métrica difere das médias de 15 amostras sem
+aquecimento. Addon devolve métricas; clientes recebem e conferem páginas.
+Somas cliente excluem orquestração entre iterações; RPCs incluem a orquestração
+interna. Cada pacote substitui 70 chamadas externas de página por uma RPC e
+70 dispatches locais. O resíduo entre RPC e tempo interno foi 4.375-9.622 ms,
+menos de 0.17% observado, incluindo efeitos de HRB/JSON/transporte/relógios.
+Não é medição isolada da rede nem estimativa para devolver todo o dataset.
+
+O CLI TCP/HTTP manual passou separadamente com dez linhas e sem aquecimento.
+[Escopo e esclarecimento da carga/timeout](acceptance.pt-BR.md#m08-manual-cli-validation-on-2026-10-19)
+o distinguem das falhas de inicialização StartJob CLI isolada e da carga
+ampliada com prazo inadequadamente dimensionado.
+
+
+## Processadores C/Zig futuros e referência PostgreSQL/2610
+
+Os dois benchmarks adicionais solicitados mantêm SQL no hbBridge, fornecem
+JSON dos resultados a C ou Zig e devolvem métricas. Estão previstos controle
+Harbour com o mesmo JSON e intervalos separados de SQL/serialização/parsing/
+processamento/RPC. O ambiente Docker Protheus 12.1.2610/PostgreSQL indicado é
+referência futura de compatibilidade, com aceite próprio de conector, dialeto,
+SDK, codificação e implantação. Veja [desenho e plano](benchmark-evolution.pt-BR.md).
+São tarefas futuras; D03 e checks finais M09 mantêm a prioridade ativa.

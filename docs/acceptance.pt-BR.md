@@ -1609,7 +1609,9 @@ Essa chamada tentada permanece na amostra de falha, fora do agregado de
 sucessos. O núcleo durou 6967715.110 ms. A duração da falha está próxima do
 prazo de 30 segundos; o resumo antigo não registra código de serviço/status
 HTTP e não comprova origem no transporte, servidor ou SQL. Memória/pool/build
-não são herdados da referência menor.
+não são herdados da referência menor. O
+[esclarecimento de 2026-10-19](#m08-manual-cli-validation-on-2026-10-19) registra parâmetros elevados
+e timeout inadequado à carga como contexto operacional.
 
 O erro fatal anterior de componentes por terminal foi fornecido separadamente,
 às 06:45:23, antes da alteração provisória com socket estático de módulo.
@@ -1625,3 +1627,172 @@ SHA256 `AC62382489B97B9CC00B41C1010A8AC5D9C60A6A3D24BEBDB444A403C4FCC986`.
 O fonte provisório fornecido foi preservado em
 `tmp/hbbridge.client.user-static-20261016.tlpp`. V01 registra esse complemento
 solicitado e o consumidor visual; M09 e D03 continuam abertos.
+
+<a id="v01-v02-benchmark-acceptance-on-2026-10-19"></a>
+
+## Aceite V01/V02 do benchmark em 2026-10-19
+
+V01/V02 estão concluídas para o fluxo Windows/AppServer demonstrado. Três
+rodadas visuais manuais forneceram exports JSON/HTML em 2026-10-19. As quatro
+rotas cliente (hbBridge TCP/HTTP, Protheus StartJob/REST) e o addon Harbour
+local passaram. Esses resultados manuais são separados dos testes focados,
+das tentativas CLI reprovadas e da carga ampliada histórica. D03 UTF-8/FLOAT
+bruto, checks finais M09 e pacote 001 continuam abertos.
+
+### Escopo manual e cálculos
+
+Cada rota/rodada percorreu a fixture constante `m08.constant.v1`: alias
+explícito `MSSQL/pData`, ambiente informado `PROTHEUS_NGROK`, 1000 linhas,
+páginas de 100, cinco varreduras medidas e dois aquecimentos, concorrência um.
+Passaram as 75 amostras medidas e 30 de aquecimento; cada amostra registra
+1000 linhas, dez páginas/chamadas e ausência de falhas. As 75000 visitas a
+linhas medidas repetem a fixture, sem representar registros de negócio
+distintos. Os aquecimentos ficam fora das médias abaixo.
+
+| Início local informado | ID da rodada | Média ms: TCP / HTTP / StartJob / REST Protheus |
+| --- | --- | --- |
+| 20261019/06:50:35 | `3FF23D3FFFA5984889F09C1DFAFF2459` | 835.00 / 1178.44 / 24876.41 / 1170.96 |
+| 20261019/07:03:57 | `B7D7F6E890176D45BB3DC912EC61E8BA` | 1151.27 / 1090.36 / 27085.53 / 1189.93 |
+| 20261019/07:09:26 | `E3D8EB828C914C48926D2633219F0724` | 985.58 / 1100.60 / 25737.92 / 1302.56 |
+
+Nas 15 medições por rota, médias **990.62 ms TCP, 1123.13 ms HTTP, 25899.95 ms
+StartJob e 1221.15 ms REST Protheus**. A média interna do addon é **825.00 ms**,
+com outro escopo. TCP apresentou tempo 18.88% menor que REST no agregado;
+HTTP 8.03% menor. Na primeira rodada HTTP ficou 0.64% acima do REST; TCP perdeu
+para HTTP em uma rodada. Ordem fixa e amostra pequena não demonstram
+significância estatística nem superioridade geral de desempenho.
+
+A auditoria dos exports passou em **684 verificações de consistência**,
+incluindo valores dos gráficos/médias HTML, contagens e status JSON e
+recálculo de soma/média/mínimo/máximo. A maior diferença foi 4.95e-10 ms por
+arredondamento numérico. Reconstituir o tempo total pelas amostras cliente e
+uma RPC do addon deixa 8.59-14.06 ms por rodada fora desses intervalos,
+coerentes com preparação/limpeza do executor.
+
+StartJob abre um worker síncrono por página, incluindo preparação e liberação
+do ambiente/conexão; REST usa worker preparado. A razão StartJob/TCP não
+isola desempenho do motor SQL ou da linguagem. No addon, `rpcCalls=10` por
+amostra e `measuredCalls=50` por rodada são dispatches locais. `networkCalls=1`
+abrange o pacote inteiro de sete varreduras e retorna métricas, zero linhas
+do dataset. As RPCs completas duraram 5884.622 / 5598.375 / 6194.857 ms,
+incluindo carga do HRB, aquecimentos, medições e transporte do retorno.
+
+Uma comparação adicional do pacote inclui aquecimentos dos dois lados:
+três RPCs completas do addon somam **17.677854 s**, frente a **20.638174 s TCP,
+23.892302 s HTTP e 26.260709 s REST Protheus**, somando os intervalos das
+mesmas 21 varreduras cliente. O tempo do addon ficou 32.68% menor que REST
+nesse somatório. O addon devolve métricas, enquanto clientes recebem páginas;
+local de processamento e payload são diferentes. Intervalos cliente excluem
+orquestração entre iterações; RPCs incluem a orquestração interna. Essa
+comparação é separada das médias que excluem aquecimento. Diferença RPC/tempo
+interno do pacote: 4.375-9.622 ms (menos de 0.17% observado), reunindo carga
+HRB, serialização, transporte e quantização dos relógios, sem isolar tempo
+de rede. O relógio do addon Windows tem granularidade do tick do sistema.
+
+### Evidências focadas e aceite pela rede
+
+| Método de validação | Resultado e escopo | Evidência local |
+| --- | --- | --- |
+| Ciclo do cliente no AppServer CLI | 6000 chamadas Health reais, 17 checks/0, saída 0; reuso por instância, clientes independentes, recusa/recuperação/Close, sem SQL nem medição de vazamento. | `tmp/comparison-protheus-0d6eed2eb4554737acfe9a05f902d8da/validation.json`, `results.lifecycle`. |
+| Controlador no AppServer CLI | 61 checks/OK, saída 0; validação/posse determinística, sem SQL. | `tmp/comparison-protheus-e95c292052a44a1f943d84bcc16a7fe7/controller.log`. |
+| Contrato REST no AppServer CLI | 43 checks/OK, saída 0; oito chamadas de página mock, autenticação/cabeçalhos/status/erros e preservação de área em entradas rejeitadas. | `rest-contract.log` da mesma execução. |
+| Template no Chromium | Três testes, 46 checks/0; requisições/spinner, gráficos, correlação, exports independentes e grandes coleções; fixtures de comparação simuladas. | `tmp/benchmark-browser-validation-20261018.log`, `tmp/benchmark-browser-35740/result.json`. |
+| Addon nativo | 47 checks/0; registro Query simulado, permissões, ABI antiga de um argumento, sem banco/listener; runner também confere identidade da fixture em três volumes. | `tmp/benchmark-addon-tests-51e2a7520b2048648bf2a1517db70c17/results.log`. |
+| Regressão nativa do produto | 712 checks/0; regressão histórica separada após contexto opcional do addon. | `tmp/tests-78d22ed883da4f57b2d5aabb7f2bf91c/results.log`. |
+| Listener REST Protheus real existente | Repetido em 2026-10-19: credenciais ausentes/incorretas/válidas 401/401/200; fixture inválida autenticada 400; recuperação 200. Páginas válidas com sete linhas, total 17, primeiro ID 1. | `tmp/v01-v02-acceptance-20261019/rest-network.json`. |
+
+A prova REST reutilizou `https://localhost:4323/rest`, HTTPV11/REST 2.0,
+Security=1 e a seção privada de credenciais existente. Não houve novo listener,
+reinício de serviços nem alteração de configuração neste fechamento. A prova
+ignorou validação do certificado somente na requisição HTTPS local; não
+homologa certificados ou outros deployments TLS. Os recibos omitem credenciais.
+O backup da consolidação anterior do INI continua privado ao lado do INI ativo:
+`appserver.ini.benchmark-backup-20261018-162739.bak`.
+
+A última compilação worker-connect registrou **45 fontes aprovados e zero
+erros de fonte**. A finalização do processo continuou **0xC0000409**; scripts
+de parada/início retornaram zero. Evidências:
+`tmp/comparison-worker-connect-build-output-20261018.log` e
+`tmp/comparison-worker-connect-totvs-build-result-20261018.json`. Logs rotativos
+do compilador não substituem esses recibos. Nenhum fonte do produto mudou
+neste fechamento documental; não houve nova recompilação.
+
+### Rastreabilidade e limites restantes
+
+Originais em `C:/Users/marin/Downloads/hbbridge-benchmark`. Cópias verificadas
+e auditoria dos 684 checks preservadas em `tmp/v01-v02-acceptance-20261019/`;
+`closure.json` registra os hashes dos 12 fontes TLPP e separa os resultados
+manuais/locais. Os hashes correspondem ao último snapshot focado, sem provar
+quais binários/RPO executaram as rodadas manuais. SHA256 de cada export original:
+
+| Arquivo | SHA256 |
+| --- | --- |
+| `hbbridge-benchmark-3FF23D3FFFA5984889F09C1DFAFF2459.json` | `7cee8cbfd3b12bb9f9998a968f72f65f4aa01fbf984af536b4a013e3743821e9` |
+| `hbbridge-benchmark-3FF23D3FFFA5984889F09C1DFAFF2459.html` | `8531b39b2d3270cfb5a75cb28c57bfc2f5253302b3c2b37625ecc79182710c1c` |
+| `hbbridge-benchmark-B7D7F6E890176D45BB3DC912EC61E8BA.json` | `f292597a78b8323232353470b71d311c28c957a3d8fd2ab39a2990e2f9957588` |
+| `hbbridge-benchmark-B7D7F6E890176D45BB3DC912EC61E8BA.html` | `f0d314994c5da523ea1945cf5e5831abc9b1ea17c3cf6261cd040fa56d9007c3` |
+| `hbbridge-benchmark-E3D8EB828C914C48926D2633219F0724.json` | `daee9ca75807cb2a9d5abd3005ca6d0234a99b48da2e5e2d4a505e8e4343da6e` |
+| `hbbridge-benchmark-E3D8EB828C914C48926D2633219F0724.html` | `c148285e5b2e3fd1af403a1039cfd7408be7a86a17c9e456e15920616deff5fe` |
+
+Recibos automatizados agregados anteriores continuam reprovados: `e95c2920...`
+registrou StartJob `ENVIRONMENT_FAILED`; `ea7029a0...`, `CONNECTION_FAILED`.
+Usar somente seus resultados individuais aprovados de controlador/REST/ciclo.
+Um processo REST intermediário falhou antes do programa por APPMAP/compartilhamento
+de arquivo, sem reprovar uma asserção; a execução posterior passou em 43 checks.
+O sucesso manual posterior homologa o ambiente demonstrado, sem alterar os
+resultados CLI isolados de StartJob. O CLI TCP/HTTP passou posteriormente;
+o resultado da amostra HTTP 136 tem contexto de carga/timeout registrado
+[abaixo](#m08-manual-cli-validation-on-2026-10-19), sem caracterizar defeito genérico do CLI.
+
+Exports não atestam mesmo backend físico, builds, driver, pooling, hardware,
+endpoints/TLS/topologia ou carga concorrente. O nome do ambiente não comprova
+túnel e `startedLocal` não informa fuso. Memória UNAVAILABLE e CPU não medida.
+`transportOrder` omite o addon, executado por último no código; os campos de
+tempo preservam seus escopos. ASCII/DECIMAL com CAST explícito não homologa
+Unicode/binários/FLOAT bruto de D03. Próxima tarefa: D03, depois checks finais
+M09; a preparação isolada de ambiente StartJob CLI anterior fica em registro
+separado, sem reprovar o CLI de forma geral.
+
+Os checks deste fechamento documental passaram em 2026-10-19: os três
+validadores obrigatórios (`check.hb`, `commit.hb`, `3rdpatch.hb` somente leitura)
+aprovaram 227 arquivos; links locais existem nos 85 documentos e os checks de
+espaços passaram. Recibo: `tmp/v01-v02-acceptance-20261019/commit-check.log`.
+Esses checks não concluem a integridade D03 nem os trabalhos finais M09.
+
+<a id="m08-manual-cli-validation-on-2026-10-19"></a>
+
+## Validação manual adicional do CLI TCP/HTTP em 2026-10-19
+
+O fragmento fornecido registra a rodada `7482F7E82956EC4E961CEEE6C3A82222`
+em 2026-10-19T08:13:33.576000-03:00, prefixo 35364, com sucesso geral e linha
+final `hbBridge benchmark Protheus OK`. É evidência CLI manual, sem nova
+execução automatizada. Fixture `m08.constant.v1`, alias `MSSQL/pData`: dez
+linhas, página de dez, uma varredura medida por transporte, zero aquecimentos,
+concorrência um. `protheusComparison=false` e `addonComparison=false`.
+
+| Rota | Tempo ms | Páginas / chamadas / linhas concluídas | Resultado |
+| --- | --- | --- | --- |
+| hbBridge TCP | 94.799800 | 1 / 1 / 10 | Sucesso, sem erro de serviço. |
+| hbBridge HTTP | 124.020300 | 1 / 1 / 10 | Sucesso, HTTP 200. |
+
+Total/mínimo/máximo/média de cada rota coincidem com sua única amostra.
+As duas varreduras somam 218.820100 ms; o total 232.731400 ms deixa
+13.911300 ms fora dos intervalos medidos. O resultado confirma o fluxo CLI
+TCP/HTTP nesses parâmetros, sem homologar CLI StartJob/REST/addon nem alterar
+as estatísticas separadas de 1000 linhas. Não foram fornecidos comando,
+timeout, identidade de binário/RPO ou código de saída do processo; memória
+UNAVAILABLE. Resumo e revisão preservados em
+`tmp/v01-v02-acceptance-20261019/cli-manual-20261019-7482f7e8.json` e
+`cli-manual-20261019-7482f7e8-review.json`. O hash identifica esse fragmento
+preservado, sem atestar um arquivo completo original do console.
+
+Esclarecimento operacional registrado em 2026-10-19: a carga CLI anterior de
+100000 linhas/500 iterações usou valores elevados sem timeout adequadamente
+dimensionado. A chamada anterior tinha prazo de 30 segundos; o esclarecimento
+trata de sua adequação, não da ausência de uma configuração numérica.
+Preservar o FAILED da amostra HTTP 136 como resultado daquela carga/prazo,
+com dimensionamento de carga/orçamento como contexto operacional, sem
+caracterizar defeito genérico do CLI. Não deduzir nova execução nem medição
+isolada da causa. Tentativas CLI isoladas de inicialização StartJob com
+`ENVIRONMENT_FAILED`/`CONNECTION_FAILED` são outro registro de configuração.
+V01/V02 continuam concluídas; D03 é a próxima e M09/pacote 001 seguem abertos.
