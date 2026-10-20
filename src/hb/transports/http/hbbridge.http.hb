@@ -163,19 +163,20 @@ STATIC FUNCTION HBBridgeHTTPRequest( hHTTP, cPath )
                     cBody := hb_HGetDef( server, "REQUEST_BODY", "" )
                     IF ! HBBridgeUTF8Valid( cBody )
                         cResult := HBBridgeHTTPJSON( HBBridgeError( "INVALID_UTF8", "JSON must use valid UTF-8" ), 400 )
-                    ELSEIF ( cBody := HBBridgeHTTPJSONNormalize( cBody ) ) == NIL
+                    ELSEIF ( cBody := HBBridgeJSONNormalize( cBody ) ) == NIL
                         cResult := HBBridgeHTTPJSON( HBBridgeError( "INVALID_JSON", "Invalid Unicode escape in JSON" ), 400 )
                     ELSEIF cPath == "api/v1/rpc"
                         cResult := DispatcherRequest( cBody, hHTTP[ "registry" ], hHTTP[ "context" ] )
-                        hb_jsonDecode( cResult, @hResult, "UTF8" )
+                        HBBridgeJSONDecode( cResult, @hResult )
                         cResult := HBBridgeHTTPJSON( hResult )
                     ELSE
-                        nConsumed := hb_jsonDecode( cBody, @xParams, "UTF8" )
-                        IF nConsumed == 0 .OR. ! Empty( AllTrim( hb_BSubStr( cBody, nConsumed + 1 ) ) )
+                        nConsumed := HBBridgeJSONDecode( cBody, @xParams )
+                        IF ! HBBridgeJSONComplete( cBody, nConsumed )
                             cResult := HBBridgeHTTPJSON( HBBridgeError( "INVALID_JSON", "Invalid JSON request" ), 400 )
                         ELSE
                             cService := UUrlDecode( SubStr( cPath, 17 ) )
-                            hResult := HBBridgeDispatch( hHTTP[ "registry" ], cService, xParams, hHTTP[ "context" ] )
+                            hResult := HBBridgeJSONServiceResult( cService, ;
+                                HBBridgeDispatch( hHTTP[ "registry" ], cService, xParams, hHTTP[ "context" ] ) )
                             cResult := HBBridgeHTTPJSON( hResult )
                         ENDIF
                     ENDIF
@@ -252,13 +253,17 @@ RETURN '<!doctype html><html lang="en"><meta charset="utf-8"><title>hbBridge adm
     'pre{background:white;padding:1.5rem;overflow:auto;border:1px solid #ddd}a{color:#1266b0}</style>' + ;
     '<h1>hbBridge administration</h1><p>Live status of hbBridge and the embedded NETIO endpoints.</p>' + ;
     '<form method="get"><button type="submit">Refresh status</button></form><pre>' + ;
-    UHtmlEncode( hb_jsonEncode( hResult, .T., "UTF8" ) ) + '</pre><p><a href="/admin/status">JSON status</a></p></html>'
+    UHtmlEncode( HBBridgeWireEncode( hResult ) ) + '</pre><p><a href="/admin/status">JSON status</a></p></html>'
 
 STATIC FUNCTION HBBridgeHTTPJSON( hResult, nStatus )
-    LOCAL cCode, cJSON := hb_jsonEncode( hResult, .F., "UTF8" )
-    IF ! HBBridgeUTF8Valid( cJSON )
+    LOCAL cCode, cJSON := HBBridgeJSONEncode( hResult )
+    IF ! HB_ISSTRING( cJSON )
+        hResult := HBBridgeError( "INVALID_NUMBER_RESULT", "JSON result contains an unsupported numeric value." )
+        cJSON := HBBridgeJSONEncode( hResult )
+        nStatus := 500
+    ELSEIF ! HBBridgeUTF8Valid( cJSON )
         hResult := HBBridgeError( "INVALID_UTF8_RESULT", "Service result must use valid UTF-8 text" )
-        cJSON := hb_jsonEncode( hResult, .F., "UTF8" )
+        cJSON := HBBridgeJSONEncode( hResult )
         nStatus := 500
     ENDIF
     IF nStatus == NIL

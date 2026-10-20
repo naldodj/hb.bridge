@@ -4,10 +4,62 @@
 namespace HBBridge.Examples
 
 procedure U_HBBridgeBrowseDataTestSRA()
+    if (("MSSQL"$TCGetDB()).and.(Select("SX2")>0))
+        HBBridgeBrowseDataTestSRA()
+    endif
+return
+
+static procedure HBBridgeBrowseDataTestSRA()
+    local cAliasTmp as character
+    local cSRASQLName:=RetSQLName("SRA") as character
+    local jParameters:=JSONObject():New() as json
+    jParameters["cEmp"]:=if((Type("cEmpAnt")=="C").and.!Empty(cEmpAnt),cEmpAnt,"99")
+    jParameters["cFil"]:=if((Type("cFilAnt")=="C").and.!Empty(cFilAnt),cFilAnt,"01")
+    jParameters["cSQLFields"]:=HBBridge.SQL.Tools.HBBridgeSqlTools():GetNonBlobColumns(cSRASQLName)
+    if (Empty(jParameters["cSQLFields"]))
+        FreeObj(@jParameters)
+        return
+    endif
+    beginContent var jParameters["cSQL"]
+        SELECT *
+        FROM SRA990 SRA
+        WHERE (1=1)
+        AND SRA.D_E_L_E_T_=''
+    endContent
+    jParameters["cSQL"]:=StrTran(jParameters["cSQL"],"SRA990",cSRASQLName)
+    jParameters["cSQL"]:=StrTran(jParameters["cSQL"],"*",jParameters["cSQLFields"])
+    jParameters["bOpenTables"]:={||;
+        ChkFile("CTT");
+        ,cAliasTmp:=GetNextAlias();
+        ,ChkFile("SRA",.F.,cAliasTmp);
+        ,cAliasTmp;
+    }
+    jParameters["jHBBridgeDataSetPage"]:=JSONObject():New()
+    jParameters["jHBBridgeDataSetPage"]["number"]:=1
+    jParameters["jHBBridgeDataSetPage"]["size"]:=18
+    jParameters["jHBBridgeDataSetPage"]["orderBy"]:="RA_FILIAL,RA_MAT"
+    jParameters["aAcho"]:=StrTokArr2(StrTran(StrTran(jParameters["cSQLFields"],"[",""),"]",""),",")
+    jParameters["cATRecNoMsMGet"]:="R_E_C_N_O_"
+    //TODO: Resolve this Workaround private __cPrefixQryAlias
+    private __cPrefixQryAlias:="SRA" as character//TODO: resolver Alias para campos comuns (R_E_C_N_O_,R_E_C_D_E_L_,D_E_L_E_T_,etc) com HBBridgeSqlTools():PrefixQryAlias ou FieldAlias ou FielPrefixdAlias?
+    U_HBBridgeBrowseDataTest(jParameters)
+    if (Select(cAliasTmp)>0)
+        (cAliasTmp)->(dbCloseArea())
+    endif
+    FreeObj(@jParameters)
+return
+
+procedure U_HBBridgeBrowseDataTestSRAWithCast()
+    if (("MSSQL"$TCGetDB()).and.(Select("SX2")>0))
+        HBBridgeBrowseDataTestSRAWithCast()
+    endif
+return
+
+static procedure HBBridgeBrowseDataTestSRAWithCast()
     local cAliasTmp as character
     local jParameters:=JSONObject():New() as json
-    jParameters["cEmp"]:="99"
-    jParameters["cFil"]:="01"
+    jParameters["cEmp"]:=if((Type("cEmpAnt")=="C").and.!Empty(cEmpAnt),cEmpAnt,"99")
+    jParameters["cFil"]:=if((Type("cFilAnt")=="C").and.!Empty(cFilAnt),cFilAnt,"01")
     beginContent var jParameters["cSQL"]
         SELECT SRA.RA_FILIAL
             ,SRA.RA_MAT
@@ -24,6 +76,8 @@ procedure U_HBBridgeBrowseDataTestSRA()
         WHERE SRA.D_E_L_E_T_=' '
         AND CTT.D_E_L_E_T_=' '
     endContent
+    jParameters["cSQL"]:=StrTran(jParameters["cSQL"],"SRA990",RetSQLName("SRA"))
+    jParameters["cSQL"]:=StrTran(jParameters["cSQL"],"CTT990",RetSQLName("CTT"))
     jParameters["bOpenTables"]:={||;
         ChkFile("CTT");
         ,cAliasTmp:=GetNextAlias();

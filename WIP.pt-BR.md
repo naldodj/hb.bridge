@@ -128,14 +128,21 @@ constatações de aceite, sem motivo para repetir o inventário concluído.
   `U_HBBridgeHelperTest`, 17:56:45, thread 28300, **12 checks**. Todos true,
   ambos os resultados OK. Veja [escopo/evidências](docs/acceptance.pt-BR.md#validação-do-dataset-e-helpers-em-2026-10-13).
   Homologado o contrato mock/interface; integridade textual/numérica nativa permanece em D03.
-- [ ] **D03 — Corrigir integridade textual e numérica.** Garantir execução/
-  transporte UTF-8 consistentes, conversão textual cliente explícita e binários;
+- [ ] **D03 — Corrigir integridade textual e numérica.** Primeiro comprovar que
+  driver/RDD entrega ao Harbour nativo o texto pretendido do banco antes de
+  serializar JSON, usando valores conhecidos e metadados explícitos da origem.
+  Depois verificar execução UTF-8 e requisições/respostas textuais nos dois
+  sentidos entre Protheus e hbBridge via TCP/HTTP, conversão cliente e binários;
   corrigir a perda FLOAT fracionária reproduzida no JSON e definir decimal
   exato/metadados nativos versus lógicos do chamador sem consultas ERP implícitas.
   Veja [constatações e contrato](docs/dataset.pt-BR.md). Os aceites ASCII/DECIMAL
   anteriores não homologam esses casos recém-identificados.
   As observações de apresentação em 2026-10-13 mantêm o exemplo HTTP funcional
-  e validação desktop ampliada. Separar preservação FLOAT genérica da escala
+  e validação desktop ampliada. Esclarecido em 2026-10-19: `DecodeUTF8()` continua
+  sendo conversão esperada quando Protheus exige outra codepage; removê-la não
+  é critério de aceite. Corrigir a interface não comprova a leitura do banco.
+  Veja os [checks por etapa](docs/dataset.pt-BR.md#prioridade-d03-integridade-da-origem-em-2026-10-19).
+  Separar preservação FLOAT genérica da escala
   DECIMAL de negócio definida pelo chamador; CAST é projeção disponível,
   sem ser pré-requisito para transporte FLOAT genérico. Metadados lógicos
   explícitos seguem como extensão proposta. Veja a [análise](docs/dataset.pt-BR.md#escala-de-negócio-e-float-bruto-análise-em-2026-10-13).

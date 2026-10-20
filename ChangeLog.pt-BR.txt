@@ -3,7 +3,14 @@
    Os registros não precisam seguir a ordem dos commits.
    Licenciamento: docs/licensing.pt-BR.md; não há licença global adotada.
    Caminhos antigos descrevem os arquivos existentes na época.
+   (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Adicionar cobertura de integridade para JSON UTF-8 e MSSQL)"
  */
+
+2026-10-20 12:43 UTC naldodj (Adicionar cobertura de integridade para JSON UTF-8 e MSSQL)
+  Adicionar cobertura de integridade para JSON UTF-8 e MSSQL
+    Introduzir codecs JSON UTF-8 compartilhados para Harbour e TLPP, preservando a precisão numérica e tratando caracteres nulos (NULs) incorporados.
+    Atualizar os clientes TCP/HTTP e o despacho (dispatch) para usar codificação de transmissão (wire encoding) consistente, além de estender a correção (patch) de ODBC para suporte a SQL Unicode, recuperação de texto, timeouts e pooling.
+    Adicionar suítes de integridade MSSQL nativas e para o Protheus, fixtures de teste e documentação bilíngue.
 
 2026-10-19 15:28 UTC naldodj (Registrar aceite CLI e benchmarks nativos futuros)
   ; Registrar CLI manual 7482F7E8: dez linhas, uma página/varredura por transporte,

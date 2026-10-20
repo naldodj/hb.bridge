@@ -131,6 +131,52 @@ Assim, o aceite TCP com ASCII não homologa textos acentuados.
 `OemToAnsi(FieldGet(...))` corrigir a exibição é compatível com uma conversão
 OEM intermediária; não comprova a codificação original da coluna SQL.
 
+### Prioridade D03: integridade da origem em 2026-10-19
+
+Contrato confirmado: o texto trocado entre Protheus e hbBridge usa UTF-8
+nos dois sentidos, nas requisições/respostas TCP e HTTP. Protheus envia texto
+convertido de sua codepage local efetiva para UTF-8 e converte o UTF-8 recebido
+para a codepage do consumidor quando necessário. Cada conversão tem um único
+responsável explícito, inclusive quando realizada por parser/canal nativo.
+A escolha da codepage do consumidor não altera a codificação do transporte.
+Binários mantêm sua representação binária explícita e não passam por essas
+conversões textuais. Esse é o contrato exigido pela D03; a lacuna TCP descrita
+acima continua pendente de correção e aceite.
+
+O primeiro critério de aceite é o caminho banco-driver/RDD-Harbour, antes de
+JSON ou de uma interface Protheus. Confirmar os caracteres pretendidos com
+uma fixture conhecida e referência do banco estabelecida independentemente.
+Registrar tipo SQL, collation/encoding da coluna quando aplicável, driver,
+tipo de leitura e codepage ativa no Harbour. VARCHAR, NVARCHAR e binários
+exigem tratamentos distintos; alias e sistema operacional não estabelecem
+sua codificação. Preservar o aceite nativo existente e ampliá-lo com checks
+direcionados aos caminhos ainda não cobertos.
+
+Validar cada fronteira separadamente:
+
+1. **Leitura do banco:** comparar texto nativo Harbour, antes da serialização,
+   com valores Unicode esperados e sua representação UTF-8 conhecida. Verificar
+   valores longos/limites de blocos, caracteres suplementares, NULL/vazio e NUL
+   embutido. Conferir bytes binários inalterados. Armazenamento do banco e UTF-8
+   podem ter bytes distintos; o texto decodificado deve corresponder. Inspecionar
+   bytes armazenados e metadados separadamente ao diagnosticar uma divergência.
+2. **JSON/transporte:** verificar UTF-8 válido e igualdade semântica após ida e
+   volta JSON via TCP e HTTP. Caracteres literais e escapes Unicode devem produzir
+   valores equivalentes; escolhas de escape distintas não exigem bytes JSON iguais.
+3. **Consumidor Protheus:** converter uma vez o texto UTF-8 confirmado para a
+   codepage efetiva de destino quando necessário, depois comparar os valores.
+   Para destino CP1252, `DecodeUTF8(cText, "cp1252")` é operação esperada se
+   parser/cliente/canal ainda não realizou essa conversão.
+
+Eliminar `DecodeUTF8()` não é critério de aceite D03. Sua aplicação pode
+permanecer em fronteira explícita do consumidor enquanto se valida a origem.
+Manter os ajustes de interface funcionais até suas substituições passarem nos
+testes do consumidor real. Corrigir a exibição não homologa a leitura do banco;
+decodificação posterior não recupera caracteres já perdidos, substituídos ou
+truncados antes. Dados armazenados com codificação incorreta exigem diagnóstico
+explícito da origem, sem heurística genérica de reparo. Preservação numérica
+continua sendo check D03 separado; converter texto corretamente não a homologa.
+
 ### Observações de apresentação em 2026-10-13
 
 Informada apresentação correta da SX5 por HTTP com

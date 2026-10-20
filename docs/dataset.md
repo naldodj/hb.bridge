@@ -126,6 +126,53 @@ Consequently, existing ASCII TCP acceptance does not certify accented text.
 `OemToAnsi(FieldGet(...))` repairing display is consistent with an intermediate
 OEM conversion; it does not establish the original SQL column encoding.
 
+### D03 source integrity priority on 2026-10-19
+
+Confirmed contract: text exchanged between Protheus and hbBridge uses UTF-8
+in both directions, for both TCP and HTTP requests/responses. Protheus sends
+text encoded from its actual local codepage to UTF-8 and converts received
+UTF-8 to its consumer codepage when needed. Each conversion has one explicit
+owner, including any native parser/channel conversion. Consumer codepage
+selection does not change the wire encoding. Binary values retain their
+explicit binary representation and never enter these text conversions.
+This is the required D03 contract; the TCP gap above remains to be corrected
+and accepted.
+
+The first acceptance gate is the database-to-driver/RDD-to-Harbour path,
+before JSON or a Protheus UI. Confirm the intended characters using a known
+fixture and an independently established database reference. Record the SQL
+type, column collation/encoding where applicable, driver and retrieval type,
+and active Harbour codepage. VARCHAR, NVARCHAR and binary values require
+distinct handling; neither an alias nor the operating system establishes
+their encoding. Preserve existing native acceptance and extend it with
+targeted checks for the uncovered paths.
+
+Validate each boundary separately:
+
+1. **Database read:** compare native Harbour text, before serialization, with
+   expected Unicode values and their known UTF-8 representation. Check long
+   values/chunk boundaries, supplementary characters, NULL/empty and embedded
+   NUL. Check binary bytes unchanged. Database storage and UTF-8 need not have
+   identical bytes; their decoded text must agree. Inspect stored bytes and
+   metadata separately when diagnosing a source mismatch.
+2. **JSON/transport:** verify valid UTF-8 and semantic equality after a JSON
+   round trip through TCP and HTTP. Literal characters and Unicode escapes
+   must decode equivalently; different JSON escape choices need not produce
+   identical serialized bytes.
+3. **Protheus consumer:** convert the confirmed UTF-8 text once to the actual
+   target codepage where needed, then compare the resulting values. For a
+   CP1252 consumer, `DecodeUTF8(cText, "cp1252")` is an expected operation if
+   the parser/client/channel has not already performed that conversion.
+
+Removing `DecodeUTF8()` is not a D03 acceptance criterion. Its placement can
+remain at an explicit consumer boundary while source integrity is validated.
+Keep the working UI adjustments until replacements pass the actual consumer
+tests. A display repair does not certify database retrieval; a later decode
+cannot recover characters already lost, replaced or truncated upstream.
+Previously misencoded stored data needs an explicit source diagnosis rather
+than a generic repair heuristic. Numeric preservation remains a separate D03
+check; successful text conversion does not establish it.
+
 ### Presentation observations on 2026-10-13
 
 Correct SX5 presentation over HTTP was reported with

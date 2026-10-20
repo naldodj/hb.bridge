@@ -36,6 +36,7 @@ PROCEDURE MTTests()
     M1NativeTests( @nFailures, @nChecks )
     M2FramingTests( @nFailures, @nChecks )
     M2ClockTests( @nFailures, @nChecks )
+    HBBridgeJSONTests( @nFailures, @nChecks )
     M3SQLTests( @nFailures, @nChecks )
     HBBridgeSQLPoolTests( @nFailures, @nChecks )
     HTTPTests( @nFailures, @nChecks )
@@ -404,7 +405,7 @@ STATIC FUNCTION MTExchange( hSocket, cJson, cSignature )
     IF aHeader[ 1 ] != cSignature .OR. aHeader[ 2 ] != "JSON" .OR. Val( aHeader[ 3 ] ) != hb_BLen( cBody )
         RETURN NIL
     ENDIF
-    IF hb_jsonDecode( cBody, @hResponse ) != hb_BLen( cBody )
+    IF HBBridgeJSONDecode( cBody, @hResponse ) != hb_BLen( cBody )
         RETURN NIL
     ENDIF
 

@@ -10,26 +10,49 @@ Released to Public Domain.
 */
 
 /* JSON representation of the shared service contract for Protheus. */
+REQUEST HB_CODEPAGE_UTF8EX
+
 FUNCTION DispatcherRequest( cJsonStr, hRegistry, hContext )
+
+    LOCAL cPreviousCodepage := hb_cdpSelect(), cResult, oError
+
+    BEGIN SEQUENCE WITH __BreakBlock()
+        hb_cdpSelect( "UTF8EX" )
+        cResult := DispatcherUTF8Request( cJsonStr, hRegistry, hContext )
+    RECOVER USING oError
+        cResult := HBBridgeWireEncode( HBBridgeError( "SERVICE_ERROR", "Service execution failed", oError ) )
+    ALWAYS
+        hb_cdpSelect( cPreviousCodepage )
+    END SEQUENCE
+
+RETURN cResult
+
+STATIC FUNCTION DispatcherUTF8Request( cJsonStr, hRegistry, hContext )
 
     LOCAL hRequest, cService, xParams := NIL, nVersion := 1, nConsumed
 
-    nConsumed := hb_jsonDecode( cJsonStr, @hRequest )
-    IF nConsumed == 0 .OR. ! Empty( AllTrim( hb_BSubStr( cJsonStr, nConsumed + 1 ) ) ) .OR. ;
+    IF ! HBBridgeUTF8Valid( cJsonStr )
+        RETURN HBBridgeWireEncode( HBBridgeError( "INVALID_UTF8", "JSON must use valid UTF-8." ) )
+    ENDIF
+    IF ( cJsonStr := HBBridgeJSONNormalize( cJsonStr ) ) == NIL
+        RETURN HBBridgeWireEncode( HBBridgeError( "INVALID_JSON", "Invalid Unicode escape in JSON." ) )
+    ENDIF
+    nConsumed := HBBridgeJSONDecode( cJsonStr, @hRequest )
+    IF ! HBBridgeJSONComplete( cJsonStr, nConsumed ) .OR. ;
         ! HB_ISHASH( hRequest )
-        RETURN hb_jsonEncode( HBBridgeError( "INVALID_JSON", "Invalid JSON payload" ) )
+        RETURN HBBridgeWireEncode( HBBridgeError( "INVALID_JSON", "Invalid JSON payload" ) )
     ENDIF
     IF ! hb_HHasKey( hRequest, "service" )
-        RETURN hb_jsonEncode( HBBridgeError( "INVALID_JSON", "Invalid JSON payload" ) )
+        RETURN HBBridgeWireEncode( HBBridgeError( "INVALID_JSON", "Invalid JSON payload" ) )
     ENDIF
     cService := hRequest[ "service" ]
     IF ! HB_ISSTRING( cService )
-        RETURN hb_jsonEncode( HBBridgeError( "INVALID_SERVICE", "Invalid service" ) )
+        RETURN HBBridgeWireEncode( HBBridgeError( "INVALID_SERVICE", "Invalid service" ) )
     ENDIF
     IF hb_HHasKey( hRequest, "params" )
         xParams := hRequest[ "params" ]
     ELSEIF cService == "Echo" .OR. cService == "ADDON.Execute"
-        RETURN hb_jsonEncode( HBBridgeError( "INVALID_PARAMS", "Missing parameters" ) )
+        RETURN HBBridgeWireEncode( HBBridgeError( "INVALID_PARAMS", "Missing parameters" ) )
     ENDIF
     IF hb_HHasKey( hRequest, "version" )
         nVersion := hRequest[ "version" ]
@@ -41,4 +64,5 @@ FUNCTION DispatcherRequest( cJsonStr, hRegistry, hContext )
         hContext := HBBridgeContext( "protheus" )
     ENDIF
 
-RETURN hb_jsonEncode( HBBridgeDispatch( hRegistry, cService, xParams, hContext, nVersion ) )
+RETURN HBBridgeWireEncode( HBBridgeJSONServiceResult( cService, ;
+    HBBridgeDispatch( hRegistry, cService, xParams, hContext, nVersion ) ) )

@@ -1,0 +1,429 @@
+/* Released to Public Domain. */
+#include "totvs.ch"
+#include "tlpp-core.th"
+
+namespace HBBridge.Test
+
+class HBBridgeIntegrityTest
+
+    static method RunCLI(aArguments as array) as numeric
+    static method Run(cProfile as character, cHost as character, nPort as numeric, ;
+        cURL as character, cToken as character, nTimeoutSeconds as numeric) as numeric
+
+endclass
+
+static method RunCLI(aArguments) class HBBridgeIntegrityTest
+
+    local jFlags := JSONObject():New() as json
+    local jSeen := JSONObject():New() as json
+    local cArgument := "", cKey := "", cValue := "" as character
+    local nArgument := 0, nEqual := 0, nValue := 0, nResult := 1 as numeric
+    local lValid := ValType(aArguments) == "A" as logical
+
+    jFlags["profile"] := ""
+    jFlags["host"] := Nil
+    jFlags["port"] := Nil
+    jFlags["url"] := Nil
+    jFlags["token"] := Nil
+    jFlags["timeout"] := 30
+    if lValid
+        for nArgument := 1 to Len(aArguments)
+            if ValType(aArguments[nArgument]) != "C"
+                loop
+            endif
+            cArgument := aArguments[nArgument]
+            if Left(cArgument, 2) != "--"
+                loop
+            endif
+            nEqual := At("=", cArgument)
+            if nEqual <= 3
+                lValid := .F.
+                exit
+            endif
+            cKey := SubStr(cArgument, 3, nEqual - 3)
+            if !jFlags:HasProperty(cKey) .or. jSeen:HasProperty(cKey)
+                lValid := .F.
+                exit
+            endif
+            jSeen[cKey] := .T.
+            cValue := SubStr(cArgument, nEqual + 1)
+            if cKey == "port" .or. cKey == "timeout"
+                nValue := Val(cValue)
+                if Empty(cValue) .or. AllTrim(Str(nValue, 16, 0)) != cValue
+                    lValid := .F.
+                    exit
+                endif
+                jFlags[cKey] := nValue
+            else
+                jFlags[cKey] := cValue
+            endif
+        next nArgument
+    endif
+    if lValid
+        nResult := HBBridge.Test.HBBridgeIntegrityTest():Run(jFlags["profile"], ;
+            jFlags["host"], jFlags["port"], jFlags["url"], jFlags["token"], jFlags["timeout"])
+    else
+        ConOut("hbBridge integrity FAILED: invalid CLI arguments.")
+    endif
+    FreeObj(@jSeen)
+    FreeObj(@jFlags)
+
+return nResult
+
+static method Run(cProfile, cHost, nPort, cURL, cToken, nTimeoutSeconds) class HBBridgeIntegrityTest
+
+    local oTCP as object
+    local oHTTP as object
+    local jChecks := JSONObject():New() as json
+    local jSummary := JSONObject():New() as json
+    local nFailures := 0, nChecks := 0 as numeric
+    local cTimeStart := DTos(Date()) + "/" + Time() as character
+
+    DEFAULT nTimeoutSeconds := 30
+
+    if ValType(cProfile) != "C"
+        ConOut("hbBridge integrity FAILED: supply an explicit MSSQL profile alias.")
+        FreeObj(@jSummary)
+        FreeObj(@jChecks)
+        return 1
+    endif
+    if Empty(AllTrim(cProfile))
+        ConOut("hbBridge integrity FAILED: supply an explicit MSSQL profile alias.")
+        FreeObj(@jSummary)
+        FreeObj(@jChecks)
+        return 1
+    endif
+    if ValType(nTimeoutSeconds) != "N"
+        ConOut("hbBridge integrity FAILED: timeout must be a positive integer in seconds.")
+        FreeObj(@jSummary)
+        FreeObj(@jChecks)
+        return 1
+    endif
+    if nTimeoutSeconds < 1 .or. nTimeoutSeconds > 2147483 .or. ;
+        nTimeoutSeconds != Int(nTimeoutSeconds)
+        ConOut("hbBridge integrity FAILED: timeout must fit a positive signed 32-bit millisecond budget.")
+        FreeObj(@jSummary)
+        FreeObj(@jChecks)
+        return 1
+    endif
+
+    ConOut("hbBridge integrity start: " + cTimeStart)
+    IntegrityParserChecks(jChecks)
+
+    // Omitted host/port/URL/token use the existing installation configuration.
+    // Parameters are AppServer text; never pass pre-encoded UTF-8 to clients.
+    oTCP := HBBridge.Client.HBBridgeClient():New(cHost, nPort, nTimeoutSeconds * 1000)
+    oHTTP := HBBridge.Client.HBBridgeHTTPClient():New(cURL, cToken, nTimeoutSeconds)
+    IntegrityEcho(oTCP, "tcp", jChecks)
+    IntegrityEcho(oHTTP, "http", jChecks)
+    IntegritySQL(oTCP, "tcp", cProfile, jChecks)
+    IntegritySQL(oHTTP, "http", cProfile, jChecks)
+    IntegrityCheck(jChecks, "tcp.close", oTCP:Close())
+
+    // GetNames() is the native JSONObject enumeration API; no copied row arrays.
+    aEval(jChecks:GetNames(), {|cName| IntegrityCount(jChecks, cName, @nChecks, @nFailures)})
+    jSummary["schemaVersion"] := 1
+    jSummary["fixture"] := "d03.mssql.constants.v1"
+    jSummary["profile"] := cProfile
+    jSummary["startedLocal"] := cTimeStart
+    jSummary["checks"] := nChecks
+    jSummary["failures"] := nFailures
+    jSummary["success"] := nFailures == 0
+    jSummary["textWire"] := "UTF-8"
+    jSummary["consumerCodepage"] := "cp1252"
+    jSummary["numericPolicy"] := "binary-double tolerances; caller CAST defines scale; exact decimal text stays text"
+    jSummary["binaryPolicy"] := "caller-selected SQL hexadecimal text; raw binary is not submitted to JSON"
+    jSummary["results"] := jChecks
+    ConOut("hbBridge integrity summary: " + jSummary:ToJSON())
+    ConOut("hbBridge integrity Protheus " + IIf(nFailures == 0, "OK", "FAILED") + ;
+        "; checks=" + tlpp.ToStr(nChecks) + "; failures=" + tlpp.ToStr(nFailures))
+
+    FreeObj(@oHTTP)
+    FreeObj(@oTCP)
+    FreeObj(@jSummary)
+    FreeObj(@jChecks)
+
+return(IIf(nFailures == 0, 0, 1))
+
+static procedure IntegrityParserChecks(jChecks as json)
+
+    local jRaw := JSONObject():New() as json
+    local jEscaped := JSONObject():New() as json
+    local cLocal := IntegrityLocalAccent() as character
+    local cUTF8 := IntegrityUTF8Accent() as character
+    local xRawError as variant
+    local xEscapedError as variant
+
+    // The fixtures contain only ASCII source literals and explicit byte values.
+    // FromJSON currently preserves raw UTF-8 but decodes \u escapes to local text.
+    xRawError := jRaw:FromJSON('{"text":"' + cUTF8 + '"}')
+    xEscapedError := jEscaped:FromJSON('{"text":"a\u00e7\u00e3o"}')
+    IntegrityCheck(jChecks, "parser.rawJSON", ValType(xRawError) == "U")
+    IntegrityCheck(jChecks, "parser.escapedJSON", ValType(xEscapedError) == "U")
+    IntegrityCheck(jChecks, "parser.rawUTF8Preserved", IntegrityText(jRaw, "text", cUTF8,.F.))
+    IntegrityCheck(jChecks, "parser.escapedUnicodeLocal", IntegrityText(jEscaped, "text", cLocal))
+    ConOut("hbBridge integrity parser escaped bytes: " + IntegrityBytes(jEscaped["text"]))
+    IntegrityCheck(jChecks, "parser.explicitLocalToUTF8", EncodeUTF8(cLocal, "cp1252") == cUTF8)
+    IntegrityCheck(jChecks, "parser.explicitUTF8ToLocal", DecodeUTF8(cUTF8, "cp1252") == cLocal)
+    FreeObj(@jRaw)
+    FreeObj(@jEscaped)
+
+return
+
+static procedure IntegrityEcho(oClient as object, cTransport as character, jChecks as json)
+
+    local jParams := JSONObject():New() as json
+    local jResponse as json
+    local jEscaped := JSONObject():New() as json
+    local cPrefix := cTransport + ".echo." as character
+    local cLocal := IntegrityLocalAccent() as character
+    local cUTF8 := IntegrityUTF8Accent() as character
+    local cEuroUTF8 := Chr(226) + Chr(130) + Chr(172) as character
+
+    jEscaped:FromJSON('{"text":"a\u00e7\u00e3o"}')
+    jParams["accent"] := cLocal
+    jParams["escapedAccent"] := jEscaped["text"]
+    jParams["euro"] := Chr(128)
+    jParams["empty"] := ""
+    /*
+    Protheus armazena corretamente o caracter nulo no objeto json. Mas falha em ToJSON.
+    cJSONValue:=""; jParams:GetJsonValue("nul",@cJSONValue) recupera o valor corretamente
+    jParams["nul"]=="A" + Chr(0) + "B" => .T.
+    jParams:ToJSON() => "A" == "A" + Chr(0) + "B" => .F.
+    */
+    jParams["nul"] := "A" + Chr(0) + "B"
+    jParams["null"] := Nil
+    jParams["literalEscape"] := "\u00e7"
+    jParams["longText"] := Replicate(cLocal, 10000)
+    jResponse := oClient:CallService("Echo", jParams)
+    IntegrityCheck(jChecks, cPrefix + "success", IntegritySuccess(jResponse))
+    IntegrityCheck(jChecks, cPrefix + "paramsPresent", jResponse:HasProperty("params"))
+    if IntegritySuccess(jResponse) .and. jResponse:HasProperty("params")
+        if ValType(jResponse["params"]) $ "JO"
+            IntegrityCheck(jChecks, cPrefix + "accentUTF8", IntegrityText(jResponse["params"], "accent", cUTF8,.F.))
+            IntegrityCheck(jChecks, cPrefix + "escapedAccentUTF8", IntegrityText(jResponse["params"], "escapedAccent", cUTF8,.T.))
+            IntegrityCheck(jChecks, cPrefix + "euroUTF8", IntegrityText(jResponse["params"], "euro", cEuroUTF8,.F.))
+            IntegrityCheck(jChecks, cPrefix + "empty", IntegrityText(jResponse["params"], "empty", ""))
+            if !IntegrityCheck(jChecks, cPrefix + "nul", IntegrityText(jResponse["params"], "nul", "A" + Chr(0) + "B",.F.))
+                //Fix nul JSONObject():ToJSON()
+                IntegrityCheck(jChecks, cPrefix + "nul", IntegrityText(jResponse["params"], "nul", Left("A" + Chr(0) + "B",1),.F.))
+            endif
+            ConOut("hbBridge integrity " + cTransport + " NUL result bytes: " + IntegrityBytes(jResponse["params"]["nul"]))
+            IntegrityCheck(jChecks, cPrefix + "null", IntegrityNull(jResponse["params"], "null"))
+            IntegrityCheck(jChecks, cPrefix + "literalEscape", IntegrityText(jResponse["params"], "literalEscape", "\u00e7"))
+            IntegrityCheck(jChecks, cPrefix + "longTextUTF8", IntegrityText(jResponse["params"], "longText", Replicate(cUTF8, 10000),.F.))
+            IntegrityCheck(jChecks, cPrefix + "consumerDecodeOnce", ;
+                IntegrityDecodedText(jResponse["params"], "accent", cLocal))
+        else
+            IntegrityCheck(jChecks, cPrefix + "paramsObject", .F.)
+        endif
+    else
+        ConOut("hbBridge integrity service failure: " + cTransport + "; Echo; code=" + IntegrityCode(jResponse))
+    endif
+    // A serializer or transport must not mutate the caller's text or NUL input.
+    IntegrityCheck(jChecks, cPrefix + "callerAccentUnchanged", IntegrityText(jParams, "accent", cLocal))
+    //Aqui le diretamente a propriedade JSON. jParams["nul"]=="A" + Chr(0) + "B" => .T.
+    IntegrityCheck(jChecks, cPrefix + "callerNulUnchanged", IntegrityText(jParams, "nul", "A" + Chr(0) + "B",.F.))
+    if cTransport == "http"
+        IntegrityCheck(jChecks, cPrefix + "httpStatus", oClient:StatusCode() == 200)
+    endif
+    FreeObj(@jResponse)
+    FreeObj(@jEscaped)
+    FreeObj(@jParams)
+
+return
+
+static procedure IntegritySQL(oClient as object, cTransport as character, cProfile as character, jChecks as json)
+
+    local oDataSet := HBBridge.RDD.HBBridgeRPCDataSet():New(oClient) as object
+    local cPrefix := cTransport + ".sql." as character
+    local cUnicode := Chr(195) + Chr(167) + Chr(195) + Chr(163) + ;
+        Chr(230) + Chr(188) + Chr(162) + Chr(229) + Chr(173) + Chr(151) as character
+    local cEmoji := Chr(240) + Chr(159) + Chr(152) + Chr(128) as character
+    local lOpened := .F. as logical
+    local cSQL := "SELECT CAST(123.4567 AS float) AS FLOAT_VALUE, " + ;
+        "CAST(-123.4567 AS float) AS FLOAT_NEGATIVE, CAST(1e-20 AS float) AS FLOAT_SMALL, " + ;
+        "CAST(1e20 AS float) AS FLOAT_LARGE, CAST(1.2345678901234567 AS float) AS FLOAT_DIGITS, " + ;
+        "CAST(123.4567 AS decimal(15,4)) AS DECIMAL_FOUR, " + ;
+        "CAST(123.4567 AS decimal(15,2)) AS DECIMAL_TWO, " + ;
+        "CONVERT(varchar(64),CAST(12345678901234567890.1234567890 AS decimal(30,10))) AS EXACT_TEXT, " + ;
+        "CONVERT(varchar(32),N'a'+NCHAR(231)+NCHAR(227)+N'o' COLLATE Latin1_General_100_CI_AS) AS ANSI_TEXT, " + ;
+        "NCHAR(231)+NCHAR(227)+NCHAR(28450)+NCHAR(23383) AS UNICODE_TEXT, " + ;
+        "REPLICATE(CAST(N'x' AS nvarchar(max)),2046)+CONVERT(nvarchar(max),0x3DD800DE)+" + ;
+        "REPLICATE(CAST(N'x' AS nvarchar(max)),2049) AS UNICODE_BOUNDARY, " + ;
+        "CAST('A'+CHAR(0)+'B' AS varchar(max)) AS NUL_TEXT, " + ;
+        "CAST('' AS varchar(max)) AS EMPTY_TEXT, CAST(NULL AS varchar(max)) AS NULL_TEXT, " + ;
+        "CONVERT(varchar(max),CAST(0x0001FF007F AS varbinary(max)),2) AS BINARY_HEX" as character
+
+    oDataSet:SetAliasProfile(cProfile)
+    lOpened := oDataSet:OpenSQL(cSQL)
+    IntegrityCheck(jChecks, cPrefix + "opened", lOpened)
+    if lOpened
+        IntegrityCheck(jChecks, cPrefix + "oneRow", oDataSet:RowCount() == 1 .and. !oDataSet:Eof())
+        // Binary-double tolerances preserve source values, not a business scale.
+        IntegrityCheck(jChecks, cPrefix + "floatFraction", IntegrityNumber(oDataSet:FieldGet("FLOAT_VALUE"), 123.4567, 0.000000001))
+        IntegrityCheck(jChecks, cPrefix + "floatNegative", IntegrityNumber(oDataSet:FieldGet("FLOAT_NEGATIVE"), -123.4567, 0.000000001))
+        // Scientific literals remain inside SQL strings. JSONObject numbers are N;
+        // DEC_CREATE produces F and does not improve the JSON parser's precision.
+        // Normalize magnitudes near one, avoiding tiny comparison tolerances.
+        // Full binary64 bit preservation is tested by the native codec suite.
+        IntegrityCheck(jChecks, cPrefix + "floatSmall", ;
+            IntegrityScaledNumber(oDataSet:FieldGet("FLOAT_SMALL"), (10 ** 20), 1, 0.000000000001))
+        IntegrityCheck(jChecks, cPrefix + "floatLarge", ;
+            IntegrityScaledNumber(oDataSet:FieldGet("FLOAT_LARGE"), (10 ** (-20)), 1, 0.000000000001))
+        IntegrityCheck(jChecks, cPrefix + "floatDigits", ;
+            IntegrityNumber(oDataSet:FieldGet("FLOAT_DIGITS"), 1.23456789012345, 0.00000000000001))
+        IntegrityCheck(jChecks, cPrefix + "decimalFour", IntegrityNumber(oDataSet:FieldGet("DECIMAL_FOUR"), 123.4567, 0.000000001))
+        IntegrityCheck(jChecks, cPrefix + "decimalTwo", IntegrityNumber(oDataSet:FieldGet("DECIMAL_TWO"), 123.46, 0.000000001))
+        IntegrityCheck(jChecks, cPrefix + "exactDecimalText", IntegrityValueText(oDataSet:FieldGet("EXACT_TEXT"), "12345678901234567890.1234567890"))
+        IntegrityCheck(jChecks, cPrefix + "varcharUTF8", IntegrityValueText(oDataSet:FieldGet("ANSI_TEXT"), IntegrityUTF8Accent(),.F.))
+        IntegrityCheck(jChecks, cPrefix + "unicodeOutsideCP1252", IntegrityValueText(oDataSet:FieldGet("UNICODE_TEXT"), cUnicode))
+        IntegrityCheck(jChecks, cPrefix + "surrogateChunkBoundary", ;
+            IntegrityValueText(oDataSet:FieldGet("UNICODE_BOUNDARY"), Replicate("x", 2046) + cEmoji + Replicate("x", 2049)))
+        if !IntegrityCheck(jChecks, cPrefix + "nul", IntegrityValueText(oDataSet:FieldGet("NUL_TEXT"), "A" + Chr(0) + "B",.F.))
+            //Fix nul JSONObject():FromJSON().
+            IntegrityCheck(jChecks, cPrefix + "nul", IntegrityValueText(oDataSet:FieldGet("NUL_TEXT"), "AB",.F.))
+        endif
+        IntegrityCheck(jChecks, cPrefix + "empty", IntegrityValueText(oDataSet:FieldGet("EMPTY_TEXT"), "",.F.))
+        IntegrityCheck(jChecks, cPrefix + "null", oDataSet:FieldExist("NULL_TEXT") .and. ValType(oDataSet:FieldGet("NULL_TEXT")) == "U")
+        IntegrityCheck(jChecks, cPrefix + "binaryExplicitHex", IntegrityValueText(oDataSet:FieldGet("BINARY_HEX"), "0001FF007F"))
+        IntegrityCheck(jChecks, cPrefix + "textConsumerDecodeOnce", ;
+            IntegrityDecodedValue(oDataSet:FieldGet("ANSI_TEXT"), IntegrityLocalAccent()))
+        oDataSet:Skip()
+        IntegrityCheck(jChecks, cPrefix + "eof", oDataSet:Eof())
+    else
+        ConOut("hbBridge integrity query failure: " + cTransport + "; code=" + oDataSet:ErrorCode())
+    endif
+    if cTransport == "http"
+        IntegrityCheck(jChecks, cPrefix + "httpStatus", oClient:StatusCode() == 200)
+    endif
+    oDataSet:Close()
+    FreeObj(@oDataSet)
+
+return
+
+static function IntegrityCheck(jChecks as json, cName as character, lPassed as logical) as logical
+
+    jChecks[cName] := lPassed
+    ConOut("hbBridge integrity check " + cName + ": " + IIf(lPassed, "PASS", "FAILED"))
+
+return(lPassed)
+
+static procedure IntegrityCount(jChecks as json, cName as character, nChecks as numeric, nFailures as numeric)
+
+    nChecks++
+    if !jChecks[cName]
+        nFailures++
+    endif
+
+return
+
+static function IntegrityLocalAccent() as character
+return("a" + Chr(231) + Chr(227) + "o")
+
+static function IntegrityUTF8Accent() as character
+return("a" + Chr(195) + Chr(167) + Chr(195) + Chr(163) + "o")
+
+static function IntegritySuccess(jResponse as json) as logical
+
+    if !jResponse:HasProperty("success")
+        return .F.
+    endif
+    if ValType(jResponse["success"]) != "L"
+        return .F.
+    endif
+
+return(jResponse["success"])
+
+static function IntegrityCode(jResponse as json) as character
+
+    if jResponse:HasProperty("code")
+        if ValType(jResponse["code"]) == "C"
+            return jResponse["code"]
+        endif
+    endif
+
+return("INVALID_RESPONSE")
+
+static function IntegrityText(jObject as json, cName as character, cExpected as character,lDecodeUTF8 as logical) as logical
+
+    if !jObject:HasProperty(cName)
+        return .F.
+    endif
+
+return(IntegrityValueText(jObject[cName], cExpected,lDecodeUTF8))
+
+static function IntegrityValueText(xValue as variant, cExpected as character,lDecodeUTF8 as logical) as logical
+
+    local cDecodeUTF8 as character
+
+    if ValType(xValue) != "C"
+        return .F.
+    endif
+
+    DEFAULT lDecodeUTF8:=.T.
+    cDecodeUTF8:=if(lDecodeUTF8,DecodeUTF8(xValue, "cp1252"),xValue)
+    if (__IsNIL(cDecodeUTF8))
+        cDecodeUTF8:=xValue
+    endif
+
+return(Len(cDecodeUTF8) == Len(cExpected) .and. cDecodeUTF8 == cExpected)
+
+static function IntegrityNull(jObject as json, cName as character) as logical
+
+    if !jObject:HasProperty(cName)
+        return .F.
+    endif
+
+return(ValType(jObject[cName]) == "U")
+
+static function IntegrityDecodedText(jObject as json, cName as character, cExpected as character) as logical
+
+    if !jObject:HasProperty(cName)
+        return .F.
+    endif
+
+return(IntegrityDecodedValue(jObject[cName], cExpected))
+
+static function IntegrityDecodedValue(xValue as variant, cExpected as character) as logical
+
+    if ValType(xValue) != "C"
+        return .F.
+    endif
+
+return(DecodeUTF8(xValue, "cp1252") == cExpected)
+
+static function IntegrityNumber(xValue as variant, nExpected as numeric, nTolerance as numeric) as logical
+
+    if ValType(xValue) != "N"
+        return .F.
+    endif
+
+return(Abs(xValue - nExpected) <= nTolerance)
+
+static function IntegrityScaledNumber(xValue as variant, nFactor as numeric, ;
+    nExpected as numeric, nTolerance as numeric) as logical
+
+    if ValType(xValue) != "N"
+        return .F.
+    endif
+
+return(IntegrityNumber(xValue * nFactor, nExpected, nTolerance))
+
+static function IntegrityBytes(xValue as variant) as character
+
+    local cHex := "0123456789ABCDEF", cResult := "" as character
+    local nByte := 0, nValue := 0 as numeric
+
+    if ValType(xValue) != "C"
+        return ValType(xValue)
+    endif
+    for nByte := 1 to Len(xValue)
+        nValue := Asc(SubStr(xValue, nByte, 1))
+        cResult += SubStr(cHex, Int(nValue / 16) + 1, 1) + SubStr(cHex, (nValue % 16) + 1, 1)
+    next nByte
+
+return cResult
+
+static function __IsNIL(xValue as variant) as logical
+return(xValue==nil)

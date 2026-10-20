@@ -1,0 +1,103 @@
+/* Released to Public Domain. */
+#include "totvs.ch"
+#include "tlpp-core.th"
+
+namespace HBBridge.Test
+
+class HBBridgeJSONTest
+
+    static method Run() as numeric
+
+endclass
+
+// Closed checks: no socket, credentials, database or ERP environment is used.
+procedure U_HBBridgeJSONTest()
+
+    HBBridge.Test.HBBridgeJSONTest():Run()
+
+return
+
+static method Run() class HBBridgeJSONTest
+
+    local jChecks := JSONObject():New() as json
+    local jInput := JSONObject():New(), jOutput := JSONObject():New(), jNested := JSONObject():New() as json
+    local aNames as array
+    local cJSON := "", cText := "", cName := "", cUnicode := EncodeUTF8("accent: " + Chr(231)) as character
+    local nIndex := 0, nFailures := 0 as numeric
+    local lParsed := .F. as logical
+
+    jInput["text"] := "plain"
+    jInput["number"] := 123.4567
+    jInput["logical"] := .T.
+    jInput["null"] := Nil
+    cJSON := HBBridge.Client.HBBridgeJSON():Encode(jInput)
+    jChecks["nativeFastEncode"] := cJSON == jInput:ToJSON()
+    lParsed := HBBridge.Client.HBBridgeJSON():Parse(cJSON, jOutput)
+    jChecks["nativeFastParse"] := lParsed .and. jOutput["text"] == "plain" .and. ;
+        jOutput["number"] == 123.4567 .and. jOutput["logical"] .and. ValType(jOutput["null"]) == "U"
+
+    for nIndex := 1 to 5
+        do case
+        case nIndex == 1
+            cName := "middle"
+            cText := "A" + Chr(0) + "B"
+        case nIndex == 2
+            cName := "leading"
+            cText := Chr(0) + "B"
+        case nIndex == 3
+            cName := "trailing"
+            cText := "A" + Chr(0)
+        case nIndex == 4
+            cName := "only"
+            cText := Chr(0)
+        otherwise
+            cName := "repeated"
+            cText := Chr(0) + "A" + Chr(0) + Chr(0) + "B" + Chr(0)
+        endcase
+        jInput["text"] := cText
+        cJSON := HBBridge.Client.HBBridgeJSON():Encode(jInput)
+        jChecks[cName + "Encoded"] := "\u0000" $ cJSON .and. !(Chr(0) $ cJSON)
+        lParsed := HBBridge.Client.HBBridgeJSON():Parse(cJSON, jOutput)
+        jChecks[cName + "RoundTrip"] := lParsed .and. Len(jOutput["text"]) == Len(cText) .and. ;
+            jOutput["text"] == cText
+        jChecks[cName + "InputPreserved"] := jInput["text"] == cText
+    next nIndex
+
+    jNested["text"] := cUnicode + Chr(0) + 'quote:" slash:\ newline:' + Chr(10)
+    jInput["nested"] := jNested
+    jInput["array"] := {"A" + Chr(0) + "B", "\u0000", Nil, 1.25, .F.}
+    jInput["empty"] := ""
+    jInput["literal"] := "\u0000"
+    cJSON := HBBridge.Client.HBBridgeJSON():Encode(jInput)
+    lParsed := HBBridge.Client.HBBridgeJSON():Parse(cJSON, jOutput)
+    jChecks["nestedUnicodeAndEscapes"] := lParsed .and. jOutput["nested"]["text"] == jNested["text"]
+    jChecks["arrayNul"] := lParsed .and. jOutput["array"][1] == "A" + Chr(0) + "B"
+    jChecks["literalEscapePreserved"] := lParsed .and. jOutput["array"][2] == "\u0000" .and. ;
+        jOutput["literal"] == "\u0000"
+    jChecks["nativeScalarsPreserved"] := lParsed .and. ValType(jOutput["array"][3]) == "U" .and. ;
+        jOutput["array"][4] == 1.25 .and. !jOutput["array"][5] .and. jOutput["empty"] == ""
+    jChecks["escapedLiteralIsNotNul"] := HBBridge.Client.HBBridgeJSON():Parse('{"text":"A\\u0000B"}', jOutput) .and. ;
+        jOutput["text"] == "A\u0000B"
+    jChecks["unicodeEscapeBeforeNul"] := HBBridge.Client.HBBridgeJSON():Parse('{"text":"\u00e7\u0000B"}', jOutput) .and. ;
+        jOutput["text"] == EncodeUTF8(Chr(231)) + Chr(0) + "B"
+    jChecks["jsonNulKeyRejected"] := !HBBridge.Client.HBBridgeJSON():Parse('{"A\u0000B":"text"}', jOutput)
+    jChecks["rawNulRejected"] := !HBBridge.Client.HBBridgeJSON():Parse('{"text":"A' + Chr(0) + 'B"}', jOutput)
+    jChecks["malformedRejected"] := !HBBridge.Client.HBBridgeJSON():Parse('{"text":"A\u0000B"', jOutput)
+    jInput["A" + Chr(0) + "B"] := "unsupported key"
+    jChecks["nativeNulKeyRejected"] := Empty(HBBridge.Client.HBBridgeJSON():Encode(jInput))
+
+    aNames := jChecks:GetNames()
+    for nIndex := 1 to Len(aNames)
+        if !jChecks[aNames[nIndex]]
+            nFailures++
+        endif
+        ConOut("hbBridge JSON check " + aNames[nIndex] + ": " + if(jChecks[aNames[nIndex]], "PASS", "FAILED"))
+    next nIndex
+    ConOut("hbBridge JSON checks: " + AllTrim(Str(Len(aNames))) + "; failures=" + AllTrim(Str(nFailures)) + ;
+        "; " + if(nFailures == 0, "OK", "FAILED"))
+    FWFreeArray(@aNames)
+    FreeObj(@jChecks)
+    FreeObj(@jOutput)
+    FreeObj(@jInput)
+
+return nFailures

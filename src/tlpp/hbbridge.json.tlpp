@@ -1,0 +1,379 @@
+/* Released to Public Domain. */
+#include "tlpp-core.th"
+
+namespace HBBridge.Client
+
+class HBBridgeJSON
+
+    static method Encode(jValue as json) as character
+    static method Parse(cJSON as character, jResult as json) as logical
+
+endclass
+
+// Keep the native implementation for ordinary documents. The fallback only
+// handles embedded NUL; it does not change codepages or numeric semantics.
+static method Encode(jValue) class HBBridgeJSON
+
+    local nMode := JSONNulMode(jValue) as numeric
+    local jScratch as json
+    local cResult := "" as character
+    local lValid := .T. as logical
+
+    if nMode == 0
+        return jValue:ToJSON()
+    endif
+    if nMode == 2
+        return ""
+    endif
+    jScratch := JSONObject():New()
+    cResult := JSONEncodeValue(jValue, jScratch, @lValid)
+    FreeObj(@jScratch)
+
+return if(lValid, cResult, "")
+
+static method Parse(cJSON, jResult) class HBBridgeJSON
+
+    local jScratch as json
+    local nPosition := 1 as numeric
+    local lValid := .F. as logical
+
+    if Chr(0) $ cJSON
+        jResult:FromJSON("{}")
+        return .F.
+    endif
+    if ValType(jResult:FromJSON(cJSON)) != "U"
+        jResult:FromJSON("{}")
+        return .F.
+    endif
+    if !("\u0000" $ cJSON)
+        return .T.
+    endif
+    jScratch := JSONObject():New()
+    lValid := JSONPatchValue(cJSON, @nPosition, @jResult, jScratch)
+    JSONSkipSpace(cJSON, @nPosition)
+    lValid := lValid .and. nPosition > Len(cJSON)
+    FreeObj(@jScratch)
+    if !lValid
+        jResult:FromJSON("{}")
+    endif
+
+return lValid
+
+// GetNames() is required by the native JSONObject enumeration API. Values
+// remain keyed; no intermediate copy of the page/rows is allocated here.
+static function JSONNulMode(xValue as variant) as numeric
+
+    local cType := ValType(xValue) as character
+    local aNames as array
+    local nIndex := 0, nMode := 0, nChild := 0 as numeric
+
+    if cType == "C"
+        return if(Chr(0) $ xValue, 1, 0)
+    endif
+    if cType == "J" .or. cType == "O"
+        aNames := xValue:GetNames()
+        for nIndex := 1 to Len(aNames)
+            if Chr(0) $ aNames[nIndex]
+                nMode := 2
+                exit
+            endif
+            nChild := JSONNulMode(xValue[aNames[nIndex]])
+            nMode := Max(nMode, nChild)
+            if nMode == 2
+                exit
+            endif
+        next nIndex
+        FWFreeArray(@aNames)
+    elseif cType == "A"
+        for nIndex := 1 to Len(xValue)
+            nMode := Max(nMode, JSONNulMode(xValue[nIndex]))
+            if nMode == 2
+                exit
+            endif
+        next nIndex
+    endif
+
+return nMode
+
+static function JSONScalarToken(xValue as variant, jScratch as json) as character
+
+    local cJSON := "" as character
+    local nColon := 0 as numeric
+
+    jScratch["v"] := xValue
+    cJSON := jScratch:ToJSON()
+    nColon := At(":", cJSON)
+
+return SubStr(cJSON, nColon + 1, Len(cJSON) - nColon - 1)
+
+static function JSONEncodeValue(xValue as variant, jScratch as json, lValid as logical) as character
+
+    local cType := ValType(xValue), cResult := "", cToken := "" as character
+    local aNames as array
+    local nIndex := 0, nStart := 1, nNul := 0 as numeric
+
+    if cType == "J" .or. cType == "O"
+        aNames := xValue:GetNames()
+        cResult := "{"
+        for nIndex := 1 to Len(aNames)
+            if Chr(0) $ aNames[nIndex]
+                lValid := .F.
+                exit
+            endif
+            if nIndex > 1
+                cResult += ","
+            endif
+            cResult += JSONScalarToken(aNames[nIndex], jScratch) + ":"
+            cResult += JSONEncodeValue(xValue[aNames[nIndex]], jScratch, @lValid)
+            if !lValid
+                exit
+            endif
+        next nIndex
+        cResult += "}"
+        FWFreeArray(@aNames)
+    elseif cType == "A"
+        cResult := "["
+        for nIndex := 1 to Len(xValue)
+            if nIndex > 1
+                cResult += ","
+            endif
+            cResult += JSONEncodeValue(xValue[nIndex], jScratch, @lValid)
+            if !lValid
+                exit
+            endif
+        next nIndex
+        cResult += "]"
+    elseif cType == "C" .and. Chr(0) $ xValue
+        cResult := '"'
+        do while nStart <= Len(xValue)
+            nNul := At(Chr(0), SubStr(xValue, nStart))
+            if nNul == 0
+                exit
+            endif
+            nNul += nStart - 1
+            cToken := JSONScalarToken(SubStr(xValue, nStart, nNul - nStart), jScratch)
+            cResult += SubStr(cToken, 2, Len(cToken) - 2) + "\u0000"
+            nStart := nNul + 1
+        enddo
+        cToken := JSONScalarToken(SubStr(xValue, nStart), jScratch)
+        cResult += SubStr(cToken, 2, Len(cToken) - 2) + '"'
+    else
+        cResult := JSONScalarToken(xValue, jScratch)
+    endif
+
+return cResult
+
+static function JSONSkipSpace(cJSON as character, nPosition as numeric)
+
+    do while nPosition <= Len(cJSON)
+        if !(Asc(SubStr(cJSON, nPosition, 1)) == 32 .or. ;
+            Asc(SubStr(cJSON, nPosition, 1)) == 9 .or. ;
+            Asc(SubStr(cJSON, nPosition, 1)) == 10 .or. ;
+            Asc(SubStr(cJSON, nPosition, 1)) == 13)
+            exit
+        endif
+        nPosition++
+    enddo
+
+return
+
+// The native parser has already validated syntax. This scan still checks
+// token boundaries so escaped backslashes never become actual NUL escapes.
+static function JSONStringToken(cJSON as character, nPosition as numeric, cToken as character) as logical
+
+    local nStart := nPosition as numeric
+    local cByte := "" as character
+
+    if SubStr(cJSON, nPosition, 1) != '"'
+        return .F.
+    endif
+    nPosition++
+    do while nPosition <= Len(cJSON)
+        cByte := SubStr(cJSON, nPosition, 1)
+        nPosition++
+        if cByte == '"'
+            cToken := SubStr(cJSON, nStart, nPosition - nStart)
+            return .T.
+        endif
+        if cByte == "\"
+            nPosition++
+        endif
+    enddo
+
+return .F.
+
+static function JSONDecodeToken(cToken as character, jScratch as json, xValue as variant) as logical
+
+    if ValType(jScratch:FromJSON('{"v":' + cToken + '}')) != "U"
+        return .F.
+    endif
+    xValue := jScratch["v"]
+
+return .T.
+
+static function JSONDecodeNulString(cToken as character, jScratch as json, cValue as character, lHasNul as logical) as logical
+
+    local nPosition := 2, nStart := 2 as numeric
+    local xSegment as variant
+    local cSegment := "" as character
+
+    cValue := ""
+    lHasNul := .F.
+    do while nPosition < Len(cToken)
+        if SubStr(cToken, nPosition, 1) == "\"
+            if SubStr(cToken, nPosition, 6) == "\u0000"
+                cSegment := '"' + SubStr(cToken, nStart, nPosition - nStart) + '"'
+                if !JSONDecodeToken(cSegment, jScratch, @xSegment)
+                    return .F.
+                endif
+                if ValType(xSegment) != "C"
+                    return .F.
+                endif
+                cValue += xSegment + Chr(0)
+                lHasNul := .T.
+                nPosition += 6
+                nStart := nPosition
+                loop
+            endif
+            nPosition++
+        endif
+        nPosition++
+    enddo
+    if !lHasNul
+        return .T.
+    endif
+    cSegment := '"' + SubStr(cToken, nStart, Len(cToken) - nStart) + '"'
+    if !JSONDecodeToken(cSegment, jScratch, @xSegment)
+        return .F.
+    endif
+    if ValType(xSegment) != "C"
+        return .F.
+    endif
+    cValue += xSegment
+
+return .T.
+
+static function JSONPatchValue(cJSON as character, nPosition as numeric, xValue as variant, jScratch as json) as logical
+
+    local cByte := "", cToken := "", cKey := "", cPatched := "", cClose := "" as character
+    local xKey, xChild as variant
+    local lHasNul := .F., lObject := .F., lValid := .T. as logical
+    local nCount := 0, nStart := 0 as numeric
+    local jSeen as json
+    local aNames as array
+
+    JSONSkipSpace(cJSON, @nPosition)
+    cByte := SubStr(cJSON, nPosition, 1)
+    if cByte == '"'
+        if ValType(xValue) != "C" .or. !JSONStringToken(cJSON, @nPosition, @cToken)
+            return .F.
+        endif
+        if !JSONDecodeNulString(cToken, jScratch, @cPatched, @lHasNul)
+            return .F.
+        endif
+        if lHasNul
+            xValue := cPatched
+        endif
+        return .T.
+    endif
+    if cByte == "{" .or. cByte == "["
+        lObject := cByte == "{"
+        if lObject .and. !(ValType(xValue) $ "JO")
+            return .F.
+        endif
+        if !lObject .and. ValType(xValue) != "A"
+            return .F.
+        endif
+        cClose := if(lObject, "}", "]")
+        jSeen := JSONObject():New()
+        nPosition++
+        JSONSkipSpace(cJSON, @nPosition)
+        do while SubStr(cJSON, nPosition, 1) != cClose
+            if nPosition > Len(cJSON)
+                lValid := .F.
+                exit
+            endif
+            nCount++
+            if lObject
+                if !JSONStringToken(cJSON, @nPosition, @cToken)
+                    lValid := .F.
+                    exit
+                endif
+                if !JSONDecodeNulString(cToken, jScratch, @cPatched, @lHasNul) .or. lHasNul
+                    lValid := .F.
+                    exit
+                endif
+                if !JSONDecodeToken(cToken, jScratch, @xKey)
+                    lValid := .F.
+                    exit
+                endif
+                if ValType(xKey) != "C"
+                    lValid := .F.
+                    exit
+                endif
+                cKey := xKey
+                if !xValue:HasProperty(cKey) .or. jSeen:HasProperty(cKey)
+                    lValid := .F.
+                    exit
+                endif
+                jSeen[cKey] := .T.
+                JSONSkipSpace(cJSON, @nPosition)
+                if SubStr(cJSON, nPosition, 1) != ":"
+                    lValid := .F.
+                    exit
+                endif
+                nPosition++
+                xChild := xValue[cKey]
+            else
+                if nCount > Len(xValue)
+                    lValid := .F.
+                    exit
+                endif
+                xChild := xValue[nCount]
+            endif
+            if !JSONPatchValue(cJSON, @nPosition, @xChild, jScratch)
+                lValid := .F.
+                exit
+            endif
+            if lObject
+                xValue[cKey] := xChild
+            else
+                xValue[nCount] := xChild
+            endif
+            JSONSkipSpace(cJSON, @nPosition)
+            if SubStr(cJSON, nPosition, 1) == cClose
+                exit
+            endif
+            if SubStr(cJSON, nPosition, 1) != ","
+                lValid := .F.
+                exit
+            endif
+            nPosition++
+            JSONSkipSpace(cJSON, @nPosition)
+        enddo
+        if lObject
+            aNames := xValue:GetNames()
+            lValid := lValid .and. nCount == Len(aNames)
+            FWFreeArray(@aNames)
+        else
+            lValid := lValid .and. nCount == Len(xValue)
+        endif
+        FreeObj(@jSeen)
+        if !lValid
+            return .F.
+        endif
+        nPosition++
+        return .T.
+    endif
+    // Numbers, logicals and NULL stay exactly as parsed by JSONObject.
+    nStart := nPosition
+    do while nPosition <= Len(cJSON)
+        cByte := SubStr(cJSON, nPosition, 1)
+        if cByte == "," .or. cByte == "}" .or. cByte == "]" .or. ;
+            Asc(cByte) == 32 .or. Asc(cByte) == 9 .or. Asc(cByte) == 10 .or. Asc(cByte) == 13
+            exit
+        endif
+        nPosition++
+    enddo
+
+return nPosition > nStart

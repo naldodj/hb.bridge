@@ -164,7 +164,7 @@ STATIC PROCEDURE HBBridgeClientWorker( hServer, hClientSocket )
             BEGIN SEQUENCE WITH __BreakBlock()
                 cResponse := DispatcherRequest( cRequest, hServer[ "registry" ], hServer[ "context" ] )
             RECOVER USING oError
-                cResponse := hb_jsonEncode( HBBridgeError( "SERVICE_ERROR", "Service execution failed", oError ) )
+                cResponse := HBBridgeWireEncode( HBBridgeError( "SERVICE_ERROR", "Service execution failed", oError ) )
                 HBBridgeServerLog( hServer, "Service error in thread " + hb_ntos( hb_threadID() ) )
             END SEQUENCE
             IF ! SendResponse( hClientSocket, cResponse, hServer[ "ioPolicy" ] )

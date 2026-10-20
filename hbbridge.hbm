@@ -24,6 +24,7 @@ src/hb/host/hbbridge.config.hb
 src/hb/host/hbbridge.ini.hb
 src/hb/host/hbbridge.life.cycle.hb
 src/hb/core/hbbridge.dispatcher.hb
+src/hb/core/hbbridge.wire.hb
 src/hb/services/hbbridge.services.hb
 src/hb/services/hbbridge.query.hb
 src/hb/services/hbbridge.sql.pool.hb
@@ -32,5 +33,6 @@ src/hb/telemetry/hbbridge.syslog.hb
 src/c/hbbridge.zig.c
 src/c/hbbridge.time.c
 src/c/hbbridge.utf8.c
+src/c/hbbridge.json.c
 src/c/hbbridge.decoder.c
 src/c/hbbridge.compressor.c

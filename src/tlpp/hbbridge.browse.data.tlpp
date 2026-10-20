@@ -133,8 +133,8 @@ static function Browse(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as charact
             cField:=aHeader[nField]
             if (aFWBrwModel[nField][6]=="D")
                 aFWBrwColumn[nField]:SetData(&('{|oSelf|SToD(aFWBrwData[oFWBrowse:nAT]["'+cField+'"])}'))
-            elseif (aFWBrwModel[nField][6]=="C")//TODO: resolver Code Pages and Collations
-                aFWBrwColumn[nField]:SetData(&('{|oSelf|OemToAnsi(aFWBrwData[oFWBrowse:nAT]["'+cField+'"])}'))
+            elseif (aFWBrwModel[nField][6]=="C")
+                aFWBrwColumn[nField]:SetData(&('{|oSelf|aFWBrwData[oFWBrowse:nAT]["'+cField+'"]}'))
             else
                 aFWBrwColumn[nField]:SetData(&('{|oSelf|aFWBrwData[oFWBrowse:nAT]["'+cField+'"]}'))
             endif
@@ -275,7 +275,7 @@ static function Browse(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as charact
             }
 
             oFWDialogModal:AddButton(;
-                "< &First",;//[n][1] cTitle Titulo do Botao
+                "<< &First",;//[n][1] cTitle Titulo do Botao
                     bFirst,;//[n][2] bBloco Bloco de codigo que sera executado
                     "First",;//[n][3] cToolTip Comentario do botao
                     nil,;//[n][4] nShortCut Tecla para se criar o ShortCurt
@@ -293,7 +293,7 @@ static function Browse(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as charact
             }
 
             oFWDialogModal:AddButton(;
-                "&<< Previous",;//[n][1] cTitle Titulo do Botao
+                "&< Previous",;//[n][1] cTitle Titulo do Botao
                     bPrevius,;//[n][2] bBloco Bloco de codigo que sera executado
                     "Previous",;//[n][3] cToolTip Comentario do botao
                     nil,;//[n][4] nShortCut Tecla para se criar o ShortCurt
@@ -311,7 +311,7 @@ static function Browse(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as charact
             }
 
             oFWDialogModal:AddButton(;
-                "&>> Next",;//[n][1] cTitle Titulo do Botao
+                "&> Next",;//[n][1] cTitle Titulo do Botao
                     bNext,;//[n][2] bBloco Bloco de codigo que sera executado
                     "Next",;//[n][3] cToolTip Comentario do botao
                     nil,;//[n][4] nShortCut Tecla para se criar o ShortCurt
@@ -329,7 +329,7 @@ static function Browse(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as charact
             }
 
             oFWDialogModal:AddButton(;
-                "> &Last",;//[n][1] cTitle Titulo do Botao
+                ">> &Last",;//[n][1] cTitle Titulo do Botao
                     bLast,;//[n][2] bBloco Bloco de codigo que sera executado
                     "Last",;//[n][3] cToolTip Comentario do botao
                     nil,;//[n][4] nShortCut Tecla para se criar o ShortCurt
@@ -411,7 +411,7 @@ static function BrowseGetData(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as 
     for nRow:=1 to nRows
         // The array owns each row independently of the temporary JSON root.
         jRow:=JSONObject():New()
-        jRow:FromJSON(jRows[tlpp.ToStr(nRow)]:ToJSON())
+        jRow:FromJSON(DecodeUTF8(jRows[tlpp.ToStr(nRow)]:ToJSON()))
         aAdd(aFWBrwData,jRow)
     next
     FreeObj(@jRows)
@@ -570,7 +570,7 @@ static function BuildCustomFilder(oHBBridgeDataSet as object,cHBBridgeDataSetSQL
 
 return(aFWBrwData)
 
-static function FilterGetRealValue(xValue,cFieldType)
+static function FilterGetRealValue(xValue as variant,cFieldType as character) as variant
     if (__GetFieldType(cFieldType)=="D")
         DEFAULT xValue:=""
         if (ValType(xValue)=="C")
@@ -579,7 +579,7 @@ static function FilterGetRealValue(xValue,cFieldType)
     endif
 return(xValue)
 
-static function FilterRealValue2Str(xValue,cFieldType)
+static function FilterRealValue2Str(xValue as variant,cFieldType as character) as character
     local cType as character
     local cStrRealValueFilter as character
     cFieldType:=__GetFieldType(cFieldType)
@@ -607,7 +607,7 @@ static function FilterRealValue2Str(xValue,cFieldType)
     endif
 return(cStrRealValueFilter)
 
-static function FilterLiteral(xValue,cFieldType,lSQL)
+static function FilterLiteral(xValue as variant,cFieldType as character,lSQL as logical) as character
     local cValue:=FilterRealValue2Str(xValue,cFieldType) as character
     cFieldType:=__GetFieldType(cFieldType)
     if (cFieldType=="N")
@@ -620,13 +620,13 @@ static function FilterLiteral(xValue,cFieldType,lSQL)
     endif
 return("'"+StrTran(cValue,"'","''")+"'")
 
-static function __GetFieldType(cFieldType)
+static function __GetFieldType(cFieldType as character) as character
     cFieldType:=StrTran(cFieldType,"I","N")
     cFieldType:=StrTran(cFieldType,"B","N")
     cFieldType:=StrTran(cFieldType,"T","C")
 return(Left(cFieldType,1))
 
-static Procedure BrowseCallBack(oFWBrowse,aFWBrwData,oHBBridgeDataSet,cHBBridgeDataSetSQL,jHBBridgeDataSetPage,cOption,cFilterExpr)
+static Procedure BrowseCallBack(oFWBrowse as object,aFWBrwData as array,oHBBridgeDataSet as object,cHBBridgeDataSetSQL as character,jHBBridgeDataSetPage as json,cOption as character,cFilterExpr as character)
 
     local lCallBack as logical
     local aNewData as array
@@ -637,9 +637,9 @@ static Procedure BrowseCallBack(oFWBrowse,aFWBrwData,oHBBridgeDataSet,cHBBridgeD
         if (!lCallBack)
             lCallBack:=((cOption=="next").and.(oHBBridgeDataSet:HasNextPage()))
             if (!lCallBack)
-                lCallBack:=(cOption=="first")
+                lCallBack:=((cOption=="first").and.(oHBBridgeDataSet:TotalPages()>1).and.(oHBBridgeDataSet:PageNumber()!=1))
                 if (!lCallBack)
-                    lCallBack:=((cOption=="last").and.(oHBBridgeDataSet:TotalPages()>0))
+                    lCallBack:=((cOption=="last").and.(oHBBridgeDataSet:TotalPages()>1).and.(oHBBridgeDataSet:PageNumber()!=oHBBridgeDataSet:TotalPages()))
                 endif
             endif
         endif
@@ -659,7 +659,7 @@ static Procedure BrowseCallBack(oFWBrowse,aFWBrwData,oHBBridgeDataSet,cHBBridgeD
 
 return
 
-static function __FWBrowseSeek(oFWSeek as object,oFWBrowse as object,aFWBrwData as array,oHBBridgeDataSet as object,cHBBridgeDataSetSQL as character,jHBBridgeDataSetPage as json,cFilterExpr as character)
+static function __FWBrowseSeek(oFWSeek as object,oFWBrowse as object,aFWBrwData as array,oHBBridgeDataSet as object,cHBBridgeDataSetSQL as character,jHBBridgeDataSetPage as json,cFilterExpr as character) as numeric
 
     local cType as character
     local cSeek as character

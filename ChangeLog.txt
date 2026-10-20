@@ -2,8 +2,14 @@
      * Change  ! Fix  % Optimize  + Add  - Remove  ; Comment
    Entries may not always be in chronological/commit order.
    Licensing status and proposal: docs/licensing.md.
-   (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Standardize hbBridge naming and paging)"
+   (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Add UTF-8 JSON and MSSQL integrity coverage)"
  */
+
+2026-10-20 12:42 UTC naldodj (Add UTF-8 JSON and MSSQL integrity coverage)
+  Add UTF-8 JSON and MSSQL integrity coverage
+    Introduce shared UTF-8 JSON codecs for Harbour and TLPP, preserving numeric precision and handling embedded NULs.
+    Update TCP/HTTP clients and dispatch to use consistent wire encoding, and extend the ODBC patch for Unicode SQL, text retrieval, timeouts, and pooling.
+    Add native and Protheus MSSQL integrity suites, fixtures, and bilingual documentation.
 
 2026-10-19 15:28 UTC naldodj (Record CLI acceptance and future native benchmarks)
   ; Record manual CLI run 7482F7E8: ten rows, one page/traversal per transport,

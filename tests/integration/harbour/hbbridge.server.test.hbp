@@ -9,6 +9,8 @@ hbbridge.http.test.hb
 ../../unit/hbbridge.config.test.hb
 ../../unit/hbbridge.config.ini.test.hb
 ../../unit/hbbridge.time.test.hb
+../../unit/hbbridge.json.test.hb
+../../unit/hbbridge.json.fixture.c
 ../../unit/hbbridge.sql.pool.test.hb
 ../../contract/hbbridge.services.test.hb
 ../../../hbbridge.hbm

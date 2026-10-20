@@ -1,0 +1,6 @@
+-Main=D03MSSQLMain
+-gtstd
+-ohbbridge.mssql.integrity.test
+hbbridge.mssql.integrity.test.hb
+hbbridge.http.test.hb
+../../../hbbridge.hbm

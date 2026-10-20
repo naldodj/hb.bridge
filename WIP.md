@@ -126,14 +126,21 @@ new acceptance findings, not reasons to repeat the completed inventory.
   `U_HBBridgeHelperTest`, 17:56:45, thread 28300, **12 checks**. All checks true,
   both reports OK. See [scope/evidence](docs/acceptance.md#dataset-and-helper-validation-on-2026-10-13).
   This accepts the mock/interface contract; native text/numeric integrity remains D03.
-- [ ] **D03 — Correct text and numeric integrity.** Enforce consistent UTF-8
-  execution/wire semantics, explicit client text conversion and binary handling;
+- [ ] **D03 — Correct text and numeric integrity.** First prove that the
+  driver/RDD delivers the database's intended text to native Harbour before
+  JSON serialization, using known fixture values and explicit source metadata.
+  Then verify UTF-8 execution and text requests/responses in both directions
+  between Protheus and hbBridge over TCP/HTTP, client conversion and binary handling;
   fix the reproduced fractional FLOAT JSON loss and define lossless decimal/
   native versus caller-supplied logical metadata without implicit ERP lookups.
   See [findings and contract](docs/dataset.md). Do not count old ASCII/DECIMAL
   fixture results as acceptance of these newly identified cases.
   The 2026-10-13 presentation observations retain the working HTTP example
-  and further desktop validation. Separate generic FLOAT preservation from
+  and further desktop validation. Clarified on 2026-10-19: `DecodeUTF8()` remains
+  an expected consumer conversion when Protheus requires another codepage;
+  removing it is not an acceptance criterion. A UI repair does not prove the
+  database read. See the [staged checks](docs/dataset.md#d03-source-integrity-priority-on-2026-10-19).
+  Separate generic FLOAT preservation from
   caller-selected DECIMAL business scale; CAST is an available projection,
   not a prerequisite for generic FLOAT transport. Explicit logical metadata
   remains a proposed extension. See the [analysis](docs/dataset.md#business-scale-and-raw-float-analysis-on-2026-10-13).

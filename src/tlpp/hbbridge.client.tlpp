@@ -117,7 +117,9 @@ method CallService(cService, jParams) class HBBridgeClient
 
     jReq["service"] := cService
     jReq["params"] := jParams
-    cJSONReq := jReq:ToJSON()
+    // Match HTTP: parameters use the AppServer codepage; the wire uses UTF-8.
+    // Convert before byte budgets, framing and gzip. Do not pre-encode values.
+    cJSONReq := EncodeUTF8(jReq:ToJSON())
     FreeObj(@jReq)
 
     if self:nTimeout < 1 .or. self:nTimeout != Int(self:nTimeout)
@@ -284,6 +286,8 @@ method CallService(cService, jParams) class HBBridgeClient
             if !Empty(cCode)
                 exit
             endif
+            // Keep received text in UTF-8. The consumer converts individual
+            // text values once when its local codepage requires it.
             xJSONError := jResp:FromJSON(cPayload)
             if ValType(xJSONError) != "U"
                 cCode := "INVALID_JSON"

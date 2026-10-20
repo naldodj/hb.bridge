@@ -37,7 +37,7 @@ static HB_BOOL HBBridgeJSONHex4( const char * data, HB_WCHAR32 * scalar )
  * leave ordinary syntax and escaped backslashes for the native decoder.
  * Allocate a replacement only when the first valid pair needs conversion.
  */
-HB_FUNC( HBBRIDGEHTTPJSONNORMALIZE )
+HB_FUNC( HBBRIDGEJSONNORMALIZE )
 {
     const char * data = hb_parc( 1 );
     HB_SIZE size = hb_parclen( 1 ), offset = 0, written = 0;
@@ -113,3 +113,6 @@ HB_FUNC( HBBRIDGEHTTPJSONNORMALIZE )
     else
         hb_retclen( data, size );
 }
+
+/* Preserve the published helper name while sharing normalization with TCP. */
+HB_FUNC_TRANSLATE( HBBRIDGEHTTPJSONNORMALIZE, HBBRIDGEJSONNORMALIZE )
