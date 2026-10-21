@@ -3,8 +3,17 @@ REQUEST HB_CODEPAGE_UTF8EX
 
 PROCEDURE HBBridgeJSONTests( nFailures, nChecks )
 
-    LOCAL cPrevious := hb_cdpSelect(), hCases, cBits, cJSON, xValue, xDecoded
-    LOCAL hResult, cInvalid, nConsumed, hCycle := {=>}, cUnicode := hb_HexToStr( "C3A7E6BCA2F09F9880" )
+    LOCAL cPrevious, cBits, cJSON, cInvalid, cUnicode
+
+    LOCAL hCases, hResult, hCycle
+
+    LOCAL nConsumed
+
+    LOCAL xValue, xDecoded
+
+    cPrevious := hb_cdpSelect()
+    hCycle := {=>}
+    cUnicode := hb_HexToStr( "C3A7E6BCA2F09F9880" )
 
     hb_cdpSelect( "UTF8EX" )
     hCases := { "fraction" => "405EDD3A92A30553", "negative" => "C05EDD3A92A30553", ;

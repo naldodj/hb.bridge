@@ -75,8 +75,8 @@ static function RetPictVal(nVal as numeric,lDecZero as logical,nInt as numeric,n
     local cPict as character
     local cPictSepMil as character
 
-    local uInt
-    local uDec
+    local uInt as variant
+    local uDec as variant
 
     uInt:=Int(nVal)
     uDec:=(nVal-uInt)

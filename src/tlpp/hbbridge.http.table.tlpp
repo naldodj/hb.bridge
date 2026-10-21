@@ -11,10 +11,13 @@ class HBBridgeHTTPTable
     private data cProfile as character
     private data cSQL as character
     private data cKeyField as character
+
     private data jFields as json
-    private data oClient as object
+
     private data lOwnClient as logical
     private data lConfigured as logical
+
+    private data oClient as object
 
     public method New(cProfile as character, cSQL as character, jFields as json, ;
         cKeyField as character, oClient as object) as object
@@ -26,9 +29,12 @@ endclass
 method New(cProfile, cSQL, jFields, cKeyField, oClient) class HBBridgeHTTPTable
 
     local aNames as array
+
     local cField := "", cKey := "" as character
+
     local jField as json
-    local nField := 0 as numeric
+
+    local nField := 0, nFields := 0 as numeric
 
     self:cProfile := ""
     self:cSQL := ""
@@ -52,7 +58,8 @@ method New(cProfile, cSQL, jFields, cKeyField, oClient) class HBBridgeHTTPTable
     if Empty(aNames)
         return(self)
     endif
-    for nField := 1 to Len(aNames)
+    nFields := Len(aNames)
+    for nField := 1 to nFields
         cField := aNames[nField]
         if !HTTPTableIdentifier(cField)
             return(self)
@@ -98,19 +105,50 @@ method Handle(jRequest) class HBBridgeHTTPTable
 
     local aNames as array
     local aFieldNames as array
-    local cName := "", cField := "", cType := "", cLiteral := "" as character
-    local cSearch := "", cSearchSQL := "", cPredicate := "" as character
-    local cOrderField := "", cDirection := "ASC", cOrder := "" as character
-    local cBase := "", cFiltered := "" as character
+
+    local cName, cField, cType, cLiteral as character
+    local cSearch, cSearchSQL, cPredicate as character
+    local cOrderField, cDirection, cOrder as character
+    local cBase, cFiltered as character
+    local cNul := Chr(0) as character
+
     local jFilters as json
     local jResponse as json
     local jSourceRow as json
     local jRow as json
+
+    local lFiltered, lValid as logical
+
+    local nDraw, nStart, nLength, nPage as numeric
+    local nField, nRow, nFiltered, nTotal as numeric
+    local nNames := 0, nFields := 0, nRows := 0 as numeric
+
     local oDataSet as object
+
     local xValue as variant
-    local nDraw := 0, nStart := 0, nLength := 0, nPage := 0 as numeric
-    local nField := 0, nRow := 0, nFiltered := 0, nTotal := 0 as numeric
-    local lFiltered := .F., lValid := .T. as logical
+
+    cName := ""
+    cField := ""
+    cType := ""
+    cLiteral := ""
+    cSearch := ""
+    cSearchSQL := ""
+    cPredicate := ""
+    cOrderField := ""
+    cDirection := "ASC"
+    cOrder := ""
+    cBase := ""
+    cFiltered := ""
+    nDraw := 0
+    nStart := 0
+    nLength := 0
+    nPage := 0
+    nField := 0
+    nRow := 0
+    nFiltered := 0
+    nTotal := 0
+    lFiltered := .F.
+    lValid := .T.
 
     if ValType(jRequest) != "J"
         return HTTPTableFailure(0, "INVALID_REQUEST", "Supply a table request object.")
@@ -128,7 +166,8 @@ method Handle(jRequest) class HBBridgeHTTPTable
     endif
 
     aNames := jRequest:GetNames()
-    for nField := 1 to Len(aNames)
+    nNames := Len(aNames)
+    for nField := 1 to nNames
         cName := aNames[nField]
         if !(cName == "draw" .or. cName == "start" .or. cName == "length" .or. ;
             cName == "search" .or. cName == "filters" .or. ;
@@ -159,7 +198,7 @@ method Handle(jRequest) class HBBridgeHTTPTable
             return HTTPTableFailure(nDraw, "INVALID_SEARCH", "Search must be text.")
         endif
         cSearch := jRequest["search"]
-        if Chr(0) $ cSearch
+        if cNul $ cSearch
             return HTTPTableFailure(nDraw, "INVALID_SEARCH", "Search contains an unsupported character.")
         endif
     endif
@@ -200,7 +239,8 @@ method Handle(jRequest) class HBBridgeHTTPTable
         jFilters := jRequest["filters"]
         aNames := jFilters:GetNames()
     endif
-    for nField := 1 to Len(aNames)
+    nNames := Len(aNames)
+    for nField := 1 to nNames
         cName := aNames[nField]
         cField := Upper(cName)
         if !self:jFields:HasProperty(cField)
@@ -212,7 +252,7 @@ method Handle(jRequest) class HBBridgeHTTPTable
             return HTTPTableFailure(nDraw, "INVALID_FILTER", "Filter values must match their configured text or numeric type.")
         endif
         if cType == "C"
-            if Chr(0) $ xValue
+            if cNul $ xValue
                 return HTTPTableFailure(nDraw, "INVALID_FILTER", "A filter value contains an unsupported character.")
             endif
             cLiteral := HTTPTableTextLiteral(xValue)
@@ -227,9 +267,10 @@ method Handle(jRequest) class HBBridgeHTTPTable
     next
 
     aFieldNames := self:jFields:GetNames()
+    nFields := Len(aFieldNames)
     if !Empty(cSearch)
         cLiteral := HTTPTableTextLiteral("%" + HTTPTableLikeText(cSearch) + "%")
-        for nField := 1 to Len(aFieldNames)
+        for nField := 1 to nFields
             cField := aFieldNames[nField]
             if self:jFields[cField]["type"] == "C"
                 cSearchSQL += if(Empty(cSearchSQL), "", " OR ") + ;
@@ -257,7 +298,7 @@ method Handle(jRequest) class HBBridgeHTTPTable
         FreeObj(@oDataSet)
         return HTTPTableFailure(nDraw, "TOTALS_REQUIRED", "The table query must provide complete result totals.")
     endif
-    for nField := 1 to Len(aFieldNames)
+    for nField := 1 to nFields
         if !oDataSet:FieldExist(aFieldNames[nField])
             lValid := .F.
             exit
@@ -274,11 +315,12 @@ method Handle(jRequest) class HBBridgeHTTPTable
     jResponse := HTTPTableFailure(nDraw, "", "")
     // DataTables requires a native row array. Retain only this requested page;
     // GetRow() supplies owned snapshots and Skip() never fetches another page.
-    jResponse["data"] := Array(oDataSet:RowCount())
-    for nRow := 1 to oDataSet:RowCount()
+    nRows := oDataSet:RowCount()
+    jResponse["data"] := Array(nRows)
+    for nRow := 1 to nRows
         jSourceRow := oDataSet:GetRow()
         jRow := JSONObject():New()
-        for nField := 1 to Len(aFieldNames)
+        for nField := 1 to nFields
             cField := aFieldNames[nField]
             if !jSourceRow:HasProperty(cField)
                 lValid := .F.
@@ -331,6 +373,7 @@ return(jResponse)
 method Close() class HBBridgeHTTPTable
 
     local jFields := self:jFields as json
+
     local oClient := self:oClient as object
 
     self:jFields := Nil
@@ -370,13 +413,18 @@ return(xValue >= 0 .and. xValue <= 9007199254740991 .and. xValue == Int(xValue))
 
 static function HTTPTableIdentifier(cValue as character) as logical
 
-    local nChar := 0 as numeric
-    local cChar := "" as character
+    local cChar as character
+
+    local nChar as numeric
+    local nLength := Len(cValue) as numeric
+
+    nChar := 0
+    cChar := ""
 
     if Empty(cValue)
         return(.F.)
     endif
-    for nChar := 1 to Len(cValue)
+    for nChar := 1 to nLength
         cChar := Upper(SubStr(cValue, nChar, 1))
         if !(cChar $ "ABCDEFGHIJKLMNOPQRSTUVWXYZ_")
             if nChar == 1 .or. !(cChar $ "0123456789")
@@ -403,9 +451,18 @@ return(cValue)
 
 static function HTTPTableNumberLiteral(xValue as numeric) as character
 
-    local jValue := JSONObject():New() as json
-    local cValue := "", cChar := "" as character
-    local nChar := 1, nDigits := 0 as numeric
+    local cValue, cChar as character
+
+    local jValue as json
+
+    local nChar, nDigits as numeric
+    local nLength as numeric
+
+    jValue := JSONObject():New()
+    cValue := ""
+    cChar := ""
+    nChar := 1
+    nDigits := 0
 
     // Use JSON's locale-independent numeric spelling; do not invent a decimal
     // scale from ODBC metadata or turn exact decimal text into a double.
@@ -414,10 +471,11 @@ static function HTTPTableNumberLiteral(xValue as numeric) as character
     FreeObj(@jValue)
     cValue := AllTrim(SubStr(cValue, At(":", cValue) + 1))
     cValue := AllTrim(Left(cValue, Len(cValue) - 1))
+    nLength := Len(cValue)
     if Left(cValue, 1) == "-"
         nChar++
     endif
-    do while nChar <= Len(cValue)
+    do while nChar <= nLength
         cChar := SubStr(cValue, nChar, 1)
         if !(cChar $ "0123456789")
             exit
@@ -431,7 +489,7 @@ static function HTTPTableNumberLiteral(xValue as numeric) as character
     if SubStr(cValue, nChar, 1) == "."
         nChar++
         nDigits := 0
-        do while nChar <= Len(cValue)
+        do while nChar <= nLength
             cChar := SubStr(cValue, nChar, 1)
             if !(cChar $ "0123456789")
                 exit
@@ -450,7 +508,7 @@ static function HTTPTableNumberLiteral(xValue as numeric) as character
             nChar++
         endif
         nDigits := 0
-        do while nChar <= Len(cValue)
+        do while nChar <= nLength
             cChar := SubStr(cValue, nChar, 1)
             if !(cChar $ "0123456789")
                 exit
@@ -462,7 +520,7 @@ static function HTTPTableNumberLiteral(xValue as numeric) as character
             return("")
         endif
     endif
-    if nChar <= Len(cValue)
+    if nChar <= nLength
         return("")
     endif
 

@@ -5,23 +5,43 @@
 // Pure adapter/validation checks. No INI, listener, SQL or StartJob is used.
 function U_HBBridgeBenchmarkRESTTest()
 
-    local jChecks := JSONObject():New() as json
-    local jState := JSONObject():New() as json
-    local jCases := JSONObject():New() as json
-    local jReply as json
-    local jBody as json
-    local jParams := JSONObject():New() as json
-    local jPage := JSONObject():New() as json
-    local jResponse as json
-    local oClient as object
-    local bPage as codeblock
     // GetNames() supplies the native enumeration arrays; no copy is made.
     local aNames as array
-    local cName := "", cResult := "" as character
+
+    local bPage as codeblock
+
+    local cName := "" as character
+    local cResult := "" as character
     local cRequest := '{"rows":1,"pageNumber":1,"pageSize":1}' as character
-    local cAuthorization := "Basic " + Encode64("benchmark-test-user:private-test-password") as character
-    local nCheck := 0, nBeforeArea := Select(), nCallsBefore := 0 as numeric
-    local lOK := .T., lAreaOK := .T. as logical
+    local cAuthorization as character
+
+    local jChecks as json
+    local jState as json
+    local jCases as json
+    local jReply as json
+    local jBody as json
+    local jParams as json
+    local jPage as json
+    local jResponse as json
+
+    local nCheck := 0 as numeric
+    local nBeforeArea as numeric
+    local nCallsBefore := 0 as numeric
+    local nNames := 0 as numeric
+
+    local lOK := .T. as logical
+    local lAreaOK := .T. as logical
+
+    local oClient as object
+
+    jChecks := JSONObject():New()
+    jState := JSONObject():New()
+    jCases := JSONObject():New()
+    jParams := JSONObject():New()
+    jPage := JSONObject():New()
+
+    cAuthorization := "Basic " + Encode64("benchmark-test-user:private-test-password")
+    nBeforeArea := Select()
 
     jState["calls"] := 0
     jState["mode"] := "success"
@@ -118,7 +138,8 @@ function U_HBBridgeBenchmarkRESTTest()
     jCases["fixturePageSizeOverflow"] := '{"rows":1,"pageNumber":1,"pageSize":100001}'
     jCases["unsafePageBounds"] := '{"rows":1,"pageNumber":9007199254740991,"pageSize":100000}'
     aNames := jCases:GetNames()
-    for nCheck := 1 to Len(aNames)
+    nNames := Len(aNames)
+    for nCheck := 1 to nNames
         cName := aNames[nCheck]
         cResult := HBBridge.Test.HBBridgeBenchmarkProtheus():Page(jCases[cName])
         jBody := JSONObject():New()
@@ -162,7 +183,8 @@ function U_HBBridgeBenchmarkRESTTest()
     FreeObj(@jParams)
 
     aNames := jChecks:GetNames()
-    for nCheck := 1 to Len(aNames)
+    nNames := Len(aNames)
+    for nCheck := 1 to nNames
         lOK := jChecks[aNames[nCheck]] .and. lOK
     next nCheck
     ConOut("hbBridge benchmark REST checks: " + jChecks:ToJSON())
@@ -178,6 +200,7 @@ return(IIf(lOK, 0, 1))
 static function BenchmarkRESTReplyIs(jReply as json, nStatus as numeric, cCode as character) as logical
 
     local jBody := JSONObject():New() as json
+
     local lValid := .F. as logical
 
     if jReply["status"] == nStatus

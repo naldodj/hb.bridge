@@ -12,7 +12,9 @@ Released to Public Domain.
 #include "fileio.ch"
 
 FUNCTION ExecuteAddonHRB( cAddonName, oParams, cAddonRoot, hContext )
-    LOCAL hHrb, cResult := "", cExt, cFile
+    LOCAL cResult := "", cExt, cFile
+
+    LOCAL hHrb
 
     hb_default( @cAddonRoot, "./addons" )
     cFile := hb_DirSepAdd( cAddonRoot ) + cAddonName
@@ -63,8 +65,9 @@ RETURN cResult
 
 STATIC FUNCTION FileSig( cFile )
 
-    LOCAL hFile
     LOCAL cBuff, cSig, cExt
+
+    LOCAL hFile
 
     cExt := ".prg"
     hFile := FOpen( cFile, FO_READ )

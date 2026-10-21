@@ -182,16 +182,16 @@ continua sendo check D03 separado; converter texto corretamente não a homologa.
 
 Informada apresentação correta da SX5 por HTTP com
 `jResponse:FromJSON(DecodeUTF8(jResponse:ToJSON()))` no exemplo FWWebEx.
-No desktop, `OemToAnsi()` aparentemente melhora a apresentação, ainda sujeita
-a validação ampliada. As observações abrangem os textos e a interface mostrados;
-não estabelecem encoding de origem nem o contrato Unicode/binário completo.
+No desktop, foi informada melhora de apresentação com `OemToAnsi()`. Eram
+observações sobre os textos e a interface mostrados; não estabeleciam encoding
+de origem nem o contrato Unicode/binário completo.
 
-Manter a amostra funcional enquanto são testados UTF-8 direto, escapes Unicode,
-texto fora da codepage de destino, NUL, null/vazio e binários. A política cliente
-pretendida converte valores textuais uma vez para encoding escolhido explicitamente.
-Recodificar/reanalisar o documento inteiro pode alterar chaves/strings de controle
-e depende do comportamento dos serializadores/parsers nativos; ainda não é a
-política padrão. `DecodeUTF8()` aceita destino explícito; veja a referência TOTVS abaixo.
+D03 substitui esses contornos pela política de fronteiras abaixo. Consumidores
+atuais convertem cada valor textual UTF-8 uma vez com `DecodeUTF8()` quando
+precisam da codepage local. `OemToAnsi()` não é a conversão para um retorno
+sabidamente UTF-8. Recodificar/reanalisar o documento inteiro pode alterar
+chaves/strings de controle e reintroduzir a falha NUL nativa de JSONObject;
+não é a política atual. `DecodeUTF8()` aceita destino explícito; veja a referência TOTVS abaixo.
 
 Política implementada nas fronteiras:
 
@@ -270,6 +270,28 @@ texto hexadecimal explicitamente, como
 própria projeção no Protheus e omite colunas binárias; texto longo comum não
 é classificado como binário. Representação JSON automática de base64/BLOB bruto
 permanece como contrato versionado futuro.
+
+#### Helper de projeção no Protheus
+
+[`HBBridge.SQL.Tools.HBBridgeSqlTools():GetNonBlobColumns(cTable)`](../src/tlpp/hbbridge.sql.tools.tlpp)
+retorna uma lista de colunas ordenada e delimitada por colchetes para uma tabela
+física SQL Server resolvida pelo chamador. Consulta metadados pela **conexão
+DBAccess ativa no Protheus**, independentemente do perfil hbBridge do dataset.
+O chamador precisa garantir que o banco e a tabela/schema dessa conexão
+correspondam ao destino SQL hbBridge pretendido. Nomes de tabela, predicados de
+negócio e seleção de perfil continuam sob responsabilidade do chamador.
+
+A implementação MSSQL atual resolve os tipos base e exclui `image`, `binary`,
+`varbinary`, `timestamp` e `rowversion`. Mantém texto longo, incluindo `text`,
+`ntext`, `varchar(max)` e `nvarchar(max)`. Os nomes retornados não têm
+qualificação; o chamador que montar joins deve fornecer os aliases necessários.
+O helper não busca valores excluídos nem implementa um leitor de BLOB.
+
+Retorna `""` para entrada vazia, backend não suportado, falha na consulta de
+metadados ou ausência de colunas elegíveis visíveis. Esses casos compartilham
+o mesmo retorno; o método não expõe `ErrorCode()` estruturado. Tratar a projeção
+vazia antes de montar a consulta, sem substituí-la por `*`. Visibilidade de
+metadados e suporte SQL Server à agregação usada pelo utilitário são pré-requisitos.
 
 ## Constatação numérica em 2026-10-08
 

@@ -44,9 +44,12 @@ return
 
 method CallService(cService, jParams) class HBBridgeHTTPTableMockClient
 
-    local jResponse := JSONObject():New() as json
     local cKey := "" as character
     local cResponseKey := "" as character
+
+    local jResponse as json
+
+    jResponse := JSONObject():New()
 
     self:nCalls++
     cKey := tlpp.ToStr(self:nCalls)
@@ -79,8 +82,12 @@ return(self:nResponses - self:nResponsesRead)
 
 method Request(nCall) class HBBridgeHTTPTableMockClient
 
-    local jRequest := JSONObject():New() as json
-    local cKey := tlpp.ToStr(nCall) as character
+    local cKey as character
+
+    local jRequest as json
+
+    jRequest := JSONObject():New()
+    cKey := tlpp.ToStr(nCall)
 
     if self:jRequests:HasProperty(cKey)
         jRequest:FromJSON(self:jRequests[cKey])

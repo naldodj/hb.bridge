@@ -12,27 +12,37 @@ return
 
 static procedure HBBridgeQueryTest(cAliasProfile, cHost, nPort, nTimeout, lRunERPExamples)
 
-    local oClient as object
-    local oDataSet as object
-    local jPage as json
-    local jHeader as json
     local aHeader as array
-    local jChecks := JSONObject():New() as json
-    local jOverrides := JSONObject():New() as json
-    local jConfig as json
-    local cSql := "SELECT 1 AS ID, 'Harbour' AS NAME, 12.5 AS AMOUNT " + ;
-        "UNION ALL SELECT 2, 'hbBridge', 0.0 ORDER BY ID" as character
+
+    local cSql as character
     local cEmptySql := "SELECT 1 AS ID, 'empty' AS NAME WHERE 1 = 0" as character
     local cPageSql := "SELECT 10 AS ID, 'Harbour' AS NAME UNION ALL SELECT 50, 'hbBridge'" as character
     local cField as character
+    local cRA_SALARIOPicture
+    local cDateFormat as character
+
+    local jPage as json
+    local jHeader as json
+    local jChecks as json
+    local jOverrides as json
+    local jConfig as json
+
     local lOk := .T. as logical
+    local lSetCentury as logical
+
     local nField as numeric
     local nFields := 0 as numeric
     local nPages as numeric
     local nRecNos as numeric
-    local cRA_SALARIOPicture
-    local cDateFormat:=Set(4) as character
-    local lSetCentury as logical
+
+    local oClient as object
+    local oDataSet as object
+
+    jChecks := JSONObject():New()
+    jOverrides := JSONObject():New()
+    cSql := "SELECT 1 AS ID, 'Harbour' AS NAME, 12.5 AS AMOUNT " + ;
+        "UNION ALL SELECT 2, 'hbBridge', 0.0 ORDER BY ID"
+    cDateFormat := Set(4)
 
     if ValType(cAliasProfile) != "U"
         jOverrides["sqlProfile"] := cAliasProfile
@@ -146,7 +156,7 @@ static procedure HBBridgeQueryTest(cAliasProfile, cHost, nPort, nTimeout, lRunER
     // The constant acceptance above never opens or logs ERP business rows.
     // Local SX5/SRA demonstrations require an explicit operator opt-in.
     if ((ValType(lRunERPExamples)=="L").and.(lRunERPExamples).and.(cAliasProfile=="MSSQL/pData"))
-        //TODO: resolver Code Pages and Collations
+        // TODO: Resolve source codepages and collations explicitly.
         cSQL:="SELECT TOP 10 * FROM SX5990 WHERE D_E_L_E_T_=' '"
         ConOut("hbBridge RPCRDD.Query SQL: " + cSQL)
         jPage:=JSONObject():New()

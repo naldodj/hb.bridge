@@ -9,6 +9,14 @@
   atendidos; commits/publicações intermediários não o reiniciam. TODO mantém o roadmap.
 - Use quatro espaços por nível de indentação nos fontes próprios. Preserve a
   formatação, os avisos de copyright e as licenças dos arquivos de terceiros.
+- Agrupe declarações de variáveis por tipo de dado e ordene os grupos
+  alfabeticamente pelo prefixo do tipo, por exemplo `a`, `c`, `d`, `j`, `l`,
+  `n`, `o`, `x`. Os nomes completos dentro do grupo não precisam de ordem
+  alfabética. Preserve dependências de inicialização; atribua valores após
+  as declarações quando necessário.
+- Resolva constantes e expressões invariantes antes dos loops, incluindo
+  conversões de caracteres e tamanho de strings/contêineres que não mudam.
+  Valores variáveis, relógios, E/S e verificações de estado mutável ficam no loop.
 - Use identificadores em inglês. Arquivos em minúsculas. Funções, procedures,
   métodos, namespaces e classes usam PascalCase. Os fontes usam palavras
   minúsculas separadas por pontos: `HBBridgeClient` fica em `hbbridge.client.tlpp`. Remover os pontos

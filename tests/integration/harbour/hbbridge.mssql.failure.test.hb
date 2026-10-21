@@ -9,8 +9,14 @@ REQUEST HB_CODEPAGE_UTF8EX
  */
 PROCEDURE MSSQLFailureTests( cConfigPath, cProfile, cFailureDriver, cMode )
 
-    LOCAL nFailures := 0, nChecks := 0, nExit := 1
-    LOCAL cPreviousCodepage := hb_cdpSelect()
+    LOCAL cPreviousCodepage
+
+    LOCAL nFailures, nChecks, nExit
+
+    nFailures := 0
+    nChecks := 0
+    nExit := 1
+    cPreviousCodepage := hb_cdpSelect()
 
     IF ! HB_ISSTRING( cConfigPath ) .OR. ! HB_ISSTRING( cProfile ) .OR. ;
         ! HB_ISSTRING( cFailureDriver )
@@ -32,12 +38,25 @@ RETURN
 
 STATIC FUNCTION MFRun( cConfigPath, cProfile, cFailureDriver, cMode, nFailures, nChecks )
 
-    LOCAL hPrivate, hConfig, hProfiles, hWorking, hRegistry, hHost := NIL, cError
-    LOCAL hRefused := NIL, nRefusedPort, pNative := NIL, hResult, hCases, hCase, cRoute
-    LOCAL nStarted, nElapsed, nControlElapsed := 0, nTransport, hResponse, nKey
-    LOCAL hRecovery, cAuth := "Bearer m06-http-test-only", hPorts, hAddress
-    LOCAL hRoutes := { 1 => "local", 2 => "NETIO", 3 => "TCP", 4 => "HTTP" }, lReady := .F.
-    LOCAL cWaitSQL := "WAITFOR DELAY '00:00:04'; SELECT 77 AS RECOVERY_ID"
+    LOCAL cError, cRoute, cAuth, cWaitSQL
+
+    LOCAL hPrivate, hConfig, hProfiles, hWorking, hRegistry, hHost, hRefused, hResult, hCases, hCase, hResponse
+    LOCAL hRecovery, hPorts, hAddress, hRoutes
+
+    LOCAL lReady
+
+    LOCAL nRefusedPort, nStarted, nElapsed, nControlElapsed, nTransport, nKey
+
+    LOCAL pNative
+
+    hHost := NIL
+    hRefused := NIL
+    pNative := NIL
+    nControlElapsed := 0
+    cAuth := "Bearer m06-http-test-only"
+    hRoutes := { 1 => "local", 2 => "NETIO", 3 => "TCP", 4 => "HTTP" }
+    lReady := .F.
+    cWaitSQL := "WAITFOR DELAY '00:00:04'; SELECT 77 AS RECOVERY_ID"
 
     hPrivate := HBBridgeConfig( { "-config=" + cConfigPath }, @cError )
     IF hPrivate == NIL .OR. Empty( AllTrim( cFailureDriver ) )
@@ -175,8 +194,11 @@ RETURN iif( ! lReady, 2, iif( nFailures == 0, 0, 1 ) )
 
 STATIC PROCEDURE MFExecuteTimeout( hProfile, nControlElapsed, nFailures, nChecks )
 
-    LOCAL nPrevious := rddInfo( RDDI_CONNECTION, NIL, "SQLMIX" ), nConnection := 0
-    LOCAL nSeconds, nStarted, nElapsed, lExecuted, cNativeError
+    LOCAL cNativeError
+
+    LOCAL lExecuted
+
+    LOCAL nPrevious := rddInfo( RDDI_CONNECTION, NIL, "SQLMIX" ), nConnection := 0, nSeconds, nStarted, nElapsed
 
     /* The RDD requires a positional array. No native error text is printed. */
     FOR nSeconds := 0 TO 1
@@ -230,8 +252,9 @@ STATIC FUNCTION MFQuery( hRegistry, hParams )
 RETURN HBBridgeDispatch( hRegistry, "RPCRDD.Query", hParams, HBBridgeContext( "m06" ) )
 
 STATIC FUNCTION MFTCP( nPort, hParams )
-    LOCAL hSocket := hb_socketOpen(), cReply, hResult := NIL
-    LOCAL hPolicy := { "protheusTimeoutMs" => 7000 }
+    LOCAL cReply
+
+    LOCAL hSocket := hb_socketOpen(), hResult := NIL, hPolicy := { "protheusTimeoutMs" => 7000 }
     BEGIN SEQUENCE WITH __BreakBlock()
         IF hb_socketConnect( hSocket, { HB_SOCKET_AF_INET, "127.0.0.1", nPort }, 7000 ) .AND. ;
             SendResponse( hSocket, hb_jsonEncode( { "service" => "RPCRDD.Query", "params" => hParams } ), hPolicy ) .AND. ;
@@ -266,7 +289,9 @@ RETURN hb_HGetDef( hResult, "rowCount", 0 ) == 1 .AND. ;
     hb_HGetDef( hResult[ "rows" ][ "1" ], "RECOVERY_ID", NIL ) == 77
 
 STATIC FUNCTION MFFreePort()
-    LOCAL hSocket := hb_socketOpen(), nPort := 0
+    LOCAL hSocket := hb_socketOpen()
+
+    LOCAL nPort := 0
     IF ! Empty( hSocket )
         IF hb_socketBind( hSocket, { HB_SOCKET_AF_INET, "127.0.0.1", 0 } )
             nPort := hb_socketGetSockName( hSocket )[ HB_SOCKET_ADINFO_PORT ]

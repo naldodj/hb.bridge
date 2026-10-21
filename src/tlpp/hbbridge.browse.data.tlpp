@@ -40,7 +40,6 @@ static function Browse(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as charact
     local aFWBrwModel as array
     local aFWBrwColumn as array
     local aFWBrowseSeek as array
-
     local aFWGetDialogSizeCoors as array
 
     local bNext as codeblock
@@ -59,7 +58,7 @@ static function Browse(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as charact
     local jHeader as json
 
     local lRedefineBottom:=(((Type("__lRedefineBottom")=="L").and.(__lRedefineBottom)).or.FWIsInCallStack("UF.EXECUTE").or.FwIsInCallStack("DNA.TECH.EXECUTE")) as logical
-    local lHBBridgeDataSetPage:=(ValType(jHBBridgeDataSetPage)=="J")
+    local lHBBridgeDataSetPage:=(ValType(jHBBridgeDataSetPage)=="J") as logical
 
     local nField,nFields as numeric
     local nButton,nButtons as numeric
@@ -447,7 +446,9 @@ return
 
 static procedure BrowseFilter(oFWBrowse as object,aFWBrwData as array,oDataSet as object,cSQL as character,jPage as json,cFilterExpr as character)
     local aNewData as array
+
     local cNewFilter:=cFilterExpr as character
+
     aNewData:=BuildCustomFilder(oDataSet,cSQL,jPage,@cNewFilter)
     if (ValType(aNewData)=="A")
         BrowseReleaseRows(@aFWBrwData)
@@ -585,6 +586,7 @@ return(xValue)
 static function FilterRealValue2Str(xValue as variant,cFieldType as character) as character
     local cType as character
     local cStrRealValueFilter as character
+
     cFieldType:=__GetFieldType(cFieldType)
     if (cFieldType=="N")
         DEFAULT xValue:=0
@@ -612,6 +614,7 @@ return(cStrRealValueFilter)
 
 static function FilterLiteral(xValue as variant,cFieldType as character,lSQL as logical) as character
     local cValue:=FilterRealValue2Str(xValue,cFieldType) as character
+
     cFieldType:=__GetFieldType(cFieldType)
     if (cFieldType=="N")
         return(cValue)
@@ -634,8 +637,9 @@ return(Left(cFieldType,1))
 
 static procedure BrowseCallBack(oFWBrowse as object,aFWBrwData as array,oHBBridgeDataSet as object,cHBBridgeDataSetSQL as character,jHBBridgeDataSetPage as json,cOption as character,cFilterExpr as character)
 
-    local lCallBack as logical
     local aNewData as array
+
+    local lCallBack as logical
 
     lCallBack:=(cOption=="all")
     if (!lCallBack)
@@ -734,14 +738,21 @@ static function __FWBrowseSeek(oFWSeek as object,oFWBrowse as object,aFWBrwData 
 return(1)
 
 static function BrowseNumberValid(cNumber as character) as logical
-    local nDots:=0 as numeric
-    local nIndex:=1 as numeric
-    local nDigits:=0 as numeric
     local cChar as character
+
+    local nDots as numeric
+    local nIndex as numeric
+    local nDigits as numeric
+    local nLength := Len(cNumber) as numeric
+
+    nDots := 0
+    nIndex := 1
+    nDigits := 0
+
     if ((!Empty(cNumber)).and.(Left(cNumber,1)$"+-"))
         nIndex++
     endif
-    while (nIndex<=Len(cNumber))
+    while (nIndex<=nLength)
         cChar:=SubStr(cNumber,nIndex,1)
         if (cChar==".")
             nDots++

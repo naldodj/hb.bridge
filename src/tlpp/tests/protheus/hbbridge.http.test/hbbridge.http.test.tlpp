@@ -22,17 +22,26 @@ return
 
 static procedure HBBridgeHTTPTest(cURL, cToken, nTimeoutSeconds, cSQLProfile, cAddonModule)
 
+    local cIniFile as character
+    local cBadToken := "" as character
+    local cSQL := "SELECT 10 AS ID, 'Harbour' AS NAME UNION ALL SELECT 50, 'hbBridge'" as character
+
+    local jChecks as JSON
+    local jParams as JSON
+    local jAddon as JSON
+    local jResponse as JSON
+
+    local lOk := .T. as logical
+    local lOpened := .F. as logical
+
     local oClient as object
     local oRejectedClient as object
     local oDataSet as object
-    local jChecks := JSONObject():New() as JSON
-    local jParams := JSONObject():New() as JSON
-    local jAddon := JSONObject():New() as JSON
-    local jResponse as JSON
-    local cIniFile := GetSrvIniName() as character
-    local cBadToken := "" as character
-    local cSQL := "SELECT 10 AS ID, 'Harbour' AS NAME UNION ALL SELECT 50, 'hbBridge'" as character
-    local lOk := .T., lOpened := .F. as logical
+
+    jChecks := JSONObject():New()
+    jParams := JSONObject():New()
+    jAddon := JSONObject():New()
+    cIniFile := GetSrvIniName()
 
     // The AppServer performs all HTTP calls; localhost means the AppServer host.
     if ValType(cToken) == "U"

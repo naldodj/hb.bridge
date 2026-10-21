@@ -4,9 +4,14 @@
  */
 FUNCTION Main( cJSON, hContext )
 
-    LOCAL hParams, hReport, hSample, hSeries, nIteration, lWarmup
-    LOCAL cKey, nRows, nSize, nIterations, nWarmup, cProfile, cSQL
-    LOCAL nStarted, nTotal := 0, nMin := 0, nMax := 0, nCompleted := 0
+    LOCAL cKey, cProfile, cSQL
+
+    LOCAL hParams, hReport, hSample, hSeries
+
+    LOCAL lWarmup
+
+    LOCAL nIteration, nRows, nSize, nIterations, nWarmup, nStarted, nTotal := 0, nMin := 0, nMax := 0
+    LOCAL nCompleted := 0
 
     IF ! HB_ISSTRING( cJSON ) .OR. hb_jsonDecode( cJSON, @hParams ) == 0 .OR. ;
         ! HB_ISHASH( hParams ) .OR. ! HB_ISHASH( hContext )
@@ -89,10 +94,17 @@ RETURN hb_jsonEncode( hReport )
 
 STATIC FUNCTION AddonIteration( hContext, cProfile, cSQL, nRows, nSize )
 
-    LOCAL nStarted := HBBridgeMonotonicMs(), nPages := Int( ( nRows - 1 ) / nSize ) + 1
-    LOCAL hSample := { "success" => .F., "failureCategory" => "", "serviceCode" => "", ;
+    LOCAL cFailure
+
+    LOCAL hSample, hResult, hRow
+
+    LOCAL nStarted, nPages, nPage, nRow, nExpected, nID
+
+    nStarted := HBBridgeMonotonicMs()
+    nPages := Int( ( nRows - 1 ) / nSize ) + 1
+    hSample := { "success" => .F., "failureCategory" => "", "serviceCode" => "", ;
         "httpStatus" => NIL, "failedPage" => NIL, "rowsRead" => 0, "pagesRead" => 0, "rpcCalls" => 0 }
-    LOCAL hResult, hRow, nPage, nRow, nExpected, nID, cFailure := ""
+    cFailure := ""
 
     BEGIN SEQUENCE WITH __BreakBlock()
         FOR nPage := 1 TO nPages
@@ -165,11 +177,12 @@ STATIC FUNCTION AddonFailure( cCode )
 RETURN { "success" => .F., "code" => cCode, "error" => "Benchmark addon could not complete the fixture." }
 
 STATIC FUNCTION AddonCode( xCode )
-    LOCAL nIndex
+    LOCAL nIndex, nLength
     IF ! HB_ISSTRING( xCode ) .OR. Empty( xCode ) .OR. Len( xCode ) > 80
         RETURN "UNCLASSIFIED_CLIENT_ERROR"
     ENDIF
-    FOR nIndex := 1 TO Len( xCode )
+    nLength := Len( xCode )
+    FOR nIndex := 1 TO nLength
         IF !( SubStr( xCode, nIndex, 1 ) $ "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_" )
             RETURN "UNCLASSIFIED_CLIENT_ERROR"
         ENDIF

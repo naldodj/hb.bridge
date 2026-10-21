@@ -10,7 +10,7 @@ code or specifically identified evidence, not unrestricted platform acceptance.
 [WIP](WIP.md) records the bounded active package, ordered tasks, decisions,
 prerequisites and evidence. Continue there instead of reanalyzing this entire
 roadmap. Reconcile completed items here when the package closes; intermediate
-commits/publication preserve its progress. Package 001 is real MSSQL acceptance.
+commits/publication preserve its progress. Package 001 MSSQL acceptance is complete; package 002 is typed SQL/native presentation.
 The [2026-10-12 extension review](docs/extensions-review.md) evaluates SQLRDD,
 Duktape and CCHarbour as future packages, without adding runtime dependencies.
 
@@ -416,7 +416,7 @@ per-value limits; tested slow-consumer/invalid-decode/disconnect behavior.
   fixture, native Harbour/TCP/HTTP off/driver processes and real AppServer
   TCP/HTTP, separate warmups, identified artifacts and OS process samples.
   [Results and scope](docs/acceptance.md#m08-performance-baseline-on-2026-10-16).
-  Final M09 checks remain open in [WIP](WIP.md); D03 has scoped acceptance.
+  M09/package 001 are complete; [WIP](WIP.md) now plans package 002.
 - [x] Extend the visual benchmark with optional Protheus StartJob/REST and
   hbBridge TCP/HTTP comparisons plus a server-side Harbour addon. Keep the
   fixed fixture, warmups and distinct timing scopes; the addon returns statistics
@@ -429,7 +429,7 @@ per-value limits; tested slow-consumer/invalid-decode/disconnect behavior.
   Local controller, REST, client-lifecycle, browser and addon checks retain their
   separate validation scope. Authentication, owned-resource cleanup and recovery
   evidence is recorded in the [acceptance](docs/acceptance.md#v01-v02-benchmark-acceptance-on-2026-10-19).
-  D03 UTF-8/FLOAT integrity has scoped acceptance on 2026-10-21; final M09 checks and package 001 remain open.
+  D03 UTF-8/FLOAT integrity has scoped acceptance on 2026-10-21; M09 and package 001 are complete; package 002 is planned in WIP.
   Manual TCP/HTTP CLI also passed a separate ten-row run; see
   [CLI scope and workload/timeout clarification](docs/acceptance.md#m08-manual-cli-validation-on-2026-10-19).
   Earlier isolated StartJob CLI initialization failures remain a distinct record.
@@ -444,8 +444,12 @@ per-value limits; tested slow-consumer/invalid-decode/disconnect behavior.
   reference after connector/dialect/SDK/encoding preparation. Pin actual builds
   and image digests; isolate the existing environment and record backend/OS
   changes. [Reference and acceptance plan](docs/benchmark-evolution.md#postgresql-and-the-protheus-1212610-reference-environment).
-- [ ] Unavailable connector, broader type/null coverage and real volume in
-  Protheus; unknown alias is not connector-failure proof.
+- [x] Accept controlled MSSQL connection refusal, native statement timeout and
+  recovery on Windows through native and AppServer TCP/HTTP routes in M06.
+  This includes actual connector failures, separately from an unknown alias.
+  [Evidence](docs/acceptance.md#sql-native-timeouts-and-appserver-recovery-on-2026-10-14).
+- [ ] Extend connector, type/null and real-volume acceptance beyond the recorded
+  Windows fixtures; other platforms/drivers require their own evidence.
 - [ ] hbodbc/hbsqlit3 direct API where operations require it.
 
 ### Data-access evolution
@@ -492,7 +496,7 @@ per-value limits; tested slow-consumer/invalid-decode/disconnect behavior.
   2026-10-13 at 17:56:23 São Paulo, thread 32332. Pure helpers passed all 12
   checks at 17:56:45, thread 28300. D02's mock scope is accepted; D03 has
   subsequent scoped integrity acceptance on 2026-10-21; M06 has live acceptance,
-  with M07/M08 now accepted in their recorded scopes and M09 open. These runs exercise
+  with M07/M08 and final M09 accepted in their recorded scopes. These runs exercise
   no transport, SQL backend or ERP table. [Evidence](docs/dataset.md).
 - [x] ROW_NUMBER/BETWEEN pages, sentinel hasNext, explicit order, OpenPage/
   NextPage; gaps in business IDs do not control ordinal pagination.

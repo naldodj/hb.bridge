@@ -18,12 +18,13 @@ RETURN cJSON
 
 FUNCTION HBBridgeJSONComplete( cJSON, nConsumed )
 
-    LOCAL nByte
+    LOCAL nByte, nLength
 
     IF nConsumed < 1
         RETURN .F.
     ENDIF
-    FOR nByte := nConsumed + 1 TO hb_BLen( cJSON )
+    nLength := hb_BLen( cJSON )
+    FOR nByte := nConsumed + 1 TO nLength
         IF ! ( Asc( hb_BSubStr( cJSON, nByte, 1 ) ) == 32 .OR. ;
             Asc( hb_BSubStr( cJSON, nByte, 1 ) ) == 9 .OR. ;
             Asc( hb_BSubStr( cJSON, nByte, 1 ) ) == 10 .OR. ;
@@ -40,7 +41,11 @@ RETURN .T.
  */
 FUNCTION HBBridgeJSONServiceResult( cService, hResult )
 
-    LOCAL hField, cType, nFlags
+    LOCAL cType
+
+    LOCAL hField
+
+    LOCAL nFlags
 
     IF cService == "RPCRDD.Query" .AND. HB_ISHASH( hResult ) .AND. ;
         hb_HGetDef( hResult, "success", .F. ) .AND. ;

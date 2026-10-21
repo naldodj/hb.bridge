@@ -37,23 +37,22 @@ static procedure __Execute(jParameters as json)
     local aFWGetTopInfo as array
     local aCustomButtons as array
 
+    local bLDblClick as codeblock
+
     local cEmp as character
     local cFil as character
-
     local cSQL as character
     local cHost as character
     local cAlias as character
     local cATRecNoMsMGet as character
     local cIniFile as character
     local cAliasProfile as character
-    local cDateFormat:=Set(4) as character
-
-    local bLDblClick as codeblock
+    local cDateFormat as character
 
     local jHBBridgeDataSetPage as json
 
     local lAcho as logical
-    local lRPCSetEnv:=(Select("SM0")==0) as logical
+    local lRPCSetEnv as logical
     local lSetCentury as logical
 
     local nPort as numeric
@@ -62,6 +61,9 @@ static procedure __Execute(jParameters as json)
     local oClient as object
     local oDataSet as object
     local oFWBrowse as object
+
+    cDateFormat := Set(4)
+    lRPCSetEnv := (Select("SM0")==0)
 
     if (lRPCSetEnv)
         cEmp:=if(jParameters:HasProperty("cEmp"),jParameters["cEmp"],"99")

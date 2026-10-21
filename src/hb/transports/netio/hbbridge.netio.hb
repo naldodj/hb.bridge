@@ -16,7 +16,11 @@ Released to Public Domain.
  */
 FUNCTION HBBridgeNetioStart( hConfig, hRegistry, hState, lAdmin )
 
-    LOCAL cPrefix, cRoot, pListen, hServer, hContext, hFilter
+    LOCAL cPrefix, cRoot
+
+    LOCAL hServer, hContext, hFilter
+
+    LOCAL pListen
 
     hb_default( @lAdmin, .F. )
     cPrefix := iif( lAdmin, "admin", "netio" )
@@ -87,7 +91,16 @@ RETURN
 
 STATIC PROCEDURE NetioAcceptLoop( hServer, pListen, hFilter, cPassword )
 
-    LOCAL pConnection := NIL, hWorker, aWorkers := {}, nWorker, nError
+    LOCAL aWorkers
+
+    LOCAL hWorker
+
+    LOCAL nWorker, nError
+
+    LOCAL pConnection
+
+    pConnection := NIL
+    aWorkers := {}
 
     BEGIN SEQUENCE WITH {| oError | Break( oError ) }
         DO WHILE HBBridgeServerRunning( hServer )

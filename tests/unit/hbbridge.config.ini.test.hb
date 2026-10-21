@@ -1,9 +1,10 @@
 /* Released to Public Domain. */
 PROCEDURE M1INIConfigTests( nFailures, nChecks )
 
-    LOCAL cError, hINI, hJSON, hInfo, cIni, cBad, cCase
-    LOCAL cAutoFile := hb_FNameDir( hb_ProgName() ) + "hbbridge.ini"
+    LOCAL cError, cIni, cBad, cCase, cAutoFile := hb_FNameDir( hb_ProgName() ) + "hbbridge.ini"
     LOCAL cPrevious := NIL
+
+    LOCAL hINI, hJSON, hInfo
 
     cIni := "[General]" + hb_eol() + "MaxWorkers=3" + hb_eol() + ;
         "AddonRoot=../addons" + hb_eol() + "[Protheus]" + hb_eol() + ;
@@ -129,7 +130,8 @@ RETURN
 
 STATIC PROCEDURE M1StructuredSQLConfigTests( nFailures, nChecks )
 
-    LOCAL cPassword := "a#;=}}" + hb_UTF8Chr( 233 ) + ";UID=extra"
+    LOCAL cPassword := "a#;=}}" + hb_UTF8Chr( 233 ) + ";UID=extra", cCase, cError, cINI, cField, cControl
+
     LOCAL hBase := { "driver" => "mssql", "authentication" => "sql", "dsn" => "fixture", ;
         "username" => "reader", "password" => "synthetic-private-password" }
     LOCAL hProfiles := { ;
@@ -155,7 +157,8 @@ STATIC PROCEDURE M1StructuredSQLConfigTests( nFailures, nChecks )
             "Encrypt=No;TrustServerCertificate=Yes;", ;
         "directIntegrated" => "DRIVER={ODBC Driver 18 for SQL Server};SERVER={localhost};" + ;
             "DATABASE={sample};Trusted_Connection=Yes;Encrypt=Strict;TrustServerCertificate=No;" }
-    LOCAL hBad := {=>}, hProfile, hINI, hJSON, hInfo, hNormalized, cCase, cError, cINI, cField, cControl
+    LOCAL hControls := { "nul" => Chr( 0 ), "cr" => Chr( 13 ), "lf" => Chr( 10 ) }
+    LOCAL hBad := {=>}, hProfile, hINI, hJSON, hInfo, hNormalized
 
     FOR EACH hProfile IN hProfiles
         cCase := hProfile:__enumKey()
@@ -265,7 +268,7 @@ STATIC PROCEDURE M1StructuredSQLConfigTests( nFailures, nChecks )
     FOR EACH cField IN { "odbcDriver" => .T., "server" => .T., "database" => .T., ;
         "username" => .T., "password" => .T. }
         cCase := cField:__enumKey()
-        FOR EACH cControl IN { "nul" => Chr( 0 ), "cr" => Chr( 13 ), "lf" => Chr( 10 ) }
+        FOR EACH cControl IN hControls
             hBad[ cCase + cControl:__enumKey() ] := hb_HClone( hProfiles[ "directSQL" ] )
             hBad[ cCase + cControl:__enumKey() ][ cCase ] := "synthetic-private-password" + cControl
         NEXT
@@ -298,7 +301,9 @@ STATIC PROCEDURE M1StructuredSQLConfigTests( nFailures, nChecks )
 RETURN
 
 STATIC FUNCTION StructuredSQLTestINI( hProfile )
-    LOCAL cINI := "[SQL/MSSQL/pData]" + hb_eol(), cKey, xValue
+    LOCAL cINI := "[SQL/MSSQL/pData]" + hb_eol(), cKey
+
+    LOCAL xValue
     FOR EACH xValue IN hProfile
         cKey := xValue:__enumKey()
         cINI += Upper( cKey ) + "="

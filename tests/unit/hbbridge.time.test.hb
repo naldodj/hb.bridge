@@ -1,8 +1,17 @@
 PROCEDURE M2ClockTests( nFailures, nChecks )
 
-    LOCAL nPrevious := HBBridgeMonotonicMs(), nSample, nIndex, nElapsed
-    LOCAL lOrdered := .T., lJoined, hThread, hResult
-    LOCAL aThreads := {}, aResults := {}, nWindowStart, nWindowEnd
+    LOCAL aThreads, aResults
+
+    LOCAL hThread, hResult
+
+    LOCAL lOrdered, lJoined
+
+    LOCAL nPrevious, nSample, nIndex, nElapsed, nWindowStart, nWindowEnd, nThreads, nResults
+
+    nPrevious := HBBridgeMonotonicMs()
+    lOrdered := .T.
+    aThreads := {}
+    aResults := {}
 
     M1Assert( HB_ISNUMERIC( nPrevious ) .AND. nPrevious >= 0 .AND. nPrevious == Int( nPrevious ), ;
         "M2 monotonic clock returns nonnegative integer milliseconds", @nFailures, @nChecks )
@@ -36,7 +45,8 @@ PROCEDURE M2ClockTests( nFailures, nChecks )
         M1Assert( hb_threadWait( aThreads, 5, .T. ) == Len( aThreads ), ;
             "M2 concurrent clock readers finish within five seconds", @nFailures, @nChecks )
     ENDIF
-    FOR nIndex := 1 TO Len( aThreads )
+    nThreads := Len( aThreads )
+    FOR nIndex := 1 TO nThreads
         hThread := aThreads[ nIndex ]
         hResult := NIL
         lJoined := .F.
@@ -52,7 +62,8 @@ PROCEDURE M2ClockTests( nFailures, nChecks )
         ENDIF
     NEXT
     nWindowEnd := HBBridgeMonotonicMs()
-    FOR nIndex := 1 TO Len( aResults )
+    nResults := Len( aResults )
+    FOR nIndex := 1 TO nResults
         hResult := aResults[ nIndex ]
         M1Assert( hResult[ "first" ] >= nWindowStart .AND. hResult[ "last" ] <= nWindowEnd, ;
             "M2 thread clock uses the common interval " + hb_ntos( nIndex ), @nFailures, @nChecks )
@@ -62,8 +73,14 @@ RETURN
 
 STATIC FUNCTION M2ClockSamples()
 
-    LOCAL nFirst := HBBridgeMonotonicMs(), nPrevious := nFirst, nSample, nIndex
-    LOCAL lOrdered := .T., lValid := nFirst >= 0 .AND. nFirst == Int( nFirst )
+    LOCAL lOrdered, lValid
+
+    LOCAL nFirst, nPrevious, nSample, nIndex
+
+    nFirst := HBBridgeMonotonicMs()
+    nPrevious := nFirst
+    lOrdered := .T.
+    lValid := nFirst >= 0 .AND. nFirst == Int( nFirst )
 
     FOR nIndex := 1 TO 4096
         nSample := HBBridgeMonotonicMs()

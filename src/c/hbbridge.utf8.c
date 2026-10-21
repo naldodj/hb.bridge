@@ -40,9 +40,11 @@ static HB_BOOL HBBridgeJSONHex4( const char * data, HB_WCHAR32 * scalar )
 HB_FUNC( HBBRIDGEJSONNORMALIZE )
 {
     const char * data = hb_parc( 1 );
-    HB_SIZE size = hb_parclen( 1 ), offset = 0, written = 0;
     char * output = NULL;
+
     HB_BOOL inString = HB_FALSE, valid = data != NULL;
+
+    HB_SIZE size = hb_parclen( 1 ), offset = 0, written = 0;
 
     while( valid && offset < size )
     {

@@ -12,7 +12,12 @@ REQUEST HB_CODEPAGE_UTF8EX
  */
 PROCEDURE MSSQLPoolingTests( cConfigPath, cProfile, cMode, cOtherProfile )
 
-    LOCAL nExit := 1, cPreviousCodepage := hb_cdpSelect()
+    LOCAL cPreviousCodepage
+
+    LOCAL nExit
+
+    nExit := 1
+    cPreviousCodepage := hb_cdpSelect()
 
     hb_default( @cMode, "driver" )
     IF ! HB_ISSTRING( cConfigPath ) .OR. ! HB_ISSTRING( cProfile ) .OR. ;
@@ -35,12 +40,23 @@ RETURN
 
 STATIC FUNCTION MPRun( cConfigPath, cProfile, cMode, cOtherProfile )
 
-    LOCAL hChecks := { "checks" => 0, "failures" => 0 }, hConfig, hProfile, hProfiles
-    LOCAL hBaseline, hSnapshot, hPairs := {=>}, cError, nIndex, hInfo, hOther, hResult
-    LOCAL hIdentityParts := { "ports" => {=>}, "connections" => {=>}, "started" => {=>} }
-    LOCAL hWarmup := {=>}
-    LOCAL nPreviousArea := Select(), nPreviousConnection := rddInfo( RDDI_CONNECTION, NIL, "SQLMIX" )
-    LOCAL nStarted := HBBridgeMonotonicMs(), lReady := .F., cSwitch, nSwitch, hSlow, hFast
+    LOCAL cError, cSwitch
+
+    LOCAL hChecks, hConfig, hProfile, hProfiles, hBaseline, hSnapshot, hPairs, hInfo, hOther, hResult
+    LOCAL hIdentityParts, hWarmup, hSlow, hFast
+
+    LOCAL lReady
+
+    LOCAL nIndex, nPreviousArea, nPreviousConnection, nStarted, nSwitch
+
+    hChecks := { "checks" => 0, "failures" => 0 }
+    hPairs := {=>}
+    hIdentityParts := { "ports" => {=>}, "connections" => {=>}, "started" => {=>} }
+    hWarmup := {=>}
+    nPreviousArea := Select()
+    nPreviousConnection := rddInfo( RDDI_CONNECTION, NIL, "SQLMIX" )
+    nStarted := HBBridgeMonotonicMs()
+    lReady := .F.
 
     IF ! HBBridgeODBCPooling( cMode )
         ? "MSSQL pooling prerequisite: REQUESTED_MODE_UNAVAILABLE"
@@ -237,8 +253,10 @@ RETURN iif( lReady .AND. hChecks[ "failures" ] == 0, 0, 1 )
 
 STATIC PROCEDURE MPRestoration( hProfiles, cProfile, hChecks )
 
+    LOCAL hResult, hCaller, hBorrower
+
     LOCAL nPreviousArea := Select(), nPreviousConnection := rddInfo( RDDI_CONNECTION, NIL, "SQLMIX" )
-    LOCAL nConnection := 0, nCallerArea := 0, hResult, hCaller, hBorrower
+    LOCAL nConnection := 0, nCallerArea := 0
 
     BEGIN SEQUENCE WITH __BreakBlock()
         nConnection := MPConnect( hProfiles[ cProfile ] )
@@ -287,8 +305,12 @@ RETURN
 
 STATIC PROCEDURE MPDirtyCase( hProfiles, cProfile, hBaseline, cMutation, cCase, hChecks, nDatabase )
 
+    LOCAL hDirty, hAfter
+
+    LOCAL lDisconnected, lMutation
+
     LOCAL nPreviousArea := Select(), nPreviousConnection := rddInfo( RDDI_CONNECTION, NIL, "SQLMIX" )
-    LOCAL nConnection := 0, hDirty, hAfter, lDisconnected, lMutation
+    LOCAL nConnection := 0
 
     /* No worker threads run in this fixture. Native API connection arrays and
      * direct calls belong only to this deliberately dirty test-owned lease.
@@ -365,7 +387,13 @@ RETURN rddInfo( RDDI_CONNECT, { "ODBC", hProfile[ "connectionString" ], ;
 
 STATIC FUNCTION MPNativeSnapshot( nConnection )
 
-    LOCAL nPreviousArea := Select(), nQueryArea := 0, hSnapshot := NIL, nField
+    LOCAL hSnapshot
+
+    LOCAL nPreviousArea, nQueryArea, nField
+
+    nPreviousArea := Select()
+    nQueryArea := 0
+    hSnapshot := NIL
 
     BEGIN SEQUENCE WITH __BreakBlock()
         dbSelectArea( 0 )
@@ -417,7 +445,9 @@ STATIC FUNCTION MPIdentityValid( hSnapshot )
     LOCAL hFields := { "SESSION_ID" => .T., "CLIENT_PORT" => .T., "CONNECTION_STARTED" => .T., "PHYSICAL_ID" => .T., ;
         "TRANSPORT" => .T., "DATABASE_ID" => .T., "LOGIN_ID" => .T., "TRAN_COUNT" => .T., ;
         "XACT_STATE" => .T., "DATE_FIRST" => .T., "LOCK_TIMEOUT" => .T., ;
-        "TEMP_PRESENT" => .T., "CONTEXT_PRESENT" => .T. }, lField
+        "TEMP_PRESENT" => .T., "CONTEXT_PRESENT" => .T. }
+
+    LOCAL lField
 
     IF ! HB_ISHASH( hSnapshot )
         RETURN .F.
@@ -448,9 +478,13 @@ RETURN
 
 STATIC FUNCTION MPStateMatches( hSnapshot, hBaseline )
 
+    LOCAL cField
+
     LOCAL hFields := { "DATABASE_ID" => .T., "LOGIN_ID" => .T., "TRAN_COUNT" => .T., ;
         "XACT_STATE" => .T., "DATE_FIRST" => .T., "LOCK_TIMEOUT" => .T., ;
-        "TEMP_PRESENT" => .T., "CONTEXT_PRESENT" => .T. }, lField, cField
+        "TEMP_PRESENT" => .T., "CONTEXT_PRESENT" => .T. }
+
+    LOCAL lField
 
     IF ! MPIdentityValid( hSnapshot ) .OR. ! MPIdentityValid( hBaseline )
         RETURN .F.

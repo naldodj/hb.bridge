@@ -4,10 +4,14 @@
 /* Copy only transport settings; zero budgets do not impose application caps. */
 FUNCTION HBBridgeProtheusPolicy( hOptions )
 
+    LOCAL cKey
+
     LOCAL hPolicy := { "protheusMaxPayloadBytes" => 0, "protheusMaxWireBytes" => 0, ;
         "protheusReadChunkBytes" => HBBRIDGE_IO_CHUNK_DEFAULT_BYTES, ;
         "protheusTimeoutMs" => HBBRIDGE_IO_TIMEOUT_DEFAULT_MS }
-    LOCAL hRuntime := HBBridgeRuntimeLimits(), cKey, nValue, nMaximum
+    LOCAL hRuntime := HBBridgeRuntimeLimits()
+
+    LOCAL nValue, nMaximum
 
     IF hOptions != NIL .AND. ! HB_ISHASH( hOptions )
         RETURN NIL
@@ -34,18 +38,36 @@ RETURN hPolicy
 
 FUNCTION ReceiveRequest( hSocket, cPayload as character, hOptions )
 
-    LOCAL hPolicy := HBBridgeProtheusPolicy( hOptions ), cBuffer := "", cChunk, cPart, aDecoded
-    LOCAL nBytesRead, nWireBytes := 0, aDeadline, nWait, nHeaderEnd := 0, nPayloadBytes := 0
-    LOCAL nFrameLimit, nMaxHeader := HeaderSizeMaximum(), pDecoder, lComplete := .F.
+    LOCAL aDecoded, aDeadline
+
+    LOCAL cBuffer, cChunk, cPart
+
+    LOCAL hPolicy
+
+    LOCAL lComplete
+
+    LOCAL nBytesRead, nWireBytes, nWait, nHeaderEnd, nPayloadBytes, nFrameLimit, nMaxHeader, nReadChunkBytes, nStringBytesMax
+
+    LOCAL pDecoder
+
+    hPolicy := HBBridgeProtheusPolicy( hOptions )
+    cBuffer := ""
+    nWireBytes := 0
+    nHeaderEnd := 0
+    nPayloadBytes := 0
+    nMaxHeader := HeaderSizeMaximum()
+    lComplete := .F.
 
     cPayload := ""
     IF hPolicy == NIL
         RETURN .F.
     ENDIF
+    nReadChunkBytes := hPolicy[ "protheusReadChunkBytes" ]
+    nStringBytesMax := HBBridgeRuntimeLimits()[ "stringBytesMax" ]
     aDeadline := IODeadline( hPolicy[ "protheusTimeoutMs" ] )
     nFrameLimit := hPolicy[ "protheusMaxPayloadBytes" ]
     IF nFrameLimit > 0
-        nFrameLimit += Min( nMaxHeader, HBBridgeRuntimeLimits()[ "stringBytesMax" ] - nFrameLimit )
+        nFrameLimit += Min( nMaxHeader, nStringBytesMax - nFrameLimit )
     ENDIF
     pDecoder := HBBridgeInflateOpen( nFrameLimit )
     IF Empty( pDecoder )
@@ -57,9 +79,9 @@ FUNCTION ReceiveRequest( hSocket, cPayload as character, hOptions )
             IF nWait == 0
                 EXIT
             ENDIF
-            cChunk := Space( hPolicy[ "protheusReadChunkBytes" ] )
-            nBytesRead := hb_socketRecv( hSocket, @cChunk, hb_BLen( cChunk ), 0, nWait )
-            IF nBytesRead <= 0 .OR. nBytesRead > HBBridgeRuntimeLimits()[ "stringBytesMax" ] - nWireBytes
+            cChunk := Space( nReadChunkBytes )
+            nBytesRead := hb_socketRecv( hSocket, @cChunk, nReadChunkBytes, 0, nWait )
+            IF nBytesRead <= 0 .OR. nBytesRead > nStringBytesMax - nWireBytes
                 EXIT
             ENDIF
             nWireBytes += nBytesRead
@@ -101,9 +123,9 @@ RETURN .F.
 /* 0=incomplete, -1=invalid, positive=header bytes including LF. */
 FUNCTION HBBridgeParseHeader( cFrame, nPayloadBytes, nMaximum )
 
-    LOCAL cPrefix := HBBRIDGE_PROTOCOL_SIGNATURE + "|JSON|", cSize, nIndex, cDigit
-    LOCAL nHeaderEnd, nPrefixSize := hb_BLen( cPrefix ), nCompare, nRuntimeMax
-    LOCAL cRuntimeMax
+    LOCAL cPrefix := HBBRIDGE_PROTOCOL_SIGNATURE + "|JSON|", cSize, cDigit, cRuntimeMax
+
+    LOCAL nIndex, nHeaderEnd, nPrefixSize := hb_BLen( cPrefix ), nCompare, nRuntimeMax, nSizeLength
 
     nPayloadBytes := 0
     hb_default( @nMaximum, 0 )
@@ -128,7 +150,8 @@ FUNCTION HBBridgeParseHeader( cFrame, nPayloadBytes, nMaximum )
     IF hb_BLeft( cSize, 1 ) == "0"
         RETURN -1
     ENDIF
-    FOR nIndex := 1 TO hb_BLen( cSize )
+    nSizeLength := hb_BLen( cSize )
+    FOR nIndex := 1 TO nSizeLength
         cDigit := hb_BSubStr( cSize, nIndex, 1 )
         IF ! ( cDigit $ "0123456789" )
             RETURN -1
@@ -171,18 +194,34 @@ RETURN .T.
 
 FUNCTION SendResponse( hSocket, cPayload as character, hOptions )
 
-    LOCAL hPolicy := HBBridgeProtheusPolicy( hOptions ), pEncoder, cHeader, aEncoded
-    LOCAL nOffset := 1, nBytes, nWireBytes := 0, aDeadline, lSent := .F.
+    LOCAL aEncoded, aDeadline
+
+    LOCAL cHeader
+
+    LOCAL hPolicy
+
+    LOCAL lSent
+
+    LOCAL nOffset, nBytes, nWireBytes, nPayloadBytes, nReadChunkBytes
+
+    LOCAL pEncoder
+
+    hPolicy := HBBridgeProtheusPolicy( hOptions )
+    nOffset := 1
+    nWireBytes := 0
+    lSent := .F.
 
     IF hPolicy == NIL .OR. ! HB_ISSTRING( cPayload )
         RETURN .F.
     ENDIF
-    IF hb_BLen( cPayload ) == 0 .OR. OverBudget( hb_BLen( cPayload ), hPolicy[ "protheusMaxPayloadBytes" ] )
+    nPayloadBytes := hb_BLen( cPayload )
+    nReadChunkBytes := hPolicy[ "protheusReadChunkBytes" ]
+    IF nPayloadBytes == 0 .OR. OverBudget( nPayloadBytes, hPolicy[ "protheusMaxPayloadBytes" ] )
         RETURN .F.
     ENDIF
     aDeadline := IODeadline( hPolicy[ "protheusTimeoutMs" ] )
-    cHeader := HBBRIDGE_PROTOCOL_SIGNATURE + "|JSON|" + hb_ntos( hb_BLen( cPayload ) ) + hb_BChar( 10 )
-    IF hb_BLen( cPayload ) > HBBridgeRuntimeLimits()[ "stringBytesMax" ] - hb_BLen( cHeader )
+    cHeader := HBBRIDGE_PROTOCOL_SIGNATURE + "|JSON|" + hb_ntos( nPayloadBytes ) + hb_BChar( 10 )
+    IF nPayloadBytes > HBBridgeRuntimeLimits()[ "stringBytesMax" ] - hb_BLen( cHeader )
         RETURN .F.
     ENDIF
     pEncoder := HBBridgeDeflateOpen()
@@ -193,10 +232,10 @@ FUNCTION SendResponse( hSocket, cPayload as character, hOptions )
         aEncoded := HBBridgeDeflateFeed( pEncoder, cHeader, .F. )
         IF aEncoded[ 1 ] == 0 .AND. aEncoded[ 3 ] == hb_BLen( cHeader ) .AND. ;
             SendChunks( hSocket, aEncoded[ 2 ], hPolicy, aDeadline, @nWireBytes )
-            DO WHILE nOffset <= hb_BLen( cPayload ) .AND. IORemaining( aDeadline ) != 0
-                nBytes := Min( hPolicy[ "protheusReadChunkBytes" ], hb_BLen( cPayload ) - nOffset + 1 )
+            DO WHILE nOffset <= nPayloadBytes .AND. IORemaining( aDeadline ) != 0
+                nBytes := Min( nReadChunkBytes, nPayloadBytes - nOffset + 1 )
                 aEncoded := HBBridgeDeflateFeed( pEncoder, hb_BSubStr( cPayload, nOffset, nBytes ), ;
-                    nOffset + nBytes > hb_BLen( cPayload ) )
+                    nOffset + nBytes > nPayloadBytes )
                 IF aEncoded[ 1 ] < 0 .OR. aEncoded[ 3 ] != nBytes
                     EXIT
                 ENDIF
@@ -204,7 +243,7 @@ FUNCTION SendResponse( hSocket, cPayload as character, hOptions )
                     EXIT
                 ENDIF
                 nOffset += nBytes
-                lSent := aEncoded[ 1 ] == 1 .AND. nOffset > hb_BLen( cPayload )
+                lSent := aEncoded[ 1 ] == 1 .AND. nOffset > nPayloadBytes
             ENDDO
         ENDIF
     RECOVER
@@ -217,17 +256,22 @@ RETURN lSent .AND. IORemaining( aDeadline ) != 0
 
 STATIC FUNCTION SendChunks( hSocket, aChunks, hPolicy, aDeadline, nWireBytes )
 
-    LOCAL cChunk, nOffset, nBytes, nWait, nChunkSize
+    LOCAL cChunk
 
+    LOCAL nOffset, nBytes, nWait, nChunkSize, nChunkBytes, nReadChunkBytes, nStringBytesMax
+
+    nReadChunkBytes := hPolicy[ "protheusReadChunkBytes" ]
+    nStringBytesMax := HBBridgeRuntimeLimits()[ "stringBytesMax" ]
     FOR EACH cChunk IN aChunks
+        nChunkBytes := hb_BLen( cChunk )
         nOffset := 1
-        DO WHILE nOffset <= hb_BLen( cChunk )
+        DO WHILE nOffset <= nChunkBytes
             nWait := IORemaining( aDeadline )
             IF nWait == 0
                 RETURN .F.
             ENDIF
-            nChunkSize := Min( hPolicy[ "protheusReadChunkBytes" ], hb_BLen( cChunk ) - nOffset + 1 )
-            IF nChunkSize > HBBridgeRuntimeLimits()[ "stringBytesMax" ] - nWireBytes .OR. ;
+            nChunkSize := Min( nReadChunkBytes, nChunkBytes - nOffset + 1 )
+            IF nChunkSize > nStringBytesMax - nWireBytes .OR. ;
                 OverBudget( nWireBytes + nChunkSize, hPolicy[ "protheusMaxWireBytes" ] )
                 RETURN .F.
             ENDIF

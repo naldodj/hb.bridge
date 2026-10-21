@@ -1,6 +1,10 @@
 PROCEDURE M1ConfigTests( nFailures, nChecks )
 
-    LOCAL hConfig, cError, cArg, hRuntimeLimits, cKey, xValue, cAbsolute
+    LOCAL cError, cArg, cKey, cAbsolute
+
+    LOCAL hConfig, hRuntimeLimits
+
+    LOCAL xValue
 
     cAbsolute := HBBridgeAbsolutePath( "config-test/good.json", hb_cwd() )
     M1Assert( HBBridgeAbsolutePath( cAbsolute, hb_cwd() ) == cAbsolute, ;

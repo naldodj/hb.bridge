@@ -27,7 +27,7 @@ end class
 
 static method BuildExpr(cAlias,nActivateType,lSQLFilter,jF3,aFilters,nFilterAndOR) class HBBridgeTOTVSFilter
 
-    local aFields:=Array(0) as array
+    local aFields as array
     local adbStruct as array
     local aX3Box as array
 
@@ -35,21 +35,18 @@ static method BuildExpr(cAlias,nActivateType,lSQLFilter,jF3,aFilters,nFilterAndO
 
     local cF3 as character
     local cX3Box as character
-
     local cFieldName as character
     local cFieldDesc as character
     local cFieldType as character
     local cFieldPict as character
-
-    local nFieldSize as numeric
-    local nFieldDec as numeric
-
-    local cFWFilter:="" as character
+    local cFWFilter as character
     local cFWGetFilter as character
 
     local ljF3 as logical
     local lFilter as logical
 
+    local nFieldSize as numeric
+    local nFieldDec as numeric
     local nField as numeric
     local nFields as numeric
     local nFilter as numeric
@@ -58,6 +55,9 @@ static method BuildExpr(cAlias,nActivateType,lSQLFilter,jF3,aFilters,nFilterAndO
     local oError as object
     local oOwner as object
     local oFWFilter as object
+
+    aFields := Array(0)
+    cFWFilter := ""
 
     begin sequence
 
@@ -344,6 +344,7 @@ return(aCustomFilter)
 static function JSONGetValue(jData as json,cName as character,xDefault as variant) as variant
 
     local cValType as character
+
     local xValue:=xDefault as variant
 
     cValType:=ValType(jData)

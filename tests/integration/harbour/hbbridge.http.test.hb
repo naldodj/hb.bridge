@@ -12,14 +12,27 @@ RETURN
 
 PROCEDURE HTTPTests( nFailures, nChecks )
 
-    LOCAL hConfig := HBBridgeConfig( {} ), cError, hHost := NIL, hResponse, hResult
-    LOCAL cDataAuth := "Bearer http-service-test-only"
-    LOCAL cAdminAuth := "Basic " + hb_base64Encode( "admin:http-admin-test-only" )
-    LOCAL hThreads := {=>}, hThread, nIndex, hNative, pNative := NIL, hIdle := NIL
-    LOCAL hBusy := NIL, nBusyPort, hFailed, hInfo, hConfigINI, cLarge := Replicate( "HTTP xBase ", 20000 )
-    LOCAL hError, nStarted, hDribble, hDribbleThread
-    LOCAL cPreviousCodepage := hb_cdpSelect(), cUnicode := hb_HexToStr( "C3A9E4B8ADE69687F09F9880" )
-    LOCAL cUnicodeJSON := '{"text":"' + cUnicode + '"}', cInvalidBytes
+    LOCAL cError, cDataAuth, cAdminAuth, cLarge, cPreviousCodepage, cUnicode, cUnicodeJSON, cInvalidBytes
+
+    LOCAL hConfig, hHost, hResponse, hResult, hThreads, hThread, hNative, hIdle, hBusy, hFailed, hInfo
+    LOCAL hConfigINI, hError, hDribble, hDribbleThread
+
+    LOCAL nIndex, nBusyPort, nStarted
+
+    LOCAL pNative
+
+    hConfig := HBBridgeConfig( {} )
+    hHost := NIL
+    cDataAuth := "Bearer http-service-test-only"
+    cAdminAuth := "Basic " + hb_base64Encode( "admin:http-admin-test-only" )
+    hThreads := {=>}
+    pNative := NIL
+    hIdle := NIL
+    hBusy := NIL
+    cLarge := Replicate( "HTTP xBase ", 20000 )
+    cPreviousCodepage := hb_cdpSelect()
+    cUnicode := hb_HexToStr( "C3A9E4B8ADE69687F09F9880" )
+    cUnicodeJSON := '{"text":"' + cUnicode + '"}'
 
     HTTPAssert( ! hConfig[ "httpEnabled" ] .AND. hConfig[ "httpHost" ] == "127.0.0.1" .AND. ;
         hConfig[ "httpPort" ] == 8080 .AND. Empty( hConfig[ "httpPassword" ] ), ;
@@ -321,7 +334,9 @@ RETURN
 
 STATIC PROCEDURE M6HTTPSQLFailures( nPort, cAuthorization, nFailures, nChecks )
 
-    LOCAL hCases, hCase, hResponse, hResult, cName, cBody
+    LOCAL cName, cBody
+
+    LOCAL hCases, hCase, hResponse, hResult
     LOCAL hRecovery := { "alias" => "memory/HTTP", "sql" => "SELECT 77 AS recovery_id" }
 
     hCases := { "invalidSQL" => { "params" => { "alias" => "memory/HTTP", ;
@@ -405,7 +420,9 @@ STATIC PROCEDURE HTTPAssert( lCondition, cMessage, nFailures, nChecks )
 RETURN
 
 STATIC FUNCTION HTTPFreePort()
-    LOCAL hSocket := hb_socketOpen(), nPort
+    LOCAL hSocket := hb_socketOpen()
+
+    LOCAL nPort
     hb_socketBind( hSocket, { HB_SOCKET_AF_INET, "127.0.0.1", 0 } )
     nPort := hb_socketGetSockName( hSocket )[ HB_SOCKET_ADINFO_PORT ]
     hb_socketClose( hSocket )
@@ -420,9 +437,18 @@ RETURN Val( hb_BSubStr( hResponse[ "headers" ], nStart + 16 ) )
 
 FUNCTION HBBridgeHTTPTestRequest( nPort, cMethod, cPath, cBody, cAuthorization, cContentType, cExtraHeaders, cLengthText )
 
-    LOCAL hSocket := hb_socketOpen(), cRequest, cResponse := "", cBuffer := Space( 65536 )
-    LOCAL nSent := 0, nCount, nSeparator, hResponse := { "status" => 0, "body" => "", "headers" => "", "json" => NIL }
-    LOCAL cCRLF := Chr( 13 ) + Chr( 10 ), hJSON
+    LOCAL cRequest, cResponse, cBuffer, cCRLF
+
+    LOCAL hSocket, hResponse, hJSON
+
+    LOCAL nSent, nCount, nSeparator, nRequestBytes
+
+    hSocket := hb_socketOpen()
+    cResponse := ""
+    cBuffer := Space( 65536 )
+    nSent := 0
+    hResponse := { "status" => 0, "body" => "", "headers" => "", "json" => NIL }
+    cCRLF := Chr( 13 ) + Chr( 10 )
 
     hb_default( @cContentType, "application/json" )
     hb_default( @cExtraHeaders, "" )
@@ -441,7 +467,8 @@ FUNCTION HBBridgeHTTPTestRequest( nPort, cMethod, cPath, cBody, cAuthorization, 
         cRequest += cExtraHeaders + cCRLF
     ENDIF
     cRequest += cCRLF + cBody
-    DO WHILE nSent < hb_BLen( cRequest )
+    nRequestBytes := hb_BLen( cRequest )
+    DO WHILE nSent < nRequestBytes
         nCount := hb_socketSend( hSocket, hb_BSubStr( cRequest, nSent + 1 ),,, 3000 )
         IF nCount <= 0
             EXIT

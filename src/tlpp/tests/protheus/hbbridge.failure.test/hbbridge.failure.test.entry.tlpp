@@ -11,14 +11,23 @@ return(HBBridge.Test.HBBridgeFailureTest():RunCLI(oArguments:vArgs))
 // Both SQL profile aliases must be supplied explicitly; no demo database is selected.
 function U_HBBridgeFailureTest(cWorkingProfile, cUnavailableProfile, cHost, nPort, nTimeout, cTimeoutProfile)
 
-    local aFuncPrm:=GetFuncPrm(ProcName())
-    local jFuncPrm:=JSONObject():New() as json
-    local i as numeric
+    local aFuncPrm as array
 
-    for i:=1 to Len(aFuncPrm)
-        cParam:=aFuncPrm[i]
+    local cParam as character
+
+    local jFuncPrm as json
+
+    local nArgument as numeric
+    local nArguments := 0 as numeric
+
+    aFuncPrm := GetFuncPrm(ProcName())
+    jFuncPrm := JSONObject():New()
+
+    nArguments := Len(aFuncPrm)
+    for nArgument:=1 to nArguments
+        cParam:=aFuncPrm[nArgument]
         jFuncPrm[cParam]:=&(cParam)
-    next i
+    next nArgument
 
     ConOut("ProcName: "+ProcName(),"ProcParms: "+jFuncPrm:ToJSON())
     FWFreeArray(aFuncPrm)
@@ -31,18 +40,27 @@ return(HBBridge.Test.HBBridgeFailureTest():RunTCP(;
 
 function U_HBBridgeHTTPFailureTest(cWorkingProfile, cUnavailableProfile, cURL, cToken, nTimeoutSeconds, cTimeoutProfile)
 
-    local aFuncPrm:=GetFuncPrm(ProcName())
-    local jFuncPrm:=JSONObject():New() as json
-    local i as numeric
+    local aFuncPrm as array
 
-    for i:=1 to Len(aFuncPrm)
-        cParam:=aFuncPrm[i]
+    local cParam as character
+
+    local jFuncPrm as json
+
+    local nArgument as numeric
+    local nArguments := 0 as numeric
+
+    aFuncPrm := GetFuncPrm(ProcName())
+    jFuncPrm := JSONObject():New()
+
+    nArguments := Len(aFuncPrm)
+    for nArgument:=1 to nArguments
+        cParam:=aFuncPrm[nArgument]
         if (cParam=="CTOKEN")
             jFuncPrm[cParam]:=RC4Crypt(&(cParam),UUIDRandom(),.T.)
         else
             jFuncPrm[cParam]:=&(cParam)
         endif
-    next i
+    next nArgument
 
     ConOut("ProcName: "+ProcName(),"ProcParms: "+jFuncPrm:ToJSON())
     FWFreeArray(aFuncPrm)
@@ -61,7 +79,6 @@ procedure U_HBBridgeTCPAndHTTPFailureTest()
     local cWorkingProfile as character
     local cTimeoutProfile as character
     local cUnavailableProfile as character
-
     local cTCPHost as character
     local cHTTPURL as character
 

@@ -21,12 +21,25 @@ endclass
 
 static method RunCLI(aArguments) class HBBridgeBenchmarkTest
 
-    local jFlags := JSONObject():New() as json
-    local jSeen := JSONObject():New() as json
+    local cArgument := "" as character
+    local cKey := "" as character
+    local cValue := "" as character
+
+    local jFlags as json
+    local jSeen as json
     local jComparison as json
-    local cArgument := "", cKey := "", cValue := "" as character
-    local nArgument := 0, nEqual := 0, nValue := 0, nMaximum := 0, nResult := 1 as numeric
+
     local lValid := .T. as logical
+
+    local nArgument := 0 as numeric
+    local nEqual := 0 as numeric
+    local nValue := 0 as numeric
+    local nMaximum := 0 as numeric
+    local nResult := 1 as numeric
+    local nArguments := 0 as numeric
+
+    jFlags := JSONObject():New()
+    jSeen := JSONObject():New()
 
     jFlags["profile"] := ""
     jFlags["host"] := Nil
@@ -47,7 +60,8 @@ static method RunCLI(aArguments) class HBBridgeBenchmarkTest
     if ValType(aArguments) != "A"
         lValid := .F.
     else
-        for nArgument := 1 to Len(aArguments)
+        nArguments := Len(aArguments)
+        for nArgument := 1 to nArguments
             if ValType(aArguments[nArgument]) != "C"
                 loop
             endif
@@ -128,6 +142,7 @@ static method Run(cProfile, cHost, nPort, cURL, cToken, nTimeoutSeconds, ;
 
     local jReport := HBBridge.Test.HBBridgeBenchmarkTest():Measure(cProfile, cHost, nPort, ;
         cURL, cToken, nTimeoutSeconds, nRows, nPageSize, nIterations, nWarmup, jComparison) as json
+
     local nResult := IIf(jReport["success"], 0, 1) as numeric
 
     if jReport["failureCategory"] == "INVALID_CONFIGURATION"
@@ -150,26 +165,35 @@ return(nResult)
 static method Measure(cProfile, cHost, nPort, cURL, cToken, nTimeoutSeconds, ;
     nRows, nPageSize, nIterations, nWarmup, jComparison) class HBBridgeBenchmarkTest
 
-    local jReport := JSONObject():New() as json
+    local cIniFile as character
+    local cSQL := "" as character
+
+    local jReport as json
     local jMemory as json
     local jTCP as json
     local jHTTP as json
+    local jStartJob as json
+    local jProtheusRest as json
+    local jAddon as json
+
+    local lValid := .T. as logical
+    local lCompare := .F. as logical
+    local lAddon := .F. as logical
+
+    local nStarted as numeric
+    local nFinished := 0 as numeric
+
     local oTCP as object
     local oHTTP as object
     local oStartJob as object
     local oProtheusRest as object
     local oAddon as object
-    local jStartJob as json
-    local jProtheusRest as json
-    local jAddon as json
+
     local xError as variant
-    local cIniFile := GetSrvIniName() as character
-    local cSQL := "" as character
-    local nStarted := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs() as numeric
-    local nFinished := 0 as numeric
-    local lValid := .T. as logical
-    local lCompare := .F. as logical
-    local lAddon := .F. as logical
+
+    jReport := JSONObject():New()
+    cIniFile := GetSrvIniName()
+    nStarted := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs()
 
     jReport["schemaVersion"] := 1
     jReport["success"] := .F.
@@ -356,12 +380,19 @@ return(BenchmarkSQL(nRows))
 
 static method ComparisonSettings(lProtheus, lAddon) class HBBridgeBenchmarkTest
 
-    local jSettings := JSONObject():New() as json
-    local cIni := GetSrvIniName() as character
-    local cSection := GetPvProfString("hbBridge", "BenchmarkProtheusCredentialSection", ;
-        "FWWEBEX_" + GetEnvServer(), cIni) as character
-    local cUser := GetPvProfString(cSection, "UserName", "", cIni) as character
-    local cPassword := GetPvProfString(cSection, "Password", "", cIni) as character
+    local cIni as character
+    local cSection as character
+    local cUser as character
+    local cPassword as character
+
+    local jSettings as json
+
+    jSettings := JSONObject():New()
+    cIni := GetSrvIniName()
+    cSection := GetPvProfString("hbBridge", "BenchmarkProtheusCredentialSection", ;
+        "FWWEBEX_" + GetEnvServer(), cIni)
+    cUser := GetPvProfString(cSection, "UserName", "", cIni)
+    cPassword := GetPvProfString(cSection, "Password", "", cIni)
 
     DEFAULT lProtheus := .T.
     DEFAULT lAddon := .T.
@@ -398,6 +429,7 @@ static function BenchmarkAddon(oClient as object, cProfile as character, cModule
     local jParams := JSONObject():New() as json
     local jResponse as json
     local jSeries := JSONObject():New() as json
+
     local nStarted := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs() as numeric
     local nFinished := 0 as numeric
 
@@ -452,6 +484,7 @@ static function BenchmarkAddonValid(jResponse as json, cProfile as character, ;
     nRows as numeric, nPageSize as numeric, nIterations as numeric, nWarmup as numeric) as logical
 
     local jSeries as json
+
     local nCompleted := 0 as numeric
 
     if !jResponse:HasProperty("schemaVersion") .or. !jResponse:HasProperty("success") .or. ;
@@ -509,15 +542,27 @@ return(!jSeries["success"] .and. ValType(jSeries["avgMs"]) == "U")
 static function BenchmarkSeries(oClient as object, cProfile as character, cSQL as character, ;
     nRows as numeric, nPageSize as numeric, nIterations as numeric, nWarmup as numeric, lHTTP as logical) as json
 
-    local jSeries := JSONObject():New() as json
-    local jSamples := JSONObject():New() as json
-    local jWarmupSamples := JSONObject():New() as json
+    local jSeries as json
+    local jSamples as json
+    local jWarmupSamples as json
     local jSample as json
-    local oDataSet as object
-    local xError as variant
-    local nIteration := 0, nCompleted := 0, nWarmupCompleted := 0 as numeric
-    local nTotalMs := 0, nMinMs := 0, nMaxMs := 0 as numeric
+
     local lWarmupOK := .T. as logical
+
+    local nIteration := 0 as numeric
+    local nCompleted := 0 as numeric
+    local nWarmupCompleted := 0 as numeric
+    local nTotalMs := 0 as numeric
+    local nMinMs := 0 as numeric
+    local nMaxMs := 0 as numeric
+
+    local oDataSet as object
+
+    local xError as variant
+
+    jSeries := JSONObject():New()
+    jSamples := JSONObject():New()
+    jWarmupSamples := JSONObject():New()
 
     jSeries["success"] := .F.
     jSeries["completedIterations"] := 0
@@ -615,17 +660,35 @@ return(jSeries)
 static function BenchmarkIteration(oDataSet as object, oClient as object, cSQL as character, ;
     nRows as numeric, nPageSize as numeric, lHTTP as logical) as json
 
-    local jSample := JSONObject():New() as json
-    local xError as variant
-    local xID, xName, xAmount as variant
-    local cFailure := "", cServiceCode := "" as character
-    local nHTTPStatus := 0 as numeric
-    local nStarted := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs() as numeric
-    local nPrevious := nStarted, nCurrent := 0 as numeric
-    local nPage := 0, nRowsRead := 0, nPagesRead := 0, nCalls := 0 as numeric
-    local nRow := 0, nID := 0, nExpectedRows := 0 as numeric
-    local nExpectedPages := Int((nRows - 1) / nPageSize) + 1 as numeric
+    local cFailure := "" as character
+    local cServiceCode := "" as character
+
+    local jSample as json
+
     local lOpened := .F. as logical
+
+    local nHTTPStatus := 0 as numeric
+    local nStarted as numeric
+    local nPrevious as numeric
+    local nCurrent := 0 as numeric
+    local nPage := 0 as numeric
+    local nRowsRead := 0 as numeric
+    local nPagesRead := 0 as numeric
+    local nCalls := 0 as numeric
+    local nRow := 0 as numeric
+    local nID := 0 as numeric
+    local nExpectedRows := 0 as numeric
+    local nExpectedPages as numeric
+
+    local xError as variant
+    local xID as variant
+    local xName as variant
+    local xAmount as variant
+
+    jSample := JSONObject():New()
+    nStarted := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs()
+    nPrevious := nStarted
+    nExpectedPages := Int((nRows - 1) / nPageSize) + 1
 
     try
         for nPage := 1 to nExpectedPages
@@ -740,8 +803,11 @@ return(jSample)
 
 static function BenchmarkSafeCode(xCode as variant) as character
 
-    local nCharacter := 0 as numeric
     local cCode := "" as character
+
+    local nCharacter := 0 as numeric
+    local nLength := 0 as numeric
+
 
     if ValType(xCode) != "C"
         return "UNCLASSIFIED_CLIENT_ERROR"
@@ -750,7 +816,8 @@ static function BenchmarkSafeCode(xCode as variant) as character
     if Empty(cCode) .or. Len(cCode) > 80
         return "UNCLASSIFIED_CLIENT_ERROR"
     endif
-    for nCharacter := 1 to Len(cCode)
+    nLength := Len(cCode)
+    for nCharacter := 1 to nLength
         if !(SubStr(cCode, nCharacter, 1) $ "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_")
             return "UNCLASSIFIED_CLIENT_ERROR"
         endif
@@ -760,9 +827,13 @@ return(cCode)
 
 static procedure BenchmarkLogFailure(jReport as json, cRoute as character)
 
+    local cPhase := "" as character
+    local cKey := "" as character
+    local cLine := "" as character
+
     local jSeries as json
     local jSample as json
-    local cPhase := "", cKey := "", cLine := "" as character
+
 
     if !jReport:HasProperty(cRoute)
         return
@@ -820,8 +891,12 @@ return(xValue >= nMinimum .and. xValue <= nMaximum .and. xValue == Int(xValue))
 
 static function BenchmarkInteger(cValue as character, nMaximum as numeric, lAllowZero as logical) as numeric
 
-    local nDigit := 0, nValue := 0 as numeric
     local cDigit := "" as character
+
+    local nDigit := 0 as numeric
+    local nValue := 0 as numeric
+    local nLength := 0 as numeric
+
 
     if Empty(cValue) .or. Len(cValue) > Len(AllTrim(Str(nMaximum)))
         return -1
@@ -829,7 +904,8 @@ static function BenchmarkInteger(cValue as character, nMaximum as numeric, lAllo
     if Len(cValue) > 1 .and. Left(cValue, 1) == "0"
         return -1
     endif
-    for nDigit := 1 to Len(cValue)
+    nLength := Len(cValue)
+    for nDigit := 1 to nLength
         cDigit := SubStr(cValue, nDigit, 1)
         if !(cDigit $ "0123456789")
             return -1
@@ -857,6 +933,7 @@ return(!Empty(AllTrim(xValue)) .and. !(Chr(0) $ xValue) .and. ;
 static function BenchmarkURLValid(xValue as variant) as logical
 
     local cValue := "", cAuthority := "" as character
+
     local nStart := 0, nSlash := 0 as numeric
 
     if !BenchmarkTextValid(xValue)

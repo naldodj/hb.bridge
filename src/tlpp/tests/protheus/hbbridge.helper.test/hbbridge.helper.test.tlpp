@@ -5,14 +5,23 @@
 // Pure helper checks: no connection, configuration or ERP table is read.
 procedure U_HBBridgeHelperTest()
 
-    local jChecks:=JSONObject():New() as json
-    local jFilters:=JSONObject():New() as json
-    local jFilter:=JSONObject():New() as json
     local aFilters as array
     local aNames as array
-    local nCheck as numeric
-    local lOk:=.T. as logical
+
     local cSQL as character
+
+    local jChecks as json
+    local jFilters as json
+    local jFilter as json
+
+    local lOk := .T. as logical
+
+    local nCheck as numeric
+    local nNames := 0 as numeric
+
+    jChecks := JSONObject():New()
+    jFilters := JSONObject():New()
+    jFilter := JSONObject():New()
 
     jChecks["bareFields"]:=HBBridge.SQL.Tools.HBBridgeSqlTools():PrefixQryAlias("SRA","RA_MAT='123' AND R_E_C_N_O_=3")=="SRA.RA_MAT='123' AND SRA.R_E_C_N_O_=3"
     jChecks["qualifiedFields"]:=HBBridge.SQL.Tools.HBBridgeSqlTools():PrefixQryAlias("SRA","SRA.RA_MAT=CTT.CTT_CUSTO")=="SRA.RA_MAT=CTT.CTT_CUSTO"
@@ -46,7 +55,8 @@ procedure U_HBBridgeHelperTest()
 
     // GetNames() is used once only to print the keyed check report.
     aNames:=jChecks:GetNames()
-    for nCheck:=1 to Len(aNames)
+    nNames := Len(aNames)
+    for nCheck:=1 to nNames
         lOk:=jChecks[aNames[nCheck]].and.lOk
     next nCheck
     ConOut("hbBridge helper checks: "+jChecks:ToJSON())

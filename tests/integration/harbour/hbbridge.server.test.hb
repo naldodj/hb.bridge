@@ -7,7 +7,9 @@ STATIC s_hAddonGate
 // Build hbbridgeservertest.hbp or run scripts/test-hbbridge.ps1 from the project root.
 PROCEDURE MTTests()
 
-    LOCAL hServer, nFailures := 0, nChecks := 0
+    LOCAL hServer
+
+    LOCAL nFailures := 0, nChecks := 0
 
     MTAssert( hb_mtvm(), "Harbour MT VM enabled", @nFailures, @nChecks )
     IF ! hb_mtvm()
@@ -48,7 +50,9 @@ RETURN
 
 STATIC PROCEDURE MTProtocolSignatures( hServer, nFailures, nChecks )
 
-    LOCAL cSignature, hResponse
+    LOCAL cSignature
+
+    LOCAL hResponse
 
     FOR EACH cSignature IN { "HBBRIDGE/1" }
         hResponse := MTRequest( hServer[ "port" ], MTEchoJson( 42 ), cSignature )
@@ -86,8 +90,9 @@ RETURN hResponse[ "success" ] == .T.
 
 STATIC PROCEDURE MTIdleClient( hServer, nFailures, nChecks )
 
-    LOCAL hIdle := MTConnect( hServer[ "port" ] )
-    LOCAL nStart, hResponse
+    LOCAL hIdle := MTConnect( hServer[ "port" ] ), hResponse
+
+    LOCAL nStart
 
     MTAssert( ! Empty( hIdle ), "idle client connects", @nFailures, @nChecks )
     IF Empty( hIdle )
@@ -110,14 +115,19 @@ RETURN
 
 STATIC PROCEDURE MTParallelEcho( hServer, nFailures, nChecks )
 
-    LOCAL aThreads := {}, nIndex, hResponse, hThread
+    LOCAL aThreads := {}
+
+    LOCAL hResponse, hThread
+
+    LOCAL nIndex, nThreads
 
     FOR nIndex := 1 TO 16
         // Arguments are copied into each new thread; do not capture the loop local.
         AAdd( aThreads, hb_threadStart( @MTEchoRequest(), hServer[ "port" ], nIndex ) )
     NEXT
 
-    FOR nIndex := 1 TO Len( aThreads )
+    nThreads := Len( aThreads )
+    FOR nIndex := 1 TO nThreads
         hThread := aThreads[ nIndex ]
         hResponse := NIL
         IF MTJoin( hThread, @hResponse )
@@ -137,7 +147,10 @@ STATIC PROCEDURE MTBadRequests( hServer, nFailures, nChecks )
 
     LOCAL aRequests := { "{", "[]", '{"service":17,"params":{}}', ;
         '{"service":"Echo"}', '{"service":"Unknown","params":{}}' }
-    LOCAL cRequest, hResponse
+
+    LOCAL cRequest
+
+    LOCAL hResponse
 
     FOR EACH cRequest IN aRequests
         hResponse := MTRequest( hServer[ "port" ], cRequest )
@@ -150,7 +163,11 @@ RETURN
 
 STATIC PROCEDURE MTAddons( hServer, nFailures, nChecks )
 
-    LOCAL aThreads := {}, hThread, hResponse, nIndex, nStart, nPrevious
+    LOCAL aThreads := {}
+
+    LOCAL hThread, hResponse
+
+    LOCAL nIndex, nStart, nPrevious, nThreads
 
     IF File( "addons/hbbridge_mt_fault.hrb" )
         hResponse := MTRequest( hServer[ "port" ], '{"service":"ADDON.Execute","params":{"module":"hbbridge_mt_fault.hrb","params":{}}}' )
@@ -168,7 +185,8 @@ STATIC PROCEDURE MTAddons( hServer, nFailures, nChecks )
         FOR nIndex := 1 TO 12
             AAdd( aThreads, hb_threadStart( @MTAddonRequest(), hServer[ "port" ], nIndex ) )
         NEXT
-        FOR nIndex := 1 TO Len( aThreads )
+        nThreads := Len( aThreads )
+        FOR nIndex := 1 TO nThreads
             hThread := aThreads[ nIndex ]
             hResponse := NIL
             IF MTJoin( hThread, @hResponse )
@@ -218,8 +236,14 @@ RETURN
 
 STATIC PROCEDURE MTWorkerLimit( nFailures, nChecks )
 
-    LOCAL hServer := HBBridgeServerStart( 0, 1 )
-    LOCAL hIdle, hExcess, cByte := Space( 1 ), nReceived, nError
+    LOCAL cByte
+
+    LOCAL hServer, hIdle, hExcess
+
+    LOCAL nReceived, nError
+
+    hServer := HBBridgeServerStart( 0, 1 )
+    cByte := Space( 1 )
 
     MTAssert( HB_ISHASH( hServer ), "single-worker server starts", @nFailures, @nChecks )
     IF ! HB_ISHASH( hServer )
@@ -255,8 +279,9 @@ RETURN
 
 STATIC PROCEDURE MTGracefulStop( nFailures, nChecks )
 
-    LOCAL hServer := HBBridgeServerStart( 0, 2 )
-    LOCAL hIdle, hStop, hResponse, lStopped := .F.
+    LOCAL hServer := HBBridgeServerStart( 0, 2 ), hIdle, hStop, hResponse
+
+    LOCAL lStopped := .F.
 
     MTAssert( HB_ISHASH( hServer ), "shutdown test server starts", @nFailures, @nChecks )
     IF ! HB_ISHASH( hServer )
@@ -331,7 +356,9 @@ RETURN MTRequest( nPort, hb_jsonEncode( { "service" => "ADDON.Execute", ;
 
 FUNCTION MTAddonBarrier( nIndex )
 
-    LOCAL nArrived, nRelease, lReady := .F.
+    LOCAL lReady := .F.
+
+    LOCAL nArrived, nRelease
 
     nArrived := hb_mutexEval( s_hAddonGate[ "mutex" ], {|| MTAddonArrive( nIndex ) } )
     IF nArrived == s_hAddonGate[ "expected" ]
@@ -359,9 +386,13 @@ RETURN hResponse
 
 STATIC FUNCTION MTExchange( hSocket, cJson, cSignature )
 
-    LOCAL cFrame, nZipError, cCompressed
-    LOCAL cResponse := "", cChunk, nReceived, nDeadline := HBBridgeMonotonicMs() + MT_TIMEOUT_MS
-    LOCAL nHeaderEnd, aHeader, cBody, hResponse
+    LOCAL aHeader
+
+    LOCAL cFrame, cCompressed, cResponse := "", cChunk, cBody
+
+    LOCAL hResponse
+
+    LOCAL nZipError, nReceived, nDeadline := HBBridgeMonotonicMs() + MT_TIMEOUT_MS, nHeaderEnd
 
     hb_default( @cSignature, "HBBRIDGE/1" )
     cFrame := cSignature + "|JSON|" + hb_ntos( hb_BLen( cJson ) ) + hb_BChar( 10 ) + cJson

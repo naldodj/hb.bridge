@@ -9,6 +9,13 @@
   intermediate commits/publication do not reset it. TODO retains the roadmap.
 - Use four spaces per indentation level in project-owned sources. Preserve
   upstream formatting, copyright and license notices in third-party files.
+- Group variable declarations by data type and order the groups alphabetically
+  by their type prefix, for example `a`, `c`, `d`, `j`, `l`, `n`, `o`, `x`.
+  Full variable names within a type group need not be alphabetized. Preserve
+  initialization dependencies; assign values after declarations when needed.
+- Resolve constants and loop-invariant expressions before loops, including
+  character conversions and lengths of unchanged strings/containers. Keep
+  changing values, clocks, I/O and mutable-state checks inside the loop.
 - Use English identifiers. Files are lowercase. Functions, procedures,
   methods, namespaces and classes use PascalCase. Source basenames use
   lowercase words separated by dots:

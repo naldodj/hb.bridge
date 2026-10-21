@@ -5,22 +5,32 @@
 // No configuration, network, database or ERP table is read by this test.
 procedure U_HBBridgeDataSetTest()
 
-    local oClient := HBBridge.Tests.HBBridgeDataSetMockClient():New() as object
-    local oDataSet := HBBridge.RDD.HBBridgeRPCDataSet():New(oClient) as object
-    local jChecks := JSONObject():New() as json
+    local aChecks as array
+
+    local cSql := "SELECT ID, NAME FROM fixture" as character
+
+    local jChecks as json
     local jHeader as json
     local jInfo as json
     local jRow as json
     local jRequest as json
     local jResponse as json
-    local aChecks as array
+
+    local lOpened := .F. as logical
+    local lOk := .T. as logical
+
     local nCheck := 0 as numeric
     local nCalls := 0 as numeric
     local nRecords := 0 as numeric
     local nSum := 0 as numeric
-    local lOpened := .F. as logical
-    local lOk := .T. as logical
-    local cSql := "SELECT ID, NAME FROM fixture" as character
+    local nChecks := 0 as numeric
+
+    local oClient as object
+    local oDataSet as object
+
+    oClient := HBBridge.Tests.HBBridgeDataSetMockClient():New()
+    oDataSet := HBBridge.RDD.HBBridgeRPCDataSet():New(oClient)
+    jChecks := JSONObject():New()
 
     jHeader := oDataSet:Header()
     jInfo := oDataSet:FieldInfo("ID")
@@ -338,7 +348,8 @@ procedure U_HBBridgeDataSetTest()
 
     // GetNames() exposes a native array; enumerate once only for the report.
     aChecks := jChecks:GetNames()
-    for nCheck := 1 to Len(aChecks)
+    nChecks := Len(aChecks)
+    for nCheck := 1 to nChecks
         lOk := jChecks[aChecks[nCheck]] .and. lOk
     next
     nCheck := Len(aChecks)
@@ -371,6 +382,7 @@ static function DataSetResult(nFirstId as numeric, nRows as numeric, nPage as nu
     local jFormat as json
     local jRow as json
     local jPage as json
+
     local nRow := 0 as numeric
     local nId := 0 as numeric
 

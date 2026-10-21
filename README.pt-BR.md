@@ -8,7 +8,7 @@
 [English](README.md)
 
 O [pacote ativo](WIP.pt-BR.md) define próximas tarefas, decisões registradas e
-critérios de conclusão. O pacote 001 cobre homologação MSSQL real;
+critérios de conclusão. O pacote 001 MSSQL foi concluído; o pacote 002 cobre SQL tipado e apresentação nativa;
 [TODO](TODO.pt-BR.md) mantém o roadmap completo. WIP é renovado após encerrar o pacote.
 
 ## Alinhamento atual: executor, perfis e compilação
@@ -103,9 +103,11 @@ Veja a [visão geral oficial do Zig](https://ziglang.org/learn/overview/).
 
 No projeto, Zig tem dois papéis complementares: o toolchain usado no build
 Harbour/C (`hbmk2 -comp=zig`) e a implementação de extensões nativas. O produto
-já vincula `hbbridge_zig` e exercita essa integração no serviço `Health`.
-Hoje essa função devolve uma resposta demonstrativa; as capacidades da
-biblioteca serão ampliadas de forma incremental.
+já vincula `hbbridge_zig`. `Health` mantém sua resposta demonstrativa; o codec
+numérico JSON compartilhado C/Zig agora formata e interpreta valores nativos
+de ponto flutuante sem depender das casas decimais de exibição do RDD.
+Outras extensões nativas, incluindo processadores de addons para benchmark,
+permanecem como trabalho futuro.
 
 ## Direção do projeto
 
@@ -153,10 +155,10 @@ Harbour, preservando a programação xBase na camada de serviços.
 | hbnetio | Listener nativo incorporado em `0.0.0.0:2941`, RPC filtrado e serialização Harbour. `HB_EXTERN` habilitado; gateway usa somente serviços registrados. |
 | HTTP/REST | `hbhttpd` incorporado, opcional e desativado por padrão. Chamadas JSON e status web autenticado usam o núcleo comum; credenciais de serviço/administração separadas. HTTPS direto exige build com OpenSSL e homologação própria. |
 | Cliente HTTP Protheus | `HBBridgeHTTPClient` usa FWRest nativo, bearer e contrato JSON compartilhado. Homologação manual no AppServer com 13 checks aprovados em cada banco MSSQL e SQLite em 2026-10-08, incluindo paginação SQL; wrappers selecionam `MSSQL/pData` e `sqlite_demo`. |
-| Dados SQL | `RPCRDD.Query` usa SQLMIX com SQLite e MSSQL/ODBC; suporta páginas no SGBD e resultados por chave. Em 2026-10-08 passaram 92 checks MSSQL nativos; homologação manual Protheus com 29 checks TCP e 13 HTTP aprovados em cada perfil, `MSSQL/pData` e `sqlite_demo`. Falhas/tipos/plataformas ampliados mantêm seus aceites. |
+| Dados SQL | `RPCRDD.Query` usa SQLMIX com SQLite e MSSQL/ODBC; suporta páginas no SGBD e resultados por chave. Em 2026-10-08 passaram 92 checks MSSQL nativos; homologação manual Protheus com 29 checks TCP e 13 HTTP aprovados em cada perfil, `MSSQL/pData` e `sqlite_demo`. M06 de falhas/recuperação e D03 de integridade textual/numérica têm aceite posterior delimitado no Windows; tipos/plataformas ampliados mantêm aceites separados. |
 | Dados DBF | Acesso por RDDs nativos via NETIO previsto; ainda não integrado ao hbBridge. |
 | VF IO | Cliente Harbour usa `hb_vf*` com provedor NETIO; leitura/escrita binária testadas. Fachada de arquivos para TLPP permanece pendente. |
-| C e Zig | Ponte pela API C do Harbour e ABI C do Zig integrada ao `Health`; biblioteca Zig e toolchain exigidos pelo build atual. |
+| C e Zig | Integração pela ABI Harbour/C/Zig, demonstração Health e codec numérico JSON compartilhado; biblioteca Zig e toolchain exigidos pelo build atual. |
 | Limites atuais | Sem teto de payload/rede imposto pelo aplicativo por padrão; políticas opcionais, buffer de leitura e prazo configuráveis. Permanecem os limites reais do runtime, das APIs, do AppServer e da memória disponível. Negociação e blocos pendentes. |
 | Operação | Console com host coordenado, arquivos INI/JSON e CLI. `hbbridge.ini` ao lado do executável é carregado sem `-config`; `--config-info` valida sem iniciar o host. Administração em `127.0.0.1:2940`; serviço do sistema pendente. |
 | Syslog | Módulo UDP disponível no projeto, ainda sem chamadas no fluxo do servidor. |
@@ -195,17 +197,22 @@ os dois Echo com conteúdo integral idêntico. O gzip da requisição de dados
 ASCII variados teve **152.964 bytes**, acima do buffer padrão de 65.536 bytes.
 Handshake, blocos e compressão negociada continuam no TODO.
 O produto não mantém os tetos arbitrários de tamanho das provas de conceito.
-A suíte Harbour completa de 2026-10-08 passou em **566 verificações, zero falhas,
-sem skips**, incluindo HTTP, concorrência de addons,
-INI/JSON, SQLite real, consultas paginadas e resultados iguais por NETIO/TCP, além de Echo
-de **24.000.000 bytes exatos** e JSON/gzip acima de 16 MiB nos dois sentidos.
+As regressões nativas finais no Windows em 2026-10-21 passaram em **752 checks
+padrão**, **92 checks MSSQL existentes** e **73 checks de integridade MSSQL**,
+todos sem falhas. Veja as [evidências do pacote](docs/acceptance.pt-BR.md#package-001-m09-closure-on-2026-10-21).
+A suíte Harbour completa anterior, de 2026-10-08, passou em **566 verificações,
+zero falhas, sem skips**, incluindo HTTP, concorrência de addons, INI/JSON,
+SQLite real, consultas paginadas e resultados iguais por NETIO/TCP, além de
+Echo de **24.000.000 bytes exatos** e JSON/gzip acima de 16 MiB nos dois sentidos.
 
 A [análise de evolução](docs/evolution.pt-BR.md) registra as propostas de
 2026-10-07: `THREAD STATIC` para estado do worker com inicialização explícita
 por requisição, Zig como adaptador HTTP opcional, dependências externas sob
 responsabilidade do hb_compile e tabelas SQL genéricas para apresentação
-Protheus. A prova thread-static passou em 31 asserções separadas. HTTP Zig,
-resolução automática OpenSSL e materialização SQL continuam pendentes.
+Protheus. A prova thread-static passou em 31 asserções separadas. O adaptador
+de browse nativo TLPP `HBBridgeBrowseData` está implementado; o aceite ampliado
+de browse/UI permanece separado. O serviço proposto `RPCRDD.Materialize` no
+servidor, HTTP Zig e resolução automática OpenSSL continuam como trabalho futuro.
 
 ## Arquitetura pretendida
 
@@ -1060,7 +1067,7 @@ registrada: 80 checks automatizados no AppServer por TCP/HTTP em 2026-10-21.
 O consumidor usa `DecodeUTF8()` uma vez quando precisa de texto na sua página
 de código. Binários exigem projeção SQL textual explícita para JSON versão 1.
 Veja o [aceite D03](docs/acceptance.pt-BR.md#d03-integrity-on-2026-10-21).
-Checks finais M09 e pacote 001 permanecem abertos.
+M09 e pacote 001 concluídos; pacote 002 planejado no WIP.
 Serviço e conectores estão implementados; o launcher aceita
 perfis em JSON ou INI, como `-Config config/examples/sqlite.ini`.
 Em paralelo, a base de integração

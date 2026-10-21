@@ -11,9 +11,15 @@ return
 
 static procedure HBBridgeBrowseDataTestSRA()
     local cAliasTmp as character
-    local cSRASQLName:=RetSQLName("SRA") as character
-    local nColumn:=0 as numeric
-    local jParameters:=JSONObject():New() as json
+    local cSRASQLName as character
+
+    local jParameters as json
+
+    local nColumn := 0 as numeric
+    local nColumns := 0 as numeric
+
+    cSRASQLName := RetSQLName("SRA")
+    jParameters := JSONObject():New()
     jParameters["cEmp"]:=if((Type("cEmpAnt")=="C").and.!Empty(cEmpAnt),cEmpAnt,"99")
     jParameters["cFil"]:=if((Type("cFilAnt")=="C").and.!Empty(cFilAnt),cFilAnt,"01")
     jParameters["cSQLFields"]:=HBBridge.SQL.Tools.HBBridgeSqlTools():GetNonBlobColumns(cSRASQLName)
@@ -34,7 +40,8 @@ static procedure HBBridgeBrowseDataTestSRA()
     jParameters["jHBBridgeDataSetPage"]["orderBy"]:="RA_FILIAL,RA_MAT"
     jParameters["aAcho"]:=StrTokArr2(StrTran(StrTran(jParameters["cSQLFields"],"[",""),"]",""),",")
     // The browse API requires a native array of field names.
-    for nColumn:=1 to Len(jParameters["aAcho"])
+    nColumns := Len(jParameters["aAcho"])
+    for nColumn:=1 to nColumns
         jParameters["aAcho"][nColumn]:=AllTrim(jParameters["aAcho"][nColumn])
     next nColumn
     jParameters["cATRecNoMsMGet"]:="R_E_C_N_O_"
@@ -55,6 +62,7 @@ return
 
 static procedure HBBridgeBrowseDataTestSRAWithCast()
     local cAliasTmp as character
+
     local jParameters:=JSONObject():New() as json
     jParameters["cEmp"]:=if((Type("cEmpAnt")=="C").and.!Empty(cEmpAnt),cEmpAnt,"99")
     jParameters["cFil"]:=if((Type("cFilAnt")=="C").and.!Empty(cFilAnt),cFilAnt,"01")

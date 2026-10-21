@@ -5,21 +5,34 @@
 // Pure consumer/dataset contract checks: no INI, HTTP or ERP table is read.
 function U_HBBridgeHTTPTableTest()
 
-    local oClient := HBBridge.Tests.HBBridgeHTTPTableMockClient():New() as object
-    local jFields := HTTPTableTestFields() as json
+    local aChecks as array
+
     local cSQL := "SELECT ID,NAME,AMOUNT,SECRET FROM fixture WHERE TENANT_ID = 7 AND ACTIVE = 1" as character
-    local cBase := "SELECT HBGRID.* FROM (" + cSQL + ") AS HBGRID" as character
-    local oTable := HBBridge.Examples.HBBridgeHTTPTable():New(;
-        "opaque/profile", cSQL, jFields, "ID", oClient) as object
-    local oInvalid as object
-    local jChecks := JSONObject():New() as json
+    local cBase as character
+
+    local jFields as json
+    local jChecks as json
     local jRequest as json
     local jResponse as json
     local jRecorded as json
     local jFixture as json
-    local aChecks as array
-    local nCheck := 0, nCalls := 0 as numeric
+
     local lOk := .T. as logical
+
+    local nCheck := 0 as numeric
+    local nCalls := 0 as numeric
+    local nChecks := 0 as numeric
+
+    local oClient as object
+    local oTable as object
+    local oInvalid as object
+
+    oClient := HBBridge.Tests.HBBridgeHTTPTableMockClient():New()
+    jFields := HTTPTableTestFields()
+    cBase := "SELECT HBGRID.* FROM (" + cSQL + ") AS HBGRID"
+    oTable := HBBridge.Examples.HBBridgeHTTPTable():New(;
+        "opaque/profile", cSQL, jFields, "ID", oClient)
+    jChecks := JSONObject():New()
 
     // Caller mutation cannot change the consumer's validated field mapping.
     jFields["NAME"]["type"] := "N"
@@ -320,7 +333,8 @@ function U_HBBridgeHTTPTableTest()
     jChecks["allQueuedResponsesConsumed"] := oClient:PendingResponseCount() == 0 .and. oClient:CallCount() == 19
 
     aChecks := jChecks:GetNames()
-    for nCheck := 1 to Len(aChecks)
+    nChecks := Len(aChecks)
+    for nCheck := 1 to nChecks
         lOk := jChecks[aChecks[nCheck]] .and. lOk
         ConOut("hbBridge HTTP table check " + aChecks[nCheck] + ": " + ;
             if(jChecks[aChecks[nCheck]], "PASS", "FAILED"))
@@ -357,11 +371,17 @@ return(jRequest)
 static function HTTPTableTestRejected(oTable as object, oClient as object, ;
     jRequest as json, cCode as character) as logical
 
-    local nCalls := oClient:CallCount() as numeric
-    local jResponse := oTable:Handle(jRequest) as json
-    local lPassed := !jResponse["success"] .and. jResponse["code"] == cCode .and. ;
+    local jResponse as json
+
+    local lPassed as logical
+
+    local nCalls as numeric
+
+    nCalls := oClient:CallCount()
+    jResponse := oTable:Handle(jRequest)
+    lPassed := !jResponse["success"] .and. jResponse["code"] == cCode .and. ;
         Len(jResponse["data"]) == 0 .and. jResponse["recordsTotal"] == 0 .and. ;
-        jResponse["recordsFiltered"] == 0 .and. oClient:CallCount() == nCalls as logical
+        jResponse["recordsFiltered"] == 0 .and. oClient:CallCount() == nCalls
 
     if !lPassed
         // Diagnose rejection/queue errors without printing SQL or filter values.
@@ -398,6 +418,7 @@ static function HTTPTableTestResult(nFirstID as numeric, nRows as numeric, ;
     local jRows := JSONObject():New() as json
     local jRow as json
     local jPage := JSONObject():New() as json
+
     local nRow := 0, nID := 0 as numeric
 
     DEFAULT lTotals := .T.

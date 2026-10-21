@@ -11,7 +11,7 @@ $projectRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 $executableName = if ($IsWindows) { 'hbbridge.exe' } else { 'hbbridge' }
 $server = Join-Path $projectRoot "out/$executableName"
 if (-not (Test-Path -LiteralPath $server -PathType Leaf)) {
-    throw 'Compile o produto com scripts/build-hbbridge.ps1 antes de executar.'
+    throw 'Build the product with scripts/build-hbbridge.ps1 before running it.'
 }
 
 # Native executable arguments require a positional argument array.
@@ -22,7 +22,7 @@ if ($PSBoundParameters.ContainsKey('Config')) {
         $configPath = Join-Path $projectRoot $configPath
     }
     if (-not (Test-Path -LiteralPath $configPath -PathType Leaf)) {
-        throw "Arquivo de configuracao nao encontrado: $configPath"
+        throw "Configuration file not found: $configPath"
     }
     $configPath = (Resolve-Path -LiteralPath $configPath).Path
     $serverArguments += "-config=$configPath"

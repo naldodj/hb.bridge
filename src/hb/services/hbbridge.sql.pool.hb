@@ -36,7 +36,9 @@ METHOD RegisterProfile( cProfile, hProfile ) CLASS HBBridgeSQLPool
 RETURN hb_mutexEval( ::pMutex, {|| ::RegisterLocked( cProfile, hProfile ) } )
 
 METHOD RegisterLocked( cProfile, hProfile ) CLASS HBBridgeSQLPool
-    LOCAL hLease, hNormalized, cError
+    LOCAL cError
+
+    LOCAL hLease, hNormalized
     IF ::lClosed .OR. ! HB_ISSTRING( cProfile ) .OR. ! HB_ISHASH( hProfile )
         RETURN .F.
     ENDIF
@@ -65,7 +67,13 @@ METHOD Acquire( cProfile ) CLASS HBBridgeSQLPool
 RETURN hb_mutexEval( ::pMutex, {|| ::AcquireLocked( cProfile ) } )
 
 METHOD AcquireLocked( cProfile ) CLASS HBBridgeSQLPool
-    LOCAL hProfile, aConnection, nConnection, hLease, cID
+    LOCAL aConnection
+
+    LOCAL cID
+
+    LOCAL hProfile, hLease
+
+    LOCAL nConnection
     IF ::lClosed .OR. ! HB_ISSTRING( cProfile ) .OR. ! hb_HHasKey( ::hProfiles, cProfile )
         RETURN NIL
     ENDIF
@@ -102,7 +110,13 @@ METHOD Release( hLease ) CLASS HBBridgeSQLPool
 RETURN hb_mutexEval( ::pMutex, {|| ::ReleaseLocked( hLease ) } )
 
 METHOD ReleaseLocked( hLease ) CLASS HBBridgeSQLPool
-    LOCAL hOwned, lOK, cKey, xValue
+    LOCAL cKey
+
+    LOCAL hOwned
+
+    LOCAL lOK
+
+    LOCAL xValue
     IF ! HB_ISHASH( hLease ) .OR. ! hb_HHasKey( hLease, "id" )
         RETURN .F.
     ENDIF

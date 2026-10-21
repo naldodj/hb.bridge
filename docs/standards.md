@@ -8,6 +8,20 @@ identifiers. Files are lowercase; functions, procedures, methods, namespaces
 and classes use PascalCase. Conventional
 Git filenames and the `.pt-BR` locale suffix are exceptions to lowercase.
 
+Group variable declarations by data type, with a blank line between groups,
+and order the groups alphabetically by their type prefix: for example `a`
+(array), `c` (character), `d` (date), `j` (JSON), `l` (logical), `n` (numeric),
+`o` (object), `x` (variant). Full names within a group need not be alphabetic.
+Preserve initialization dependencies; separate declaration and assignment
+when their order would otherwise change behavior. Apply the corresponding
+type grouping in languages that use different declaration conventions.
+
+Resolve constants and loop-invariant calculations before the loop: for
+example `cNul := Chr(0)` and `nLength := Len(cText)` when `cText` is unchanged.
+Compute changing values once per iteration where useful. Do not hoist clocks,
+I/O, mutable-state checks or lengths of containers that grow/shrink during
+iteration. A cached value must remain valid for the entire loop.
+
 Source basenames separate lowercase words with dots, for example
 `hbbridge.rpc.dataset.tlpp`. Removing dots must match the lowercase class
 name `HBBridgeRPCDataSet`. This word segmentation does not change namespaces.

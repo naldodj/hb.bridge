@@ -5,18 +5,31 @@
 // Pure callback contract checks: no browser, INI, socket or SQL connection.
 function U_HBBridgeBenchmarkVisualTest()
 
-    local jState := JSONObject():New() as json
-    local jChecks := JSONObject():New() as json
-    local jInvalid := JSONObject():New() as json
-    local jRequest as json
-    local jResponse as json
-    local oController as object
-    local bMeasure as codeblock
     // GetNames() exposes the native JSON enumeration array; it is borrowed.
     local aNames as array
-    local cName := "", cSaved := "" as character
-    local nCheck := 0, nCalls := 0 as numeric
+
+    local bMeasure as codeblock
+
+    local cName := "" as character
+    local cSaved := "" as character
+
+    local jState as json
+    local jChecks as json
+    local jInvalid as json
+    local jRequest as json
+    local jResponse as json
+
     local lOK := .T. as logical
+
+    local nCheck := 0 as numeric
+    local nCalls := 0 as numeric
+    local nNames := 0 as numeric
+
+    local oController as object
+
+    jState := JSONObject():New()
+    jChecks := JSONObject():New()
+    jInvalid := JSONObject():New()
 
     jState["calls"] := 0
     jState["mode"] := "success"
@@ -113,7 +126,8 @@ function U_HBBridgeBenchmarkVisualTest()
         '"largeTimeout":{"field":"timeoutSeconds","value":2147484},' + ;
         '"fractionalTimeout":{"field":"timeoutSeconds","value":0.5}}')
     aNames := jInvalid:GetNames()
-    for nCheck := 1 to Len(aNames)
+    nNames := Len(aNames)
+    for nCheck := 1 to nNames
         cName := aNames[nCheck]
         jRequest := BenchmarkVisualRequest("reject-" + cName)
         jRequest["params"][jInvalid[cName]["field"]] := jInvalid[cName]["value"]
@@ -249,7 +263,8 @@ function U_HBBridgeBenchmarkVisualTest()
     FreeObj(@jRequest)
 
     aNames := jChecks:GetNames()
-    for nCheck := 1 to Len(aNames)
+    nNames := Len(aNames)
+    for nCheck := 1 to nNames
         lOK := jChecks[aNames[nCheck]] .and. lOK
         ConOut("hbBridge benchmark visual check " + aNames[nCheck] + ": " + ;
             IIf(jChecks[aNames[nCheck]], "PASS", "FAILED"))
@@ -280,9 +295,15 @@ return(jRequest)
 
 static function BenchmarkVisualRejected(oController as object, jState as json, jRequest as json) as logical
 
-    local nCalls := jState["calls"] as numeric
-    local jResponse := oController:Handle(jRequest:ToJSON()) as json
-    local lRejected := ValType(jResponse) == "J" as logical
+    local jResponse as json
+
+    local lRejected as logical
+
+    local nCalls as numeric
+
+    nCalls := jState["calls"]
+    jResponse := oController:Handle(jRequest:ToJSON())
+    lRejected := ValType(jResponse) == "J"
 
     if lRejected
         lRejected := jResponse:HasProperty("error")

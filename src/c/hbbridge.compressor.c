@@ -67,19 +67,27 @@ HB_FUNC( HBBRIDGEDEFLATEOPEN )
  */
 HB_FUNC( HBBRIDGEDEFLATEFEED )
 {
-    HBBRIDGE_DEFLATER * state = ( HBBRIDGE_DEFLATER * ) hb_parptrGC( &bridge_deflate_gc, 1 );
-    HB_SIZE length = hb_parclen( 2 );
-    HB_BOOL finish = hb_parl( 3 );
-    PHB_ITEM result = hb_itemArrayNew( 3 );
-    PHB_ITEM chunks = hb_itemArrayNew( 0 );
+    HB_BOOL finish;
+
+    HB_SIZE length, consumed = 0;
+
     int status = -1;
-    HB_SIZE consumed = 0;
+
+    HBBRIDGE_DEFLATER * state;
+    PHB_ITEM result, chunks;
+
+    state = ( HBBRIDGE_DEFLATER * ) hb_parptrGC( &bridge_deflate_gc, 1 );
+    length = hb_parclen( 2 );
+    finish = hb_parl( 3 );
+    result = hb_itemArrayNew( 3 );
+    chunks = hb_itemArrayNew( 0 );
 
     if( state && state->initialized && ! state->failed && ! state->finished &&
         HB_ISCHAR( 2 ) && HB_ISLOG( 3 ) && length <= UINT_MAX &&
         ( HB_MAXUINT ) length <= ( HB_MAXUINT ) HB_VMLONG_MAX )
     {
         unsigned char output[ 32768 ];
+
         int flush = finish ? Z_FINISH : Z_NO_FLUSH;
 
         state->stream.next_in = ( Bytef * ) HB_UNCONST( hb_parc( 2 ) );
@@ -87,9 +95,11 @@ HB_FUNC( HBBRIDGEDEFLATEFEED )
         status = 0;
         for( ;; )
         {
-            uInt before = state->stream.avail_in;
             HB_SIZE produced;
+
             int code;
+
+            uInt before = state->stream.avail_in;
 
             state->stream.next_out = output;
             state->stream.avail_out = sizeof( output );

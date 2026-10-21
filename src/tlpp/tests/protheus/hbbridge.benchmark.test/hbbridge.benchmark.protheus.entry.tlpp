@@ -5,13 +5,25 @@
 function U_HBBridgeBenchmarkJob(cRequestJSON, cCompany, cBranch, cCredentialSection)
 
     local aFWGetTopInfo as array
-    local cDatabase := "", cAlias := "", cServer := "" as character
-    local cUser := "", cPassword := "", cCode := "ENVIRONMENT_FAILED" as character
+
+    local cDatabase := "" as character
+    local cAlias := "" as character
+    local cServer := "" as character
+    local cUser := "" as character
+    local cPassword := "" as character
+    local cCode := "ENVIRONMENT_FAILED" as character
     local cResult := "" as character
-    local nConnection := -1, nPort := 0 as numeric
-    local lOwned := .F., lEnvironmentOwned := .F., lExistingEnvironment := .F. as logical
+
+    local lOwned := .F. as logical
+    local lEnvironmentOwned := .F. as logical
+    local lExistingEnvironment := .F. as logical
     local lFailed := .F. as logical
+
+    local nConnection := -1 as numeric
+    local nPort := 0 as numeric
+
     local xError as variant
+
 
     if ValType(cCompany) != "C" .or. ValType(cBranch) != "C"
         return BenchmarkJobFailure("PROTHEUS_CONTEXT_REQUIRED")
@@ -119,8 +131,11 @@ return(cResult)
 
 static function BenchmarkJobFailure(cCode as character) as character
 
-    local jFailure := JSONObject():New() as json
     local cResult := "" as character
+
+    local jFailure as json
+
+    jFailure := JSONObject():New()
 
     jFailure["success"] := .F.
     jFailure["code"] := cCode

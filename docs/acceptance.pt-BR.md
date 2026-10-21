@@ -1801,7 +1801,7 @@ V01/V02 continuam concluídas; D03 é a próxima e M09/pacote 001 seguem abertos
 
 ## Integridade UTF-8, numérica e de NUL D03 em 2026-10-21
 
-D03 homologada para o alvo Windows x64 / SQL Server 16.0.1200.5 / Microsoft
+D03 homologada para o alvo Windows x64 / MSSQL / Microsoft
 ODBC Driver 18 identificado e a fixture somente leitura
 `d03.mssql.constants.v1`. Leitura nativa, serialização e consumidor Protheus
 têm evidências separadas; conversão visual sozinha não comprova a leitura
@@ -1880,3 +1880,88 @@ Validações finais D03 de documentação/fontes aprovadas em 2026-10-21: os tr�
 validadores obrigatórios aceitaram **242 arquivos**, links locais existentes
 nos **89 documentos** e whitespace aprovado. Recibo:
 `tmp/d03-final-commit-check.log`. Esses checks não encerram M09/pacote 001.
+
+<a id="package-001-m09-closure-on-2026-10-21"></a>
+
+## Encerramento do pacote 001 / M09 em 2026-10-21
+
+Pacote `001-mssql-acceptance` concluído para o escopo Windows x64, MSSQL/SQLite
+e AppServer registrado. M01–M09, D01–D03 e V01/V02 preservam seus aceites
+atribuíveis; os checks finais abaixo passaram após a correção NUL e a revisão
+de invariantes/agrupamento por tipo. WIP renovado para o pacote 002. O aceite
+desse pacote não encerra o roadmap do produto.
+
+| Requisito concluído | Evidência preservada |
+| --- | --- |
+| M01/M02: alvo privado identificado e pré-requisitos reproduzíveis | `MSSQL/pData`/`pData` explícitos; credenciais privadas fora do Git; DSN com Driver 18. Falta de pré-requisito continua sendo falha. |
+| M03: SQL/tipos/páginas nativos | Aceite MSSQL original e regressões finais de 92 checks e 73 checks de integridade origem/transporte. |
+| M04/M05: Protheus TCP/HTTP | Aceites manuais anteriores de 29 TCP/13 HTTP por perfil MSSQL/SQLite; rodada final de integridade AppServer com 80 checks. |
+| M06: falhas e recuperação | Aceite de 2026-10-14: 46 checks nativos, 38 TCP/51 HTTP no AppServer. |
+| M07: isolamento/recursos/concorrência | Aceites delimitados nativos/AppServer de leases, limpeza, reuso Driver Manager e carga espaçada. Mutex SQL preservado, sem prometer SQL paralelo. |
+| M08/V01/V02: referência e local de execução | Baseline de 2026-10-16; comparação visual de 2026-10-19 com escopos de tempo cliente/addon separados. |
+| D01/D02/D03: consumidor e integridade | Mocks dataset/helpers/tabela 67/12/71; FLOAT/UTF-8 nativos, texto exato, NUL nos clientes/snapshots e recusa explícita de binários. |
+| M09: build, compilação, execução e documentação finais | Checks/identidades abaixo; instruções, roadmap e padrões bilíngues conciliados. |
+
+Artefatos finais: `tmp/m09-20261021-b46a1d60bd7c4a0b8f349d9be66bd3bb/`.
+O `manifest.json` registra hashes de 109 arquivos de fonte/build/dependências,
+fingerprint, versões fixadas, metadados sanitizados do alvo e identidades dos
+binários/RPO. Revisão Git base: `8db2823f5d33bdaf3bc0492560db20a49acfcbc9`.
+O fonte validado inclui alterações da árvore de trabalho; não é uma tag de
+release nem afirma que executáveis anteriores incorporam essas alterações.
+
+| Verificação final | Resultado / artefato |
+| --- | --- |
+| Build isolado do produto; smoke de ajuda/configuração | Aprovados; `product-build.log`, `product-help.log`, `product-config.log`. Configuração usa exemplo SQLite público sem listeners. |
+| Regressão nativa padrão | 752 checks / zero falhas: `tmp/tests-00991961f4cb4766a1a27792f611fa9e/results.log`. |
+| Regressão MSSQL real | 92 checks / zero falhas/sem skips: `tmp/mssql-tests-515ed50affd34736b8f1a12e34e94b70/results.log`. |
+| Integridade MSSQL origem/nativo/TCP/HTTP | 73 checks / zero falhas: `tmp/mssql-tests-c95e03bb826949709faaa24f931f8aad/results.log`. |
+| Compilação TLPP completa | 49 fontes, zero erros de fonte, saída 0: `tlpp-compile.json`. |
+| Compilação da última otimização JSON | Um helper alterado, zero erros, saída 0: `json-compile.json`, aplicado ao RPO privado completo. |
+| Helper JSON no AppServer | 31 checks / zero falhas, saída 0: `tmp/m09-json-20da835242004b3cb6719689d2ddbb6f/protheus.log`. |
+| Integridade AppServer TCP/HTTP MSSQL | 80 checks / zero falhas, saída cliente/servidor 0: `tmp/m09-protheus-f28bebb1e5d04ce182d8f02de7bc90bc/validation.json`. |
+
+Inventário no encerramento: SQL Server **16.0.1210.3**, DSN de sistema `pData`
+com Microsoft ODBC Driver 18 **18.7.1.1**. O inventário anterior
+16.0.1200.5 / 18.6.2.1 permanece histórico. Fixture nativa em UTF8EX, conexão
+lógica por chamada e pooling físico desativado nessa fixture. HTTP testado em
+loopback próprio, sem TLS; não homologa HTTPS. AppServer 24.3.1.5. Compilação
+completa e atualização JSON usam RPO isolado; serviços/RPO instalados não
+foram substituídos nem reiniciados.
+
+Identidades SHA-256:
+
+| Artefato | SHA-256 |
+| --- | --- |
+| Executável do produto, escopo build/smoke | `E3F267D7053AC64D7814B0E857084554CCD6924EC442C4B8311DE71DD77C1018` |
+| Host SQL nativo novo usado pelo AppServer | `2E9B44F4B83EE77F2E343FDBF21AD5610F2C3A1010479659525E33722B58E0F3` |
+| RPO custom privado final | `6287F87912E694AA42938D3C82C9F3CA193FEF3EAB56920B36B3110D9E515A25` |
+| Executável AppServer | `A14029C4CCD8F410FF9D0CA1782D0FFFD076283393D005A39D7BD072C64440D6` |
+| Fingerprint de 109 arquivos de fonte/build | `5EAE7A708ADDE9BAA05B171FD78FFD9589572AE5CA93555A48AB496376EA14BC` |
+
+Versões fixadas: hb_compile `2cb6f3ef59c297025a2c49c4cfa8c7639f3a1455`,
+Harbour `6deac9cf3ad977ae829e5bca543d553b92dd4b6d` e Zig 0.16.0. O recibo ODBC
+copiado identifica o patch gerenciado SHA-256
+`BDB3C8D901A553CFABDF09CF20537521F4C39D872E7BDF172B0AD5D913E9D751`.
+Rodadas anteriores com falhas/erro de finalização do compilador mantêm seus
+registros datados; não foram reclassificadas como sucesso nem repetidas sem motivo.
+
+A perda de conteúdo no JSONObject Protheus permanece registrada na
+[issue #14](https://github.com/naldodj/totvs-protheus-open-issues/issues/14);
+o helper homologado preserva NUL sem enfraquecer as asserções. Constantes e
+tamanhos invariantes são resolvidos antes dos loops; tipos de segmentos que
+mudam e verificações de posição/estado continuam por iteração. Declarações
+locais agrupadas por tipo em ordem de prefixo, sem exigir ordenar o nome completo.
+
+Pendências preservadas: binds/metadados lógicos e apresentação nativa no pacote
+002; proteção portátil de segredos/TLS, leitores incrementais BLOB/CLOB,
+negociação/streams, DBF/VF, serviços/Linux, benchmarks de addons C/Zig e
+PostgreSQL/Protheus 12.1.2610 em seus escopos futuros. Escala de negócio/CAST e
+identidade ERP ficam no chamador. Sem inferir BLOB automático em JSON, números
+JSON de precisão arbitrária, ausência geral de vazamentos ou aceite de
+plataformas não exercitadas.
+
+Crivos finais M09 aprovados: `check.hb`, `commit.hb` e `3rdpatch.hb` em modo
+somente leitura aceitaram **242 arquivos**; links locais existentes nos **89
+documentos** e whitespace aprovado. Recibo: `commit-check.log` no diretório
+final de artefatos. A validação inclui os padrões de fonte e a renovação do
+pacote; encerrar o pacote não implica commit ou publicação.

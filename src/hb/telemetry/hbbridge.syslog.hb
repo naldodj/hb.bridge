@@ -16,7 +16,9 @@ thread STATIC s_nSyslogPort := 514
 thread STATIC s_hSyslogMutex := hb_mutexCreate()
 
 FUNCTION SyslogOpen( cHost, nPort , nHBBridgePort )
-    LOCAL hSocket, lResult := .F.
+    LOCAL hSocket
+
+    LOCAL lResult := .F.
 
     IF hb_mutexLock( s_hSyslogMutex )
         BEGIN SEQUENCE
@@ -51,7 +53,9 @@ RETURN lResult
 
 // Called only while holding s_hSyslogMutex, including the opening message.
 STATIC FUNCTION SyslogSendLocked( cMessage, nSeverity )
-    LOCAL cPacket, aAddress
+    LOCAL aAddress
+
+    LOCAL cPacket
 
     IF Empty( s_hSyslogSocket )
         RETURN .F.

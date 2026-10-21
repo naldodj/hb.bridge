@@ -8,7 +8,7 @@
 ![Clones](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/naldodj/hb.bridge/refs/heads/main/clone-badge.json)
 
 The [active work package](WIP.md) defines the next tasks, recorded decisions
-and completion criteria. Package 001 covers real MSSQL acceptance;
+and completion criteria. Package 001 MSSQL acceptance is complete; package 002 covers typed SQL and native presentation;
 [TODO](TODO.md) retains the full roadmap. WIP is renewed after package closure.
 
 An extensible bridge that brings Harbour, C and Zig capabilities to TOTVS
@@ -59,9 +59,10 @@ These features let native extensions evolve through the C ABI.
 See the [official overview](https://ziglang.org/learn/overview/).
 
 Zig has two roles: the Harbour/C toolchain (`hbmk2 -comp=zig`) and the language
-for native extensions. The product links `hbbridge_zig` and exercises that
-connection in `Health`. Its current response is demonstrative; functional
-extensions will be introduced incrementally.
+for native extensions. The product links `hbbridge_zig`. `Health` retains its demonstration response;
+the shared C/Zig JSON numeric codec now formats and parses native floating-point
+values without relying on RDD display decimals. Additional native extensions,
+including addon benchmark processors, remain future work.
 
 ## Project direction
 
@@ -101,26 +102,31 @@ programming.
 | NETIO | Embedded native listener `0.0.0.0:2941`, filtered RPC and Harbour serialization. `HB_EXTERN` enabled; registered services only. |
 | HTTP/REST | Embedded `hbhttpd`, optional and disabled by default. JSON service calls and authenticated web status share the core; service/admin credentials are separate. Direct HTTPS requires an OpenSSL-enabled build and its own acceptance. |
 | Protheus HTTP client | `HBBridgeHTTPClient` uses native FWRest, bearer authentication and the shared JSON contract. Manual AppServer acceptance passed 13 checks each for MSSQL and SQLite on 2026-10-08, including SQL pagination; wrappers select `MSSQL/pData` and `sqlite_demo`. |
-| SQL | SQLMIX with SQLite/MSSQL-ODBC, named results and database-side pages. On 2026-10-08: 92 native MSSQL checks passed; manual Protheus acceptance passed 29 TCP and 13 HTTP checks each for `MSSQL/pData` and `sqlite_demo`. Wider failure/type/platform acceptance remains. |
+| SQL | SQLMIX with SQLite/MSSQL-ODBC, named results and database-side pages. On 2026-10-08: 92 native MSSQL checks passed; manual Protheus acceptance passed 29 TCP and 13 HTTP checks each for `MSSQL/pData` and `sqlite_demo`. M06 failure/recovery and D03 text/numeric integrity have subsequent scoped Windows acceptance; broader types/platforms retain separate acceptance. |
 | DBF | Native RDD access over NETIO planned; not integrated yet. |
 | VF IO | Harbour `hb_vf*` with NETIO has binary read/write tests; TLPP facade pending. |
-| C/Zig | C API/ABI bridge in Health; Zig library and toolchain required. |
+| C/Zig | Harbour/C/Zig ABI integration, Health demonstration and shared JSON numeric codec; Zig library and toolchain required. |
 | Limits | No application payload/wire ceiling by default; optional policies, buffers and deadlines. Runtime/API/AppServer/memory capacities still apply. Negotiation and logical blocks pending. |
 | Operation | Coordinated console host, INI/JSON and CLI. Automatic adjacent `hbbridge.ini`; sanitized `--config-info`; admin `127.0.0.1:2940` when enabled. System services pending. |
 | Syslog | UDP module exists but is not called in the active request lifecycle. |
 | Debugging | Native hbdebug exists; product/addon debug profile and HBDAP integration pending. |
 
-The latest complete Harbour run on 2026-10-08 passed **566 checks, zero failures,
-no skips**, including HTTP, addon concurrency,
-INI/JSON, real SQLite, pages, equivalent NETIO/TCP results, an exact
-**24,000,000-byte Echo**, and JSON/gzip over 16 MiB in both directions.
+The final Windows native regressions on 2026-10-21 passed **752 default checks**,
+**92 existing MSSQL checks** and **73 MSSQL integrity checks**, all without
+failures. See the [package evidence](docs/acceptance.md#package-001-m09-closure-on-2026-10-21).
+The earlier 2026-10-08 complete Harbour run passed **566 checks, zero failures,
+no skips**, including HTTP, addon concurrency, INI/JSON, real SQLite, pages,
+equivalent NETIO/TCP results, an exact **24,000,000-byte Echo**, and JSON/gzip
+over 16 MiB in both directions.
 
 The [evolution review](docs/evolution.md) records the 2026-10-07 proposals:
 `THREAD STATIC` for worker-local state with explicit per-request initialization,
 Zig as an optional HTTP adapter, external dependency resolution owned by
 hb_compile and generic SQL result tables for native Protheus presentation.
-The native thread-static probe passed 31 separate assertions. Zig HTTP,
-automatic OpenSSL resolution and SQL materialization are still pending.
+The native thread-static probe passed 31 separate assertions. The native TLPP
+browse adapter `HBBridgeBrowseData` is implemented; broader browse/UI acceptance
+remains separate. The proposed server-side `RPCRDD.Materialize` service, Zig HTTP
+and automatic OpenSSL resolution remain future work.
 
 [Acceptance](docs/acceptance.md) records AppServer `24.3.1.5`, LIB `20260706`,
 RPO/dictionary `12.1.2510`, and the Harbour/Zig reference build. The earlier
@@ -779,7 +785,7 @@ Manual AppServer/FWWebEx acceptance on 2026-10-19 covers three runs of the four
 client routes and server-only addon: 105 samples and 684 report checks/zero failures.
 See the [V01/V02 scope and evidence](docs/acceptance.md#v01-v02-benchmark-acceptance-on-2026-10-19).
 D03 UTF-8/FLOAT integrity is accepted for the recorded Windows/MSSQL fixture;
-final M09 checks and package 001 remain open.
+M09 and package 001 are complete; package 002 is planned in WIP.
 Blocks, DBF, TLPP VF,
 services, jobs/batches and functional C/Zig extensions follow incrementally.
 Discover only delivered capabilities; metrics for correlation, latency,

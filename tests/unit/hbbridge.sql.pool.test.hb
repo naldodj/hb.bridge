@@ -6,13 +6,29 @@
  */
 PROCEDURE HBBridgeSQLPoolTests( nFailures, nChecks )
 
-    LOCAL oPool := HBBridgeSQLPool():New( hb_mutexCreate() )
-    LOCAL hProfile := { "driver" => "sqlite", "database" => ":memory:" }
-    LOCAL hOther := { "driver" => "sqlite", "database" => "sql-pool-never-opened.sqlite3" }
-    LOCAL hLease := NIL, hNext := NIL, hForged, hStatus, cPhysicalStatus, cKey, xValue
-    LOCAL nPreviousArea := Select(), nReaderArea := 0, nConnection, nStarted
-    LOCAL nPreviousConnection := rddInfo( RDDI_CONNECTION, NIL, "SQLMIX" )
-    LOCAL hThread := NIL, lForeignDenied := .F., lJoined := .F., lWaited
+    LOCAL cPhysicalStatus, cKey
+
+    LOCAL hProfile, hOther, hLease, hNext, hForged, hStatus, hThread
+
+    LOCAL lForeignDenied, lJoined, lWaited
+
+    LOCAL nPreviousArea, nReaderArea, nConnection, nStarted, nPreviousConnection
+
+    LOCAL oPool
+
+    LOCAL xValue
+
+    oPool := HBBridgeSQLPool():New( hb_mutexCreate() )
+    hProfile := { "driver" => "sqlite", "database" => ":memory:" }
+    hOther := { "driver" => "sqlite", "database" => "sql-pool-never-opened.sqlite3" }
+    hLease := NIL
+    hNext := NIL
+    nPreviousArea := Select()
+    nReaderArea := 0
+    nPreviousConnection := rddInfo( RDDI_CONNECTION, NIL, "SQLMIX" )
+    hThread := NIL
+    lForeignDenied := .F.
+    lJoined := .F.
 
     BEGIN SEQUENCE WITH __BreakBlock()
         hStatus := oPool:Status()
@@ -184,7 +200,9 @@ RETURN HB_ISHASH( hLease ) .AND. hb_HHasKey( hLease, "id" ) .AND. HB_ISSTRING( h
 
 STATIC FUNCTION SQLPoolScalar( nConnection, cSQL )
 
-    LOCAL nPreviousArea := Select(), nQueryArea := 0, xResult := NIL
+    LOCAL nPreviousArea := Select(), nQueryArea := 0
+
+    LOCAL xResult := NIL
 
     BEGIN SEQUENCE WITH __BreakBlock()
         dbSelectArea( 0 )

@@ -5,6 +5,22 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Add UTF-8 JSON and MSSQL integrity coverage)"
  */
 
+2026-10-21 15:12 UTC naldodj (Close MSSQL acceptance and record source conventions)
+  * Complete M09/package 001 for the recorded Windows/MSSQL/AppServer scope;
+    renew paired WIP for planned package 002 typed SQL/native presentation.
+  ; Product build/help/configuration smoke passed; native regressions passed
+    752/92/73 checks. Full private TLPP compile: 49 sources, zero errors/exit 0.
+    Recompiled the latest JSON helper; AppServer JSON 31 and TCP/HTTP integrity
+    80 checks passed, zero failures/exit 0. Preserve distinct artifact scopes.
+  + Record source, product, runtime-host and RPO hashes plus sanitized target
+    and dependency metadata. Preserve historical failures and future limits.
+  * Define variable declarations grouped by type in alphabetical type-prefix
+    order; full names need not be sorted. Resolve constants/invariants before
+    loops, preserving dynamic segment/type/state checks inside each iteration.
+  % Complete JSON loop-invariant caching and declaration grouping while
+    retaining NUL/UTF-8/numeric behavior and the existing recursive traversal.
+  * Reconcile EN/PT README, TODO, dataset/API and acceptance documentation.
+
 2026-10-21 09:54 UTC naldodj (Preserve NUL across Protheus JSON boundaries)
   ! Use HBBridgeJSON in TCP/HTTP clients and dataset snapshots to preserve
     embedded NUL without changing the UTF-8 wire or native numeric semantics.

@@ -7,16 +7,18 @@ namespace HBBridge.Test
 class HBBridgeBenchmarkNativeClient
 
     private data cMode as character
-    private data nRows as numeric
-    private data nTimeoutSeconds as numeric
     private data cRestURL as character
     private data cAuthorization as character
     private data cCompany as character
     private data cBranch as character
     private data cCredentialSection as character
-    private data nHTTPStatus as numeric
+
     private data lValid as logical
     private data lClosed as logical
+
+    private data nRows as numeric
+    private data nTimeoutSeconds as numeric
+    private data nHTTPStatus as numeric
 
     public method New(cMode as character, nRows as numeric, nTimeoutSeconds as numeric, ;
         cRestURL as character, cAuthorization as character, jContext as json) as object
@@ -60,16 +62,28 @@ return(self)
 
 method CallService(cService, jParams) class HBBridgeBenchmarkNativeClient
 
-    local jRequest := JSONObject():New() as json
-    local jResponse := JSONObject():New() as json
-    local oREST as object
-    local xError as variant
-    local cResponse := "", cFailure := "INVALID_REQUEST" as character
-    local cURL := "", cBody := "" as character
-    local nStarted := 0, nFinished := 0 as numeric
-    local lConnected := .F. as logical
     // FWRest requires its native array of HTTP header strings.
     local aHeaders as array
+
+    local cResponse := "" as character
+    local cFailure := "INVALID_REQUEST" as character
+    local cURL := "" as character
+    local cBody := "" as character
+
+    local jRequest as json
+    local jResponse as json
+
+    local lConnected := .F. as logical
+
+    local nStarted := 0 as numeric
+    local nFinished := 0 as numeric
+
+    local oREST as object
+
+    local xError as variant
+
+    jRequest := JSONObject():New()
+    jResponse := JSONObject():New()
 
     self:nHTTPStatus := 0
     if self:lClosed .or. !self:lValid
@@ -174,9 +188,10 @@ return(.T.)
 
 static function NativeBenchmarkParams(jParams as variant, nRows as numeric) as logical
 
-    local jPage as json
     // Native JSON field enumeration requires one array at each object level.
     local aNames as array
+
+    local jPage as json
 
     if ValType(jParams) != "J"
         return .F.
@@ -221,6 +236,7 @@ return(xValue >= nMinimum .and. xValue <= nMaximum .and. xValue == Int(xValue))
 static function NativeBenchmarkURL(xValue as variant) as logical
 
     local cValue := "", cAuthority := "" as character
+
     local nStart := 0, nSlash := 0 as numeric
 
     if !NativeBenchmarkToken(xValue)

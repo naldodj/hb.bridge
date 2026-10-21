@@ -26,13 +26,13 @@ namespace HBBridge.Helper
 */
 
 static __aTokens:={"\","/","|","+","-","_",",",":",";"} as array
+static __aAccentuation as array
 
 static __cCHR10:=CHR(10) as character
 static __cCHR13:=CHR(13) as character
 
 static __jEmojis as json
 
-static __aAccentuation as array
 static __nAccentuation as numeric
 
 class HBBridgeStrTools
@@ -202,18 +202,23 @@ return(cEmojiHtmlCode)
 
 static method UpdEmojiHtmlCode(cString) class HBBridgeStrTools
     local aEmojis as array
+
     local jEmojis as json
-    local i as numeric
+
+    local nIndex as numeric
+    local nEmojis as numeric
+
     paramtype 1 var cString as character
     jEmojis:=HBBridgeStrTools():GetEmojiHtmlJSON()
     aEmojis:=jEmojis:GetNames()
-    for i:=1 to Len(aEmojis)
-        if ("__"+aEmojis[i]+"__"$cString)
-            cString:=StrTran(cString,"__"+aEmojis[i]+"__",jEmojis[aEmojis[i]])
-        elseif (":"+aEmojis[i]+":"$cString)
-            cString:=StrTran(cString,":"+aEmojis[i]+":",jEmojis[aEmojis[i]])
+    nEmojis:=Len(aEmojis)
+    for nIndex:=1 to nEmojis
+        if ("__"+aEmojis[nIndex]+"__"$cString)
+            cString:=StrTran(cString,"__"+aEmojis[nIndex]+"__",jEmojis[aEmojis[nIndex]])
+        elseif (":"+aEmojis[nIndex]+":"$cString)
+            cString:=StrTran(cString,":"+aEmojis[nIndex]+":",jEmojis[aEmojis[nIndex]])
         endif
-    next i
+    next nIndex
     FWFreeArray(@aEmojis)
     FreeObj(@jEmojis)
 return(cString)
@@ -221,11 +226,12 @@ return(cString)
 static method StrReplace(cTemplate,vSubstitutions) class HBBridgeStrTools
 
     local aNames as array
-    local cName as character
 
+    local cName as character
     local cApplied as character
 
-    local i as numeric
+    local nIndex as numeric
+    local nNames as numeric
 
     paramtype 1 var cTemplate as character
     paramtype 2 var vSubstitutions as array,json
@@ -234,29 +240,31 @@ static method StrReplace(cTemplate,vSubstitutions) class HBBridgeStrTools
 
     if (ValType(vSubstitutions)=="J")
         aNames:=vSubstitutions:GetNames()
-        for i:=1 to Len(aNames)
-            cName:=aNames[i]
+        nNames:=Len(aNames)
+        for nIndex:=1 to nNames
+            cName:=aNames[nIndex]
             if (valType(vSubstitutions[cName])!="C")
                 loop
             endif
             cApplied:=StrTran(cApplied,cName,vSubstitutions[cName])
-        next i
+        next nIndex
     else
         aNames:=vSubstitutions
         if ((Len(aNames)==2).and.(ValType(aNames[1])=="C").and.(ValType(aNames[2])=="C"))
             cName:=aNames[1]
             cApplied:=StrTran(cApplied,cName,aNames[2])
         else
-            for i:=1 to Len(vSubstitutions)
-                if (Len(aNames[i])!=2).or.(ValType(aNames[i][2])!="C")
+            nNames:=Len(vSubstitutions)
+            for nIndex:=1 to nNames
+                if (Len(aNames[nIndex])!=2).or.(ValType(aNames[nIndex][2])!="C")
                     loop
                 endif
-                if (ValType(aNames[i][1])!="C")
+                if (ValType(aNames[nIndex][1])!="C")
                     loop
                 endif
-                cName:=aNames[i][1]
-                cApplied:=StrTran(cApplied,cName,aNames[i][2])
-            next i
+                cName:=aNames[nIndex][1]
+                cApplied:=StrTran(cApplied,cName,aNames[nIndex][2])
+            next nIndex
         endif
     endif
 
@@ -272,13 +280,14 @@ static function ___HBBridgeStrTools____StrReplaceEx(cString as character,vSubsti
     local cStrReplace:=cString as character
 
     local nStr as numeric
-
     local nName as numeric
     local nNames as numeric
-
     local nVarg as numeric
     local nToken as numeric
     local nTokens as numeric
+    local nValues as numeric
+    local nArguments as numeric
+    local nSubstitutions as numeric
 
     local uStr as variant
 
@@ -291,7 +300,8 @@ static function ___HBBridgeStrTools____StrReplaceEx(cString as character,vSubsti
         aTokens:={"=>","->","|",":","="}
         nTokens:=Len(aTokens)
 
-        for nStr:=1 to vSubstitutions:vCount
+        nSubstitutions:=vSubstitutions:vCount
+        for nStr:=1 to nSubstitutions
             uStr:=vSubstitutions:vArgs[nStr]
             cType:=ValType(uStr)
             if (cType=="C")
@@ -305,11 +315,13 @@ static function ___HBBridgeStrTools____StrReplaceEx(cString as character,vSubsti
             endif
             if ((cType=="A").and.(Len(uStr)==2))
                 if ((ValType(uStr[1])=="A").and.(ValType(uStr[2])=="C"))
-                    for nToken:=1 to Len(uStr[1])
+                    nValues:=Len(uStr[1])
+                    for nToken:=1 to nValues
                         cStrReplace:=HBBridgeStrTools():StrReplaceEx(cStrReplace,{uStr[1][nToken],uStr[2]})
                     next nToken
                 elseif ((ValType(uStr[1])=="A").and.(ValType(uStr[2])=="A"))
-                    for nToken:=1 to Min(Len(uStr[1]),Len(uStr[2]))
+                    nValues:=Min(Len(uStr[1]),Len(uStr[2]))
+                    for nToken:=1 to nValues
                         cStrReplace:=HBBridgeStrTools():StrReplaceEx(cStrReplace,{uStr[1][nToken],uStr[2][nToken]})
                     next nToken
                 elseif ((ValType(uStr[1])=="C").and.(ValType(uStr[2])=="C"))
@@ -319,15 +331,18 @@ static function ___HBBridgeStrTools____StrReplaceEx(cString as character,vSubsti
                 if (uStr:HasProperty("VARGS"))
                     cType:=ValType(uStr["VARGS"])
                     if (cType=="A")
-                        for nVArg:=1 to Len(uStr["VARGS"])
+                        nArguments:=Len(uStr["VARGS"])
+                        for nVArg:=1 to nArguments
                             cType:=ValType(uStr["VARGS"][nVArg])
                             if ((cType=="A").and.(Len(uStr["VARGS"][nVArg])==2))
                                 if ((ValType(uStr["VARGS"][nVArg][1])=="A").and.(ValType(uStr["VARGS"][nVArg][2])=="C"))
-                                    for nToken:=1 to Len(uStr["VARGS"][nVArg][1])
+                                    nValues:=Len(uStr["VARGS"][nVArg][1])
+                                    for nToken:=1 to nValues
                                         cStrReplace:=HBBridgeStrTools():StrReplaceEx(cStrReplace,{uStr["VARGS"][nVArg][1][nToken],uStr["VARGS"][nVArg][2]})
                                     next nToken
                                 elseif ((ValType(uStr["VARGS"][nVArg][1])=="A").and.(ValType(uStr["VARGS"][nVArg][2])=="A"))
-                                    for nToken:=1 to Min(Len(uStr["VARGS"][nVArg][1]),Len(uStr["VARGS"][nVArg][2]))
+                                    nValues:=Min(Len(uStr["VARGS"][nVArg][1]),Len(uStr["VARGS"][nVArg][2]))
+                                    for nToken:=1 to nValues
                                         cStrReplace:=HBBridgeStrTools():StrReplaceEx(cStrReplace,{uStr["VARGS"][nVArg][1][nToken],uStr["VARGS"][nVArg][2][nToken]})
                                     next nToken
                                 elseif ((ValType(uStr["VARGS"][nVArg][1])=="C").and.(ValType(uStr["VARGS"][nVArg][2])=="C"))
@@ -386,6 +401,7 @@ static function ___HBBridgeStrTools____Accentuation(cString as character,vAccent
     local nLen as numeric
     local nATPos as numeric
     local nAccentuation as numeric
+    local nArguments as numeric
 
     begin sequence
 
@@ -398,7 +414,8 @@ static function ___HBBridgeStrTools____Accentuation(cString as character,vAccent
 
         ai18n:=array(0)
 
-        for nAccentuation:=1 to vAccentuation:vCount
+        nArguments:=vAccentuation:vCount
+        for nAccentuation:=1 to nArguments
             cChar:=allTrim(vAccentuation:vArgs[nAccentuation])
             if (Left(cChar,1)=="&")
                 cChar:=SubStr(cChar,2)
@@ -527,11 +544,11 @@ return(cString)
  //Devera estar no Padrao ANSI utilizar a funcao OemToAnsi() para a conversao
 static function NoAccent(cStrAnsi as character) as character
 
-    local cAcento as character
-    local cNoAcento as character
+    local cAccent as character
+    local cNoAccent as character
     local cStrAnsiNoAc as character
 
-    local nAcento as numeric
+    local nAccent as numeric
 
     GetAccentuation()
     DEFAULT __nAccentuation:=Len(__aAccentuation)
@@ -545,13 +562,13 @@ static function NoAccent(cStrAnsi as character) as character
 
         cStrAnsiNoAc:=cStrAnsi
 
-        for nAcento:=1 to __nAccentuation
-            cAcento:=__aAccentuation[nAcento][1]
-            while (cAcento$cStrAnsiNoAc)
-                cNoAcento:=__aAccentuation[nAcento][2]
-                cStrAnsiNoAc:=HBBridgeStrTools():StrReplaceEx(cStrAnsiNoAc,{cAcento,cNoAcento})
+        for nAccent:=1 to __nAccentuation
+            cAccent:=__aAccentuation[nAccent][1]
+            cNoAccent:=__aAccentuation[nAccent][2]
+            while (cAccent$cStrAnsiNoAc)
+                cStrAnsiNoAc:=HBBridgeStrTools():StrReplaceEx(cStrAnsiNoAc,{cAccent,cNoAccent})
             end while
-        next nAcento
+        next nAccent
 
     end sequence
 
@@ -823,14 +840,19 @@ return(__aAccentuation)
 static method NormalizeStringToken(cString,cNormalizedToken,cIgnoreToken) class HBBridgeStrTools
     local cToken as character
     local cNormalizedString as character
+
     local lIgnoreToken as logical
+
     local nToken as numeric
+    local nTokens as numeric
+
     paramtype 1 var cString as character
     paramtype 2 var cNormalizedToken as character optional default "/"
     paramtype 3 var cIgnoreToken as character optional
     lIgnoreToken:=(!Empty(cIgnoreToken))
     cNormalizedString:=cString
-    for nToken:=1 to Len(__aTokens)
+    nTokens:=Len(__aTokens)
+    for nToken:=1 to nTokens
         //Armazena o Token
         cToken:=__aTokens[nToken]
         //Verifica se o Token Sera Ignorado na Normalizacao

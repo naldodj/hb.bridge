@@ -14,12 +14,25 @@ endclass
 
 static method RunCLI(aArguments) class HBBridgeClientLifecycleTest
 
-    local jFlags := JSONObject():New() as json
-    local jSeen := JSONObject():New() as json
+    local cArgument := "" as character
+    local cKey := "" as character
+    local cValue := "" as character
+
+    local jFlags as json
+    local jSeen as json
     local jReport as json
-    local cArgument := "", cKey := "", cValue := "" as character
-    local nArgument := 0, nEqual := 0, nNumber := 0, nResult := 1 as numeric
-    local lValid := ValType(aArguments) == "A" as logical
+
+    local lValid as logical
+
+    local nArgument := 0 as numeric
+    local nEqual := 0 as numeric
+    local nNumber := 0 as numeric
+    local nResult := 1 as numeric
+    local nArguments := 0 as numeric
+
+    jFlags := JSONObject():New()
+    jSeen := JSONObject():New()
+    lValid := ValType(aArguments) == "A"
 
     jFlags["host"] := ""
     jFlags["port"] := 0
@@ -28,7 +41,8 @@ static method RunCLI(aArguments) class HBBridgeClientLifecycleTest
     jFlags["timeout-ms"] := 30000
     if lValid
         // AppServer supplies the native variadic argv array; no copy is made.
-        for nArgument := 1 to Len(aArguments)
+        nArguments := Len(aArguments)
+        for nArgument := 1 to nArguments
             if ValType(aArguments[nArgument]) != "C"
                 loop
             endif
@@ -79,19 +93,33 @@ return(nResult)
 
 static method Run(cHost, nPort, nRefusedPort, nCalls, nTimeoutMs) class HBBridgeClientLifecycleTest
 
-    local jReport := JSONObject():New() as json
-    local jChecks := JSONObject():New() as json
-    local jParams := JSONObject():New() as json
-    local jResponse as json
     local aNames as array
+
+    local jReport as json
+    local jChecks as json
+    local jParams as json
+    local jResponse as json
+
+    local lValid := .F. as logical
+
+    local nCall := 0 as numeric
+    local nCompleted := 0 as numeric
+    local nCheck := 0 as numeric
+    local nFailures := 0 as numeric
+    local nStarted as numeric
+    local nFinished := 0 as numeric
+    local nNames := 0 as numeric
+
     local oFirst as object
     local oSecond as object
     local oRefused as object
+
     local xError as variant
-    local nCall := 0, nCompleted := 0, nCheck := 0, nFailures := 0 as numeric
-    local nStarted := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs() as numeric
-    local nFinished := 0 as numeric
-    local lValid := .F. as logical
+
+    jReport := JSONObject():New()
+    jChecks := JSONObject():New()
+    jParams := JSONObject():New()
+    nStarted := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs()
 
     DEFAULT nCalls := 6000
     DEFAULT nTimeoutMs := 30000
@@ -189,7 +217,8 @@ static method Run(cHost, nPort, nRefusedPort, nCalls, nTimeoutMs) class HBBridge
 
         // Native GetNames() array is borrowed once to summarize keyed checks.
         aNames := jChecks:GetNames()
-        for nCheck := 1 to Len(aNames)
+        nNames := Len(aNames)
+        for nCheck := 1 to nNames
             if !jChecks[aNames[nCheck]]
                 nFailures++
             endif
@@ -235,12 +264,20 @@ return(jReport)
 
 static function LifecycleNativeMethods() as json
 
-    local jMethods := JSONObject():New() as json
     local aMethods as array
-    local oProbe as object
-    local xError as variant
+
     local cName := "" as character
+
+    local jMethods as json
+
     local nMethod := 0 as numeric
+    local nMethods := 0 as numeric
+
+    local oProbe as object
+
+    local xError as variant
+
+    jMethods := JSONObject():New()
 
     jMethods["reflectionAvailable"] := .F.
     jMethods["closeConnection"] := .F.
@@ -253,7 +290,8 @@ static function LifecycleNativeMethods() as json
         aMethods := ClassMethArray(oProbe)
         if ValType(aMethods) == "A"
             jMethods["reflectionAvailable"] := .T.
-            for nMethod := 1 to Len(aMethods)
+            nMethods := Len(aMethods)
+            for nMethod := 1 to nMethods
                 cName := ""
                 if ValType(aMethods[nMethod]) == "A"
                     if Len(aMethods[nMethod]) > 0
@@ -349,11 +387,13 @@ return(nValue >= 1 .and. nValue <= nMaximum .and. nValue == Int(nValue))
 static function LifecycleInteger(cText as character) as numeric
 
     local nIndex := 0, nDigit := 0, nValue := 0 as numeric
+    local nLength := 0 as numeric
 
     if Len(cText) == 0 .or. (Len(cText) > 1 .and. Left(cText, 1) == "0")
         return -1
     endif
-    for nIndex := 1 to Len(cText)
+    nLength := Len(cText)
+    for nIndex := 1 to nLength
         nDigit := Asc(SubStr(cText, nIndex, 1)) - 48
         if nDigit < 0 .or. nDigit > 9 .or. nValue > Int((2147483647 - nDigit) / 10)
             return -1

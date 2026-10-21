@@ -2,9 +2,19 @@
 
 PROCEDURE M1ServiceTests( nFailures, nChecks )
 
-    LOCAL hRegistry := HBBridgeBuiltinRegistry(), hContext := HBBridgeContext( "test" )
-    LOCAL hResult, xBad, aCycle := {}, hSpec, hCustom, aCatalog, cJson
-    LOCAL hFaults, oNativeError, oOther, hDecoded
+    LOCAL aCycle, aCatalog
+
+    LOCAL cJson
+
+    LOCAL hRegistry, hContext, hResult, hSpec, hCustom, hFaults, hDecoded
+
+    LOCAL oNativeError, oOther
+
+    LOCAL xBad
+
+    hRegistry := HBBridgeBuiltinRegistry()
+    hContext := HBBridgeContext( "test" )
+    aCycle := {}
 
     hResult := HBBridgeDispatch( hRegistry, "Core.Upper", "harbour", hContext )
     M1Assert( hResult[ "result" ] == "HARBOUR", "registered core function", @nFailures, @nChecks )

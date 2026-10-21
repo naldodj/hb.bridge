@@ -14,7 +14,9 @@ REQUEST HB_CODEPAGE_UTF8EX
 
 FUNCTION DispatcherRequest( cJsonStr, hRegistry, hContext )
 
-    LOCAL cPreviousCodepage := hb_cdpSelect(), cResult, oError
+    LOCAL cPreviousCodepage := hb_cdpSelect(), cResult
+
+    LOCAL oError
 
     BEGIN SEQUENCE WITH __BreakBlock()
         hb_cdpSelect( "UTF8EX" )
@@ -29,7 +31,16 @@ RETURN cResult
 
 STATIC FUNCTION DispatcherUTF8Request( cJsonStr, hRegistry, hContext )
 
-    LOCAL hRequest, cService, xParams := NIL, nVersion := 1, nConsumed
+    LOCAL cService
+
+    LOCAL hRequest
+
+    LOCAL nVersion, nConsumed
+
+    LOCAL xParams
+
+    xParams := NIL
+    nVersion := 1
 
     IF ! HBBridgeUTF8Valid( cJsonStr )
         RETURN HBBridgeWireEncode( HBBridgeError( "INVALID_UTF8", "JSON must use valid UTF-8." ) )

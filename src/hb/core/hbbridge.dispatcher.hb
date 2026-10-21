@@ -21,7 +21,9 @@ RETURN { "services" => {=>}, "sealed" => .F. }
 
 FUNCTION HBBridgeRegister( hRegistry, hSpec, bHandler )
 
-    LOCAL cKey, cField, hEntry
+    LOCAL cKey, cField
+
+    LOCAL hEntry
 
     IF hRegistry[ "sealed" ] .OR. ! HB_ISHASH( hSpec ) .OR. ! HB_ISBLOCK( bHandler )
         RETURN .F.
@@ -66,7 +68,13 @@ RETURN { "transport" => cTransport, "addonRoot" => cAddonRoot, "state" => hState
 
 FUNCTION HBBridgeDispatch( hRegistry, cService, xParams, hContext, nVersion )
 
-    LOCAL cKey, hEntry, hCall, xResult, cType, oError
+    LOCAL cKey, cType
+
+    LOCAL hEntry, hCall
+
+    LOCAL oError
+
+    LOCAL xResult
 
     IF nVersion == NIL
         nVersion := 1
@@ -120,9 +128,12 @@ RETURN { "success" => .F., "error" => cError, "code" => cCode, ;
  * A handler may BREAK any value, including an unrelated object.
  */
 FUNCTION HBBridgeErrorMessage( oError )
-    LOCAL cMessage := "", cSubsystem, cSeverity, nSeverity, nGeneric, nSubcode, nOSCode
+    LOCAL cMessage := "", cSubsystem, cSeverity
+
     LOCAL hSubsystems := { "BASE" => .T., "DBCMD" => .T., "SQLBASE" => .T., ;
         "SQLMIX" => .T., "SDDODBC" => .T., "SDDSQLITE3" => .T., "SQLITE3" => .T. }
+
+    LOCAL nSeverity, nGeneric, nSubcode, nOSCode
 
     IF ! HB_ISOBJECT( oError )
         RETURN cMessage
@@ -166,7 +177,9 @@ RETURN cMessage
 
 FUNCTION HBBridgeCatalog( hRegistry, hContext )
 
-    LOCAL aServices := {}, hEntry
+    LOCAL aServices := {}
+
+    LOCAL hEntry
 
     FOR EACH hEntry IN hRegistry[ "services" ]
         IF HBBridgePermitted( hEntry[ "spec" ], hContext )
@@ -184,7 +197,9 @@ RETURN AScan( hContext[ "permissions" ], {| cPermission | cPermission == hSpec[ 
  */
 FUNCTION HBBridgeValueAllowed( xValue, aParents )
 
-    LOCAL cType := ValType( xValue ), xChild, cKey
+    LOCAL cType := ValType( xValue ), cKey
+
+    LOCAL xChild
 
     hb_default( @aParents, {} )
     IF cType $ "UCLNDT"

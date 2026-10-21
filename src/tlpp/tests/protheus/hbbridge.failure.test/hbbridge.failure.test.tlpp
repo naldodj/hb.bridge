@@ -18,11 +18,23 @@ endclass
 
 static method RunCLI(aArguments) class HBBridgeFailureTest
 
-    local jFlags := JSONObject():New() as json
-    local jSeen := JSONObject():New() as json
-    local cArgument := "", cKey := "", cValue := "" as character
-    local nArgument := 0, nEqual := 0, nValue := 0, nResult := 1 as numeric
+    local cArgument := "" as character
+    local cKey := "" as character
+    local cValue := "" as character
+
+    local jFlags as json
+    local jSeen as json
+
     local lValid := .T. as logical
+
+    local nArgument := 0 as numeric
+    local nEqual := 0 as numeric
+    local nValue := 0 as numeric
+    local nResult := 1 as numeric
+    local nArguments := 0 as numeric
+
+    jFlags := JSONObject():New()
+    jSeen := JSONObject():New()
 
     jFlags["transport"] := "tcp"
     jFlags["working-profile"] := ""
@@ -39,7 +51,8 @@ static method RunCLI(aArguments) class HBBridgeFailureTest
     if ValType(aArguments) != "A"
         lValid := .F.
     else
-        for nArgument := 1 to Len(aArguments)
+        nArguments := Len(aArguments)
+        for nArgument := 1 to nArguments
             if ValType(aArguments[nArgument]) != "C"
                 loop
             endif
@@ -105,9 +118,13 @@ return(nResult)
 
 static method RunTCP(cWorkingProfile, cUnavailableProfile, cHost, nPort, nTimeout, cTimeoutProfile) class HBBridgeFailureTest
 
-    local oClient := HBBridge.Client.HBBridgeClient():New(cHost, nPort, nTimeout) as object
-    local nResult := HBBridge.Test.HBBridgeFailureTest():Run(;
-        oClient, cWorkingProfile, cUnavailableProfile, .F., cTimeoutProfile) as numeric
+    local nResult as numeric
+
+    local oClient as object
+
+    oClient := HBBridge.Client.HBBridgeClient():New(cHost, nPort, nTimeout)
+    nResult := HBBridge.Test.HBBridgeFailureTest():Run(;
+        oClient, cWorkingProfile, cUnavailableProfile, .F., cTimeoutProfile)
 
     FreeObj(@oClient)
 
@@ -115,9 +132,13 @@ return(nResult)
 
 static method RunHTTP(cWorkingProfile, cUnavailableProfile, cURL, cToken, nTimeoutSeconds, cTimeoutProfile) class HBBridgeFailureTest
 
-    local oClient := HBBridge.Client.HBBridgeHTTPClient():New(cURL, cToken, nTimeoutSeconds) as object
-    local nResult := HBBridge.Test.HBBridgeFailureTest():Run(;
-        oClient, cWorkingProfile, cUnavailableProfile, .T., cTimeoutProfile) as numeric
+    local nResult as numeric
+
+    local oClient as object
+
+    oClient := HBBridge.Client.HBBridgeHTTPClient():New(cURL, cToken, nTimeoutSeconds)
+    nResult := HBBridge.Test.HBBridgeFailureTest():Run(;
+        oClient, cWorkingProfile, cUnavailableProfile, .T., cTimeoutProfile)
 
     FreeObj(@oClient)
 
@@ -125,15 +146,26 @@ return(nResult)
 
 static method Run(oClient, cWorkingProfile, cUnavailableProfile, lHTTP, cTimeoutProfile) class HBBridgeFailureTest
 
-    local cUnknownProfile := "__HBBridgeM06UnknownProfile__" as character
-    local cTransport := IIf(lHTTP, "HTTP", "TCP") as character
-    local jCases := JSONObject():New() as json
-    local jChecks := JSONObject():New() as json
-    local jCase as json
     local aCases as array
     local aChecks as array
-    local nCase := 0, nCheck := 0, nFailures := 0 as numeric
+
+    local cUnknownProfile := "__HBBridgeM06UnknownProfile__" as character
+    local cTransport as character
     local cName := "" as character
+
+    local jCases as json
+    local jChecks as json
+    local jCase as json
+
+    local nCase := 0 as numeric
+    local nCheck := 0 as numeric
+    local nFailures := 0 as numeric
+    local nCases := 0 as numeric
+    local nChecks := 0 as numeric
+
+    cTransport := IIf(lHTTP, "HTTP", "TCP")
+    jCases := JSONObject():New()
+    jChecks := JSONObject():New()
 
     // The two configured aliases are required; transport arguments may use INI defaults.
     // The unavailable alias must point to an isolated, deliberately unreachable MSSQL target.
@@ -201,7 +233,8 @@ static method Run(oClient, cWorkingProfile, cUnavailableProfile, lHTTP, cTimeout
     // JSONObject's native GetNames API requires these short-lived arrays.
     // Cases, metadata and check results remain keyed objects.
     aCases := jCases:GetNames()
-    for nCase := 1 to Len(aCases)
+    nCases := Len(aCases)
+    for nCase := 1 to nCases
         cName := aCases[nCase]
         jCase := jCases[cName]
         FailureServiceChecks(oClient, cWorkingProfile, jCase, cName, lHTTP, jChecks)
@@ -215,7 +248,8 @@ static method Run(oClient, cWorkingProfile, cUnavailableProfile, lHTTP, cTimeout
     jChecks["rejectPathDiagnostic"] := !FailureDiagnosticSafe("Error C:\\private/1101 (generic code 20, OS code 0)")
 
     aChecks := jChecks:GetNames()
-    for nCheck := 1 to Len(aChecks)
+    nChecks := Len(aChecks)
+    for nCheck := 1 to nChecks
         if !jChecks[aChecks[nCheck]]
             nFailures++
         endif
@@ -235,12 +269,14 @@ return(IIf(nFailures == 0, 0, 1))
 static function FailureCLIInteger(cNumber as character, nMaximum as numeric) as numeric
 
     local nIndex := 0, nDigit := 0, nValue := 0 as numeric
+    local nLength := 0 as numeric
 
     // Canonical unsigned decimal avoids permissive Val(), fractional or exponent forms.
     if Len(cNumber) == 0 .or. Left(cNumber, 1) == "0"
         return -1
     endif
-    for nIndex := 1 to Len(cNumber)
+    nLength := Len(cNumber)
+    for nIndex := 1 to nLength
         nDigit := Asc(SubStr(cNumber, nIndex, 1)) - Asc("0")
         if nDigit < 0 .or. nDigit > 9
             return -1
@@ -289,6 +325,7 @@ return(jResponse)
 static procedure FailureServiceChecks(oClient, cWorkingProfile, jCase, cName, lHTTP, jChecks)
 
     local jResponse as json
+
     local nStarted := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs() as numeric
     local nElapsed := 0 as numeric
 
@@ -330,10 +367,14 @@ return
 
 static procedure FailureDataSetChecks(oClient, cWorkingProfile, jCase, cName, lHTTP, jChecks)
 
-    local oDataSet := HBBridge.RDD.HBBridgeRPCDataSet():New(oClient) as object
     local jHeader as json
     local jRow as json
+
     local lOpened := .F. as logical
+
+    local oDataSet as object
+
+    oDataSet := HBBridge.RDD.HBBridgeRPCDataSet():New(oClient)
 
     oDataSet:SetAliasProfile(cWorkingProfile)
     lOpened := oDataSet:OpenSQL("SELECT 77 AS RECOVERY_ID")
@@ -371,6 +412,7 @@ return
 static function FailureRecovery(oClient as object, cProfile as character) as logical
 
     local jResponse := FailureCall(oClient, cProfile, "SELECT 77 AS RECOVERY_ID") as json
+
     local lValid := .F. as logical
 
     if ValType(jResponse) != "J"
@@ -399,6 +441,7 @@ return(lValid)
 static function FailureEnvelopeSafe(jResponse as json, cCode as character, cError as character) as logical
 
     local aNames as array
+
     local lValid := .F. as logical
 
     if ValType(jResponse) != "J"
@@ -427,6 +470,7 @@ static function FailureDiagnosticSafe(cMessage as character) as logical
 
     local cRest := cMessage as character
     local cSubsystem := "" as character
+
     local nSplit := 0 as numeric
 
     if Len(cRest) == 0
@@ -479,6 +523,7 @@ return(FailureIntegerText(Left(cRest, Len(cRest) - 1)))
 static function FailureIntegerText(cNumber as character) as logical
 
     local nIndex := 1, nByte := 0 as numeric
+    local nLength := 0 as numeric
 
     if Left(cNumber, 1) == "-"
         nIndex := 2
@@ -486,7 +531,8 @@ static function FailureIntegerText(cNumber as character) as logical
     if nIndex > Len(cNumber)
         return .F.
     endif
-    for nIndex := nIndex to Len(cNumber)
+    nLength := Len(cNumber)
+    for nIndex := nIndex to nLength
         nByte := Asc(SubStr(cNumber, nIndex, 1))
         if nByte < Asc("0") .or. nByte > Asc("9")
             return .F.

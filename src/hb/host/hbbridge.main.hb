@@ -14,7 +14,13 @@ Released to Public Domain.
 
 PROCEDURE Main( ... )
 
-    LOCAL aArgs := hb_AParams(), hConfig, hHost, cError, nKey, hStatus, cChannel
+    LOCAL aArgs := hb_AParams()
+
+    LOCAL cError, cChannel
+
+    LOCAL hConfig, hHost, hStatus
+
+    LOCAL nKey
 
     IF AScan( aArgs, {| cArg | cArg == "--help" .OR. cArg == "-h" } ) > 0
         OutStd( HBBridgeConfigHelp() )

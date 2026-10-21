@@ -2,10 +2,22 @@
 
 PROCEDURE M3SQLTests( nFailures, nChecks )
 
-    LOCAL cError, cDatabase := HBBridgeAbsolutePath( "sql-query.sqlite3", hb_cwd() )
-    LOCAL hProfiles, hRegistry, hContext := HBBridgeContext( "test" ), hResult, hConfig, hHost := NIL
-    LOCAL pConnection := NIL, nConnection, nPreviousArea := Select(), nPreviousConnection
-    LOCAL hThreads := {=>}, hThread, nIndex, cSql, hNative, hJSON, hBad, oError, nFreeArea, nAttempt
+    LOCAL cError, cDatabase, cSql
+
+    LOCAL hProfiles, hRegistry, hContext, hResult, hConfig, hHost, hThreads, hThread, hNative, hJSON, hBad
+
+    LOCAL nConnection, nPreviousArea, nPreviousConnection, nIndex, nFreeArea, nAttempt
+
+    LOCAL oError
+
+    LOCAL pConnection
+
+    cDatabase := HBBridgeAbsolutePath( "sql-query.sqlite3", hb_cwd() )
+    hContext := HBBridgeContext( "test" )
+    hHost := NIL
+    pConnection := NIL
+    nPreviousArea := Select()
+    hThreads := {=>}
 
     hProfiles := HBBridgeSQLProfiles( { "sample" => { "driver" => "sqlite", "database" => "sql-query.sqlite3" }, ;
         "missing" => { "driver" => "sqlite", "database" => "sql-query-missing.sqlite3" }, ;
@@ -217,7 +229,10 @@ RETURN
 
 STATIC PROCEDURE M6SQLNetworkFailures( hHost, pConnection, nFailures, nChecks )
 
-    LOCAL hCases, hCase, hNative, hJSON, hRecovery, cName
+    LOCAL cName
+
+    LOCAL hCases, hCase, hNative, hJSON, hRecovery
+
     LOCAL nPort := hHost[ "listeners" ][ "protheus" ][ "port" ]
 
     /* All connections belong to the isolated fixture. A missing DSN exercises
@@ -253,8 +268,14 @@ RETURN
 
 STATIC PROCEDURE M6SQLTimeoutConfigTests( nFailures, nChecks )
 
-    LOCAL cError, hProfiles, hInput, hBad, xBad, cKey, hINI, cINI
-    LOCAL hTimeouts := { "loginTimeoutSeconds" => .T., "queryTimeoutSeconds" => .F. }, lLogin
+    LOCAL cError, cKey, cINI
+
+    LOCAL hProfiles, hInput, hBad, hINI
+    LOCAL hTimeouts := { "loginTimeoutSeconds" => .T., "queryTimeoutSeconds" => .F. }
+
+    LOCAL lLogin
+
+    LOCAL xBad
 
     hInput := { "driver" => "mssql", "connectionString" => "DSN=timeout-test-only;" }
     hProfiles := HBBridgeSQLProfiles( { "timeout/test" => hInput }, hb_cwd(), @cError )
@@ -332,7 +353,9 @@ RETURN hb_HGetDef( hResult, "rowCount", 0 ) == 1 .AND. Len( hResult[ "rows" ] ) 
 
 STATIC PROCEDURE M3PageTests( hRegistry, hContext, nFailures, nChecks )
 
-    LOCAL hResult, hParams, hBad, hPage, cSql := "SELECT id, name, amount FROM samples"
+    LOCAL cSql := "SELECT id, name, amount FROM samples"
+
+    LOCAL hResult, hParams, hBad, hPage
 
     hParams := { "alias" => "sample", "sql" => cSql, ;
         "page" => { "number" => 1, "size" => 1, "orderBy" => "id ASC" } }

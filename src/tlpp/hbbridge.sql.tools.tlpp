@@ -296,6 +296,7 @@ return(nTCSQLExec)
 static method GetTableName(cAlias) class HBBridgeSqlTools
     local cType as character
     local cTableName as character
+
     paramtype 1 var cAlias as character optional default Alias()
     cTableName:=(cAlias)->(dbInfo(DBI_FULLPATH))
     if (!TCCanOpen(cTableName))
@@ -320,10 +321,12 @@ static method PrefixQryAlias(cAlias,cSQL) class HBBridgeSqlTools
     local cToken:="" as character
     local cQuote:="" as character
     local cPrevious:="" as character
+
     local lLineComment:=.F. as logical
     local lBlockComment:=.F. as logical
 
     local n:=1 as numeric
+    local nSQLLength as numeric
 
     paramtype 1 var cAlias as character
     paramtype 2 var cSQL as character optional default ""
@@ -331,13 +334,14 @@ static method PrefixQryAlias(cAlias,cSQL) class HBBridgeSqlTools
     // This helper qualifies bare Protheus field tokens. Literal contents,
     // quoted identifiers and comments must remain byte-for-byte unchanged.
 
-    while (n<=Len(cSQL))
+    nSQLLength:=Len(cSQL)
+    while (n<=nSQLLength)
 
         cChar:=SubStr(cSQL,n,1)
 
         if (lLineComment)
             cOut+=cChar
-            if ((cChar==Chr(10)).or.(cChar==Chr(13)))
+            if ((cChar==__cCHR10).or.(cChar==__cCHR13))
                 lLineComment:=.F.
             endif
             n++
@@ -377,7 +381,7 @@ static method PrefixQryAlias(cAlias,cSQL) class HBBridgeSqlTools
 
             cToken:=""
 
-            while (n<=Len(cSQL))
+            while (n<=nSQLLength)
 
                 cChar:=SubStr(cSQL,n,1)
 
@@ -422,6 +426,7 @@ static method GetNextFieldNum(cAlias,cField,nOrder,cMyIUseCode,lUseFilial,lIgnor
     local cSQLAlias as character
     local cSQLField as character
     local cAliasFilial as character
+
     paramtype 1 var cAlias as character
     paramtype 2 var cField as character
     paramtype 3 var nOrder as numeric default 1
@@ -503,6 +508,7 @@ return(cNextNum)
 static method GetNonBlobColumns(cTable) class HBBridgeSqlTools
 
     local aTCSQLResult as array
+
     local cTCGetDB as character
     local cNonBlobColumns:="" as character
 

@@ -13,7 +13,18 @@ Released to Public Domain.
 #include "hbbridge.h"
 FUNCTION HBBridgeConfig( aArgs, cError )
 
-    LOCAL hConfig := {;
+    LOCAL cNul := Chr( 0 )
+    LOCAL cArg, cName, cValue, cKey, cFile, cContents, cAutoFile
+
+    LOCAL hConfig, hOptions, hFile
+
+    LOCAL lExplicitConfig
+
+    LOCAL nRead, nEqual
+
+    LOCAL xValue
+
+    hConfig := {;
             "protheusHost" => "0.0.0.0";
             ,"protheusPort" => 1512;
             ,"protheusMaxPayloadBytes" => 0;
@@ -41,7 +52,7 @@ FUNCTION HBBridgeConfig( aArgs, cError )
             ,"sqlODBCPooling" => "off";
             ,"sqlProfiles" => {=>};
         }
-    LOCAL hOptions := {;
+    hOptions := {;
             "host" => "protheusHost";
             ,"port" => "protheusPort";
             ,"maxpayloadbytes" => "protheusMaxPayloadBytes";
@@ -61,8 +72,8 @@ FUNCTION HBBridgeConfig( aArgs, cError )
             ,"netiotimeout" => "netioTimeout";
             ,"odbcpooling" => "sqlODBCPooling";
         }
-    LOCAL cArg, cName, cValue, cKey, cFile := "", hFile, cContents, nRead, nEqual, xValue
-    LOCAL lExplicitConfig := .F., cAutoFile
+    cFile := ""
+    lExplicitConfig := .F.
 
     cError := ""
     IF aArgs == NIL
@@ -80,7 +91,7 @@ FUNCTION HBBridgeConfig( aArgs, cError )
             cError := "Argument must be text"
             RETURN NIL
         ENDIF
-        IF Chr( 0 ) $ cArg
+        IF cNul $ cArg
             cError := "Argument contains NUL"
             RETURN NIL
         ENDIF
@@ -141,7 +152,7 @@ FUNCTION HBBridgeConfig( aArgs, cError )
                     hConfig[ cKey ] := HBBridgeAbsolutePath( hConfig[ cKey ], hb_FNameDir( cFile ) )
                 ENDIF
             ELSEIF cKey == "netioRoot" .OR. cKey == "addonRoot"
-                IF Empty( hConfig[ cKey ] ) .OR. Chr( 0 ) $ hConfig[ cKey ]
+                IF Empty( hConfig[ cKey ] ) .OR. cNul $ hConfig[ cKey ]
                     cError := "Directory is empty or contains NUL: " + cKey
                     RETURN NIL
                 ENDIF
@@ -203,8 +214,14 @@ RETURN { "configVersion" => 1, "protheusHost" => hConfig[ "protheusHost" ], ;
 
 FUNCTION HBBridgeConfigValid( hConfig, cError )
 
-    LOCAL cKey, nValue, aChannels := { "protheus", "netio" }, nLeft, nRight, cLeft, cRight
+    LOCAL aChannels := { "protheus", "netio" }
+
+    LOCAL cCR := Chr( 13 ), cLF := Chr( 10 ), cNul := Chr( 0 )
+    LOCAL cKey, cLeft, cRight
+
     LOCAL hRuntimeLimits
+
+    LOCAL nValue, nLeft, nRight, nChannels
 
     cError := ""
     IF ! HB_ISHASH( hConfig )
@@ -312,13 +329,13 @@ FUNCTION HBBridgeConfigValid( hConfig, cError )
             RETURN .F.
         ENDIF
         /* NETIO truncates passwords at 64 bytes; fail instead of silently altering. */
-        IF Len( hConfig[ cKey ] ) > 64 .OR. Chr( 0 ) $ hConfig[ cKey ]
+        IF Len( hConfig[ cKey ] ) > 64 .OR. cNul $ hConfig[ cKey ]
             cError := "Credential must not exceed 64 bytes or contain NUL: " + cKey
             RETURN .F.
         ENDIF
     NEXT
     FOR EACH cKey IN { "netioRoot", "addonRoot" }
-        IF ! HB_ISSTRING( hConfig[ cKey ] ) .OR. Empty( hConfig[ cKey ] ) .OR. Chr( 0 ) $ hConfig[ cKey ]
+        IF ! HB_ISSTRING( hConfig[ cKey ] ) .OR. Empty( hConfig[ cKey ] ) .OR. cNul $ hConfig[ cKey ]
             cError := "Invalid directory: " + cKey
             RETURN .F.
         ENDIF
@@ -328,8 +345,8 @@ FUNCTION HBBridgeConfigValid( hConfig, cError )
         RETURN .F.
     ENDIF
     FOR EACH cKey IN { "httpPassword", "httpCertificate", "httpPrivateKey" }
-        IF ! HB_ISSTRING( hConfig[ cKey ] ) .OR. Chr( 0 ) $ hConfig[ cKey ] .OR. ;
-            Chr( 10 ) $ hConfig[ cKey ] .OR. Chr( 13 ) $ hConfig[ cKey ]
+        IF ! HB_ISSTRING( hConfig[ cKey ] ) .OR. cNul $ hConfig[ cKey ] .OR. ;
+            cLF $ hConfig[ cKey ] .OR. cCR $ hConfig[ cKey ]
             cError := "Invalid HTTP configuration: " + cKey
             RETURN .F.
         ENDIF
@@ -359,8 +376,9 @@ FUNCTION HBBridgeConfigValid( hConfig, cError )
     IF ! Empty( hConfig[ "adminPassword" ] )
         AAdd( aChannels, "admin" )
     ENDIF
-    FOR nLeft := 1 TO Len( aChannels ) - 1
-        FOR nRight := nLeft + 1 TO Len( aChannels )
+    nChannels := Len( aChannels )
+    FOR nLeft := 1 TO nChannels - 1
+        FOR nRight := nLeft + 1 TO nChannels
             cLeft := aChannels[ nLeft ]
             cRight := aChannels[ nRight ]
             IF hConfig[ cLeft + "Port" ] == hConfig[ cRight + "Port" ] .AND. ;
@@ -375,7 +393,9 @@ FUNCTION HBBridgeConfigValid( hConfig, cError )
 RETURN .T.
 
 STATIC FUNCTION ValidIPv4( cAddress )
-    LOCAL aParts, cPart
+    LOCAL aParts
+
+    LOCAL cPart
     IF ! HB_ISSTRING( cAddress )
         RETURN .F.
     ENDIF
@@ -391,7 +411,9 @@ STATIC FUNCTION ValidIPv4( cAddress )
 RETURN .T.
 
 FUNCTION HBBridgeAbsolutePath( cPath, cBase )
-    LOCAL nDriveEnd, cBaseDrive
+    LOCAL cBaseDrive
+
+    LOCAL nDriveEnd
     IF ! HB_ISSTRING( cPath ) .OR. Chr( 0 ) $ cPath
         RETURN ""
     ENDIF
@@ -413,7 +435,7 @@ FUNCTION HBBridgeAbsolutePath( cPath, cBase )
 RETURN hb_PathNormalize( hb_PathJoin( hb_DirSepAdd( cBase ), cPath ) )
 
 FUNCTION HBBridgeConfigHelp()
-    local cConfigHelp
+    LOCAL cConfigHelp
     #pragma __cstream | cConfigHelp:=%s
 hbBridge [-config=file.ini|file.json] [-host=0.0.0.0] [-port=1512]
 [-netiohost=0.0.0.0] [-netioport=2941] [-netioroot=data]

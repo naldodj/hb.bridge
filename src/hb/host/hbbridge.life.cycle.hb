@@ -80,7 +80,9 @@ FUNCTION HBBridgeHostStop( hHost )
 RETURN hb_mutexEval( hHost[ "stopMutex" ], {|| HostStopAndJoin( hHost ) } )
 
 STATIC FUNCTION HostStopAndJoin( hHost )
-    LOCAL cChannel, lOK := .T.
+    LOCAL cChannel
+
+    LOCAL lOK := .T.
     hb_mutexEval( hHost[ "mutex" ], {|| hHost[ "stopping" ] := .T. } )
     FOR EACH cChannel IN hb_HKeys( hHost[ "listeners" ] )
         hb_mutexEval( hHost[ "listeners" ][ cChannel ][ "mutex" ], ;
@@ -104,7 +106,9 @@ FUNCTION HBBridgeHostStatus( hHost )
 RETURN hb_mutexEval( hHost[ "mutex" ], {|| HostStatusLocked( hHost ) } )
 
 STATIC FUNCTION HostStatusLocked( hHost )
-    LOCAL hResult, cChannel, hListener
+    LOCAL cChannel
+
+    LOCAL hResult, hListener
     hResult := {;
         "success" => .T.;
         ,"stopping" => hHost[ "stopping" ];

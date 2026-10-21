@@ -3,11 +3,19 @@
 
 PROCEDURE BenchmarkAddonTests( cAddonRoot )
 
-    LOCAL nFailures := 0, nChecks := 0, nCalls, hHRB, cJSON, xValue, cMode
-    LOCAL hState := { "calls" => 0, "rows" => 17, "size" => 7, "mode" => "success", ;
+    LOCAL cJSON, cMode
+
+    LOCAL hHRB, hState, hRegistry, hContext, hRestricted, hParams, hResult, hSeries, hInvalid
+
+    LOCAL nFailures, nChecks, nCalls
+
+    LOCAL xValue
+
+    nFailures := 0
+    nChecks := 0
+    hState := { "calls" => 0, "rows" => 17, "size" => 7, "mode" => "success", ;
         "paramsValid" => .T., "failAt" => 0, "password" => "fixture-private-password" }
-    LOCAL hRegistry := BenchmarkAddonRegistry( hState )
-    LOCAL hContext, hRestricted, hParams, hResult, hSeries, hInvalid
+    hRegistry := BenchmarkAddonRegistry( hState )
 
     hb_default( @cAddonRoot, hb_cwd() + "addons" )
     hContext := HBBridgeContext( "benchmark-addon-test", cAddonRoot, hState )
@@ -221,7 +229,9 @@ STATIC FUNCTION BenchmarkAddonQuery( hParams, hState )
     LOCAL hHeader := { "ID" => { "position" => 1, "type" => "N", "length" => 10, "decimals" => 0 }, ;
         "NAME" => { "position" => 2, "type" => "C", "length" => 32, "decimals" => 0 }, ;
         "AMOUNT" => { "position" => 3, "type" => "N", "length" => 15, "decimals" => 2 } }
-    LOCAL hRows := {=>}, hResult, nPage, nSize, nCount, nRow, nID, nPages
+    LOCAL hRows := {=>}, hResult
+
+    LOCAL nPage, nSize, nCount, nRow, nID, nPages
 
     hState[ "calls" ]++
     IF hParams[ "alias" ] != "opaque/profile"

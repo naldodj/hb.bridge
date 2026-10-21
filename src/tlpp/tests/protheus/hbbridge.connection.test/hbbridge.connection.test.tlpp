@@ -6,13 +6,13 @@
 
 procedure U_HBBridgeConnectionTest(cHost, nPort, nTimeout, nLargePayloadBytes)
 
-    local jParams := JSONObject():New() as json
-    local jProbe := JSONObject():New() as json
+    local cProbe := "" as character
+    local cCompressed := "" as character
 
+    local jParams as json
+    local jProbe as json
     local jAddonParams as json
     local jResponse as json
-
-    local cProbe := "", cCompressed := "" as character
 
     local lOk := .T. as logical
     local lCompressed := .F. as logical
@@ -20,6 +20,9 @@ procedure U_HBBridgeConnectionTest(cHost, nPort, nTimeout, nLargePayloadBytes)
     local nCompressed := 0 as numeric
 
     local oClient as object
+
+    jParams := JSONObject():New()
+    jProbe := JSONObject():New()
 
     // Omitted connection settings are resolved by the client from the AppServer INI.
     paramtype 4 var nLargePayloadBytes as numeric default 0
@@ -75,7 +78,7 @@ procedure U_HBBridgeConnectionTest(cHost, nPort, nTimeout, nLargePayloadBytes)
         ConOut("hbBridge Echo exact comparison FAILED: " + Left(jResponse:ToJSON(), 1024))
         lOk := .F.
     else
-        ConOut("hbBridge Echo Protheus OK: 200000 bytes, conteudo identico.")
+        ConOut("hbBridge Echo Protheus OK: 200000 bytes, identical content.")
     endif
     FreeObj(@jResponse)
 
@@ -100,7 +103,7 @@ procedure U_HBBridgeConnectionTest(cHost, nPort, nTimeout, nLargePayloadBytes)
             ConOut("hbBridge Echo fragmented FAILED: " + Left(jResponse:ToJSON(), 1024))
             lOk := .F.
         else
-            ConOut("hbBridge Echo fragmented Protheus OK: 200000 bytes, conteudo identico; gzip request=" + AllTrim(Str(nCompressed)) + " bytes.")
+            ConOut("hbBridge Echo fragmented Protheus OK: 200000 bytes, identical content; gzip request=" + AllTrim(Str(nCompressed)) + " bytes.")
         endif
         FreeObj(@jResponse)
     endif
@@ -114,13 +117,13 @@ procedure U_HBBridgeConnectionTest(cHost, nPort, nTimeout, nLargePayloadBytes)
             ConOut("hbBridge Echo configured size FAILED: " + Left(jResponse:ToJSON(), 1024))
             lOk := .F.
         else
-            ConOut("hbBridge Echo configured size Protheus OK: " + tlpp.ToStr(nLargePayloadBytes) + " bytes, conteudo identico.")
+            ConOut("hbBridge Echo configured size Protheus OK: " + tlpp.ToStr(nLargePayloadBytes) + " bytes, identical content.")
         endif
         FreeObj(@jResponse)
     endif
 
     if lOk
-        ConOut("hbBridge RPC Protheus OK: todos os testes solicitados passaram.")
+        ConOut("hbBridge RPC Protheus OK: all requested checks passed.")
     else
         ConOut("hbBridge RPC Protheus FAILED.")
     endif
@@ -132,11 +135,18 @@ return
 
 static function ClockWorks() as logical
 
-    local nStarted := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs() as numeric
-    local nCurrent := nStarted, nElapsed := 0, nRawElapsed := 0 as numeric
-    local nRawStarted := TimeCounter() as numeric
-    local nIndex := 0 as numeric
     local lOk := .T. as logical
+
+    local nStarted as numeric
+    local nCurrent as numeric
+    local nElapsed := 0 as numeric
+    local nRawElapsed := 0 as numeric
+    local nRawStarted as numeric
+    local nIndex := 0 as numeric
+
+    nStarted := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs()
+    nCurrent := nStarted
+    nRawStarted := TimeCounter()
 
     // Compare the normalized elapsed value with a known wait duration.
     Sleep(1000)
@@ -206,13 +216,14 @@ static function RandomASCII(nSize as numeric) as character
     local cPayload := "", cBlock := "" as character
 
     local nState := 12345, nIndex := 0, nBlockSize := 0 as numeric
+    local nAlphabetLength := Len(cAlphabet) as numeric
 
     do while Len(cPayload) < nSize
         nBlockSize := Min(1024, nSize - Len(cPayload))
         cBlock := ""
         for nIndex := 1 to nBlockSize
             nState := (nState * 48271) % 2147483647
-            cBlock += SubStr(cAlphabet, (nState % Len(cAlphabet)) + 1, 1)
+            cBlock += SubStr(cAlphabet, (nState % nAlphabetLength) + 1, 1)
         next
         cPayload += cBlock
     enddo

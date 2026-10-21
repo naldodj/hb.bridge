@@ -13,12 +13,29 @@ endclass
 // Closed checks: no socket, credentials, database or ERP environment is used.
 static method Run() class HBBridgeJSONTest
 
-    local jChecks := JSONObject():New() as json
-    local jInput := JSONObject():New(), jOutput := JSONObject():New(), jNested := JSONObject():New() as json
     local aNames as array
-    local cJSON := "", cText := "", cName := "", cUnicode := EncodeUTF8("accent: " + Chr(231)) as character
-    local nIndex := 0, nFailures := 0 as numeric
+
+    local cJSON := "" as character
+    local cText := "" as character
+    local cName := "" as character
+    local cUnicode as character
+
+    local jChecks as json
+    local jInput as json
+    local jOutput as json
+    local jNested as json
+
     local lParsed := .F. as logical
+
+    local nIndex := 0 as numeric
+    local nFailures := 0 as numeric
+    local nNames := 0 as numeric
+
+    jChecks := JSONObject():New()
+    jInput := JSONObject():New()
+    jOutput := JSONObject():New()
+    jNested := JSONObject():New()
+    cUnicode := EncodeUTF8("accent: " + Chr(231))
 
     jInput["text"] := "plain"
     jInput["number"] := 123.4567
@@ -92,7 +109,8 @@ static method Run() class HBBridgeJSONTest
     jChecks["nativeNulKeyRejected"] := Empty(HBBridge.Client.HBBridgeJSON():Encode(jInput))
 
     aNames := jChecks:GetNames()
-    for nIndex := 1 to Len(aNames)
+    nNames := Len(aNames)
+    for nIndex := 1 to nNames
         if !jChecks[aNames[nIndex]]
             nFailures++
         endif

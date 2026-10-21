@@ -73,14 +73,15 @@ static function JSONNulMode(xValue as variant) as numeric
     local cType := ValType(xValue) as character
     local cCHR_0 := Chr(0) as character
 
-    local nIndex := 0, nMode := 0, nChild := 0 as numeric
+    local nIndex := 0, nMode := 0, nChild := 0, nLength := 0 as numeric
 
     if cType == "C"
         return if(cCHR_0 $ xValue, 1, 0)
     endif
     if cType == "J" .or. cType == "O"
         aNames := xValue:GetNames()
-        for nIndex := 1 to Len(aNames)
+        nLength := Len(aNames)
+        for nIndex := 1 to nLength
             if cCHR_0 $ aNames[nIndex]
                 nMode := 2
                 exit
@@ -93,7 +94,8 @@ static function JSONNulMode(xValue as variant) as numeric
         next nIndex
         FWFreeArray(@aNames)
     elseif cType == "A"
-        for nIndex := 1 to Len(xValue)
+        nLength := Len(xValue)
+        for nIndex := 1 to nLength
             nMode := Max(nMode, JSONNulMode(xValue[nIndex]))
             if nMode == 2
                 exit
@@ -118,15 +120,18 @@ return SubStr(cJSON, nColon + 1, Len(cJSON) - nColon - 1)
 static function JSONEncodeValue(xValue as variant, jScratch as json, lValid as logical) as character
 
     local aNames as array
+
     local cCHR_0 := Chr(0) as character
     local cType := ValType(xValue), cResult := "", cToken := "" as character
+
     local nIndex := 0, nStart := 1, nPosition := 1, nRun := 0 as numeric
     local nLen as numeric
 
     if cType == "J" .or. cType == "O"
         aNames := xValue:GetNames()
         cResult := "{"
-        for nIndex := 1 to Len(aNames)
+        nLen := Len(aNames)
+        for nIndex := 1 to nLen
             if cCHR_0 $ aNames[nIndex]
                 lValid := .F.
                 exit
@@ -144,7 +149,8 @@ static function JSONEncodeValue(xValue as variant, jScratch as json, lValid as l
         FWFreeArray(@aNames)
     elseif cType == "A"
         cResult := "["
-        for nIndex := 1 to Len(xValue)
+        nLen := Len(xValue)
+        for nIndex := 1 to nLen
             if nIndex > 1
                 cResult += ","
             endif
@@ -189,13 +195,11 @@ return cResult
 
 static function JSONSkipSpace(cJSON as character, nPosition as numeric)
 
-    local nJSONLen:=Len(cJSON) as numeric
+    local nJSONLen := Len(cJSON), nByte := 0 as numeric
 
     do while nPosition <= nJSONLen
-        if !(Asc(SubStr(cJSON, nPosition, 1)) == 32 .or. ;
-            Asc(SubStr(cJSON, nPosition, 1)) == 9 .or. ;
-            Asc(SubStr(cJSON, nPosition, 1)) == 10 .or. ;
-            Asc(SubStr(cJSON, nPosition, 1)) == 13)
+        nByte := Asc(SubStr(cJSON, nPosition, 1))
+        if !(nByte == 32 .or. nByte == 9 .or. nByte == 10 .or. nByte == 13)
             exit
         endif
         nPosition++
@@ -274,7 +278,7 @@ static function JSONDecodeNulString(cToken as character, jScratch as json, cValu
     if !lHasNul
         return .T.
     endif
-    cSegment := '"' + SubStr(cToken, nStart, Len(cToken) - nStart) + '"'
+    cSegment := '"' + SubStr(cToken, nStart, nTokenLen - nStart) + '"'
     if !JSONDecodeToken(cSegment, jScratch, @xSegment)
         return .F.
     endif
@@ -292,12 +296,12 @@ static function JSONPatchValue(cJSON as character, nPosition as numeric, xValue 
     local cByte := "", cToken := "", cKey := "", cPatched := "", cClose := "" as character
     local cType:=ValType(xValue) as character
 
-    local lHasNul := .F., lObject := .F., lValid := .T. as logical
-
     local jSeen as json
 
+    local lHasNul := .F., lObject := .F., lValid := .T. as logical
+
     local nCount := 0, nStart := 0 as numeric
-    local nJSONLen := Len(cJSON)
+    local nJSONLen := Len(cJSON), nArrayLen := 0, nByte := 0 as numeric
 
     local xKey, xChild as variant
 
@@ -324,6 +328,9 @@ static function JSONPatchValue(cJSON as character, nPosition as numeric, xValue 
             return .F.
         endif
         cClose := if(lObject, "}", "]")
+        if !lObject
+            nArrayLen := Len(xValue)
+        endif
         jSeen := JSONObject():New()
         nPosition++
         JSONSkipSpace(cJSON, @nPosition)
@@ -364,7 +371,7 @@ static function JSONPatchValue(cJSON as character, nPosition as numeric, xValue 
                 nPosition++
                 xChild := xValue[cKey]
             else
-                if nCount > Len(xValue)
+                if nCount > nArrayLen
                     lValid := .F.
                     exit
                 endif
@@ -395,7 +402,7 @@ static function JSONPatchValue(cJSON as character, nPosition as numeric, xValue 
             lValid := lValid .and. nCount == Len(aNames)
             FWFreeArray(@aNames)
         else
-            lValid := lValid .and. nCount == Len(xValue)
+            lValid := lValid .and. nCount == nArrayLen
         endif
         FreeObj(@jSeen)
         if !lValid
@@ -408,8 +415,9 @@ static function JSONPatchValue(cJSON as character, nPosition as numeric, xValue 
     nStart := nPosition
     do while nPosition <= nJSONLen
         cByte := SubStr(cJSON, nPosition, 1)
+        nByte := Asc(cByte)
         if cByte == "," .or. cByte == "}" .or. cByte == "]" .or. ;
-            Asc(cByte) == 32 .or. Asc(cByte) == 9 .or. Asc(cByte) == 10 .or. Asc(cByte) == 13
+            nByte == 32 .or. nByte == 9 .or. nByte == 10 .or. nByte == 13
             exit
         endif
         nPosition++

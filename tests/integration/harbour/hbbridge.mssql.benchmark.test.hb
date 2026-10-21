@@ -11,8 +11,15 @@ REQUEST HB_CODEPAGE_UTF8EX
 PROCEDURE MSSQLBenchmarkTests( cConfigPath, cProfile, cRoute, cRows, cPageSize, ;
     cIterations, cWarmup, cPooling, cTimeoutMs, cServeSeconds )
 
-    LOCAL nExit := 1, cPreviousCodepage := hb_cdpSelect()
-    LOCAL hReport := { "schemaVersion" => 1, "success" => .F., "error" => "UNEXPECTED_RUNTIME_ERROR" }
+    LOCAL cPreviousCodepage
+
+    LOCAL hReport
+
+    LOCAL nExit
+
+    nExit := 1
+    cPreviousCodepage := hb_cdpSelect()
+    hReport := { "schemaVersion" => 1, "success" => .F., "error" => "UNEXPECTED_RUNTIME_ERROR" }
 
     BEGIN SEQUENCE WITH __BreakBlock()
         hb_cdpSelect( "UTF8EX" )
@@ -35,15 +42,30 @@ RETURN
 STATIC FUNCTION MBRun( cConfigPath, cProfile, cRoute, cRows, cPageSize, ;
     cIterations, cWarmup, cPooling, cTimeoutMs, cServeSeconds, hReport )
 
-    LOCAL hPrivate, hProfiles, hRegistry, hConfig, hHost := NIL, hSettings, cError
-    LOCAL nRows := MBInteger( cRows, 1, 100000 ), nPageSize := MBInteger( cPageSize, 1, 100000 )
-    LOCAL nIterations := MBInteger( cIterations, 1, 1000000 ), nWarmup := MBInteger( cWarmup, 0, 1000000 )
-    LOCAL nTimeoutMs := MBInteger( cTimeoutMs, 1, 2147483647 )
-    LOCAL nServeSeconds := iif( cServeSeconds == NIL, 0, MBInteger( cServeSeconds, 0, 3600 ) )
-    LOCAL nIndex, hIteration, hSamples := {=>}, nStarted, nElapsed, hResult, cSQL
-    LOCAL hWarmupSamples := {=>}
-    LOCAL hChecks := { "checks" => 0, "failures" => 0 }, lReady := .F., nCalls := 0
-    LOCAL nPreviousArea := Select(), nPreviousConnection := rddInfo( RDDI_CONNECTION, NIL, "SQLMIX" )
+    LOCAL cError, cSQL
+
+    LOCAL hPrivate, hProfiles, hRegistry, hConfig, hHost, hSettings, hIteration, hSamples, hResult
+    LOCAL hWarmupSamples, hChecks
+
+    LOCAL lReady
+
+    LOCAL nRows, nPageSize, nIterations, nWarmup, nTimeoutMs, nServeSeconds, nIndex, nStarted, nElapsed, nCalls
+    LOCAL nPreviousArea, nPreviousConnection
+
+    hHost := NIL
+    nRows := MBInteger( cRows, 1, 100000 )
+    nPageSize := MBInteger( cPageSize, 1, 100000 )
+    nIterations := MBInteger( cIterations, 1, 1000000 )
+    nWarmup := MBInteger( cWarmup, 0, 1000000 )
+    nTimeoutMs := MBInteger( cTimeoutMs, 1, 2147483647 )
+    nServeSeconds := iif( cServeSeconds == NIL, 0, MBInteger( cServeSeconds, 0, 3600 ) )
+    hSamples := {=>}
+    hWarmupSamples := {=>}
+    hChecks := { "checks" => 0, "failures" => 0 }
+    lReady := .F.
+    nCalls := 0
+    nPreviousArea := Select()
+    nPreviousConnection := rddInfo( RDDI_CONNECTION, NIL, "SQLMIX" )
 
     hReport[ "error" ] := "INVALID_ARGUMENTS"
     IF ! HB_ISSTRING( cConfigPath ) .OR. ! HB_ISSTRING( cProfile ) .OR. ;
@@ -209,9 +231,13 @@ RETURN "SELECT ID, CAST('hbbridge-' + CAST(ID AS VARCHAR(10)) AS VARCHAR(32)) AS
 
 STATIC FUNCTION MBIteration( hSettings, hChecks )
 
-    LOCAL nPages := Int( ( hSettings[ "rows" ] - 1 ) / hSettings[ "pageSize" ] ) + 1
-    LOCAL nPage, nRow, nExpected, nExpectedRows, nVisited := 0, hResult, hRow
-    LOCAL hStats := { "success" => .F., "calls" => 0, "pages" => 0, "rows" => 0, "idSum" => 0 }
+    LOCAL hResult, hRow, hStats
+
+    LOCAL nPages, nPage, nRow, nExpected, nExpectedRows, nVisited
+
+    nPages := Int( ( hSettings[ "rows" ] - 1 ) / hSettings[ "pageSize" ] ) + 1
+    nVisited := 0
+    hStats := { "success" => .F., "calls" => 0, "pages" => 0, "rows" => 0, "idSum" => 0 }
 
     FOR nPage := 1 TO nPages
         hResult := MBCall( hSettings, { "alias" => hSettings[ "profile" ], "sql" => hSettings[ "sql" ], ;
@@ -259,10 +285,21 @@ RETURN hStats
 
 STATIC FUNCTION MBCall( hSettings, hParams )
 
-    LOCAL hSocket := NIL, hResult := NIL, cReply, cBody, cRequest, cResponse := "", cBuffer := Space( 65536 )
-    LOCAL nSent := 0, nCount, nSeparator, nLengthAt, nLength := -1, cHeaders
-    LOCAL cCRLF := Chr( 13 ) + Chr( 10 ), nTimeout := hSettings[ "timeoutMs" ]
-    LOCAL hPolicy := { "protheusTimeoutMs" => nTimeout }
+    LOCAL cReply, cBody, cRequest, cResponse, cBuffer, cHeaders, cCRLF
+
+    LOCAL hSocket, hResult, hPolicy
+
+    LOCAL nSent, nCount, nSeparator, nLengthAt, nLength, nTimeout, nRequestBytes
+
+    hSocket := NIL
+    hResult := NIL
+    cResponse := ""
+    cBuffer := Space( 65536 )
+    nSent := 0
+    nLength := -1
+    cCRLF := Chr( 13 ) + Chr( 10 )
+    nTimeout := hSettings[ "timeoutMs" ]
+    hPolicy := { "protheusTimeoutMs" => nTimeout }
 
     IF hSettings[ "route" ] == "local"
         RETURN HBBridgeDispatch( hSettings[ "registry" ], "RPCRDD.Query", hParams, HBBridgeContext( "m08" ) )
@@ -281,7 +318,8 @@ STATIC FUNCTION MBCall( hSettings, hParams )
                 "Connection: close" + cCRLF + "Content-Type: application/json" + cCRLF + ;
                 "Content-Length: " + hb_ntos( hb_BLen( cBody ) ) + cCRLF + ;
                 "Authorization: Bearer m08-http-test-only" + cCRLF + cCRLF + cBody
-            DO WHILE nSent < hb_BLen( cRequest )
+            nRequestBytes := hb_BLen( cRequest )
+            DO WHILE nSent < nRequestBytes
                 nCount := hb_socketSend( hSocket, hb_BSubStr( cRequest, nSent + 1 ),,, nTimeout )
                 IF nCount <= 0
                     Break( NIL )
@@ -318,7 +356,8 @@ RETURN hResult
 
 STATIC FUNCTION MBMetrics( hSamples )
 
-    LOCAL hSample, hMetrics := { "iterations" => Len( hSamples ), "totalMs" => 0, "minMs" => NIL, ;
+    LOCAL hSample
+    LOCAL hMetrics := { "iterations" => Len( hSamples ), "totalMs" => 0, "minMs" => NIL, ;
         "maxMs" => 0, "meanMs" => 0, "calls" => 0, "rows" => 0, "pages" => 0 }
 
     FOR EACH hSample IN hSamples
@@ -339,12 +378,13 @@ RETURN hMetrics
 
 STATIC FUNCTION MBInteger( cValue, nMin, nMax )
 
-    LOCAL nValue, nChar
+    LOCAL nValue, nChar, nLength
 
     IF ! HB_ISSTRING( cValue ) .OR. Empty( cValue )
         RETURN NIL
     ENDIF
-    FOR nChar := 1 TO Len( cValue )
+    nLength := Len( cValue )
+    FOR nChar := 1 TO nLength
         IF !( SubStr( cValue, nChar, 1 ) $ "0123456789" )
             RETURN NIL
         ENDIF
@@ -366,7 +406,9 @@ STATIC FUNCTION MBCell( hResult, nRow, cField )
 RETURN iif( HB_ISHASH( hRow ), hb_HGetDef( hRow, cField, NIL ), NIL )
 
 STATIC FUNCTION MBFreePort()
-    LOCAL hSocket := hb_socketOpen(), nPort := 0
+    LOCAL hSocket := hb_socketOpen()
+
+    LOCAL nPort := 0
     IF ! Empty( hSocket )
         IF hb_socketBind( hSocket, { HB_SOCKET_AF_INET, "127.0.0.1", 0 } )
             nPort := hb_socketGetSockName( hSocket )[ HB_SOCKET_ADINFO_PORT ]

@@ -4,9 +4,14 @@
 namespace HBBridge.Examples
 
 procedure U_HBBridgeBrowseDataTestSX5()
-    local cAlias:="SX5" as character
-    local lOwnArea:=(Select(cAlias)==0) as logical
-    local jParameters:=JSONObject():New() as json
+    local cAlias := "SX5" as character
+
+    local jParameters as json
+
+    local lOwnArea as logical
+
+    lOwnArea := (Select(cAlias)==0)
+    jParameters := JSONObject():New()
     jParameters["cEmp"]:="99"
     jParameters["cFil"]:="01"
     beginContent var jParameters["cSQL"]
@@ -28,7 +33,7 @@ procedure U_HBBridgeBrowseDataTestSX5()
     }
     jParameters["cATRecNoMsMGet"]:="R_E_C_N_O_"
     //TODO: Resolve this Workaround private __cPrefixQryAlias
-    private __cPrefixQryAlias:="SX5" as character//TODO: resolver Alias para campos comuns (R_E_C_N_O_,R_E_C_D_E_L_,D_E_L_E_T_,etc) com HBBridgeSqlTools():PrefixQryAlias ou FieldAlias ou FielPrefixdAlias?
+    private __cPrefixQryAlias:="SX5" as character // TODO: Resolve aliases for common fields through HBBridgeSqlTools.
     U_HBBridgeBrowseDataTest(jParameters)
     if ((lOwnArea).and.(Select(cAlias)>0))
         (cAlias)->(dbCloseArea())

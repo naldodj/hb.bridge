@@ -41,7 +41,6 @@ static method ViewData(cAlias,nRecNo,cTitle,aButtons,aAcho) class HBBridgeMsMGet
     local cField as character
     local cTable as character
     local cDlgTitle as character
-
     local cFil as character
     local cSVFilAnt as character
     local cFieldFil as character
@@ -52,7 +51,6 @@ static method ViewData(cAlias,nRecNo,cTitle,aButtons,aAcho) class HBBridgeMsMGet
     local lAcho as logical
     local lMsMGet as logical
     local lProperty:=.T. as logical
-
     local lMVCOMBOBOX as logical
     local l__MVCOMBOBOX as logical
 
@@ -60,7 +58,6 @@ static method ViewData(cAlias,nRecNo,cTitle,aButtons,aAcho) class HBBridgeMsMGet
     local nFields as numeric
     local nATField as numeric
     local nFieldFil as numeric
-
     local nTop as numeric
     local nLeft as numeric
     local nBottom as numeric
@@ -201,7 +198,7 @@ static method ViewData(cAlias,nRecNo,cTitle,aButtons,aAcho) class HBBridgeMsMGet
             endif
 
             cDlgTitle:=cTitle+" :: View"
-            DEFINE MSDIALOG oDlg TITLE cTitle FROM nTop,nLeft TO nBottom,nRight PIXEL OF getWNDDefault()
+            DEFINE MSDIALOG oDlg TITLE cTitle FROM nTop,nLeft TO nBottom,nRight PIXEL OF GetWNDDefault()
 
                 aMsMGetPos:={;
                             oFWDefSize:GetDimension("ENCHOICE","LININI"),;

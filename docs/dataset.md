@@ -178,15 +178,15 @@ check; successful text conversion does not establish it.
 
 Correct SX5 presentation over HTTP was reported with
 `jResponse:FromJSON(DecodeUTF8(jResponse:ToJSON()))` in the FWWebEx example.
-Desktop presentation appears to improve with `OemToAnsi()` and still requires
-broader validation. These observations concern the shown text and UI boundary;
-they do not establish source encoding or the complete Unicode/binary contract.
+Desktop presentation was reported to improve with `OemToAnsi()`. These were
+observations about the shown text and UI boundary; they did not establish
+source encoding or the complete Unicode/binary contract.
 
-Keep the working sample while testing raw UTF-8, escaped Unicode, text outside
-the target codepage, NUL, null/empty and binary values. The intended client
-policy converts text values once to an explicitly selected target encoding.
-Whole-document recoding/reparsing can change JSON keys/control strings and
-inherits native serializer/parser behavior; it is not the default policy yet.
+D03 supersedes those workarounds with the boundary policy below. Current
+consumers convert each UTF-8 text value once with `DecodeUTF8()` when a local
+codepage is required. `OemToAnsi()` is not the conversion for a known UTF-8
+result. Whole-document recoding/reparsing can alter keys/control strings and
+reintroduce the native JSONObject NUL defect; it is not the current policy.
 `DecodeUTF8()` supports an explicit target encoding; see the TOTVS reference below.
 
 Implemented boundary policy:
@@ -265,6 +265,28 @@ text explicitly, for example `CONVERT(varchar(max), binary_value, 2)` on MSSQL.
 The SRA example resolves its own projection on Protheus and omits binary
 columns; ordinary long text is not classified as binary. Automatic base64/raw
 BLOB JSON representation remains a future versioned contract.
+
+#### Protheus projection helper
+
+[`HBBridge.SQL.Tools.HBBridgeSqlTools():GetNonBlobColumns(cTable)`](../src/tlpp/hbbridge.sql.tools.tlpp)
+returns an ordered, bracket-quoted column list for a caller-resolved physical
+SQL Server table. It queries metadata through the active **Protheus DBAccess
+connection**, independently of the dataset's hbBridge profile. The caller must
+ensure that this connection's database and table/schema match the intended
+hbBridge SQL destination. Table names, business predicates and profile selection
+remain caller-owned.
+
+The current MSSQL implementation resolves base types and excludes `image`,
+`binary`, `varbinary`, `timestamp` and `rowversion`. It retains long text,
+including `text`, `ntext`, `varchar(max)` and `nvarchar(max)`. The returned names
+are unqualified; a caller constructing joins must supply the required aliases.
+The helper does not fetch excluded values or implement a BLOB reader.
+
+It returns `""` for blank input, an unsupported backend, a failed metadata query
+or no visible eligible columns. These cases share the same return value; the
+method exposes no structured `ErrorCode()`. Handle an empty projection before
+constructing the query rather than substituting `*`. Metadata visibility and
+SQL Server support for the aggregation used by this utility are prerequisites.
 
 ## Numeric finding on 2026-10-08
 

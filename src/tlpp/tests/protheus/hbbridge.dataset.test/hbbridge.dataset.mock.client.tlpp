@@ -7,6 +7,7 @@ class HBBridgeDataSetMockClient
 
     private data jResponses as json
     private data jRequests as json
+
     private data nResponses as numeric
     private data nCalls as numeric
 
@@ -38,8 +39,11 @@ return
 
 method CallService(cService, jParams) class HBBridgeDataSetMockClient
 
-    local jResponse := JSONObject():New() as json
     local cKey := "" as character
+
+    local jResponse as json
+
+    jResponse := JSONObject():New()
 
     self:nCalls++
     cKey := tlpp.ToStr(self:nCalls)
@@ -59,8 +63,12 @@ return(self:nCalls)
 
 method Request(nCall) class HBBridgeDataSetMockClient
 
-    local jRequest := JSONObject():New() as json
-    local cKey := tlpp.ToStr(nCall) as character
+    local cKey as character
+
+    local jRequest as json
+
+    jRequest := JSONObject():New()
+    cKey := tlpp.ToStr(nCall)
 
     if self:jRequests:HasProperty(cKey)
         jRequest:FromJSON(self:jRequests[cKey])

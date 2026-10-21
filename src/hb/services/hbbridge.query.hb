@@ -41,7 +41,9 @@ RETURN lOK
  */
 FUNCTION HBBridgeSQLQuery( hParams, hProfiles )
 
-    LOCAL cProfile, cSQL, hPage := NIL, cError
+    LOCAL cProfile, cSQL, cError
+
+    LOCAL hPage := NIL
 
     IF ! hb_HHasKey( hParams, "alias" ) .OR. ! hb_HHasKey( hParams, "sql" )
         RETURN HBBridgeError( "INVALID_PARAMS", "Connection profile and SQL are required." )
@@ -71,12 +73,27 @@ RETURN hb_mutexEval( s_hSQLMutex, {|| SQLQueryLocked( cSQL, cProfile, hProfiles[
 
 STATIC FUNCTION SQLQueryLocked( cSQL, cProfile, hProfile, hPage )
 
-    LOCAL nConnection := 0, nPreviousConnection := rddInfo( RDDI_CONNECTION, NIL, "SQLMIX" )
-    LOCAL nPreviousArea := Select(), nQueryArea := 0, nField, nFields, nRow := 0
-    LOCAL hHeader := {=>}, hRows := {=>}, hRow, hField, cName, hResult
-    LOCAL cFailure := "CONNECTION_FAILED", cMessage := "Database connection is unavailable."
-    LOCAL nOffset := iif( hPage == NIL, 0, 1 ), lHasNext := .F.
-    LOCAL cAlias, nTotalRows, nTotalPages, hLease := NIL
+    LOCAL cName, cFailure, cMessage, cAlias
+
+    LOCAL hHeader, hRows, hRow, hField, hResult, hLease
+
+    LOCAL lHasNext
+
+    LOCAL nConnection, nPreviousConnection, nPreviousArea, nQueryArea, nField, nFields, nRow, nOffset
+    LOCAL nTotalRows, nTotalPages
+
+    nConnection := 0
+    nPreviousConnection := rddInfo( RDDI_CONNECTION, NIL, "SQLMIX" )
+    nPreviousArea := Select()
+    nQueryArea := 0
+    nRow := 0
+    hHeader := {=>}
+    hRows := {=>}
+    cFailure := "CONNECTION_FAILED"
+    cMessage := "Database connection is unavailable."
+    nOffset := iif( hPage == NIL, 0, 1 )
+    lHasNext := .F.
+    hLease := NIL
 
     IF ! s_oSQLPool:RegisterProfile( cProfile, hProfile )
         RETURN HBBridgeError( cFailure, cMessage )
@@ -204,10 +221,9 @@ RETURN hResult
  */
 STATIC FUNCTION SQLPagePlan( hPage, cSQL, cError )
 
-    LOCAL nNumber, nSize, nBegin, nEnd, cOrder, cToken, cColumn, cDirection
-    LOCAL cSQLPage
-    LOCAL cQualified := "", nComma, nSpace, nChar, cChar
-    LOCAL nMaxInteger := 9007199254740991
+    LOCAL cOrder, cToken, cColumn, cDirection, cSQLPage, cQualified := "", cChar
+
+    LOCAL nNumber, nSize, nBegin, nEnd, nComma, nSpace, nChar, nMaxInteger := 9007199254740991, nColumnLength
 
     cError := "Page requires number, size and orderBy."
     IF ! HB_ISHASH( hPage )
@@ -253,7 +269,8 @@ STATIC FUNCTION SQLPagePlan( hPage, cSQL, cError )
         IF Empty( cColumn ) .OR. ! ( cDirection == "ASC" .OR. cDirection == "DESC" )
             RETURN NIL
         ENDIF
-        FOR nChar := 1 TO Len( cColumn )
+        nColumnLength := Len( cColumn )
+        FOR nChar := 1 TO nColumnLength
             cChar := Upper( SubStr( cColumn, nChar, 1 ) )
             IF ! ( cChar $ "ABCDEFGHIJKLMNOPQRSTUVWXYZ_" )
                 IF nChar == 1 .OR. ! ( cChar $ "0123456789" )
@@ -286,8 +303,13 @@ RETURN { "sqlpage" => cSQLPage, "sql" => cSQL, "number" => nNumber, "size" => nS
  */
 FUNCTION HBBridgeSQLProfiles( hProfiles, cBase, cError )
 
-    LOCAL hNormalized := {=>}, hProfile, cName, cKey, cDriver, cValue
-    LOCAL hTimeouts := { "loginTimeoutSeconds" => .T., "queryTimeoutSeconds" => .F. }, lLogin
+    LOCAL cNul := Chr( 0 )
+    LOCAL cName, cKey, cDriver, cValue
+
+    LOCAL hNormalized := {=>}, hProfile
+    LOCAL hTimeouts := { "loginTimeoutSeconds" => .T., "queryTimeoutSeconds" => .F. }
+
+    LOCAL lLogin
 
     cError := ""
     IF ! HB_ISHASH( hProfiles )
@@ -296,7 +318,7 @@ FUNCTION HBBridgeSQLProfiles( hProfiles, cBase, cError )
     ENDIF
     FOR EACH hProfile IN hProfiles
         cName := hProfile:__enumKey()
-        IF ! HB_ISSTRING( cName ) .OR. Empty( AllTrim( cName ) ) .OR. Chr( 0 ) $ cName .OR. ;
+        IF ! HB_ISSTRING( cName ) .OR. Empty( AllTrim( cName ) ) .OR. cNul $ cName .OR. ;
             ! HB_ISHASH( hProfile )
             cError := "Invalid SQL profile."
             RETURN NIL
@@ -323,7 +345,7 @@ FUNCTION HBBridgeSQLProfiles( hProfiles, cBase, cError )
                 RETURN NIL
             ENDIF
             cValue := hProfile[ cKey ]
-            IF ! HB_ISSTRING( cValue ) .OR. Empty( AllTrim( cValue ) ) .OR. Chr( 0 ) $ cValue
+            IF ! HB_ISSTRING( cValue ) .OR. Empty( AllTrim( cValue ) ) .OR. cNul $ cValue
                 cError := "Invalid SQL profile database: " + cName
                 RETURN NIL
             ENDIF
@@ -357,11 +379,14 @@ RETURN hNormalized
  */
 STATIC FUNCTION SQLMSSQLConnection( hProfile, cError )
 
+    LOCAL cKey, cAuthentication, cConnection, cEncrypt
+
     LOCAL hAllowed := { "driver" => .T., "authentication" => .T., "dsn" => .T., ;
         "odbcDriver" => .T., "server" => .T., "database" => .T., "username" => .T., ;
         "password" => .T., "encrypt" => .T., "trustServerCertificate" => .T., ;
         "loginTimeoutSeconds" => .T., "queryTimeoutSeconds" => .T. }
-    LOCAL cKey, xValue, cAuthentication, cConnection, cEncrypt
+
+    LOCAL xValue
 
     IF hb_HHasKey( hProfile, "connectionString" )
         FOR EACH xValue IN hProfile
@@ -491,11 +516,14 @@ RETURN HBBridgeODBCTimeoutValid( xValue, lLogin )
  * The installed ODBC manager remains responsible for its native length limit.
  */
 STATIC FUNCTION SQLDSNValid( cValue )
-    LOCAL cInvalid := "[]{}(),;?*=!@" + Chr( 92 ), nIndex, cByte, nCode
+    LOCAL cInvalid := "[]{}(),;?*=!@" + Chr( 92 ), cByte
+
+    LOCAL nIndex, nCode, nLength
     IF ! ( cValue == AllTrim( cValue ) )
         RETURN .F.
     ENDIF
-    FOR nIndex := 1 TO hb_BLen( cValue )
+    nLength := hb_BLen( cValue )
+    FOR nIndex := 1 TO nLength
         cByte := hb_BSubStr( cValue, nIndex, 1 )
         nCode := hb_BCode( cByte )
         IF cByte $ cInvalid .OR. nCode < 32 .OR. nCode == 127
@@ -517,9 +545,15 @@ RETURN cKey + "={" + StrTran( cValue, "}", "}}" ) + "};"
  */
 STATIC FUNCTION SQLTotalRows( cSQL, nConnection, cDriver )
 
-    LOCAL nPreviousArea := Select(), nCountArea := 0, nTotalRows := NIL
-    LOCAL cAlias, cCount := iif( cDriver == "mssql", "COUNT_BIG(*)", "COUNT(*)" )
-    LOCAL cCountSQL := "SELECT " + cCount + " AS QTOTAL FROM (" + cSQL + ") AS HBBCOUNT"
+    LOCAL cAlias, cCount, cCountSQL
+
+    LOCAL nPreviousArea, nCountArea, nTotalRows
+
+    nPreviousArea := Select()
+    nCountArea := 0
+    nTotalRows := NIL
+    cCount := iif( cDriver == "mssql", "COUNT_BIG(*)", "COUNT(*)" )
+    cCountSQL := "SELECT " + cCount + " AS QTOTAL FROM (" + cSQL + ") AS HBBCOUNT"
 
     BEGIN SEQUENCE WITH __BreakBlock()
         dbSelectArea( 0 )

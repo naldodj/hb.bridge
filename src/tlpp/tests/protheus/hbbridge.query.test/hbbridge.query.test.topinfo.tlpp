@@ -3,6 +3,7 @@
 procedure U_HBBridgeQueryTestTopInfo(cAliasProfile, cHost, nPort, nTimeout)
 
     local aFWGetTopInfo:=FWGetTopInfo() as array
+
     local cIniFile:=GetSrvIniName() as character
 
     DEFAULT cAliasProfile:=(aFWGetTopInfo[4]+"/"+aFWGetTopInfo[5])

@@ -13,9 +13,13 @@ endclass
 
 static method Render(cInstance, jDefaults) class HBBridgeBenchmarkPage
 
-    local jConfig := JSONObject():New() as json
     local cConfig := "" as character
-    local cHTML := HBBridge.Examples.HBBridgeBenchmarkPage():HTML() as character
+    local cHTML as character
+
+    local jConfig as json
+
+    jConfig := JSONObject():New()
+    cHTML := HBBridge.Examples.HBBridgeBenchmarkPage():HTML()
 
     // Only the trusted alias and numeric defaults enter the browser document.
     jConfig["instance"] := cInstance

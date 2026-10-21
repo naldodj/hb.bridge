@@ -11,7 +11,12 @@ REQUEST HB_CODEPAGE_UTF8EX
  */
 PROCEDURE MSSQLConcurrencyTests( cConfigPath, cProfile, cMode, cBacklog, cPooling )
 
-    LOCAL nExit := 1, cPreviousCodepage := hb_cdpSelect()
+    LOCAL cPreviousCodepage
+
+    LOCAL nExit
+
+    nExit := 1
+    cPreviousCodepage := hb_cdpSelect()
 
     IF ! HB_ISSTRING( cConfigPath ) .OR. ! HB_ISSTRING( cProfile )
         ? "MSSQL concurrency prerequisite: CONFIG_AND_PROFILE_REQUIRED"
@@ -32,14 +37,32 @@ RETURN
 
 STATIC FUNCTION MCRun( cConfigPath, cProfile, cMode, cBacklog, cPooling )
 
-    LOCAL hChecks := { "checks" => 0, "failures" => 0 }, hPrivate, hProfiles, hRegistry
-    LOCAL hConfig := NIL, hHost := NIL, hWorking, cError, hResult, hProbes := {=>}
-    LOCAL hWorkers := {=>}, hWorker, hJoined := {=>}, hReady := {=>}, nIndex, nWorker
-    LOCAL nPreviousArea := Select(), nPreviousConnection := rddInfo( RDDI_CONNECTION, NIL, "SQLMIX" )
-    LOCAL cDatabase := HBBridgeAbsolutePath( "m07-concurrency.sqlite3", hb_cwd() )
-    LOCAL hGate := { "ready" => hb_mutexCreate() }, lReady := .F., lCheck, nKey, nConnection := 0
-    LOCAL hFixture, hRoutes := { 1 => "local", 2 => "NETIO", 3 => "TCP", 4 => "HTTP" }
-    LOCAL hSettings, hBeforeSlots := NIL, hAfterSlots := NIL, nStarted, nElapsed, lNETIOConnected := .F.
+    LOCAL cError, cDatabase
+
+    LOCAL hChecks, hPrivate, hProfiles, hRegistry, hConfig, hHost, hWorking, hResult, hProbes, hWorkers, hWorker
+    LOCAL hJoined, hReady, hGate, hFixture, hRoutes, hSettings, hBeforeSlots, hAfterSlots
+
+    LOCAL lReady, lCheck, lNETIOConnected
+
+    LOCAL nIndex, nWorker, nPreviousArea, nPreviousConnection, nKey, nConnection, nStarted, nElapsed, nWorkers
+
+    hChecks := { "checks" => 0, "failures" => 0 }
+    hConfig := NIL
+    hHost := NIL
+    hProbes := {=>}
+    hWorkers := {=>}
+    hJoined := {=>}
+    hReady := {=>}
+    nPreviousArea := Select()
+    nPreviousConnection := rddInfo( RDDI_CONNECTION, NIL, "SQLMIX" )
+    cDatabase := HBBridgeAbsolutePath( "m07-concurrency.sqlite3", hb_cwd() )
+    hGate := { "ready" => hb_mutexCreate() }
+    lReady := .F.
+    nConnection := 0
+    hRoutes := { 1 => "local", 2 => "NETIO", 3 => "TCP", 4 => "HTTP" }
+    hBeforeSlots := NIL
+    hAfterSlots := NIL
+    lNETIOConnected := .F.
 
     hPrivate := HBBridgeConfig( { "-config=" + cConfigPath }, @cError )
     IF hPrivate == NIL .OR. ! hb_HHasKey( hPrivate[ "sqlProfiles" ], cProfile ) .OR. ;
@@ -171,7 +194,8 @@ STATIC FUNCTION MCRun( cConfigPath, cProfile, cMode, cBacklog, cPooling )
                 Break( NIL )
             ENDIF
         NEXT
-        FOR nIndex := 1 TO Len( hWorkers )
+        nWorkers := Len( hWorkers )
+        FOR nIndex := 1 TO nWorkers
             nWorker := NIL
             IF ! hb_mutexSubscribe( hGate[ "ready" ], 20, @nWorker ) .OR. ! HB_ISNUMERIC( nWorker )
                 Break( NIL )
@@ -267,10 +291,25 @@ RETURN iif( ! lReady, 2, iif( hChecks[ "failures" ] == 0, 0, 1 ) )
 
 STATIC FUNCTION MCWorker( hSettings, hWorker )
 
-    LOCAL hChecks := {=>}, nCallerArea := 0, nPreviousArea := Select(), cCallerAlias
-    LOCAL nConnection := hWorker[ "connection" ], nIndex := hWorker[ "index" ], nRound, nFixture
-    LOCAL hFixture, hParams, hResponse, hResult, hSnapshot, cPrefix, lRelease := .F., pNative := NIL
-    LOCAL nCalls := 0, nMarker, cRecoverySQL, hRoutes := { 1 => "local", 2 => "NETIO", 3 => "TCP", 4 => "HTTP" }
+    LOCAL cCallerAlias, cPrefix, cRecoverySQL
+
+    LOCAL hChecks, hFixture, hParams, hResponse, hResult, hSnapshot, hRoutes
+
+    LOCAL lRelease
+
+    LOCAL nCallerArea, nPreviousArea, nConnection, nIndex, nRound, nFixture, nCalls, nMarker
+
+    LOCAL pNative
+
+    hChecks := {=>}
+    nCallerArea := 0
+    nPreviousArea := Select()
+    nConnection := hWorker[ "connection" ]
+    nIndex := hWorker[ "index" ]
+    lRelease := .F.
+    pNative := NIL
+    nCalls := 0
+    hRoutes := { 1 => "local", 2 => "NETIO", 3 => "TCP", 4 => "HTTP" }
 
     BEGIN SEQUENCE WITH __BreakBlock()
         hb_cdpSelect( "UTF8EX" )
@@ -378,7 +417,9 @@ STATIC FUNCTION MCWorker( hSettings, hWorker )
 RETURN hChecks
 
 STATIC FUNCTION MCConstantSQL( cField, cValue )
-    LOCAL nRow, cSQL := ""
+    LOCAL cSQL := ""
+
+    LOCAL nRow
     FOR nRow := 1 TO 5
         cSQL += iif( nRow > 1, " UNION ALL ", "" ) + "SELECT " + hb_ntos( nRow ) + ;
             " AS ID, '" + cValue + "' AS " + cField
@@ -386,7 +427,11 @@ STATIC FUNCTION MCConstantSQL( cField, cValue )
 RETURN cSQL
 
 STATIC FUNCTION MCSlots( cDatabase, hWorking, hProbes )
-    LOCAL hSlots := NIL, lReleased := .T., nConnection
+    LOCAL hSlots := NIL
+
+    LOCAL lReleased := .T.
+
+    LOCAL nConnection
     hProbes[ "sqlite" ] := 0
     hProbes[ "mssql" ] := 0
     BEGIN SEQUENCE WITH __BreakBlock()
@@ -406,7 +451,9 @@ STATIC FUNCTION MCSlots( cDatabase, hWorking, hProbes )
 RETURN iif( lReleased, hSlots, NIL )
 
 STATIC FUNCTION MCSnapshot()
-    LOCAL hAreas := {=>}, nSelected := Select(), nFree
+    LOCAL hAreas := {=>}
+
+    LOCAL nSelected := Select(), nFree
     hb_WAEval( {|| hAreas[ hb_ntos( Select() ) ] := Alias(), .T. } )
     dbSelectArea( 0 )
     nFree := Select()
@@ -415,7 +462,9 @@ RETURN { "areas" => hAreas, "selected" => nSelected, "free" => nFree, ;
     "connection" => rddInfo( RDDI_CONNECTION, NIL, "SQLMIX" ) }
 
 STATIC FUNCTION MCState( hBefore, nMarker )
-    LOCAL hAfter := MCSnapshot(), cAlias
+    LOCAL cAlias
+
+    LOCAL hAfter := MCSnapshot()
     IF hAfter[ "selected" ] != hBefore[ "selected" ] .OR. hAfter[ "free" ] != hBefore[ "free" ] .OR. ;
         hAfter[ "connection" ] != hBefore[ "connection" ] .OR. Len( hAfter[ "areas" ] ) != Len( hBefore[ "areas" ] )
         RETURN .F.
@@ -447,8 +496,9 @@ STATIC FUNCTION MCCall( nRoute, hSettings, pNative, hParams )
 RETURN { "result" => hResult, "status" => iif( MCSuccess( hResult ), 200, 500 ) }
 
 STATIC FUNCTION MCTCP( nPort, hParams )
-    LOCAL hSocket := hb_socketOpen(), cReply, hResult := NIL
-    LOCAL hPolicy := { "protheusTimeoutMs" => 15000 }
+    LOCAL cReply
+
+    LOCAL hSocket := hb_socketOpen(), hResult := NIL, hPolicy := { "protheusTimeoutMs" => 15000 }
     BEGIN SEQUENCE WITH __BreakBlock()
         IF hb_socketConnect( hSocket, { HB_SOCKET_AF_INET, "127.0.0.1", nPort }, 15000 ) .AND. ;
             SendResponse( hSocket, hb_jsonEncode( { "service" => "RPCRDD.Query", "params" => hParams } ), hPolicy ) .AND. ;
@@ -469,7 +519,9 @@ STATIC FUNCTION MCCell( hResult, nRow, cField )
 RETURN iif( HB_ISHASH( hRow ), hb_HGetDef( hRow, cField, NIL ), NIL )
 
 STATIC FUNCTION MCData( hResult, hFixture, nFirst, nRows )
-    LOCAL hRow, nRow
+    LOCAL hRow
+
+    LOCAL nRow
     IF ! MCSuccess( hResult ) .OR. hb_HGetDef( hResult, "driver", "" ) != hFixture[ "driver" ] .OR. ;
         hb_HGetDef( hResult, "rowCount", -1 ) != nRows .OR. Len( hResult[ "header" ] ) != 2 .OR. ;
         ! hb_HHasKey( hResult[ "header" ], "ID" ) .OR. ! hb_HHasKey( hResult[ "header" ], hFixture[ "field" ] ) .OR. ;
@@ -514,7 +566,9 @@ STATIC FUNCTION MCListenersClosed( hHost )
 RETURN .T.
 
 STATIC FUNCTION MCFreePort()
-    LOCAL hSocket := hb_socketOpen(), nPort := 0
+    LOCAL hSocket := hb_socketOpen()
+
+    LOCAL nPort := 0
     IF ! Empty( hSocket )
         IF hb_socketBind( hSocket, { HB_SOCKET_AF_INET, "127.0.0.1", 0 } )
             nPort := hb_socketGetSockName( hSocket )[ HB_SOCKET_ADINFO_PORT ]

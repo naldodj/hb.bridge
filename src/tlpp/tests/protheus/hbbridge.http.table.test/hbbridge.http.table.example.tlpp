@@ -17,9 +17,11 @@ procedure U_HBBridgeHTTPTable()
 return
 
 procedure U_HBBridgeHTTPTableSX5()
-    local bExecute as codeblock
-    local cProfile as character
     local aFWGetTopInfo as array
+
+    local bExecute as codeblock
+
+    local cProfile as character
     if ((FindClass("FWWebEx.Tools.FWExampleTools")).and.(FindClass("FWWebEx.WebExControl")))
         aFWGetTopInfo:=FWGetTopInfo()
         cProfile:=(aFWGetTopInfo[4]+"/"+aFWGetTopInfo[5])
@@ -202,30 +204,44 @@ return(jDefinition)
 
 static method Page(jDefinition, cInstance, nWaitMs, cFile) class HBBridgeHTTPTableExample
 
-    local cHTML := "", cField := "" as character
+    local cHTML := "" as character
+    local cField := "" as character
 
-    local jTypes := JSONObject():New() as json
+    local jTypes as json
     local jColumn as json
-    local jOptions := JSONObject():New() as json
-    local jTableFields := JSONObject():New() as json
+    local jOptions as json
+    local jTableFields as json
 
     local lWritten := .F. as logical
 
-    local oBody := FWWebEx.WebExBody():New() as object
-    local oPage := FWWebEx.WebExPage():New(jDefinition["title"]) as object
-    local oPanel as object
-    local oTable := FWWebEx.WebExDataTable():New(jDefinition["title"], .T.) as object
-    local oReset := FWWebEx.WebExControl():New("button") as object
-    local oFilter as object
-    local oStatus := FWWebEx.WebExControl():New("p") as object
-    local oNotice := FWWebEx.WebExControl():New("p") as object
-    local oHeading := FWWebEx.WebExControl():New("h1") as object
-
     local nColumn := 0 as numeric
+    local nColumns := 0 as numeric
+
+    local oBody as object
+    local oPage as object
+    local oPanel as object
+    local oTable as object
+    local oReset as object
+    local oFilter as object
+    local oStatus as object
+    local oNotice as object
+    local oHeading as object
+
+    jTypes := JSONObject():New()
+    jOptions := JSONObject():New()
+    jTableFields := JSONObject():New()
+    oBody := FWWebEx.WebExBody():New()
+    oPage := FWWebEx.WebExPage():New(jDefinition["title"])
+    oTable := FWWebEx.WebExDataTable():New(jDefinition["title"], .T.)
+    oReset := FWWebEx.WebExControl():New("button")
+    oStatus := FWWebEx.WebExControl():New("p")
+    oNotice := FWWebEx.WebExControl():New("p")
+    oHeading := FWWebEx.WebExControl():New("h1")
 
     // FWWebEx requires a native fields array; rows/metadata stay keyed elsewhere.
     jTableFields["fields"] := {}
-    for nColumn := 1 to Len(jDefinition["columns"])
+    nColumns := Len(jDefinition["columns"])
+    for nColumn := 1 to nColumns
         cField := jDefinition["columns"][nColumn]
         jColumn := JSONObject():New()
         jColumn["data"] := cField

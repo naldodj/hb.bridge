@@ -4,10 +4,21 @@ REQUEST HB_CODEPAGE_UTF8EX
 
 PROCEDURE D03MSSQLMain( cConfig, cProfile, cMode )
 
-    LOCAL hPrivate, hConfig := HBBridgeConfig( {} ), hRegistry, cError
-    LOCAL hTCP := NIL, hHTTP := NIL, nFailures := 0, nChecks := 0, nStart
-    LOCAL hSummary, cUnicode := hb_HexToStr( "61C3A7C3A36FE6BCA2F09F9880" )
-    LOCAL cSQL, hNative, hResult, cRoute, cRequest
+    LOCAL cNulText := "A" + Chr( 0 ) + "B"
+    LOCAL cAnsiText := hb_HexToStr( "61C3A7C3A36F" )
+    LOCAL cBoundary := Replicate( "x", 2046 ) + hb_HexToStr( "F09F9880" ) + Replicate( "x", 2049 )
+    LOCAL cError, cUnicode, cSQL, cRoute, cRequest
+
+    LOCAL hPrivate, hConfig, hRegistry, hTCP, hHTTP, hSummary, hNative, hResult
+
+    LOCAL nFailures, nChecks, nStart
+
+    hConfig := HBBridgeConfig( {} )
+    hTCP := NIL
+    hHTTP := NIL
+    nFailures := 0
+    nChecks := 0
+    cUnicode := hb_HexToStr( "61C3A7C3A36FE6BCA2F09F9880" )
 
     IF Empty( cConfig ) .OR. Empty( cProfile )
         ? "D03 prerequisite failed: CONFIG_AND_PROFILE_REQUIRED"
@@ -72,15 +83,14 @@ PROCEDURE D03MSSQLMain( cConfig, cProfile, cMode )
                 cRoute + ".floatSmall", @nFailures, @nChecks )
             D03Assert( Abs( hResult[ "rows" ][ "1" ][ "FLOAT_LARGE" ] / ( 10 ** 20 ) - 1 ) < 0.000000000001, ;
                 cRoute + ".floatLarge", @nFailures, @nChecks )
-            D03Assert( hResult[ "rows" ][ "1" ][ "ANSI_TEXT" ] == hb_HexToStr( "61C3A7C3A36F" ) .AND. ;
+            D03Assert( hResult[ "rows" ][ "1" ][ "ANSI_TEXT" ] == cAnsiText .AND. ;
                 hResult[ "rows" ][ "1" ][ "ANSI_STORAGE_HEX" ] == "61E7E36F", ;
                 cRoute + ".varcharCP1252ToUTF8", @nFailures, @nChecks )
             D03Assert( hResult[ "rows" ][ "1" ][ "UNICODE_LITERAL" ] == cUnicode, ;
                 cRoute + ".unicodeSQLInputAndResult", @nFailures, @nChecks )
-            D03Assert( hResult[ "rows" ][ "1" ][ "UNICODE_BOUNDARY" ] == Replicate( "x", 2046 ) + ;
-                hb_HexToStr( "F09F9880" ) + Replicate( "x", 2049 ), ;
+            D03Assert( hResult[ "rows" ][ "1" ][ "UNICODE_BOUNDARY" ] == cBoundary, ;
                 cRoute + ".surrogateChunk", @nFailures, @nChecks )
-            D03Assert( hResult[ "rows" ][ "1" ][ "NUL_TEXT" ] == "A" + Chr( 0 ) + "B" .AND. ;
+            D03Assert( hResult[ "rows" ][ "1" ][ "NUL_TEXT" ] == cNulText .AND. ;
                 hResult[ "rows" ][ "1" ][ "EMPTY_TEXT" ] == "" .AND. ;
                 hResult[ "rows" ][ "1" ][ "NULL_TEXT" ] == NIL, cRoute + ".nulEmptyNull", @nFailures, @nChecks )
             D03Assert( hResult[ "rows" ][ "1" ][ "DECIMAL_FOUR" ] == 123.4567 .AND. ;
@@ -140,7 +150,9 @@ RETURN
 
 STATIC FUNCTION D03Query( cRoute, hRegistry, hTCP, hConfig, cProfile, cSQL )
 
-    LOCAL hParams := { "alias" => cProfile, "sql" => cSQL }, cJSON, hResult, hResponse
+    LOCAL cJSON
+
+    LOCAL hParams := { "alias" => cProfile, "sql" => cSQL }, hResult, hResponse
 
     IF cRoute == "native"
         RETURN HBBridgeDispatch( hRegistry, "RPCRDD.Query", hParams, HBBridgeContext( "d03" ) )
@@ -163,7 +175,9 @@ RETURN hResult
 
 STATIC FUNCTION D03TCP( nPort, cJSON )
 
-    LOCAL hSocket := hb_socketOpen(), cResult, hResult
+    LOCAL cResult
+
+    LOCAL hSocket := hb_socketOpen(), hResult
 
     BEGIN SEQUENCE WITH __BreakBlock()
         IF hb_socketConnect( hSocket, { HB_SOCKET_AF_INET, "127.0.0.1", nPort }, 5000 ) .AND. ;
@@ -177,7 +191,9 @@ STATIC FUNCTION D03TCP( nPort, cJSON )
 RETURN hResult
 
 STATIC FUNCTION D03FreePort()
-    LOCAL hSocket := hb_socketOpen(), aAddress
+    LOCAL aAddress
+
+    LOCAL hSocket := hb_socketOpen()
     hb_socketBind( hSocket, { HB_SOCKET_AF_INET, "127.0.0.1", 0 } )
     aAddress := hb_socketGetSockName( hSocket )
     hb_socketClose( hSocket )

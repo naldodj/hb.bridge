@@ -25,11 +25,12 @@ function Get-BenchmarkFixtureSQL {
     if ([regex]::Replace($residue, '[\s+;()]', '') -ne '') {
         throw "Unsupported benchmark fixture expression in $FunctionName."
     }
+    $rowLiteral = $Rows.ToString([Globalization.CultureInfo]::InvariantCulture)
     $result = [Text.StringBuilder]::new()
     foreach ($token in [regex]::Matches($expression, $tokenPattern, 'IgnoreCase')) {
         if ($token.Groups['literal'].Success) { [void]$result.Append($token.Groups['literal'].Value) }
         elseif ($token.Groups['digits'].Success) { [void]$result.Append($digits) }
-        else { [void]$result.Append($Rows.ToString([Globalization.CultureInfo]::InvariantCulture)) }
+        else { [void]$result.Append($rowLiteral) }
     }
     return $result.ToString()
 }

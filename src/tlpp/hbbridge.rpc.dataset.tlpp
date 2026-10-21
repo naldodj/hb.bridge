@@ -26,11 +26,11 @@ class HBBridgeRPCDataSet
     private data jResult as json
     private data jFieldNames as json
 
-    private data oClient as object
-
     private data nRowIndex as numeric
     private data nTotalRows as numeric
     private data nTotalFields as numeric
+
+    private data oClient as object
 
     public method New(oClient as object) as object
     public method OpenSQL(cSql as character,jPage as json) as logical
@@ -337,6 +337,7 @@ return(.T.)
 method OpenPage(cSql,nPage,nSize,cOrderBy) class HBBridgeRPCDataSet
 
     local jPage as json
+
     local lOpened:=.F. as logical
 
     paramtype 1 var cSql as character
@@ -359,6 +360,7 @@ method PreviousPage() class HBBridgeRPCDataSet
 
     local cSql as character
     local cOrderBy as character
+
     local nPage as numeric
     local nSize as numeric
 
@@ -387,6 +389,7 @@ method NextPage() class HBBridgeRPCDataSet
 
     local cSql as character
     local cOrderBy as character
+
     local nPage as numeric
     local nSize as numeric
 
@@ -552,6 +555,7 @@ return(jRow)
 
 method GetRows() class HBBridgeRPCDataSet
     local jRows:=JSONObject():New() as json
+
     if ((ValType(self:jResult)=="J").and.(self:jResult:HasProperty("rows")))
         HBBridge.Client.HBBridgeJSON():Parse(HBBridge.Client.HBBridgeJSON():Encode(self:jResult["rows"]), jRows)
     endif
@@ -633,6 +637,7 @@ return(self:cAliasProfile)
 
 method SetAliasProfile(cAliasProfile) class HBBridgeRPCDataSet
     local cLastAliasProfile:=self:cAliasProfile as character
+
     paramtype 1 var cAliasProfile as character
     if (!(cAliasProfile==cLastAliasProfile))
         self:Close()

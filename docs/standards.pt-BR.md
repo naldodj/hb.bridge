@@ -8,6 +8,22 @@ em inglês. Arquivos ficam em minúsculas; funções, procedures, métodos,
 namespaces e classes usam PascalCase.
 Nomes convencionais Git e o sufixo `.pt-BR` são exceções às minúsculas.
 
+Agrupe declarações de variáveis por tipo de dado, com uma linha em branco
+entre grupos, e ordene os grupos alfabeticamente pelo prefixo do tipo: por
+exemplo `a` (array), `c` (caractere), `d` (data), `j` (JSON), `l` (lógico),
+`n` (numérico), `o` (objeto), `x` (variante). Os nomes completos dentro do
+grupo não precisam de ordem alfabética. Preserve dependências de
+inicialização; separe declaração e atribuição quando a ordem alterar o
+comportamento. Aplique agrupamento por tipo equivalente nas linguagens
+com outras convenções de declaração.
+
+Resolva constantes e cálculos invariantes antes do loop: por exemplo
+`cNul := Chr(0)` e `nLength := Len(cText)` quando `cText` não muda.
+Calcule valores variáveis uma vez por iteração quando útil. Não antecipe
+relógios, E/S, verificações de estado mutável nem tamanhos de contêineres que
+crescem/diminuem durante a iteração. O valor armazenado precisa continuar
+válido durante todo o loop.
+
 Os fontes separam palavras minúsculas por pontos, como
 `hbbridge.rpc.dataset.tlpp`. Remover os pontos deve produzir o nome da classe
 `HBBridgeRPCDataSet` em minúsculas. Isso não muda os namespaces.

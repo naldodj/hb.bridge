@@ -10,6 +10,7 @@ function U_HBBridgeClientLifecycleTest(cHost, nPort, nRefusedPort, nCalls, nTime
 
     local jReport := HBBridge.Test.HBBridgeClientLifecycleTest():Run(cHost, nPort, ;
         nRefusedPort, nCalls, nTimeoutMs) as json
+
     local nResult := IIf(jReport["success"], 0, 1) as numeric
 
     ConOut("hbBridge client lifecycle summary: " + jReport:ToJSON())

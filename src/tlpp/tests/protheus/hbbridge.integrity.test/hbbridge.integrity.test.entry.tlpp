@@ -9,8 +9,13 @@ return(HBBridge.Test.HBBridgeJSONTest():Run())
 function U_HBBridgeIntegrityCLI(oArguments as variadic)
     local aDefaults:=Array(0) as array
     local aFWGetTopInfo:=FWGetTopInfo() as array
+
     local cIniFile:=GetSrvIniName() as character
-    local nDefault
+    local cFlag := "" as character
+
+    local nDefault as numeric
+    local nDefaults := 0 as numeric
+    local nFlagLength := 0 as numeric
     aAdd(aDefaults,{"--profile=",(aFWGetTopInfo[4]+"/"+aFWGetTopInfo[5])})
     FWFreeArray(@aFWGetTopInfo)
     aAdd(aDefaults,{"--host=",GetPvProfString("hbBridge", "Host", "127.0.0.1", cIniFile)})
@@ -18,8 +23,11 @@ function U_HBBridgeIntegrityCLI(oArguments as variadic)
     aAdd(aDefaults,{"--url=",GetPvProfString("hbBridge", "HTTPURL", "http://127.0.0.1:8080", cIniFile)})
     aAdd(aDefaults,{"--token=",GetPvProfString("hbBridge", "HTTPToken", "", cIniFile)})
     aAdd(aDefaults,{"--timeout=","30"})
-    for nDefault:=1 to Len(aDefaults)
-        if (aScan(oArguments:vArgs,{|x|Left(Lower(x),Len(aDefaults[nDefault][1]))==aDefaults[nDefault][1]})==0)
+    nDefaults := Len(aDefaults)
+    for nDefault:=1 to nDefaults
+        cFlag := aDefaults[nDefault][1]
+        nFlagLength := Len(cFlag)
+        if (aScan(oArguments:vArgs,{|x|Left(Lower(x),nFlagLength)==cFlag})==0)
             aAdd(oArguments:vArgs,aDefaults[nDefault][1]+aDefaults[nDefault][2])
         endif
     next nDefault
@@ -29,6 +37,7 @@ return(HBBridge.Test.HBBridgeIntegrityTest():RunCLI(oArguments:vArgs))
 // The profile must explicitly select a configured MSSQL connection.
 function U_HBBridgeIntegrityTest(cProfile, cHost, nPort, cURL, cToken, nTimeoutSeconds)
     local aFWGetTopInfo:=FWGetTopInfo() as array
+
     local cIniFile:=GetSrvIniName() as character
     DEFAULT cProfile:=(aFWGetTopInfo[4]+"/"+aFWGetTopInfo[5])
     DEFAULT cHost:=GetPvProfString("hbBridge", "Host", "127.0.0.1", cIniFile)

@@ -14,11 +14,24 @@ endclass
 
 static method RunCLI(aArguments) class HBBridgeIntegrityTest
 
-    local jFlags := JSONObject():New() as json
-    local jSeen := JSONObject():New() as json
-    local cArgument := "", cKey := "", cValue := "" as character
-    local nArgument := 0, nEqual := 0, nValue := 0, nResult := 1 as numeric
-    local lValid := ValType(aArguments) == "A" as logical
+    local cArgument := "" as character
+    local cKey := "" as character
+    local cValue := "" as character
+
+    local jFlags as json
+    local jSeen as json
+
+    local lValid as logical
+
+    local nArgument := 0 as numeric
+    local nEqual := 0 as numeric
+    local nValue := 0 as numeric
+    local nResult := 1 as numeric
+    local nArguments := 0 as numeric
+
+    jFlags := JSONObject():New()
+    jSeen := JSONObject():New()
+    lValid := ValType(aArguments) == "A"
 
     jFlags["profile"] := ""
     jFlags["host"] := Nil
@@ -27,7 +40,8 @@ static method RunCLI(aArguments) class HBBridgeIntegrityTest
     jFlags["token"] := Nil
     jFlags["timeout"] := 30
     if lValid
-        for nArgument := 1 to Len(aArguments)
+        nArguments := Len(aArguments)
+        for nArgument := 1 to nArguments
             if ValType(aArguments[nArgument]) != "C"
                 loop
             endif
@@ -72,12 +86,20 @@ return nResult
 
 static method Run(cProfile, cHost, nPort, cURL, cToken, nTimeoutSeconds) class HBBridgeIntegrityTest
 
+    local cTimeStart as character
+
+    local jChecks as json
+    local jSummary as json
+
+    local nFailures := 0 as numeric
+    local nChecks := 0 as numeric
+
     local oTCP as object
     local oHTTP as object
-    local jChecks := JSONObject():New() as json
-    local jSummary := JSONObject():New() as json
-    local nFailures := 0, nChecks := 0 as numeric
-    local cTimeStart := DTos(Date()) + "/" + Time() as character
+
+    jChecks := JSONObject():New()
+    jSummary := JSONObject():New()
+    cTimeStart := DTos(Date()) + "/" + Time()
 
     DEFAULT nTimeoutSeconds := 30
 
@@ -147,12 +169,19 @@ return(IIf(nFailures == 0, 0, 1))
 
 static procedure IntegrityParserChecks(jChecks as json)
 
-    local jRaw := JSONObject():New() as json
-    local jEscaped := JSONObject():New() as json
-    local cLocal := IntegrityLocalAccent() as character
-    local cUTF8 := IntegrityUTF8Accent() as character
+    local cLocal as character
+    local cUTF8 as character
+
+    local jRaw as json
+    local jEscaped as json
+
     local xRawError as variant
     local xEscapedError as variant
+
+    jRaw := JSONObject():New()
+    jEscaped := JSONObject():New()
+    cLocal := IntegrityLocalAccent()
+    cUTF8 := IntegrityUTF8Accent()
 
     // The fixtures contain only ASCII source literals and explicit byte values.
     // This AppServer keeps both raw UTF-8 and decoded Unicode escapes in UTF-8.
@@ -173,13 +202,21 @@ return
 
 static procedure IntegrityEcho(oClient as object, cTransport as character, jChecks as json)
 
-    local jParams := JSONObject():New() as json
+    local cPrefix as character
+    local cLocal as character
+    local cUTF8 as character
+    local cEuroUTF8 as character
+
+    local jParams as json
     local jResponse as json
-    local jEscaped := JSONObject():New() as json
-    local cPrefix := cTransport + ".echo." as character
-    local cLocal := IntegrityLocalAccent() as character
-    local cUTF8 := IntegrityUTF8Accent() as character
-    local cEuroUTF8 := Chr(226) + Chr(130) + Chr(172) as character
+    local jEscaped as json
+
+    jParams := JSONObject():New()
+    jEscaped := JSONObject():New()
+    cPrefix := cTransport + ".echo."
+    cLocal := IntegrityLocalAccent()
+    cUTF8 := IntegrityUTF8Accent()
+    cEuroUTF8 := Chr(226) + Chr(130) + Chr(172)
 
     jEscaped:FromJSON('{"text":"a\u00e7\u00e3o"}')
     jParams["accent"] := cLocal
@@ -188,8 +225,8 @@ static procedure IntegrityEcho(oClient as object, cTransport as character, jChec
     jParams["euro"] := Chr(128)
     jParams["empty"] := ""
     /*
-    Protheus armazena corretamente o caracter nulo no objeto json. Mas falha em ToJSON.
-    cJSONValue:=""; jParams:GetJsonValue("nul",@cJSONValue) recupera o valor corretamente
+    Protheus preserves NUL in the JSON object but truncates it in native ToJSON.
+    cJSONValue:=""; jParams:GetJsonValue("nul",@cJSONValue) retrieves the complete value.
     jParams["nul"]=="A" + Chr(0) + "B" => .T.
     jParams:ToJSON() => "A" == "A" + Chr(0) + "B" => .F.
     */
@@ -235,14 +272,24 @@ return
 
 static procedure IntegritySQL(oClient as object, cTransport as character, cProfile as character, jChecks as json)
 
-    local oDataSet := HBBridge.RDD.HBBridgeRPCDataSet():New(oClient) as object
-    local cPrefix := cTransport + ".sql." as character
-    local cUnicode := Chr(195) + Chr(167) + Chr(195) + Chr(163) + ;
-        Chr(230) + Chr(188) + Chr(162) + Chr(229) + Chr(173) + Chr(151) as character
-    local cEmoji := Chr(240) + Chr(159) + Chr(152) + Chr(128) as character
+    local cPrefix as character
+    local cUnicode as character
+    local cEmoji as character
+    local cSQL as character
+
+    local jRow as json
+    local jRows as json
+
     local lOpened := .F. as logical
-    local jRow, jRows as json
-    local cSQL := "SELECT CAST(123.4567 AS float) AS FLOAT_VALUE, " + ;
+
+    local oDataSet as object
+
+    oDataSet := HBBridge.RDD.HBBridgeRPCDataSet():New(oClient)
+    cPrefix := cTransport + ".sql."
+    cUnicode := Chr(195) + Chr(167) + Chr(195) + Chr(163) + ;
+        Chr(230) + Chr(188) + Chr(162) + Chr(229) + Chr(173) + Chr(151)
+    cEmoji := Chr(240) + Chr(159) + Chr(152) + Chr(128)
+    cSQL := "SELECT CAST(123.4567 AS float) AS FLOAT_VALUE, " + ;
         "CAST(-123.4567 AS float) AS FLOAT_NEGATIVE, CAST(1e-20 AS float) AS FLOAT_SMALL, " + ;
         "CAST(1e20 AS float) AS FLOAT_LARGE, CAST(1.2345678901234567 AS float) AS FLOAT_DIGITS, " + ;
         "CAST(123.4567 AS decimal(15,4)) AS DECIMAL_FOUR, " + ;
@@ -254,7 +301,7 @@ static procedure IntegritySQL(oClient as object, cTransport as character, cProfi
         "REPLICATE(CAST(N'x' AS nvarchar(max)),2049) AS UNICODE_BOUNDARY, " + ;
         "CAST('A'+CHAR(0)+'B' AS varchar(max)) AS NUL_TEXT, " + ;
         "CAST('' AS varchar(max)) AS EMPTY_TEXT, CAST(NULL AS varchar(max)) AS NULL_TEXT, " + ;
-        "CONVERT(varchar(max),CAST(0x0001FF007F AS varbinary(max)),2) AS BINARY_HEX" as character
+        "CONVERT(varchar(max),CAST(0x0001FF007F AS varbinary(max)),2) AS BINARY_HEX"
 
     oDataSet:SetAliasProfile(cProfile)
     lOpened := oDataSet:OpenSQL(cSQL)
@@ -419,12 +466,15 @@ return(IntegrityNumber(xValue * nFactor, nExpected, nTolerance))
 static function IntegrityBytes(xValue as variant) as character
 
     local cHex := "0123456789ABCDEF", cResult := "" as character
+
     local nByte := 0, nValue := 0 as numeric
+    local nLength := 0 as numeric
 
     if ValType(xValue) != "C"
         return ValType(xValue)
     endif
-    for nByte := 1 to Len(xValue)
+    nLength := Len(xValue)
+    for nByte := 1 to nLength
         nValue := Asc(SubStr(xValue, nByte, 1))
         cResult += SubStr(cHex, Int(nValue / 16) + 1, 1) + SubStr(cHex, (nValue % 16) + 1, 1)
     next nByte

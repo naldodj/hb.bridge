@@ -114,7 +114,8 @@ static function ConfigInteger(xValue as variant, cKey as character, nMinimum as 
     nMaximum as numeric, jResult as JSON) as numeric
 
     local cValue := "" as character
-    local nValue := 0, nIndex := 0, nDigit := 0 as numeric
+
+    local nValue := 0, nIndex := 0, nDigit := 0, nLength := 0 as numeric
 
     if ValType(xValue) == "C"
         cValue := AllTrim(xValue)
@@ -123,8 +124,9 @@ static function ConfigInteger(xValue as variant, cKey as character, nMinimum as 
             return 0
         endif
         // Val() accepts numeric prefixes; reject suffixes and fractions explicitly.
-        for nIndex := 1 to Len(cValue)
-            nDigit := Asc(SubStr(cValue, nIndex, 1)) - Asc("0")
+        nLength := Len(cValue)
+        for nIndex := 1 to nLength
+            nDigit := Asc(SubStr(cValue, nIndex, 1)) - 48
             if nDigit < 0 .or. nDigit > 9
                 ConfigError(cKey, jResult)
                 return 0

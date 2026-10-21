@@ -3,10 +3,25 @@
 
 PROCEDURE M1NativeTests( nFailures, nChecks )
 
-    LOCAL hConfig := HBBridgeConfig( {} ), hHost := NIL, cError, pData := NIL, pAdmin := NIL
-    LOCAL hResult, hJson, aNative, cBinary := Chr( 0 ) + Chr( 255 ) + "Harbour", cBlock, xDecoded
-    LOCAL pFile := NIL, cRead, nStart, nRetry, hBusy, nBusyPort, hFailed, cAdminFile, hError
-    LOCAL aThreads := {}, nIndex, hThread
+    LOCAL aNative, aThreads
+
+    LOCAL cError, cBinary, cBlock, cRead, cAdminFile
+
+    LOCAL hConfig, hHost, hResult, hJson, hBusy, hFailed, hError, hThread
+
+    LOCAL nStart, nRetry, nBusyPort, nIndex, nThreads
+
+    LOCAL pData, pAdmin, pFile
+
+    LOCAL xDecoded
+
+    hConfig := HBBridgeConfig( {} )
+    hHost := NIL
+    pData := NIL
+    pAdmin := NIL
+    cBinary := Chr( 0 ) + Chr( 255 ) + "Harbour"
+    pFile := NIL
+    aThreads := {}
 
     hConfig[ "protheusHost" ] := "127.0.0.1"
     hConfig[ "protheusPort" ] := 0
@@ -54,7 +69,8 @@ PROCEDURE M1NativeTests( nFailures, nChecks )
         FOR nIndex := 1 TO 12
             AAdd( aThreads, hb_threadStart( 0, @M1NativeEcho(), pData, nIndex ) )
         NEXT
-        FOR nIndex := 1 TO Len( aThreads )
+        nThreads := Len( aThreads )
+        FOR nIndex := 1 TO nThreads
             hThread := aThreads[ nIndex ]
             hResult := NIL
             hb_threadJoin( hThread, @hResult )
@@ -152,7 +168,9 @@ STATIC FUNCTION M1NativeEcho( pConnection, nIndex )
 RETURN hResult
 
 STATIC FUNCTION M1CredentialRejected( nPort )
-    LOCAL pConnection := NIL, lRejected
+    LOCAL lRejected
+
+    LOCAL pConnection := NIL
     BEGIN SEQUENCE WITH {| oError | Break( oError ) }
         pConnection := netio_GetConnection( "127.0.0.1", nPort, 400, "incorrect-test-password" )
         lRejected := Empty( pConnection )
@@ -164,7 +182,9 @@ STATIC FUNCTION M1CredentialRejected( nPort )
 RETURN lRejected
 
 FUNCTION M1FreePort()
-    LOCAL hSocket := hb_socketOpen(), nPort
+    LOCAL hSocket := hb_socketOpen()
+
+    LOCAL nPort
     hb_socketBind( hSocket, { HB_SOCKET_AF_INET, "127.0.0.1", 0 } )
     nPort := hb_socketGetSockName( hSocket )[ HB_SOCKET_ADINFO_PORT ]
     hb_socketClose( hSocket )

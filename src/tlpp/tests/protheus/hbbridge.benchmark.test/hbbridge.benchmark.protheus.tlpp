@@ -13,21 +13,46 @@ endclass
 
 static method Page(cRequestJSON) class HBBridgeBenchmarkProtheus
 
-    local jRequest := JSONObject():New() as json
-    local jResult as json
-    local jHeader := JSONObject():New() as json
-    local jRows := JSONObject():New() as json
-    local jRow as json
-    local jPage := JSONObject():New() as json
-    local xError as variant
-    local cCode := "INVALID_REQUEST", cResult := "" as character
-    local cFixture := "", cSQL := "", cAlias := "", cCountAlias := "" as character
-    local nPreviousArea := Select(), nQueryArea := 0, nCountArea := 0 as numeric
-    local nRows := 0, nNumber := 0, nSize := 0, nFirst := 0, nEnd := 0 as numeric
-    local nRow := 0, nTotalRows := 0, nTotalPages := 0 as numeric
-    local lHasNext := .F., lValid := .F., lCleanupOK := .T. as logical
     // Native JSONObject enumeration requires one array of names.
     local aNames as array
+
+    local cCode := "INVALID_REQUEST" as character
+    local cResult := "" as character
+    local cFixture := "" as character
+    local cSQL := "" as character
+    local cAlias := "" as character
+    local cCountAlias := "" as character
+
+    local jRequest as json
+    local jResult as json
+    local jHeader as json
+    local jRows as json
+    local jRow as json
+    local jPage as json
+
+    local lHasNext := .F. as logical
+    local lValid := .F. as logical
+    local lCleanupOK := .T. as logical
+
+    local nPreviousArea as numeric
+    local nQueryArea := 0 as numeric
+    local nCountArea := 0 as numeric
+    local nRows := 0 as numeric
+    local nNumber := 0 as numeric
+    local nSize := 0 as numeric
+    local nFirst := 0 as numeric
+    local nEnd := 0 as numeric
+    local nRow := 0 as numeric
+    local nTotalRows := 0 as numeric
+    local nTotalPages := 0 as numeric
+
+    local xError as variant
+
+    jRequest := JSONObject():New()
+    jHeader := JSONObject():New()
+    jRows := JSONObject():New()
+    jPage := JSONObject():New()
+    nPreviousArea := Select()
 
     try
         if ValType(cRequestJSON) == "C"

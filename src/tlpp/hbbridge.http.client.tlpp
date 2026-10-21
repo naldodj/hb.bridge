@@ -17,9 +17,10 @@ class HBBridgeHTTPClient
 
     private data cURL as character
     private data cToken as character
+    private data cConfigurationError as character
+
     private data nTimeoutSeconds as numeric
     private data nHTTPStatus as numeric
-    private data cConfigurationError as character
 
     public method New(cURL as character, cToken as character, nTimeoutSeconds as numeric) as object
     public method Health() as JSON
@@ -83,8 +84,12 @@ return(self:Request("GET", "/api/v1/services", ""))
 
 method CallService(cService, jParams) class HBBridgeHTTPClient
 
-    local jRequest := JSONObject():New() as JSON
-    local cBody := "" as character
+    local cBody as character
+
+    local jRequest as JSON
+
+    jRequest := JSONObject():New()
+    cBody := ""
 
     self:nHTTPStatus := 0
     if !Empty(self:cConfigurationError)
@@ -118,18 +123,28 @@ return(self:nHTTPStatus)
 
 method Request(cMethod, cPath, cBody) class HBBridgeHTTPClient
 
-    local oREST as object
-    local jResponse := JSONObject():New() as JSON
-    local cResponse := "" as character
-    local cInternalError := "" as character
-    local lConnected := .F. as logical
     // FWRest's native API requires an array of header strings.
-    local aHeaders := { ;
+    local aHeaders as array
+
+    local cResponse as character
+    local cInternalError as character
+
+    local jResponse as JSON
+
+    local lConnected as logical
+
+    local oREST as object
+
+    jResponse := JSONObject():New()
+    cResponse := ""
+    cInternalError := ""
+    lConnected := .F.
+    aHeaders := { ;
         "Accept: application/json", ;
         "Content-Type: application/json; charset=utf-8", ;
         "Accept-Encoding: identity", ;
         "Authorization: Bearer " + self:cToken ;
-    } as array
+    }
 
     self:nHTTPStatus := 0
     if !Empty(self:cConfigurationError)
@@ -211,14 +226,15 @@ return(jResponse)
 
 static function HTTPTimeout(cValue as character) as numeric
 
-    local nIndex := 0, nDigit := 0, nValue := 0 as numeric
+    local nIndex := 0, nDigit := 0, nValue := 0, nLength := 0 as numeric
 
     cValue := AllTrim(cValue)
     if Empty(cValue)
         return 0
     endif
-    for nIndex := 1 to Len(cValue)
-        nDigit := Asc(SubStr(cValue, nIndex, 1)) - Asc("0")
+    nLength := Len(cValue)
+    for nIndex := 1 to nLength
+        nDigit := Asc(SubStr(cValue, nIndex, 1)) - 48
         if nDigit < 0 .or. nDigit > 9
             return 0
         endif
@@ -233,6 +249,7 @@ return(nValue)
 static function HTTPURLValid(xURL as variant) as logical
 
     local cURL := "", cAuthority := "" as character
+
     local nStart := 0, nSlash := 0 as numeric
 
     if ValType(xURL) != "C"

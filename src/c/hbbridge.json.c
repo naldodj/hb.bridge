@@ -36,7 +36,9 @@ static HB_BOOL HBBridgeJSONWrite( PHB_ITEM value, HBBridgeJSONBuffer * buffer )
     if( HB_IS_ARRAY( value ) || HB_IS_HASH( value ) )
     {
         HB_BOOL hash = HB_IS_HASH( value ), first = HB_TRUE;
+
         HB_SIZE index, size = hb_itemSize( value );
+
         void * identity = hash ? hb_hashId( value ) : hb_arrayId( value );
         for( index = 0; index < buffer->depth; index++ )
         {
@@ -82,9 +84,10 @@ static HB_BOOL HBBridgeJSONWrite( PHB_ITEM value, HBBridgeJSONBuffer * buffer )
     }
     else if( HB_IS_NUMINT( value ) )
     {
+        char token[ 32 ];
+
         HB_MAXINT number = hb_itemGetNInt( value );
         HB_MAXUINT magnitude = number < 0 ? ( HB_MAXUINT ) ( -( number + 1 ) ) + 1 : ( HB_MAXUINT ) number;
-        char token[ 32 ];
         HB_SIZE offset = sizeof( token );
         do
         {
@@ -98,15 +101,20 @@ static HB_BOOL HBBridgeJSONWrite( PHB_ITEM value, HBBridgeJSONBuffer * buffer )
     }
     else if( HB_IS_NUMERIC( value ) )
     {
-        double number = hb_itemGetND( value ), parsed;
         char shortest[ 64 ];
+
+        double number = hb_itemGetND( value ), parsed;
+
         HB_SIZE size = HBBridgeNumberFormat( number, shortest, sizeof( shortest ) );
         if( size == 0 )
             return HB_FALSE;
         else
         {
+            char * fixed;
+
             HB_SIZE fixedSize;
-            char * fixed = hb_jsonEncode( value, &fixedSize, 0 );
+
+            fixed = hb_jsonEncode( value, &fixedSize, 0 );
             /* Retain declared DECIMAL scale only when formatting preserves the
              * actual double. Zero decimal metadata must not truncate FLOAT.
              * Compare bits so that negative zero remains negative zero. */
@@ -121,8 +129,11 @@ static HB_BOOL HBBridgeJSONWrite( PHB_ITEM value, HBBridgeJSONBuffer * buffer )
     }
     else
     {
+        char * scalar;
+
         HB_SIZE size;
-        char * scalar = hb_jsonEncodeCP( value, &size, 0, hb_cdpFindExt( "UTF8" ) );
+
+        scalar = hb_jsonEncodeCP( value, &size, 0, hb_cdpFindExt( "UTF8" ) );
         HBBridgeJSONAppend( buffer, scalar, size );
         hb_xfree( scalar );
     }
@@ -131,9 +142,13 @@ static HB_BOOL HBBridgeJSONWrite( PHB_ITEM value, HBBridgeJSONBuffer * buffer )
 
 HB_FUNC( HBBRIDGEJSONENCODE )
 {
-    PHB_ITEM value = hb_param( 1, HB_IT_ANY );
-    PHB_CODEPAGE previous = hb_vmCDP();
     HBBridgeJSONBuffer buffer;
+
+    PHB_CODEPAGE previous;
+    PHB_ITEM value;
+
+    value = hb_param( 1, HB_IT_ANY );
+    previous = hb_vmCDP();
     hb_vmSetCDP( hb_cdpFindExt( "UTF8" ) );
     memset( &buffer, 0, sizeof( buffer ) );
     buffer.capacity = 256;
@@ -179,11 +194,15 @@ static HB_BOOL HBBridgeJSONDigit( char byte )
 
 static HB_BOOL HBBridgeJSONNumber( HBBridgeJSONReader * reader, PHB_ITEM value )
 {
-    HB_SIZE start = reader->position, digits, fraction = 0;
-    HB_BOOL negative = reader->data[ reader->position ] == '-', floating = HB_FALSE;
-    HB_MAXUINT integer = 0, limit;
-    int exponent = 0, exponentSign = 1, decimals;
     double number;
+
+    HB_BOOL negative = reader->data[ reader->position ] == '-', floating = HB_FALSE;
+
+    HB_MAXUINT integer = 0, limit;
+
+    HB_SIZE start = reader->position, digits, fraction = 0;
+
+    int exponent = 0, exponentSign = 1, decimals;
     if( negative )
         reader->position++;
     digits = reader->position;
@@ -311,9 +330,13 @@ static HB_BOOL HBBridgeJSONRead( HBBridgeJSONReader * reader, PHB_ITEM value )
         return HBBridgeJSONNumber( reader, value );
     if( byte == '[' || byte == '{' )
     {
+        char close;
+
         HB_BOOL hash = byte == '{', result = HB_TRUE;
-        char close = hash ? '}' : ']';
+
         PHB_ITEM key = hb_itemNew( NULL ), item = hb_itemNew( NULL );
+
+        close = hash ? '}' : ']';
         reader->position++;
         if( hash )
             hb_hashNew( value );
@@ -394,9 +417,11 @@ static HB_BOOL HBBridgeJSONRead( HBBridgeJSONReader * reader, PHB_ITEM value )
 HB_FUNC( HBBRIDGEJSONDECODE )
 {
     HBBridgeJSONReader reader;
+
+    HB_SIZE size = 0;
+
     PHB_CODEPAGE previous = hb_vmCDP();
     PHB_ITEM value = hb_itemNew( NULL );
-    HB_SIZE size = 0;
     reader.data = hb_parc( 1 );
     reader.size = hb_parclen( 1 );
     reader.position = 0;

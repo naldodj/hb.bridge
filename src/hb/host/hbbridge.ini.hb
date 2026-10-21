@@ -6,7 +6,16 @@
  */
 FUNCTION HBBridgeConfigINI( cContents, hDefaults, cError )
 
-    LOCAL hSections := { ;
+    LOCAL cCR := Chr( 13 ), cLF := Chr( 10 ), cNul := Chr( 0 )
+    LOCAL cSection, cProfile, cSectionID, cLine, cKey, cValue, cTarget
+
+    LOCAL hSections, hProfileKeys, hFile, hSeenSections, hSeenKeys
+
+    LOCAL lHasSection
+
+    LOCAL nStart, nEnd, nLine, nEqual, nContentsLength
+
+    hSections := { ;
         "GENERAL" => { "MAXWORKERS" => "maxWorkers", "ADDONROOT" => "addonRoot" }, ;
         "SQL" => { "ODBCPOOLING" => "sqlODBCPooling" }, ;
         "PROTHEUS" => { "HOST" => "protheusHost", "PORT" => "protheusPort", ;
@@ -19,26 +28,32 @@ FUNCTION HBBridgeConfigINI( cContents, hDefaults, cError )
             "LISTENBACKLOG" => "httpListenBacklog", ;
             "PASSWORD" => "httpPassword", "TLS" => "httpTLS", "CERTIFICATE" => "httpCertificate", ;
             "PRIVATEKEY" => "httpPrivateKey" } }
-    LOCAL hProfileKeys := { "DRIVER" => "driver", "DATABASE" => "database", ;
+    hProfileKeys := { "DRIVER" => "driver", "DATABASE" => "database", ;
         "CONNECTIONSTRING" => "connectionString", "AUTHENTICATION" => "authentication", ;
         "DSN" => "dsn", "ODBCDRIVER" => "odbcDriver", "SERVER" => "server", ;
         "USERNAME" => "username", "PASSWORD" => "password", "ENCRYPT" => "encrypt", ;
         "TRUSTSERVERCERTIFICATE" => "trustServerCertificate", ;
         "LOGINTIMEOUTSECONDS" => "loginTimeoutSeconds", "QUERYTIMEOUTSECONDS" => "queryTimeoutSeconds" }
-    LOCAL hFile := {=>}, hSeenSections := {=>}, hSeenKeys := {=>}
-    LOCAL cSection := "", cProfile := "", cSectionID, cLine, cKey, cValue, cTarget
-    LOCAL nStart := 1, nEnd, nLine := 0, nEqual, lHasSection := .F.
+    hFile := {=>}
+    hSeenSections := {=>}
+    hSeenKeys := {=>}
+    cSection := ""
+    cProfile := ""
+    nStart := 1
+    nLine := 0
+    lHasSection := .F.
 
     cError := ""
-    DO WHILE nStart <= hb_BLen( cContents )
-        nEnd := hb_BAt( Chr( 10 ), cContents, nStart )
+    nContentsLength := hb_BLen( cContents )
+    DO WHILE nStart <= nContentsLength
+        nEnd := hb_BAt( cLF, cContents, nStart )
         IF nEnd == 0
-            nEnd := hb_BLen( cContents ) + 1
+            nEnd := nContentsLength + 1
         ENDIF
         cLine := hb_BSubStr( cContents, nStart, nEnd - nStart )
         nStart := nEnd + 1
         nLine++
-        IF Right( cLine, 1 ) == Chr( 13 )
+        IF Right( cLine, 1 ) == cCR
             cLine := Left( cLine, Len( cLine ) - 1 )
         ENDIF
         cLine := INITrim( cLine )
@@ -46,7 +61,7 @@ FUNCTION HBBridgeConfigINI( cContents, hDefaults, cError )
             LOOP
         ENDIF
         cError := "Invalid INI configuration at line " + hb_ntos( nLine ) + "."
-        IF Chr( 0 ) $ cLine .OR. Chr( 13 ) $ cLine
+        IF cNul $ cLine .OR. cCR $ cLine
             RETURN NIL
         ENDIF
         IF Left( cLine, 1 ) == "["
@@ -153,11 +168,13 @@ FUNCTION HBBridgeConfigINI( cContents, hDefaults, cError )
 RETURN hFile
 
 STATIC FUNCTION INITrim( cText )
+    LOCAL cWhitespace := " " + Chr( 9 )
+
     LOCAL nStart := 1, nEnd := hb_BLen( cText )
-    DO WHILE nStart <= nEnd .AND. hb_BSubStr( cText, nStart, 1 ) $ " " + Chr( 9 )
+    DO WHILE nStart <= nEnd .AND. hb_BSubStr( cText, nStart, 1 ) $ cWhitespace
         nStart++
     ENDDO
-    DO WHILE nEnd >= nStart .AND. hb_BSubStr( cText, nEnd, 1 ) $ " " + Chr( 9 )
+    DO WHILE nEnd >= nStart .AND. hb_BSubStr( cText, nEnd, 1 ) $ cWhitespace
         nEnd--
     ENDDO
 RETURN hb_BSubStr( cText, nStart, nEnd - nStart + 1 )

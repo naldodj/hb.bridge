@@ -596,7 +596,7 @@ testado; somente versões e capacidades efetivamente implementadas são anunciad
   AppServer TCP/HTTP reais, aquecimento separado, artefatos identificados e
   amostras do processo pelo SO.
   [Resultados e escopo](docs/acceptance.pt-BR.md#m08-performance-baseline-on-2026-10-16).
-  Checks finais M09 continuam abertos no [WIP](WIP.pt-BR.md); D03 tem aceite delimitado.
+  M09/pacote 001 concluídos; [WIP](WIP.pt-BR.md) planeja o pacote 002.
 - [x] Ampliar benchmark visual com comparação opcional Protheus StartJob/REST
   e hbBridge TCP/HTTP, além de addon Harbour no servidor. Preservar fixture fixa,
   aquecimentos e escopos de tempo distintos; addon retorna estatísticas em vez
@@ -610,8 +610,8 @@ testado; somente versões e capacidades efetivamente implementadas são anunciad
   ciclo dos clientes, navegador e addon mantêm seu escopo separado de validação.
   Evidências de autenticação, limpeza dos recursos próprios e recuperação
   constam no [aceite](docs/acceptance.pt-BR.md#v01-v02-benchmark-acceptance-on-2026-10-19).
-  A integridade UTF-8/FLOAT de D03 tem aceite delimitado em 2026-10-21; checks finais M09 e pacote
-  001 permanecem abertos. O CLI TCP/HTTP também passou em rodada de dez linhas;
+  A integridade UTF-8/FLOAT de D03 tem aceite delimitado em 2026-10-21; M09 e pacote
+  001 concluídos; pacote 002 planejado no WIP. O CLI TCP/HTTP também passou em rodada de dez linhas;
   veja [escopo CLI e esclarecimento da carga/timeout](docs/acceptance.pt-BR.md#m08-manual-cli-validation-on-2026-10-19).
   Falhas anteriores de inicialização StartJob CLI isolada são outro registro. Veja o [guia do benchmark](src/tlpp/tests/protheus/hbbridge.benchmark.test/README.pt-BR.md).
 - [ ] Adicionar benchmark de processamento em addon C: hbBridge consulta/
@@ -644,8 +644,12 @@ testado; somente versões e capacidades efetivamente implementadas são anunciad
   decimal, vazio, consulta/perfil inválidos, recuperação, páginas, EOF e
   fechamento; 29 checks verdadeiros em 2026-10-04 às 00:40:06, reconfirmados
   em 2026-10-07 às 16:13:33, thread 27136, profile=sqlite_demo.
-- [ ] Homologar conexão SQL indisponível, tipos/nulos ampliados e volume real
-  no AppServer; perfil desconhecido não comprova falha do conector.
+- [x] Homologar recusa controlada de conexão MSSQL, timeout nativo de comando e
+  recuperação no Windows pelas rotas nativas e AppServer TCP/HTTP em M06.
+  Cobertas falhas reais do conector, separadamente de perfil desconhecido.
+  [Evidências](docs/acceptance.pt-BR.md#sql-native-timeouts-and-appserver-recovery-on-2026-10-14).
+- [ ] Ampliar o aceite de conectores, tipos/nulos e volume real além das fixtures
+  Windows registradas; outras plataformas/drivers exigem evidências próprias.
 - [x] Integrar regressões com SQLite em arquivo, chamadas concorrentes e o
   mesmo serviço por cliente Harbour NETIO e TCP/JSON.
 - [x] Registrar o aceite manual SQLite Protheus informado, distinguindo-o
@@ -695,8 +699,7 @@ testado; somente versões e capacidades efetivamente implementadas são anunciad
   zero falhas, em 2026-10-13 às 17:56:23 São Paulo, thread 32332. Helpers puros
   passaram nos 12 checks às 17:56:45, thread 28300. O escopo de mocks de D02
   está homologado; D03 tem aceite posterior delimitado em 2026-10-21. M06 tem
-  aceite isolado posterior; M07/M08 estão homologadas nos escopos registrados e M09
-  permanece aberto. Essas rodadas não exercitam transporte, backend SQL nem
+  aceite isolado posterior; M07/M08 e M09 estão homologadas nos escopos registrados. Essas rodadas não exercitam transporte, backend SQL nem
   tabela ERP. [Evidência](docs/dataset.pt-BR.md).
 
 - [ ] Adicionar parâmetros SQL e metadados de tipo, tamanho, precisão e nulos,

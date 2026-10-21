@@ -19,8 +19,9 @@
 
 HB_FUNC( HBBRIDGEMONOTONICMS )
 {
-    HB_MAXUINT milliseconds = 0;
     HB_BOOL valid = HB_FALSE;
+
+    HB_MAXUINT milliseconds = 0;
 
 #if defined( HB_OS_WIN )
     /* Native 64-bit counter: no shared state and no 32-bit wrap extension. */

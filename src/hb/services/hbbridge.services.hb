@@ -56,7 +56,9 @@ RETURN { "success" => .T., "services" => HBBridgeCatalog( hContext[ "registry" ]
     "hashKeys" => "C", "textEncoding" => "client-managed", "serviceVersion" => 1 }
 
 FUNCTION HBBridgeServiceAddon( hParams, hContext )
-    LOCAL cJson, hResult, cModule, cPart
+    LOCAL cJson, cModule, cPart
+
+    LOCAL hResult
 
     IF ! hb_HHasKey( hParams, "module" ) .OR. ! hb_HHasKey( hParams, "params" )
         RETURN HBBridgeError( "INVALID_PARAMS", "Module and parameters are required" )

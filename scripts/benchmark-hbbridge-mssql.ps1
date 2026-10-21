@@ -90,8 +90,10 @@ try {
         }
         routes = [ordered]@{}
     }
+    $knownPhases = @('setup', 'warmup', 'measured', 'serving', 'cleanup', 'complete')
     foreach ($routeName in $report.settings.routeOrder) {
         $routeRoot = Join-Path $runRoot $routeName
+        $phaseFile = Join-Path $routeRoot 'phase.json'
         New-Item -ItemType Directory -Path $routeRoot | Out-Null
         $startInfo = [Diagnostics.ProcessStartInfo]::new()
         $startInfo.FileName = $testExecutable
@@ -124,9 +126,9 @@ try {
                 }
                 $phase = 'starting'
                 try {
-                    $phaseValue = Get-Content -LiteralPath (Join-Path $routeRoot 'phase.json') -Raw -ErrorAction Stop |
+                    $phaseValue = Get-Content -LiteralPath $phaseFile -Raw -ErrorAction Stop |
                         ConvertFrom-Json -AsHashtable -ErrorAction Stop
-                    if ($phaseValue.phase -in @('setup', 'warmup', 'measured', 'serving', 'cleanup', 'complete')) {
+                    if ($phaseValue.phase -in $knownPhases) {
                         $phase = $phaseValue.phase
                     }
                 } catch { }

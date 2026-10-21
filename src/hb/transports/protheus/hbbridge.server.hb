@@ -16,7 +16,9 @@ Released to Public Domain.
  */
 FUNCTION HBBridgeServerStart( nPort, nMaxWorkers, cHost, hRegistry, hContext, hIOConfig )
 
-    LOCAL hListenSocket, hServer, aAddress, hPolicy := HBBridgeProtheusPolicy( hIOConfig )
+    LOCAL aAddress
+
+    LOCAL hListenSocket, hServer, hPolicy := HBBridgeProtheusPolicy( hIOConfig )
 
     hb_default( @nPort, 1512 )
     hb_default( @nMaxWorkers, 64 )
@@ -89,7 +91,16 @@ RETURN lStopped
 
 STATIC PROCEDURE HBBridgeAcceptLoop( hServer, hListenSocket )
 
-    LOCAL hClientSocket := NIL, hWorker, aWorkers := {}, nWorker, nError,oError
+    LOCAL aWorkers
+
+    LOCAL hClientSocket, hWorker
+
+    LOCAL nWorker, nError
+
+    LOCAL oError
+
+    hClientSocket := NIL
+    aWorkers := {}
 
     BEGIN SEQUENCE WITH __BreakBlock()
         DO WHILE HBBridgeServerRunning( hServer )
@@ -156,7 +167,9 @@ RETURN .T.
 
 STATIC PROCEDURE HBBridgeClientWorker( hServer, hClientSocket )
 
-    LOCAL cRequest, cResponse, oError
+    LOCAL cRequest, cResponse
+
+    LOCAL oError
 
     BEGIN SEQUENCE WITH __BreakBlock()
         IF ReceiveRequest( hClientSocket, @cRequest, hServer[ "ioPolicy" ] )

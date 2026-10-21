@@ -25,9 +25,11 @@ export fn HBBridgeNumberParse(input: [*c]const u8, length: usize, output: [*c]f6
 
 test "finite doubles format and parse without losing a bit" {
     const values = [_]f64{ 123.4567, 0.1, 1.2345678901234567, 1.0e-100, 1.0e100, std.math.floatMin(f64), std.math.floatMax(f64), @bitCast(@as(u64, 1)), -0.0 };
+    var buffer: [64]u8 = undefined;
+
+    var parsed: f64 = undefined;
+
     for (values) |value| {
-        var buffer: [64]u8 = undefined;
-        var parsed: f64 = undefined;
         const length = HBBridgeNumberFormat(value, &buffer, buffer.len);
         try std.testing.expect(length != 0);
         try std.testing.expect(HBBridgeNumberParse(&buffer, length, &parsed));
@@ -37,7 +39,9 @@ test "finite doubles format and parse without losing a bit" {
 
 test "invalid, nonfinite and underflow values fail explicitly" {
     var buffer: [64]u8 = undefined;
+
     var parsed: f64 = undefined;
+
     try std.testing.expectEqual(@as(usize, 0), HBBridgeNumberFormat(std.math.inf(f64), &buffer, buffer.len));
     try std.testing.expectEqual(@as(usize, 0), HBBridgeNumberFormat(std.math.nan(f64), &buffer, buffer.len));
     try std.testing.expect(!HBBridgeNumberParse("1e999", 5, &parsed));

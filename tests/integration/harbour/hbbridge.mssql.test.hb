@@ -8,8 +8,14 @@ REQUEST HB_CODEPAGE_UTF8EX
  */
 PROCEDURE MSSQLTests( cConfigPath, cProfile )
 
-    LOCAL nFailures := 0, nChecks := 0, cPreviousCodepage := hb_cdpSelect()
-    LOCAL nExit := 1
+    LOCAL cPreviousCodepage
+
+    LOCAL nFailures, nChecks, nExit
+
+    nFailures := 0
+    nChecks := 0
+    cPreviousCodepage := hb_cdpSelect()
+    nExit := 1
 
     IF ! HB_ISSTRING( cConfigPath ) .OR. ! HB_ISSTRING( cProfile )
         ? "MSSQL prerequisite failed: CONFIG_AND_PROFILE_REQUIRED"
@@ -36,7 +42,9 @@ RETURN
 
 STATIC FUNCTION MSSQLRun( cConfigPath, cProfile, nFailures, nChecks )
 
-    LOCAL hConfig, hProfiles, hRegistry, hResult, cError
+    LOCAL cError
+
+    LOCAL hConfig, hProfiles, hRegistry, hResult
 
     hConfig := HBBridgeConfig( { "-config=" + cConfigPath }, @cError )
     IF hConfig == NIL
@@ -96,9 +104,14 @@ RETURN iif( nFailures == 0, 0, 1 )
 
 STATIC PROCEDURE MSSQLDataset( hRegistry, cProfile, nFailures, nChecks )
 
-    LOCAL hResult, xFirstName, xSecondName, lNames
     LOCAL cSQL := "SELECT 1 AS ID, 'Harbour' AS NAME, 12.5 AS AMOUNT " + ;
         "UNION ALL SELECT 2, 'hbBridge', 0.0 ORDER BY ID"
+
+    LOCAL hResult
+
+    LOCAL lNames
+
+    LOCAL xFirstName, xSecondName
 
     hResult := MSSQLQuery( hRegistry, cProfile, cSQL )
     MSSQLAssert( MSSQLSuccess( hResult ), "named dataset opens: " + MSSQLCode( hResult ), @nFailures, @nChecks )
@@ -146,12 +159,18 @@ RETURN
 
 STATIC PROCEDURE MSSQLTypes( hRegistry, cProfile, nFailures, nChecks )
 
-    LOCAL hResult, hExpected, hField, cName, xActual, lValue
+    LOCAL cName
     LOCAL cSQL := "SELECT CAST(7 AS int) AS ID, CAST(12.50 AS decimal(10,2)) AS AMOUNT, " + ;
         "CAST(NULL AS int) AS NULL_INT, CAST(NULL AS varchar(16)) AS NULL_TEXT, " + ;
         "CAST('' AS varchar(16)) AS EMPTY_TEXT, CAST('20261007' AS date) AS EVENT_DATE, " + ;
         "CAST('2026-10-07T12:34:56.123' AS datetime2(3)) AS EVENT_TIME, CAST(1 AS bit) AS FLAG, " + ;
         "NCHAR(231) + NCHAR(227) + NCHAR(28450) + NCHAR(23383) AS UNICODE_TEXT"
+
+    LOCAL hResult, hExpected, hField
+
+    LOCAL lValue
+
+    LOCAL xActual
 
     /* Expectations are native values. Decimal uses the connector's floating
      * representation with a stated tolerance; no value/type coercion is made.
@@ -208,6 +227,8 @@ STATIC PROCEDURE MSSQLVariableFields( hRegistry, cProfile, nFailures, nChecks )
         "CONVERT(varbinary(max),REPLICATE(CAST('ab'+CHAR(0)+'c' AS varchar(max)),3000)) AS LONG_BINARY, " + ;
         "CAST(0x0001FF007F AS varbinary(max)) AS BINARY_DATA, " + ;
         "CAST(0x AS varbinary(max)) AS EMPTY_BINARY, CAST(NULL AS varbinary(max)) AS NULL_BINARY"
+    LOCAL cName
+
     LOCAL hExpected := { ;
         "LONG_ASCII" => { "type" => "C", "value" => Replicate( "a", 12000 ) }, ;
         "LONG_UNICODE" => { "type" => "C", "value" => Replicate( cUnicode, 3000 ) }, ;
@@ -220,7 +241,11 @@ STATIC PROCEDURE MSSQLVariableFields( hRegistry, cProfile, nFailures, nChecks )
         "BINARY_DATA" => { "type" => "C", "value" => hb_HexToStr( "0001FF007F" ) }, ;
         "EMPTY_BINARY" => { "type" => "C", "value" => "" }, ;
         "NULL_BINARY" => { "type" => "U", "value" => NIL } }
-    LOCAL hResult := MSSQLQuery( hRegistry, cProfile, cSQL ), hField, cName, xActual, lValue
+    LOCAL hResult := MSSQLQuery( hRegistry, cProfile, cSQL ), hField
+
+    LOCAL lValue
+
+    LOCAL xActual
 
     MSSQLAssert( MSSQLSuccess( hResult ), "variable field fixture opens: " + MSSQLCode( hResult ), ;
         @nFailures, @nChecks )
@@ -254,8 +279,11 @@ RETURN
 STATIC PROCEDURE MSSQLPages( hRegistry, cProfile, nFailures, nChecks )
 
     LOCAL cSQL := "SELECT 10 AS ID, 'same' AS NAME UNION ALL SELECT 50, 'same' UNION ALL SELECT 90, 'same'"
-    LOCAL hPage := { "number" => 1, "size" => 1, "orderBy" => "NAME, ID DESC" }
-    LOCAL hResult, hExpected := { "1" => 90, "2" => 50, "3" => 10 }, nID
+
+    LOCAL hPage := { "number" => 1, "size" => 1, "orderBy" => "NAME, ID DESC" }, hResult
+    LOCAL hExpected := { "1" => 90, "2" => 50, "3" => 10 }
+
+    LOCAL nID
 
     FOR EACH nID IN hExpected
         hPage[ "number" ] := Val( nID:__enumKey() )
@@ -303,8 +331,10 @@ RETURN
 
 STATIC PROCEDURE MSSQLRestoration( hRegistry, cProfile, hProfile, nFailures, nChecks )
 
+    LOCAL hResult
+
     LOCAL nPreviousArea := Select(), nPreviousConnection := rddInfo( RDDI_CONNECTION, NIL, "SQLMIX" )
-    LOCAL nConnection := 0, nCallerArea := 0, hResult
+    LOCAL nConnection := 0, nCallerArea := 0
 
     hResult := MSSQLQuery( hRegistry, cProfile, "SELECT 17 AS ID" )
     MSSQLAssert( MSSQLSuccess( hResult ) .AND. Select() == nPreviousArea .AND. ;
@@ -359,7 +389,9 @@ RETURN
 
 STATIC PROCEDURE MSSQLConcurrency( hRegistry, cProfile, nFailures, nChecks )
 
-    LOCAL hThreads := {=>}, hThread, nIndex, hResult
+    LOCAL hThreads := {=>}, hThread, hResult
+
+    LOCAL nIndex
 
     MSSQLAssert( hb_mtvm(), "native multithread runtime available", @nFailures, @nChecks )
     IF ! hb_mtvm()
@@ -391,7 +423,10 @@ STATIC PROCEDURE MSSQLBaseline( hRegistry, cProfile, nFailures, nChecks )
     LOCAL cSQL := "SELECT A.N * 100 + B.N * 10 + C.N + 1 AS ID, " + ;
         "CAST('hbBridge' AS varchar(8)) AS NAME FROM " + cDigits + " AS A(N) CROSS JOIN " + ;
         cDigits + " AS B(N) CROSS JOIN " + cDigits + " AS C(N) ORDER BY ID"
-    LOCAL hResult, nRun, nStarted, nElapsed, nTotal := 0
+
+    LOCAL hResult
+
+    LOCAL nRun, nStarted, nElapsed, nTotal := 0
 
     /* Reproducible 1000-row fixture, 3 executions, concurrency 1. Includes
      * connect/open/materialize/close/disconnect; no performance threshold.
@@ -442,6 +477,7 @@ RETURN NIL
 STATIC FUNCTION MSSQLCode( hResult )
 
     LOCAL cCode := "INVALID_RESULT"
+
     LOCAL hCodes := { "INVALID_PARAMS" => .T., "PROFILE_NOT_FOUND" => .T., ;
         "CONNECTION_FAILED" => .T., "QUERY_FAILED" => .T., "INVALID_PAGE" => .T., ;
         "AMBIGUOUS_COLUMN" => .T., "CONNECTION_CLOSE_FAILED" => .T., ;

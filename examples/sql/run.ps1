@@ -14,14 +14,14 @@ if (-not [System.IO.Path]::IsPathRooted($configPath)) {
     $configPath = Join-Path $projectRoot $configPath
 }
 if (-not (Test-Path -LiteralPath $configPath -PathType Leaf)) {
-    throw "Arquivo de configuracao nao encontrado: $configPath"
+    throw "Configuration file not found: $configPath"
 }
 $configPath = (Resolve-Path -LiteralPath $configPath).Path
 if ([System.IO.Path]::GetExtension($configPath) -ieq '.ini') {
     $executableName = if ($IsWindows) { 'hbbridge.exe' } else { 'hbbridge' }
     $server = Join-Path $projectRoot "out/$executableName"
     if (-not (Test-Path -LiteralPath $server -PathType Leaf)) {
-        throw 'Compile o produto com scripts/build-hbbridge.ps1 antes de executar.'
+        throw 'Build the product with scripts/build-hbbridge.ps1 before running it.'
     }
     # Ask the native adapter for safe metadata; do not duplicate the INI parser.
     $infoArguments = @('--config-info', "-config=$configPath")
@@ -40,7 +40,7 @@ if ([System.IO.Path]::GetExtension($configPath) -ieq '.ini') {
         Pop-Location
     }
     if ($configExit -ne 0) {
-        throw 'Nao foi possivel validar o INI. Confira o erro do host e recompile o produto atualizado se necessario.'
+        throw 'Could not validate the INI. Check the host error and rebuild the current product if needed.'
     }
     $settings = ($configOutput | Out-String) | ConvertFrom-Json -AsHashtable
 }
@@ -51,7 +51,7 @@ if ($settings -isnot [System.Collections.IDictionary] -or
     -not $settings.ContainsKey('sqlProfiles') -or
     $settings['sqlProfiles'] -isnot [System.Collections.IDictionary] -or
     $settings['sqlProfiles'].Count -eq 0) {
-    throw 'O teste SQL requer perfis SQL. Use config/examples/sqlite.json ou sqlite.ini, ou configure MSSQL.'
+    throw 'The SQL test requires SQL profiles. Use config/examples/sqlite.json or sqlite.ini, or configure MSSQL.'
 }
 if (-not $PSBoundParameters.ContainsKey('Profile')) {
     foreach ($profileName in $settings['sqlProfiles'].Keys) {
@@ -60,7 +60,7 @@ if (-not $PSBoundParameters.ContainsKey('Profile')) {
     }
 }
 if (-not $settings['sqlProfiles'].ContainsKey($Profile)) {
-    throw "Perfil SQL nao configurado: $Profile"
+    throw "SQL profile is not configured: $Profile"
 }
 
 $launchOptions = @{ Config = $configPath }
@@ -84,7 +84,7 @@ if ($settings.ContainsKey('protheusHost') -and $settings['protheusHost'] -ne '0.
 
 Write-Host "SQL profile: $Profile"
 if ($testPort -eq 0) {
-    Write-Host "Protheus: execute U_HBBridgeQueryTest com perfil $Profile e a porta TCP informada pelo host."
+    Write-Host "Protheus: run U_HBBridgeQueryTest with profile $Profile and the TCP port reported by the host."
 }
 else {
     Write-Host ('Protheus: U_HBBridgeQueryTest("{0}", "{1}", {2}, 30000)' -f $Profile, $testHost, $testPort)
@@ -92,6 +92,6 @@ else {
 if ($Profile -eq 'sqlite_demo' -and $testHost -eq '127.0.0.1' -and $testPort -eq 1512) {
     Write-Host 'WebApp: https://localhost:4321/webapp/?p=U_HBBridgeQueryTest&e=PROTHEUS'
 }
-Write-Host 'Este launcher prepara o servidor; execute o teste no AppServer. Ctrl+Q encerra o hbBridge.'
+Write-Host 'This launcher prepares the server; run the test in AppServer. Ctrl+Q stops hbBridge.'
 & (Join-Path $projectRoot 'scripts\run-hbbridge.ps1') @launchOptions
 exit $LASTEXITCODE

@@ -34,22 +34,37 @@ endclass
 
 static method Show(cProfile, cHost, nPort, cURL, cToken, nTimeoutSeconds) class HBBridgeBenchmarkExample
 
-    local jOverrides := JSONObject():New() as json
+    local bPrevious as variant
+
+    local cIniFile as character
+    local cInstance as character
+    local cFile := "" as character
+    local cNavigate := "" as character
+
+    local jOverrides as json
     local jConfig as json
-    local jDefaults := JSONObject():New() as json
+    local jDefaults as json
     local jComparison as json
+
+    local lInstalled := .F. as logical
+
+    local nTop := 0 as numeric
+    local nLeft := 0 as numeric
+    local nBottom := 600 as numeric
+    local nRight := 1200 as numeric
+
     local oController as object
     local oChannel as object
     local oDialog as object
     local oEngine as object
     local oSize as object
-    local bPrevious as variant
+
     local xError as variant
-    local cIniFile := GetSrvIniName() as character
-    local cInstance := UUIDRandomSeq() as character
-    local cFile := "", cNavigate := "" as character
-    local nTop := 0, nLeft := 0, nBottom := 600, nRight := 1200 as numeric
-    local lInstalled := .F. as logical
+
+    jOverrides := JSONObject():New()
+    jDefaults := JSONObject():New()
+    cIniFile := GetSrvIniName()
+    cInstance := UUIDRandomSeq()
 
     DEFAULT nTimeoutSeconds := 30
     if ValType(nTimeoutSeconds) != "N"
@@ -173,11 +188,17 @@ return
 
 static method Page(jDefaults, cInstance, cFile) class HBBridgeBenchmarkExample
 
-    local oBody := FWWebEx.WebExBody():New() as object
-    local oPage := FWWebEx.WebExPage():New("hbBridge benchmark") as object
-    local oContent := FWWebEx.WebExControl():New("div") as object
     local cHTML := "" as character
+
     local lWritten := .F. as logical
+
+    local oBody as object
+    local oPage as object
+    local oContent as object
+
+    oBody := FWWebEx.WebExBody():New()
+    oPage := FWWebEx.WebExPage():New("hbBridge benchmark")
+    oContent := FWWebEx.WebExControl():New("div")
 
     oContent:SetContent(HBBridge.Examples.HBBridgeBenchmarkPage():Render(cInstance, jDefaults))
     oBody:AddChild(oContent)
@@ -194,6 +215,7 @@ return(lWritten)
 static method Callback(oChannel, cType, cContent, oController, bPrevious) class HBBridgeBenchmarkExample
 
     local jResponse as json
+
     local xError as variant
 
     if cType != "HBBRIDGE_BENCHMARK_REQUEST"

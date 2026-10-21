@@ -4,7 +4,11 @@ FUNCTION MTAddonIsolation( cJsonParams )
 
     STATIC nCounter := 0
     STATIC nOwner := NIL
-    LOCAL hParams, nCounterBefore, lAllActive := .T.
+    LOCAL hParams
+
+    LOCAL lAllActive := .T.
+
+    LOCAL nCounterBefore
 
     hb_jsonDecode( cJsonParams, @hParams )
     nCounterBefore := nCounter

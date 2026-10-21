@@ -13,7 +13,9 @@ MEMVAR server
 
 FUNCTION HBBridgeHTTPStart( hConfig, hRegistry, hHost, cError )
 
-    LOCAL hHTTP, lReady := .F.
+    LOCAL hHTTP
+
+    LOCAL lReady := .F.
 
     cError := ""
     hHTTP := { "mutex" => hb_mutexCreate(), "stopMutex" => hb_mutexCreate(), ;
@@ -39,7 +41,9 @@ RETURN hHTTP
 
 STATIC PROCEDURE HBBridgeHTTPRun( hHTTP )
 
-    LOCAL hConfig := hHTTP[ "config" ], hNative, lReady
+    LOCAL hConfig := hHTTP[ "config" ], hNative
+
+    LOCAL lReady
 
     hNative := { "BindAddress" => hConfig[ "httpHost" ], "Port" => hConfig[ "httpPort" ], ;
         "FirewallFilter" => "", ;
@@ -115,9 +119,18 @@ RETURN cResult
 
 STATIC FUNCTION HBBridgeHTTPRequest( hHTTP, cPath )
 
-    LOCAL lAdmin := cPath == "admin" .OR. Left( cPath, 6 ) == "admin/"
-    LOCAL hResult, cBody, nConsumed, xParams, cMethod := server[ "REQUEST_METHOD" ]
-    LOCAL cContentType, nSemicolon, cService, lAdmitted, cResult
+    LOCAL cBody, cMethod, cContentType, cService, cResult
+
+    LOCAL hResult
+
+    LOCAL lAdmin, lAdmitted
+
+    LOCAL nConsumed, nSemicolon
+
+    LOCAL xParams
+
+    lAdmin := cPath == "admin" .OR. Left( cPath, 6 ) == "admin/"
+    cMethod := server[ "REQUEST_METHOD" ]
 
     UAddHeader( "Cache-Control", "no-store" )
     UAddHeader( "X-Content-Type-Options", "nosniff" )
@@ -203,6 +216,7 @@ RETURN .T.
 
 STATIC FUNCTION HBBridgeHTTPAuthorized( hHTTP, lAdmin )
     LOCAL cAuthorization := hb_HGetDef( server, "HTTP_AUTHORIZATION", "" ), cExpected, cScheme
+
     LOCAL nSeparator := At( " ", cAuthorization )
     IF nSeparator == 0
         RETURN .F.
@@ -223,11 +237,12 @@ STATIC FUNCTION HBBridgeHTTPAuthorized( hHTTP, lAdmin )
 RETURN HBBridgeHTTPSecretEqual( cAuthorization, cExpected )
 
 STATIC FUNCTION HBBridgeHTTPSecretEqual( cActual, cExpected )
-    LOCAL nDifference := hb_bitXor( hb_BLen( cActual ), hb_BLen( cExpected ) ), nIndex
-    IF hb_BLen( cActual ) != hb_BLen( cExpected )
+    LOCAL nActualLength := hb_BLen( cActual ), nExpectedLength := hb_BLen( cExpected )
+    LOCAL nDifference := hb_bitXor( nActualLength, nExpectedLength ), nIndex
+    IF nActualLength != nExpectedLength
         RETURN .F.
     ENDIF
-    FOR nIndex := 1 TO hb_BLen( cExpected )
+    FOR nIndex := 1 TO nExpectedLength
         nDifference := hb_bitOr( nDifference, ;
             hb_bitXor( hb_BCode( hb_BSubStr( cActual, nIndex, 1 ) ), hb_BCode( hb_BSubStr( cExpected, nIndex, 1 ) ) ) )
     NEXT

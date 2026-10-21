@@ -7,9 +7,12 @@
 HB_FUNC( HBBRIDGEJSONTESTDOUBLE )
 {
     const char * text = hb_parc( 1 );
-    uint64_t bits = 0;
+
     double value;
+
     int index;
+
+    uint64_t bits = 0;
     if( text == NULL || hb_parclen( 1 ) != 16 )
     {
         hb_ret();

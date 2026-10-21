@@ -7,6 +7,7 @@ procedure U_HBBridgeConfigTest()
     local jOverrides := JSONObject():New() as JSON
     local jChecks := JSONObject():New() as JSON
     local jConfig as JSON
+
     local lOk := .T. as logical
 
     jConfig := HBBridge.Client.HBBridgeConfig():Resolve(jValues, jOverrides)

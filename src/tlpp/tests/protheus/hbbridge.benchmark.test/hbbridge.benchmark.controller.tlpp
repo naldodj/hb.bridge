@@ -5,18 +5,21 @@ namespace HBBridge.Examples
 
 class HBBridgeBenchmarkController
 
+    private data bMeasure as codeblock
+
     private data cInstance as character
     private data cProfile as character
     private data cHost as character
-    private data nPort as numeric
     private data cURL as character
     private data cToken as character
     private data cComparison as character
-    private data bMeasure as codeblock
     private data cLastRequestID as character
     private data cLastResponse as character
+
     private data lRunning as logical
     private data lClosed as logical
+
+    private data nPort as numeric
 
     public method New(cInstance as character, cProfile as character, cHost as character, ;
         nPort as numeric, cURL as character, cToken as character, bMeasure as codeblock, jComparison as json) as object
@@ -47,13 +50,19 @@ return(self)
 
 method Handle(cContent) class HBBridgeBenchmarkController
 
-    local jEnvelope := JSONObject():New() as json
+    local cRequestID := "" as character
+
+    local jEnvelope as json
     local jResponse as json
     local jReport as json
     local jComparison as json
+
+    local lRouted := .F. as logical
+    local lValid := .F. as logical
+
     local xError as variant
-    local cRequestID := "" as character
-    local lRouted := .F., lValid := .F. as logical
+
+    jEnvelope := JSONObject():New()
 
     try
         if ValType(cContent) == "C"
@@ -192,9 +201,16 @@ return(!Empty(AllTrim(xValue)) .and. Len(xValue) <= 128 .and. ;
 
 static function BenchmarkJSONHasNul(cJSON as character) as logical
 
-    local nPosition := 1, nLength := Len(cJSON) as numeric
     local cCharacter := "" as character
+    local cQuote := Chr(34) as character
+    local cBackslash := Chr(92) as character
+
     local lString := .F. as logical
+
+    local nPosition := 1 as numeric
+    local nLength as numeric
+
+    nLength := Len(cJSON)
 
     if Chr(0) $ cJSON
         return .T.
@@ -202,12 +218,12 @@ static function BenchmarkJSONHasNul(cJSON as character) as logical
     while nPosition <= nLength
         cCharacter := SubStr(cJSON, nPosition, 1)
         if !lString
-            if cCharacter == Chr(34)
+            if cCharacter == cQuote
                 lString := .T.
             endif
-        elseif cCharacter == Chr(34)
+        elseif cCharacter == cQuote
             lString := .F.
-        elseif cCharacter == Chr(92)
+        elseif cCharacter == cBackslash
             if SubStr(cJSON, nPosition + 1, 5) == "u0000"
                 return .T.
             endif
@@ -222,9 +238,10 @@ return(.F.)
 
 static function BenchmarkEnvelopeValid(jEnvelope as json) as logical
 
-    local jParams as json
     // GetNames() requires a native array; no copy or repeated key searches.
     local aNames as array
+
+    local jParams as json
 
     aNames := jEnvelope:GetNames()
     if Len(aNames) != 3 .or. !jEnvelope:HasProperty("params")

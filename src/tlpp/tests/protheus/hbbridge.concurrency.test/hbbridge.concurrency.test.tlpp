@@ -24,11 +24,24 @@ endclass
 
 static method RunCLI(aArguments) class HBBridgeConcurrencyTest
 
-    local jFlags := JSONObject():New() as json
-    local jSeen := JSONObject():New() as json
-    local cArgument := "", cKey := "", cValue := "" as character
-    local nArgument := 0, nEqual := 0, nValue := 0, nResult := 1 as numeric
-    local lValid := .T., lPacing := .F. as logical
+    local cArgument := "" as character
+    local cKey := "" as character
+    local cValue := "" as character
+
+    local jFlags as json
+    local jSeen as json
+
+    local lValid := .T. as logical
+    local lPacing := .F. as logical
+
+    local nArgument := 0 as numeric
+    local nEqual := 0 as numeric
+    local nValue := 0 as numeric
+    local nResult := 1 as numeric
+    local nArguments := 0 as numeric
+
+    jFlags := JSONObject():New()
+    jSeen := JSONObject():New()
 
     jFlags["mssql-profile"] := ""
     jFlags["sqlite-profile"] := ""
@@ -47,7 +60,8 @@ static method RunCLI(aArguments) class HBBridgeConcurrencyTest
     if ValType(aArguments) != "A"
         lValid := .F.
     else
-        for nArgument := 1 to Len(aArguments)
+        nArguments := Len(aArguments)
+        for nArgument := 1 to nArguments
             if ValType(aArguments[nArgument]) != "C"
                 loop
             endif
@@ -104,27 +118,55 @@ return(nResult)
 static method Run(cMSSQLProfile, cSQLiteProfile, cHost, nPort, cURL, cToken, ;
     nTimeoutSeconds, nWorkers, nBudgetSeconds, nLaunchDelayMs, nLaunchStepMs, nLaunchMaxMs) class HBBridgeConcurrencyTest
 
-    local xError as variant
-    local jConfig := JSONObject():New() as json
-    local jWorkers := JSONObject():New() as json
-    local jChecks := JSONObject():New() as json
+    local aParentChecks as array
+
+    local cIniFile as character
+    local cRunID as character
+    local cID := "" as character
+    local cWorkerJSON := "" as character
+    local cReport := "" as character
+    local cStage := "initialize" as character
+    local cEnvServer as character
+
+    local jConfig as json
+    local jWorkers as json
+    local jChecks as json
     local jWorker as json
     local jReport as json
-    local cIniFile := GetSrvIniName() as character
-    local cRunID := StrTran(UUIDRandom(), "-", "") as character
-    local cID := "", cWorkerJSON := "", cReport := "" as character
-    local cStage := "initialize" as character
-    local cEnvServer := GetEnvServer() as character
-    local nWorker := 0, nOther := 0, nCompleted := 0, nFailures := 0 as numeric
-    local nStarted := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs() as numeric
-    local nPrevious := nStarted, nLatestStart := 0, nEarliestFinish := 0 as numeric
-    local nWorkerChecks := 0, nWorkerFailures := 0 as numeric
-    local nBudgetMs := 0, nDrainStarted := 0, nDrainBudget := 0 as numeric
-    local nPlannedDelayMs := 0, nSleepMs := 0, nRemainingMs := 0 as numeric
+
     local lDrained := .F. as logical
+    local lValid := .T. as logical
+    local lDistinct := .T. as logical
+    local lReports := .F. as logical
+
+    local nWorker := 0 as numeric
+    local nOther := 0 as numeric
+    local nCompleted := 0 as numeric
+    local nFailures := 0 as numeric
+    local nStarted as numeric
+    local nPrevious as numeric
+    local nLatestStart := 0 as numeric
+    local nEarliestFinish := 0 as numeric
+    local nWorkerChecks := 0 as numeric
+    local nWorkerFailures := 0 as numeric
+    local nBudgetMs := 0 as numeric
+    local nDrainStarted := 0 as numeric
+    local nDrainBudget := 0 as numeric
+    local nPlannedDelayMs := 0 as numeric
+    local nSleepMs := 0 as numeric
+    local nRemainingMs := 0 as numeric
     local nParentChecks := 0 as numeric
-    local aParentChecks as array
-    local lValid := .T., lDistinct := .T., lReports := .F. as logical
+
+    local xError as variant
+
+    jConfig := JSONObject():New()
+    jWorkers := JSONObject():New()
+    jChecks := JSONObject():New()
+    cIniFile := GetSrvIniName()
+    cRunID := StrTran(UUIDRandom(), "-", "")
+    cEnvServer := GetEnvServer()
+    nStarted := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs()
+    nPrevious := nStarted
 
     if !ConcurrencyTextValid(cMSSQLProfile) .or. !ConcurrencyTextValid(cSQLiteProfile)
         lValid := .F.
@@ -396,19 +438,42 @@ return(IIf(nFailures + nWorkerFailures == 0, 0, 1))
 
 static method Worker(cConfigJSON, cReadyKey, cResultKey, cGateKey) class HBBridgeConcurrencyTest
 
-    local xError as variant
-    local jConfig := JSONObject():New() as json
-    local jChecks := JSONObject():New() as json
-    local jReport := JSONObject():New() as json
+    local cReport := "" as character
+    local cGate := "" as character
+    local cDriver := "" as character
+    local cProfile := "" as character
+    local cStage := "configure" as character
+
+    local jConfig as json
+    local jChecks as json
+    local jReport as json
+
+    local lHTTP := .F. as logical
+    local lReleased := .F. as logical
+    local lCompleted := .F. as logical
+    local lPublish := .F. as logical
+
+    local nWorker := 0 as numeric
+    local nStep := 0 as numeric
+    local nCalls := 0 as numeric
+    local nFailures := 0 as numeric
+    local nStarted := 0 as numeric
+    local nFinished := 0 as numeric
+    local nAckBudget as numeric
+    local nWaiting as numeric
+    local nPrevious as numeric
+
     local oClient as object
     local oDataSet as object
-    local cReport := "", cGate := "", cDriver := "", cProfile := "" as character
-    local cStage := "configure" as character
-    local nWorker := 0, nStep := 0, nCalls := 0, nFailures := 0 as numeric
-    local nStarted := 0, nFinished := 0, nAckBudget := HBBRIDGE_CONCURRENCY_ACK_MS as numeric
-    local nWaiting := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs() as numeric
-    local nPrevious := nWaiting as numeric
-    local lHTTP := .F., lReleased := .F., lCompleted := .F., lPublish := .F. as logical
+
+    local xError as variant
+
+    jConfig := JSONObject():New()
+    jChecks := JSONObject():New()
+    jReport := JSONObject():New()
+    nAckBudget := HBBRIDGE_CONCURRENCY_ACK_MS
+    nWaiting := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs()
+    nPrevious := nWaiting
 
     try
         if ValType(jConfig:FromJSON(cConfigJSON)) != "U"
@@ -529,8 +594,10 @@ return(IIf(lCompleted .and. nFailures == 0, 0, 1))
 
 static procedure ConcurrencyInitializeChecks(jChecks as json, lHTTP as logical)
 
-    local nStep := 0 as numeric
     local cPrefix := "" as character
+
+    local nStep := 0 as numeric
+
 
     jChecks["gateReleased"] := .F.
     jChecks["executionCompleted"] := .F.
@@ -574,19 +641,33 @@ static function ConcurrencyCycle(oClient as object, oDataSet as object, cProfile
     cDriver as character, nWorker as numeric, nStep as numeric, lHTTP as logical, ;
     cGateKey as character, jChecks as json, nCalls as numeric) as logical
 
-    local xError as variant
-    local cPrefix := "step" + tlpp.ToStr(nStep) + "." as character
-    local cMarker := "W" + tlpp.ToStr(nWorker) + "S" + tlpp.ToStr(nStep) + cDriver as character
-    local cOwnField := IIf(cDriver == "mssql", "MSSQL_ONLY", "SQLITE_ONLY") as character
-    local cOtherField := IIf(cDriver == "mssql", "SQLITE_ONLY", "MSSQL_ONLY") as character
-    local nBase := nWorker * 1000 + nStep * 10 as numeric
-    local nCallStarted := 0 as numeric
-    local cSQL := ConcurrencySQL(cDriver, nBase, cMarker) as character
+    local cPrefix as character
+    local cMarker as character
+    local cOwnField as character
+    local cOtherField as character
+    local cSQL as character
+
     local jResponse as json
     local jHeader as json
     local jRow as json
     local jInfo as json
-    local lOpened := .F., lCompleted := .T., lStatusValid := .T., lCancelled := .F. as logical
+
+    local lOpened := .F. as logical
+    local lCompleted := .T. as logical
+    local lStatusValid := .T. as logical
+    local lCancelled := .F. as logical
+
+    local nBase as numeric
+    local nCallStarted := 0 as numeric
+
+    local xError as variant
+
+    cPrefix := "step" + tlpp.ToStr(nStep) + "."
+    cMarker := "W" + tlpp.ToStr(nWorker) + "S" + tlpp.ToStr(nStep) + cDriver
+    cOwnField := IIf(cDriver == "mssql", "MSSQL_ONLY", "SQLITE_ONLY")
+    cOtherField := IIf(cDriver == "mssql", "SQLITE_ONLY", "MSSQL_ONLY")
+    nBase := nWorker * 1000 + nStep * 10
+    cSQL := ConcurrencySQL(cDriver, nBase, cMarker)
 
     try
         oDataSet:SetAliasProfile(cProfile)
@@ -764,6 +845,7 @@ static procedure ConcurrencyLogCall(oClient as object, oDataSet as object, lHTTP
 
     local cCode := oDataSet:ErrorCode() as character
     local cNativeText := Upper(AllTrim(cCode)) as character
+
     local nStatus := 0 as numeric
     local nElapsed := Max(0, HBBridge.Client.HBBridgeTime():HBBridgeTimeMs() - nStarted) as numeric
 
@@ -806,8 +888,12 @@ return
 
 static function ConcurrencySQL(cDriver as character, nBase as numeric, cMarker as character) as character
 
+    local cSQL := "" as character
+    local cVersion := "" as character
+    local cField := "" as character
+
     local nRow := 0 as numeric
-    local cSQL := "", cVersion := "", cField := "" as character
+
 
     if cDriver == "mssql"
         cVersion := "CAST(SERVERPROPERTY('ProductVersion') AS VARCHAR(64))"
@@ -869,6 +955,7 @@ static function ConcurrencyDataSetEmpty(oDataSet as object) as logical
 
     local jHeader := oDataSet:Header() as json
     local jRow := oDataSet:GetRow() as json
+
     local lEmpty := oDataSet:Eof() .and. oDataSet:FieldCount() == 0 .and. ;
         oDataSet:RowCount() == 0 .and. !oDataSet:HasNextPage() .and. !oDataSet:HasTotals() .and. ;
         jHeader:ToJSON() == "{}" .and. jRow:ToJSON() == "{}" .and. ;
@@ -901,9 +988,12 @@ return(lOpened .and. oDataSet:RowCount() == 1 .and. oDataSet:FieldCount() == 1 .
 static function ConcurrencyRawMatches(jResponse as json, cDriver as character, nBase as numeric, ;
     cMarker as character, cOwnField as character, cOtherField as character) as logical
 
-    local nRow := 0 as numeric
     local cRow := "" as character
+
     local jCell as json
+
+    local nRow := 0 as numeric
+
 
     if ValType(jResponse) != "J"
         return .F.
@@ -968,8 +1058,11 @@ return(.F.)
 
 static function ConcurrencyWaitReleased(jWorkers as json, nWorkers as numeric, nStarted as numeric, nPrevious as numeric, nBudgetMs as numeric) as logical
 
-    local nWorker := 0, nReleased := 0 as numeric
     local jWorker as json
+
+    local nWorker := 0 as numeric
+    local nReleased := 0 as numeric
+
 
     do while ConcurrencyRemaining(nStarted, nBudgetMs, @nPrevious) > 0 .and. !KillApp()
         nReleased := 0
@@ -1004,8 +1097,10 @@ return(GetGlbValue(cGateKey) == "GO" .and. !KillApp())
 
 static procedure ConcurrencyAbortWorkers(jWorkers as json, nWorkers as numeric)
 
-    local nWorker := 0 as numeric
     local jWorker as json
+
+    local nWorker := 0 as numeric
+
 
     for nWorker := 1 to nWorkers
         jWorker := jWorkers[tlpp.ToStr(nWorker)]
@@ -1038,8 +1133,10 @@ return(.F.)
 
 static procedure ConcurrencyClearWorkers(jWorkers as json, nWorkers as numeric)
 
-    local nWorker := 0 as numeric
     local jWorker as json
+
+    local nWorker := 0 as numeric
+
 
     for nWorker := 1 to nWorkers
         jWorker := jWorkers[tlpp.ToStr(nWorker)]
@@ -1053,9 +1150,14 @@ return
 
 static procedure ConcurrencyLogPending(jWorkers as json, nWorkers as numeric, cStage as character)
 
-    local nWorker := 0 as numeric
     local jWorker as json
-    local lReady := .F., lResult := .F., lGate := .F. as logical
+
+    local lReady := .F. as logical
+    local lResult := .F. as logical
+    local lGate := .F. as logical
+
+    local nWorker := 0 as numeric
+
 
     for nWorker := 1 to nWorkers
         jWorker := jWorkers[tlpp.ToStr(nWorker)]
@@ -1076,12 +1178,21 @@ return
 static procedure ConcurrencyCollect(jReport as json, jWorker as json, jChecks as json, ;
     cID as character, lHTTP as logical, nWorkerChecks as numeric, nWorkerFailures as numeric)
 
-    local cPrefix := "worker" + cID + "." as character
     local aNames as array
-    local nCheck := 0, nFailures := 0 as numeric
-    local lValid := .T. as logical
-    local jExpected := JSONObject():New() as json
     local aExpected as array
+
+    local cPrefix as character
+
+    local jExpected as json
+
+    local lValid := .T. as logical
+
+    local nCheck := 0 as numeric
+    local nFailures := 0 as numeric
+    local nExpected := 0 as numeric
+
+    cPrefix := "worker" + cID + "."
+    jExpected := JSONObject():New()
 
     if !jReport:HasProperty("worker") .or. !jReport:HasProperty("http") .or. ;
         !jReport:HasProperty("thread") .or. !jReport:HasProperty("startedMs") .or. ;
@@ -1101,7 +1212,8 @@ static procedure ConcurrencyCollect(jReport as json, jWorker as json, jChecks as
         ConcurrencyInitializeChecks(jExpected, lHTTP)
         // Native GetNames requires arrays; check storage remains keyed JSON.
         aExpected := jExpected:GetNames()
-        for nCheck := 1 to Len(aExpected)
+        nExpected := Len(aExpected)
+        for nCheck := 1 to nExpected
             if !jReport["checks"]:HasProperty(aExpected[nCheck])
                 lValid := .F.
                 exit
@@ -1145,12 +1257,19 @@ return
 
 static function ConcurrencyCheckFailures(jChecks as json, cLabel as character, lLog as logical) as numeric
 
-    local aNames := jChecks:GetNames() as array
-    local nCheck := 0, nFailures := 0 as numeric
+    local aNames as array
+
     local lPassed := .F. as logical
 
+    local nCheck := 0 as numeric
+    local nFailures := 0 as numeric
+    local nNames := 0 as numeric
+
+    aNames := jChecks:GetNames()
+
     // GetNames is a native array API; no positional array stores test records.
-    for nCheck := 1 to Len(aNames)
+    nNames := Len(aNames)
+    for nCheck := 1 to nNames
         lPassed := .F.
         if ValType(jChecks[aNames[nCheck]]) == "L"
             lPassed := jChecks[aNames[nCheck]]
@@ -1232,6 +1351,7 @@ return(nTotal)
 static function ConcurrencyInteger(cNumber as character, nMaximum as numeric, lAllowZero as logical) as numeric
 
     local nIndex := 0, nDigit := 0, nValue := 0 as numeric
+    local nLength := 0 as numeric
 
     if ValType(lAllowZero) == "U"
         lAllowZero := .F.
@@ -1242,7 +1362,8 @@ static function ConcurrencyInteger(cNumber as character, nMaximum as numeric, lA
     if Len(cNumber) == 0 .or. Left(cNumber, 1) == "0"
         return -1
     endif
-    for nIndex := 1 to Len(cNumber)
+    nLength := Len(cNumber)
+    for nIndex := 1 to nLength
         nDigit := Asc(SubStr(cNumber, nIndex, 1)) - Asc("0")
         if nDigit < 0 .or. nDigit > 9 .or. nValue > Int((nMaximum - nDigit) / 10)
             return -1

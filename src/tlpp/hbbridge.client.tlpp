@@ -19,15 +19,18 @@ namespace HBBridge.Client
 class HBBridgeClient
 
     private data cHost as character
+    private data cConfigurationError as character
+
+    private data lBusy as logical
+    private data lClosed as logical
+
     private data nPort as numeric
     private data nTimeout as numeric
     private data nMaxPayloadBytes as numeric
     private data nMaxWireBytes as numeric
     private data nReadChunkBytes as numeric
-    private data cConfigurationError as character
+
     private data oSocketClient as object
-    private data lBusy as logical
-    private data lClosed as logical
 
     public method New(cHost as character, nPort as numeric, nTimeout as numeric, ;
         nMaxPayloadBytes as numeric, nMaxWireBytes as numeric, nReadChunkBytes as numeric) as object
@@ -319,6 +322,7 @@ return(jResp)
 method Close() class HBBridgeClient
 
     local lReleased := .T. as logical
+
     local xError as variant
 
     if self:lBusy
@@ -343,6 +347,7 @@ return(lReleased)
 static function ClientSocketDisconnect(oSocket as object) as logical
 
     local lClosed := .T. as logical
+
     local xError as variant
 
     if ValType(oSocket) == "O"
@@ -388,8 +393,10 @@ static function ParseResponseFrame(cFrame as character, nMaxPayloadBytes as nume
     cCode as character, cError as character) as character
 
     local cHeader := "", cSignature := "", cCodec := "", cSize := "" as character
+
     local nHeaderEnd := At(Chr(10), cFrame) as numeric
     local nFirst := 0, nSecond := 0, nIndex := 0, nDigit := 0, nSize := 0 as numeric
+    local nSizeLength := 0 as numeric
 
     cCode := "INVALID_FRAME"
     cError := "Response frame has an invalid header."
@@ -417,7 +424,8 @@ static function ParseResponseFrame(cFrame as character, nMaxPayloadBytes as nume
     if !(cCodec == "JSON") .or. Empty(cSize)
         return ""
     endif
-    for nIndex := 1 to Len(cSize)
+    nSizeLength := Len(cSize)
+    for nIndex := 1 to nSizeLength
         nDigit := Asc(SubStr(cSize, nIndex, 1)) - 48
         if nDigit < 0 .or. nDigit > 9
             return ""

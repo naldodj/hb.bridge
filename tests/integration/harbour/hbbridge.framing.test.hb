@@ -2,11 +2,17 @@
 
 PROCEDURE M2FramingTests( nFailures, nChecks )
 
-    LOCAL cData := M2VariedData( 240000 ), cJson, cFrame, cZip, cDecoded, nStatus
-    LOCAL cPayload, cBad, hServer, hResponse, nWireSize, aInvalid, cInvalid, nPayloadSize
+    LOCAL aInvalid
+
+    LOCAL cLF := hb_BChar( 10 )
+    LOCAL cData := M2VariedData( 240000 ), cJson, cFrame, cZip, cDecoded, cPayload, cBad, cInvalid
+
+    LOCAL hServer, hResponse
+
+    LOCAL nStatus, nWireSize, nPayloadSize
 
     cJson := hb_jsonEncode( { "service" => "Echo", "params" => { "data" => cData } } )
-    cFrame := "HBBRIDGE/1|JSON|" + hb_ntos( hb_BLen( cJson ) ) + hb_BChar( 10 ) + cJson
+    cFrame := "HBBRIDGE/1|JSON|" + hb_ntos( hb_BLen( cJson ) ) + cLF + cJson
     cZip := hb_gzCompress( cFrame )
     M1Assert( hb_BLen( cZip ) > 65535, "M2 varied gzip exceeds a 65535-byte socket read", @nFailures, @nChecks )
     M2CompressorTests( cFrame, @nFailures, @nChecks )
@@ -35,22 +41,22 @@ PROCEDURE M2FramingTests( nFailures, nChecks )
     M1Assert( HBBridgeParseFrame( cFrame, @cPayload ) .AND. ;
         cPayload == cJson, ;
         "M2 parses a large body without confusing it with the header limit", @nFailures, @nChecks )
-    M1Assert( HBBridgeParseHeader( "HBBRIDGE/1|JSON|100000000" + hb_BChar( 10 ), @nPayloadSize ) > 0 .AND. ;
+    M1Assert( HBBridgeParseHeader( "HBBRIDGE/1|JSON|100000000" + cLF, @nPayloadSize ) > 0 .AND. ;
         nPayloadSize == 100000000, "M2 accepts a nine-digit size without allocating its body", @nFailures, @nChecks )
     M1Assert( HBBridgeParseHeader( "HBBRIDGE/1|JSON|" + hb_ntos( HBBridgeRuntimeLimits()[ "stringBytesMax" ] ) + ;
-        hb_BChar( 10 ), @nPayloadSize ) == -1, "M2 rejects native length overflow including the header", @nFailures, @nChecks )
+        cLF, @nPayloadSize ) == -1, "M2 rejects native length overflow including the header", @nFailures, @nChecks )
     M1Assert( ! HBBridgeParseFrame( cJson, @cPayload ), "M2 rejects JSON without its protocol frame", @nFailures, @nChecks )
     aInvalid := { "HBBRIDGE/1|JSON|2x", "HBBRIDGE/1|JSON|+2", "HBBRIDGE/1|JSON| 2", ;
         "HBBRIDGE/1|JSON|2.0", "HBBRIDGE/1|JSON|0", "HBBRIDGE/1|JSON|16777217", ;
         "HBBRIDGE/1|JSON|000000002", "HBBRIDGE/1|JSONx|2", "HBBRIDGE/1|JSON|2|extra", ;
         "HBBRIDGE/1|JSON|" + Space( 128 ), "HBS1|JSON|2", "HBBRIDGE/2|JSON|2" }
     FOR EACH cInvalid IN aInvalid
-        M1Assert( ! HBBridgeParseFrame( cInvalid + hb_BChar( 10 ) + "{}", @cPayload ), ;
+        M1Assert( ! HBBridgeParseFrame( cInvalid + cLF + "{}", @cPayload ), ;
             "M2 rejects malformed header " + hb_BLeft( cInvalid, 45 ), @nFailures, @nChecks )
     NEXT
-    M1Assert( ! HBBridgeParseFrame( "HBBRIDGE/1|JSON|3" + hb_BChar( 10 ) + "{}", @cPayload ), ;
+    M1Assert( ! HBBridgeParseFrame( "HBBRIDGE/1|JSON|3" + cLF + "{}", @cPayload ), ;
         "M2 rejects a shorter body than declared", @nFailures, @nChecks )
-    M1Assert( ! HBBridgeParseFrame( "HBBRIDGE/1|JSON|1" + hb_BChar( 10 ) + "{}", @cPayload ), ;
+    M1Assert( ! HBBridgeParseFrame( "HBBRIDGE/1|JSON|1" + cLF + "{}", @cPayload ), ;
         "M2 rejects a longer body than declared", @nFailures, @nChecks )
     M1Assert( ! HBBridgeParseFrame( "HBBRIDGE/1|JSON|2", @cPayload ), ;
         "M2 rejects a header without its terminator", @nFailures, @nChecks )
@@ -63,8 +69,8 @@ PROCEDURE M2FramingTests( nFailures, nChecks )
     hResponse := M2Exchange( hServer[ "port" ], cZip, @nWireSize )
     M1Assert( M2EchoMatches( hResponse, cData ), "M2 fragmented gzip Echo preserves every byte", @nFailures, @nChecks )
     M1Assert( nWireSize > 65535, "M2 response also exceeds 65535 compressed bytes", @nFailures, @nChecks )
-    FOR EACH cInvalid IN { hb_gzCompress( "HBS1|JSON|2" + hb_BChar( 10 ) + "{}" ), ;
-        hb_gzCompress( "HBBRIDGE/2|JSON|2" + hb_BChar( 10 ) + "{}" ), ;
+    FOR EACH cInvalid IN { hb_gzCompress( "HBS1|JSON|2" + cLF + "{}" ), ;
+        hb_gzCompress( "HBBRIDGE/2|JSON|2" + cLF + "{}" ), ;
         hb_gzCompress( cJson ), hb_ZCompress( cFrame ) }
         hResponse := M2Exchange( hServer[ "port" ], cInvalid, @nWireSize )
         M1Assert( hResponse == NIL .AND. nWireSize == 0, "M2 unsupported wire format closes before dispatch", @nFailures, @nChecks )
@@ -87,9 +93,17 @@ RETURN
 
 STATIC PROCEDURE M2SlowClient( cZip, nFailures, nChecks )
 
-    LOCAL hSocket := hb_socketOpen( HB_SOCKET_AF_INET, HB_SOCKET_PT_STREAM, HB_SOCKET_IPPROTO_IP )
-    LOCAL nStarted, nReceived, nError, cByte := Space( 1 ), lSent
-    LOCAL hServer := HBBridgeServerStart( 0, 1, NIL, NIL, NIL, ;
+    LOCAL cByte
+
+    LOCAL hSocket, hServer
+
+    LOCAL lSent
+
+    LOCAL nStarted, nReceived, nError
+
+    hSocket := hb_socketOpen( HB_SOCKET_AF_INET, HB_SOCKET_PT_STREAM, HB_SOCKET_IPPROTO_IP )
+    cByte := Space( 1 )
+    hServer := HBBridgeServerStart( 0, 1, NIL, NIL, NIL, ;
         { "protheusTimeoutMs" => 1500, "protheusReadChunkBytes" => 1 } )
 
     IF ! HB_ISHASH( hServer )
@@ -130,7 +144,10 @@ STATIC PROCEDURE M2LargeEcho( nPort, cSeed, nFailures, nChecks )
     LOCAL cData := Replicate( cSeed, 100 )
     LOCAL cJson := hb_jsonEncode( { "service" => "Echo", "params" => { "data" => cData } } )
     LOCAL cZip := hb_gzCompress( "HBBRIDGE/1|JSON|" + hb_ntos( hb_BLen( cJson ) ) + hb_BChar( 10 ) + cJson )
-    LOCAL hResponse, nWireSize
+
+    LOCAL hResponse
+
+    LOCAL nWireSize
 
     M1Assert( hb_BLen( cJson ) > 16777216 .AND. hb_BLen( cZip ) > 16777216, ;
         "M2 real request exceeds 16 MiB both before and after gzip", @nFailures, @nChecks )
@@ -143,24 +160,29 @@ RETURN
 
 STATIC PROCEDURE M2PolicyTests( cData, cJson, cZip, nFailures, nChecks )
 
-    LOCAL hServer, hResponse, nWireSize
     LOCAL aPolicies := { { "protheusMaxPayloadBytes" => 1000 }, ;
         { "protheusMaxWireBytes" => 1000 }, { "protheusMaxPayloadBytes" => hb_BLen( cJson ) }, ;
         { "protheusMaxWireBytes" => hb_BLen( cZip ) } }
     LOCAL aNames := { "payload budget rejects oversized input", "wire budget rejects oversized input", ;
         "payload budget also constrains the larger Echo response", ;
-        "wire budget also constrains the larger Echo response" }, hPolicy, nIndex
+        "wire budget also constrains the larger Echo response" }
+
+    LOCAL hServer, hResponse, hPolicy
+
+    LOCAL nWireSize, nIndex, nPolicies, nZipBytes
 
     M1Assert( HBBridgeServerStart( 0, 1, NIL, NIL, NIL, { "protheusReadChunkBytes" => 0 } ) == NIL, ;
         "M2 direct transport API rejects invalid policies", @nFailures, @nChecks )
-    FOR nIndex := 1 TO Len( aPolicies )
+    nZipBytes := hb_BLen( cZip )
+    nPolicies := Len( aPolicies )
+    FOR nIndex := 1 TO nPolicies
         hPolicy := aPolicies[ nIndex ]
         hServer := HBBridgeServerStart( 0, 1, NIL, NIL, NIL, hPolicy )
         M1Assert( HB_ISHASH( hServer ), "M2 configured budget server starts", @nFailures, @nChecks )
         IF HB_ISHASH( hServer )
             hResponse := M2Exchange( hServer[ "port" ], cZip, @nWireSize )
             IF nIndex == 4
-                M1Assert( hResponse == NIL .AND. nWireSize > 0 .AND. nWireSize <= hb_BLen( cZip ), ;
+                M1Assert( hResponse == NIL .AND. nWireSize > 0 .AND. nWireSize <= nZipBytes, ;
                     "M2 " + aNames[ nIndex ], @nFailures, @nChecks )
             ELSE
                 M1Assert( hResponse == NIL .AND. nWireSize == 0, "M2 " + aNames[ nIndex ], @nFailures, @nChecks )
@@ -182,7 +204,13 @@ RETURN
 
 STATIC PROCEDURE M2CompressorTests( cFrame, nFailures, nChecks )
 
-    LOCAL nStatus, cZip, pEncoder, aEncoded, cPart
+    LOCAL aEncoded
+
+    LOCAL cZip, cPart
+
+    LOCAL nStatus
+
+    LOCAL pEncoder
 
     cZip := M2Encode( hb_BLeft( cFrame, 513 ), 1, @nStatus )
     M1Assert( nStatus == 1 .AND. hb_ZUncompress( cZip ) == hb_BLeft( cFrame, 513 ), ;
@@ -208,13 +236,24 @@ RETURN
 
 STATIC FUNCTION M2Encode( cInput, nChunkSize, nStatus )
 
-    LOCAL pEncoder := HBBridgeDeflateOpen(), nOffset := 1, aEncoded, cPart, cZip := "", nCount
+    LOCAL aEncoded
+
+    LOCAL cPart, cZip
+
+    LOCAL nOffset, nCount, nInputBytes
+
+    LOCAL pEncoder
+
+    pEncoder := HBBridgeDeflateOpen()
+    nOffset := 1
+    cZip := ""
 
     nStatus := 0
-    DO WHILE nOffset <= hb_BLen( cInput ) .AND. nStatus == 0
-        nCount := Min( nChunkSize, hb_BLen( cInput ) - nOffset + 1 )
+    nInputBytes := hb_BLen( cInput )
+    DO WHILE nOffset <= nInputBytes .AND. nStatus == 0
+        nCount := Min( nChunkSize, nInputBytes - nOffset + 1 )
         aEncoded := HBBridgeDeflateFeed( pEncoder, hb_BSubStr( cInput, nOffset, nCount ), ;
-            nOffset + nCount > hb_BLen( cInput ) )
+            nOffset + nCount > nInputBytes )
         nStatus := aEncoded[ 1 ]
         FOR EACH cPart IN aEncoded[ 2 ]
             cZip += cPart
@@ -227,7 +266,9 @@ RETURN cZip
 
 STATIC FUNCTION M2VariedData( nSize )
 
-    LOCAL cData := Space( nSize ), nIndex, nSeed := 12345
+    LOCAL cData := Space( nSize )
+
+    LOCAL nIndex, nSeed := 12345
 
     FOR nIndex := 1 TO nSize
         nSeed := ( nSeed * 48271 ) % 2147483647
@@ -238,10 +279,21 @@ RETURN cData
 
 STATIC FUNCTION M2Decode( cZip, nChunkSize, nLimit, nStatus )
 
-    LOCAL pDecoder := HBBridgeInflateOpen( nLimit ), nOffset := 1, aDecoded, cPart, cDecoded := ""
+    LOCAL aDecoded
+
+    LOCAL cPart, cDecoded
+
+    LOCAL nOffset, nZipBytes
+
+    LOCAL pDecoder
+
+    pDecoder := HBBridgeInflateOpen( nLimit )
+    nOffset := 1
+    cDecoded := ""
 
     nStatus := 0
-    DO WHILE nOffset <= hb_BLen( cZip ) .AND. nStatus == 0
+    nZipBytes := hb_BLen( cZip )
+    DO WHILE nOffset <= nZipBytes .AND. nStatus == 0
         aDecoded := HBBridgeInflateFeed( pDecoder, hb_BSubStr( cZip, nOffset, nChunkSize ) )
         nStatus := aDecoded[ 1 ]
         FOR EACH cPart IN aDecoded[ 2 ]
@@ -256,9 +308,17 @@ RETURN cDecoded
 /* Independent reference receiver: read FIN, inflate once, compare exact framing. */
 STATIC FUNCTION M2Exchange( nPort, cZip, nWireSize )
 
-    LOCAL hSocket := hb_socketOpen( HB_SOCKET_AF_INET, HB_SOCKET_PT_STREAM, HB_SOCKET_IPPROTO_IP )
-    LOCAL nOffset := 1, nCount, nSent, nReceived, nHeaderEnd, cChunk, cWire := "", cFrame
-    LOCAL cJson, hResponse := NIL, nDeadline := HBBridgeMonotonicMs() + 30000
+    LOCAL cChunk, cWire, cFrame, cJson
+
+    LOCAL hSocket, hResponse
+
+    LOCAL nOffset, nCount, nSent, nReceived, nHeaderEnd, nDeadline, nZipBytes, nReadChunkBytes := 65536
+
+    hSocket := hb_socketOpen( HB_SOCKET_AF_INET, HB_SOCKET_PT_STREAM, HB_SOCKET_IPPROTO_IP )
+    nOffset := 1
+    cWire := ""
+    hResponse := NIL
+    nDeadline := HBBridgeMonotonicMs() + 30000
 
     nWireSize := 0
     IF Empty( hSocket )
@@ -268,13 +328,14 @@ STATIC FUNCTION M2Exchange( nPort, cZip, nWireSize )
         hb_socketClose( hSocket )
         RETURN NIL
     ENDIF
-    DO WHILE nOffset <= hb_BLen( cZip )
+    nZipBytes := hb_BLen( cZip )
+    DO WHILE nOffset <= nZipBytes
         /* Split gzip header and final trailer bytes, not just the JSON body. */
-        nCount := Min( 4093, hb_BLen( cZip ) - nOffset + 1 )
-        IF nOffset <= 10 .OR. hb_BLen( cZip ) - nOffset < 8
+        nCount := Min( 4093, nZipBytes - nOffset + 1 )
+        IF nOffset <= 10 .OR. nZipBytes - nOffset < 8
             nCount := 1
-        ELSEIF nOffset + nCount > hb_BLen( cZip ) - 7
-            nCount := hb_BLen( cZip ) - 7 - nOffset
+        ELSEIF nOffset + nCount > nZipBytes - 7
+            nCount := nZipBytes - 7 - nOffset
         ENDIF
         nSent := hb_socketSend( hSocket, hb_BSubStr( cZip, nOffset, nCount ), NIL, 0, 1000 )
         IF nSent <= 0
@@ -287,8 +348,8 @@ STATIC FUNCTION M2Exchange( nPort, cZip, nWireSize )
     ENDDO
     hb_socketShutdown( hSocket, HB_SOCKET_SHUT_WR )
     DO WHILE HBBridgeMonotonicMs() < nDeadline
-        cChunk := Space( 65536 )
-        nReceived := hb_socketRecv( hSocket, @cChunk, hb_BLen( cChunk ), 0, Max( 1, nDeadline - HBBridgeMonotonicMs() ) )
+        cChunk := Space( nReadChunkBytes )
+        nReceived := hb_socketRecv( hSocket, @cChunk, nReadChunkBytes, 0, Max( 1, nDeadline - HBBridgeMonotonicMs() ) )
         IF nReceived <= 0
             EXIT
         ENDIF
@@ -296,7 +357,7 @@ STATIC FUNCTION M2Exchange( nPort, cZip, nWireSize )
     ENDDO
     hb_socketClose( hSocket )
     nWireSize := hb_BLen( cWire )
-    IF nOffset <= hb_BLen( cZip ) .OR. nReceived != 0 .OR. Empty( cWire )
+    IF nOffset <= nZipBytes .OR. nReceived != 0 .OR. Empty( cWire )
         RETURN NIL
     ENDIF
     cFrame := hb_ZUncompress( cWire )

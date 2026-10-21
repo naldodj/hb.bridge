@@ -81,6 +81,7 @@ static HB_BOOL BridgeIntegerValue( PHB_ITEM item, HB_MAXUINT maximum, HB_MAXINT 
     else
     {
         double value = hb_itemGetND( item );
+
         HB_MAXUINT unsignedValue;
 
         /* Reject NaN/infinity before conversion. Unsigned conversion detects
@@ -99,9 +100,12 @@ static HB_BOOL BridgeIntegerValue( PHB_ITEM item, HB_MAXUINT maximum, HB_MAXINT 
 
 HB_FUNC( HBBRIDGEINTEGERVALID )
 {
+    HB_BOOL valid;
+
     HB_MAXINT maximum;
     HB_MAXINT value;
-    HB_BOOL valid = BridgeIntegerValue( hb_param( 2, HB_IT_NUMERIC ),
+
+    valid = BridgeIntegerValue( hb_param( 2, HB_IT_NUMERIC ),
         ( HB_MAXUINT ) HB_VMLONG_MAX, &maximum );
 
     if( valid )
@@ -126,6 +130,7 @@ HB_FUNC( HBBRIDGERUNTIMELIMITS )
     HB_SIZE stringLimit = BridgeStringLimit();
     HB_SIZE socketLimit = stringLimit < ( HB_SIZE ) LONG_MAX ? stringLimit : ( HB_SIZE ) LONG_MAX;
     HB_SIZE zlibLimit = stringLimit < ( HB_SIZE ) UINT_MAX ? stringLimit : ( HB_SIZE ) UINT_MAX;
+
     PHB_ITEM limits = hb_hashNew( NULL );
 
     BridgeHashLimit( limits, "stringBytesMax", ( HB_MAXINT ) stringLimit );
@@ -139,8 +144,10 @@ HB_FUNC( HBBRIDGERUNTIMELIMITS )
 
 HB_FUNC( HBBRIDGEINFLATEOPEN )
 {
-    HB_SIZE stringLimit = BridgeStringLimit();
     HB_MAXINT limit;
+
+    HB_SIZE stringLimit = BridgeStringLimit();
+
     HBBRIDGE_INFLATER * state;
 
     if( ! BridgeIntegerValue( hb_param( 1, HB_IT_NUMERIC ),
@@ -161,25 +168,33 @@ HB_FUNC( HBBRIDGEINFLATEOPEN )
 /* Result: { status (0=more, 1=complete, -1=invalid), output chunks, consumed }. */
 HB_FUNC( HBBRIDGEINFLATEFEED )
 {
-    HBBRIDGE_INFLATER * state = ( HBBRIDGE_INFLATER * ) hb_parptrGC( &bridge_inflate_gc, 1 );
-    HB_SIZE length = hb_parclen( 2 );
-    PHB_ITEM result = hb_itemArrayNew( 3 );
-    PHB_ITEM chunks = hb_itemArrayNew( 0 );
+    HB_SIZE length, consumed = 0;
+
     int status = -1;
-    HB_SIZE consumed = 0;
+
+    HBBRIDGE_INFLATER * state;
+    PHB_ITEM result, chunks;
+
+    state = ( HBBRIDGE_INFLATER * ) hb_parptrGC( &bridge_inflate_gc, 1 );
+    length = hb_parclen( 2 );
+    result = hb_itemArrayNew( 3 );
+    chunks = hb_itemArrayNew( 0 );
 
     if( state && state->initialized && ! state->failed && ! state->finished &&
         HB_ISCHAR( 2 ) && length <= UINT_MAX && length <= BridgeStringLimit() )
     {
         unsigned char output[ 32768 ];
+
         state->stream.next_in = ( Bytef * ) HB_UNCONST( hb_parc( 2 ) );
         state->stream.avail_in = ( uInt ) length;
         status = 0;
         for( ;; )
         {
-            uInt before = state->stream.avail_in;
             HB_SIZE produced;
+
             int code;
+
+            uInt before = state->stream.avail_in;
 
             state->stream.next_out = output;
             state->stream.avail_out = sizeof( output );
