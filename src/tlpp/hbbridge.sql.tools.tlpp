@@ -500,22 +500,25 @@ return(cNextNum)
 
 static method GetNonBlobColumns(cTable) class HBBridgeSqlTools
     local aTCSQLResult as array
+    local cTCGetDB:=TCGetDB() as character
     local cNonBlobColumns as character
     paramtype 1 var cTable as character
-    beginContent var cNonBlobColumns
-        SELECT STRING_AGG(QUOTENAME(c.name), ', ') AS COLUNAS
-        FROM sys.columns c
-        JOIN sys.types t ON c.user_type_id = t.user_type_id
-        WHERE c.object_id = OBJECT_ID('dbo.[@@__TABLE__@@]')
-        AND t.name NOT IN ('image', 'text', 'ntext', 'varbinary')
-        AND NOT (t.name IN ('varchar', 'nvarchar', 'varbinary') AND c.max_length = -1)
-    endContent
-    cNonBlobColumns:=StrTran(cNonBlobColumns,"@@__TABLE__@@",cTable)
-    aTCSQLResult:=Array(0)
-    if ((TCSQLToArr(cNonBlobColumns,@aTCSQLResult)!=0).or.(Empty(aTCSQLResult)))
+    if (cTCGetDB=="MSSQL")
+        beginContent var cNonBlobColumns
+            SELECT STRING_AGG(QUOTENAME(c.name), ', ') AS COLUNAS
+            FROM sys.columns c
+            JOIN sys.types t ON c.user_type_id = t.user_type_id
+            WHERE c.object_id = OBJECT_ID('dbo.[@@__TABLE__@@]')
+            AND t.name NOT IN ('image', 'text', 'ntext', 'varbinary')
+            AND NOT (t.name IN ('varchar', 'nvarchar', 'varbinary') AND c.max_length = -1)
+        endContent
+        cNonBlobColumns:=StrTran(cNonBlobColumns,"@@__TABLE__@@",cTable)
+        aTCSQLResult:=Array(0)
+        if ((TCSQLToArr(cNonBlobColumns,@aTCSQLResult)!=0).or.(Empty(aTCSQLResult)))
+            FWFreeArray(@aTCSQLResult)
+            return("")
+        endif
+        cNonBlobColumns:=aTCSQLResult[1][1]
         FWFreeArray(@aTCSQLResult)
-        return("")
     endif
-    cNonBlobColumns:=aTCSQLResult[1][1]
-    FWFreeArray(@aTCSQLResult)
 return(cNonBlobColumns)

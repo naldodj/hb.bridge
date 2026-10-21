@@ -1,11 +1,10 @@
 /*----------------------------------------------------------------------
-
  _      _      _            _      _                  _                                               _         _
 | |__  | |__  | |__   _ __ (_)  __| |  __ _   ___    | |__   _ __   ___  __      __ ___   ___      __| |  __ _ | |_   __ _
 | '_ \ | '_ \ | '_ \ | '__|| | / _` | / _` | / _ \   | '_ \ | '__| / _ \ \ \ /\ / // __| / _ \    / _` | / _` || __| / _` |
 | | | || |_) || |_) || |   | || (_| || (_| ||  __/ _ | |_) || |   | (_) | \ V  V / \__ \|  __/ _ | (_| || (_| || |_ | (_| |
-|_| |_||_.__/ |_.__/ |_|   |_| \__,_| \__,| \___|(_)|_.__/ |_|    \___/   \_/\_/  |___/ \___|(_) \__,_| \__,_| \__| \__,_|
-
+|_| |_||_.__/ |_.__/ |_|   |_| \__,_| \__, | \___|(_)|_.__/ |_|    \___/   \_/\_/  |___/ \___|(_) \__,_| \__,_| \__| \__,_|
+                                      |___/
 Released to Public Domain.
 --------------------------------------------------------------------------------------
 */
@@ -133,8 +132,6 @@ static function Browse(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as charact
             cField:=aHeader[nField]
             if (aFWBrwModel[nField][6]=="D")
                 aFWBrwColumn[nField]:SetData(&('{|oSelf|SToD(aFWBrwData[oFWBrowse:nAT]["'+cField+'"])}'))
-            elseif (aFWBrwModel[nField][6]=="C")
-                aFWBrwColumn[nField]:SetData(&('{|oSelf|aFWBrwData[oFWBrowse:nAT]["'+cField+'"]}'))
             else
                 aFWBrwColumn[nField]:SetData(&('{|oSelf|aFWBrwData[oFWBrowse:nAT]["'+cField+'"]}'))
             endif
@@ -378,13 +375,19 @@ static function Browse(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as charact
 return(nil)
 
 static function BrowseGetData(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as character,jHBBridgeDataSetPage as json,cOption as character,cFilterExpr as character) as array
+
     local aFWBrwData:=Array(0) as array
+
+    local cSQL:=BrowseSQL(cHBBridgeDataSetSQL,cFilterExpr) as character
+
     local jRows as json
     local jRow as json
-    local cSQL:=BrowseSQL(cHBBridgeDataSetSQL,cFilterExpr) as character
+
     local lOpened:=.F. as logical
+
     local nRow as numeric
     local nRows as numeric
+
     if (ValType(jHBBridgeDataSetPage)=="J")
         if (cOption=="previous")
             lOpened:=oHBBridgeDataSet:PreviousPage()
@@ -403,9 +406,11 @@ static function BrowseGetData(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as 
     else
         lOpened:=oHBBridgeDataSet:OpenSQL(cSQL)
     endif
+
     if (!lOpened)
         return(nil)
     endif
+
     nRows:=oHBBridgeDataSet:RowCount()
     jRows:=oHBBridgeDataSet:GetRows()
     for nRow:=1 to nRows
@@ -414,7 +419,9 @@ static function BrowseGetData(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as 
         jRow:FromJSON(DecodeUTF8(jRows[tlpp.ToStr(nRow)]:ToJSON()))
         aAdd(aFWBrwData,jRow)
     next
+
     FreeObj(@jRows)
+
 return(aFWBrwData)
 
 static function BrowseSQL(cSQL as character,cFilterExpr as character) as character
@@ -426,13 +433,8 @@ static function BrowseSQL(cSQL as character,cFilterExpr as character) as charact
 return(cSQL)
 
 static procedure BrowseReleaseRows(aRows as array)
-    local nRow as numeric
     if (ValType(aRows)=="A")
-        for nRow:=1 to Len(aRows)
-            if (ValType(aRows[nRow])=="J")
-                FreeObj(@aRows[nRow])
-            endif
-        next
+        aEval(aRows,{|x|if((ValType(x)=="J"),FreeObj(@x),nil)})
         FWFreeArray(@aRows)
     endif
 return
@@ -467,15 +469,15 @@ static function BuildCustomFilder(oHBBridgeDataSet as object,cHBBridgeDataSetSQL
     local aFWBrwData as array
     local aCustomFilter as array
 
+    local cF3 as character
     local cField as character
     local cTitle as character
     local cAliasTmp as character
-    local cF3 as character
 
     local jF3 as json
     local jHeader as json
-    local jCustomFilter as json
     local jFilter as json
+    local jCustomFilter as json
 
     local lTamSX3 as logical
 
@@ -557,10 +559,11 @@ static function BuildCustomFilder(oHBBridgeDataSet as object,cHBBridgeDataSetSQL
 
     endif
 
-    FWFreeArray(@aHeader)
-    FWFreeArray(@aFields)
     FreeObj(@jF3)
     FreeObj(@jHeader)
+
+    FWFreeArray(@aHeader)
+    FWFreeArray(@aFields)
 
     if (empty(cFilterExpr))
         cFilterExpr:="(1=1)"
@@ -621,12 +624,15 @@ static function FilterLiteral(xValue as variant,cFieldType as character,lSQL as 
 return("'"+StrTran(cValue,"'","''")+"'")
 
 static function __GetFieldType(cFieldType as character) as character
-    cFieldType:=StrTran(cFieldType,"I","N")
-    cFieldType:=StrTran(cFieldType,"B","N")
-    cFieldType:=StrTran(cFieldType,"T","C")
+    cFieldType:=HBBridge.Helper.HBBridgeStrTools():StrReplaceEx(;
+        cFieldType;
+        ,{"I","N"};
+        ,{"B","N"};
+        ,{"T","C"};
+    )
 return(Left(cFieldType,1))
 
-static Procedure BrowseCallBack(oFWBrowse as object,aFWBrwData as array,oHBBridgeDataSet as object,cHBBridgeDataSetSQL as character,jHBBridgeDataSetPage as json,cOption as character,cFilterExpr as character)
+static procedure BrowseCallBack(oFWBrowse as object,aFWBrwData as array,oHBBridgeDataSet as object,cHBBridgeDataSetSQL as character,jHBBridgeDataSetPage as json,cOption as character,cFilterExpr as character)
 
     local lCallBack as logical
     local aNewData as array
@@ -661,12 +667,13 @@ return
 
 static function __FWBrowseSeek(oFWSeek as object,oFWBrowse as object,aFWBrwData as array,oHBBridgeDataSet as object,cHBBridgeDataSetSQL as character,jHBBridgeDataSetPage as json,cFilterExpr as character) as numeric
 
-    local cType as character
     local cSeek as character
     local cSize as character
+    local cType as character
+    local cField as character
     local cDecimal as character
     local cSQLSeek as character
-    local cField as character
+
     local dSeek as date
 
     local nATCol:=0 as numeric
@@ -727,9 +734,9 @@ static function __FWBrowseSeek(oFWSeek as object,oFWBrowse as object,aFWBrwData 
 return(1)
 
 static function BrowseNumberValid(cNumber as character) as logical
+    local nDots:=0 as numeric
     local nIndex:=1 as numeric
     local nDigits:=0 as numeric
-    local nDots:=0 as numeric
     local cChar as character
     if ((!Empty(cNumber)).and.(Left(cNumber,1)$"+-"))
         nIndex++
