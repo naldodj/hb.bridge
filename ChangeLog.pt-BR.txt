@@ -6,6 +6,52 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Adicionar cobertura de integridade para JSON UTF-8 e MSSQL)"
  */
 
+2026-10-21 22:26 UTC naldodj (Aplicar convenções de código-fonte e verificar regressões)
+  * Revisar Harbour, TLPP, C, Zig e scripts pertencentes ao projeto; agrupar declarações
+    por prefixo de tipo e armazenar em cache invariantes de laço comprovados. Preservar a
+    ordem dos inicializadores, ABI nativa, sincronização SQL e posse de estado da thread.
+  ! Corrigir NormalizeStringToken para utilizar seu parâmetro cIgnoreToken; adicionar duas
+    verificações auxiliares de regressão para substituição comum e tokens ignorados.
+  ; Compilação TLPP privada: 49 fontes e atualizações finais, zero erros.
+    Verificações AppServer de JSON/dataset/helpers/tabela/visual/REST: 31/67/14/71/61/43;
+    integridade TCP/HTTP real em MSSQL: 80 verificações. Todas as asserções passaram.
+  ; Suítes nativas: 752/92/73/46/458/47/61 verificações, zero falhas. Testes de fumaça (smoke)
+    do produto, testes de fumaça de corretude para benchmark nativo de três rotas, Zig/navegador
+    e todas as três etapas de controle (gates) do repositório passaram. Registrar comprovantes
+    distintos e escopo isolado de RPO.
+  * Registrar evidências de manutenção pareadas de aceite/WIP; o pacote 002 T01 permanece
+    planejado. Preservar o fechamento histórico do M09 e recursos sem suporte.
+
+2026-10-21 15:12 UTC naldodj (Encerrar aceite de MSSQL e registrar convenções de código-fonte)
+  * Concluir M09/pacote 001 para o escopo registrado de Windows/MSSQL/AppServer;
+    renovar WIP pareado para a apresentação nativa/SQL tipado do pacote 002 planejado.
+  ; Teste de fumaça de build/ajuda/configuração do produto passou; regressões nativas passaram
+    em 752/92/73 verificações. Compilação TLPP privada completa: 49 fontes, zero erros/exit 0.
+    Recompilado o helper de JSON mais recente; verificações AppServer JSON 31 e integridade
+    TCP/HTTP 80 passaram, zero falhas/exit 0. Preservar escopos de artefatos distintos.
+  + Registrar hashes de código-fonte, produto, host de execução e RPO, além de metadados
+    sanitizados de alvo e dependências. Preservar falhas históricas e limites futuros.
+  * Definir declarações de variáveis agrupadas por tipo em ordem alfabética de prefixo de tipo;
+    nomes completos não precisam ser ordenados. Resolver constantes/invariantes antes de
+    laços, preservando verificações dinâmicas de segmento/tipo/estado dentro de cada iteração.
+  % Concluir cache de invariantes de laço JSON e agrupamento de declarações, mantendo o
+    comportamento de NUL/UTF-8/numérico e a travessia recursiva existente.
+  * Reconciliar documentação de README em EN/PT, TODO, dataset/API e de aceite.
+
+2026-10-21 09:54 UTC naldodj (Preservar NUL através dos limites de JSON do Protheus)
+  ! Usar HBBridgeJSON em clientes TCP/HTTP e snapshots de dataset para preservar
+    NUL embutido sem alterar o tráfego UTF-8 (wire) ou a semântica numérica nativa.
+  ! Manter asserções de NUL exatas em bytes; distinguir verificações de tráfego UTF-8 de uma
+    conversão DecodeUTF8 do consumidor. Evitar codificação dupla de texto de fixture com escape.
+  % Varrer strings com NUL para frente em vez de copiar seus sufixos repetidamente.
+  ! Resolver metadados de projeção do SQL Server na ordem das colunas, mantendo texto longo,
+    excluindo tipos base binários nativos e escapando o literal da tabela.
+  ; Reproduzir o truncamento do ToJSON e a remoção de NUL do FromJSON nativos do JSONObject;
+    publicar naldodj/totvs-protheus-open-issues#14 com uma fixture independente.
+  ; Integridade AppServer: 80 verificações/zero falhas; suíte JSON fechada: 31/zero.
+    Verificações de mock de dataset/helper/tabela: 67/12/71, todas passaram. D03 aceito para
+    a fixture identificada de Windows/MSSQL; fechamento final do M09/pacote pendente.
+
 2026-10-20 12:43 UTC naldodj (Adicionar cobertura de integridade para JSON UTF-8 e MSSQL)
   Adicionar cobertura de integridade para JSON UTF-8 e MSSQL
     Introduzir codecs JSON UTF-8 compartilhados para Harbour e TLPP, preservando a precisão numérica e tratando caracteres nulos (NULs) incorporados.

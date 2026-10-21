@@ -1877,3 +1877,47 @@ accepted **242 files**; local links exist across **89 documents** and whitespace
 checks passed. Receipt: `commit-check.log` in the final artifact directory.
 The source conventions and package renewal are included in this validation;
 no commit or publication is implied by package closure.
+
+<a id="source-conventions-review-on-2026-10-21"></a>
+
+## Source conventions review on 2026-10-21
+
+Project-wide maintenance reviewed 38 Harbour and 49 TLPP sources, six C
+modules plus the C JSON fixture, Zig modules/build entry, scripts, headers and
+the browser fixture. Declarations are grouped in type-prefix order; invariant
+lengths/constants move before loops. Initializer dependencies and call order,
+native signatures/layouts, SQL synchronization and thread-state ownership are
+preserved. Live clocks, I/O, changing buffers and externally mutable filter
+state remain evaluated during traversal. Third-party sources were not reformatted.
+
+Cross-review checked 380 Harbour initializer expressions and 211 TLPP test
+initializer sequences. An existing undeclared `IgnoreToken` reference in
+`NormalizeStringToken()` was corrected to parameter `cIgnoreToken`; the helper
+suite now covers ordinary replacement and explicitly ignored tokens (14 checks).
+
+These are fresh maintenance checks against base `56128e9` plus working-tree
+follow-ups, separate from historical M09 closure evidence. Artifacts:
+`tmp/source-standards-c880afdd71de4088864ab57b7e2023ac/`.
+Its `manifest.json` maps source/binary/RPO identities and individual receipts.
+
+| Verification | Result |
+| --- | --- |
+| Isolated product build; help/public SQLite configuration smoke | Passed; both smoke commands exit 0, without starting product listeners. |
+| Native regression / real MSSQL / source-wire integrity | 752 / 92 / 73 checks; zero failures. |
+| Native MSSQL failure recovery / concurrency / benchmark addon | 46 / 458 / 47 checks; zero failures. |
+| Native ODBC driver pooling | 61 checks; zero failures. A second configured database was not exercised. |
+| Native local/TCP/HTTP benchmark build and correctness smoke | One row, one measured iteration per route, no warmup; all passed. Not a performance baseline. |
+| Private TLPP compilation | All 49 sources, followed by three test-source and two helper-source updates; zero errors, process exit 0 in each compilation. |
+| AppServer local/mock suites | JSON 31; dataset 67; helpers 14; HTTP table 71; benchmark visual 61; benchmark REST 43. All assertions passed. |
+| AppServer real MSSQL TCP/HTTP integrity | 80 checks; zero failures, client/server exit 0. |
+| Zig / actual Chromium DOM | Two unit tests / two browser tests passed. |
+| PowerShell syntax / repository gates | 16 scripts, zero parse errors; all three commit validators accepted 242 files. Local links in 89 documents and whitespace checks passed. |
+
+Dataset and helper procedure entries return process -4 without a numeric CLI
+return; their complete assertion summaries establish their local/mock result.
+The other local suites return 0. AppServer compilation/execution used an
+isolated RPO; installed services/RPO were not replaced. Real transport evidence
+is in `tmp/standards-protheus-22dd10fb14bd4ecbb6ce550fa4a61634/validation.json`.
+Plain HTTP/Windows scope and existing product limitations remain unchanged.
+Package 002 T01 remains planned; this source review implements no new SQL,
+presentation or credential capability.

@@ -24,13 +24,13 @@ function U_HBBridgeBenchmarkRESTTest()
     local jPage as json
     local jResponse as json
 
+    local lOK := .T. as logical
+    local lAreaOK := .T. as logical
+
     local nCheck := 0 as numeric
     local nBeforeArea as numeric
     local nCallsBefore := 0 as numeric
     local nNames := 0 as numeric
-
-    local lOK := .T. as logical
-    local lAreaOK := .T. as logical
 
     local oClient as object
 

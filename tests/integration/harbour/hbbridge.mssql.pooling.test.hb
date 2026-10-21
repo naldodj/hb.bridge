@@ -389,7 +389,7 @@ STATIC FUNCTION MPNativeSnapshot( nConnection )
 
     LOCAL hSnapshot
 
-    LOCAL nPreviousArea, nQueryArea, nField
+    LOCAL nPreviousArea, nQueryArea, nField, nFields
 
     nPreviousArea := Select()
     nQueryArea := 0
@@ -400,7 +400,8 @@ STATIC FUNCTION MPNativeSnapshot( nConnection )
         nQueryArea := Select()
         IF dbUseArea( .F., "SQLMIX", MPSnapshotSQL(), hb_rddGetTempAlias(), .T., .T., NIL, nConnection ) .AND. ! Eof()
             hSnapshot := {=>}
-            FOR nField := 1 TO FCount()
+            nFields := FCount()
+            FOR nField := 1 TO nFields
                 hSnapshot[ Upper( AllTrim( FieldName( nField ) ) ) ] := FieldGet( nField )
             NEXT
         ENDIF

@@ -36,6 +36,8 @@ procedure U_HBBridgeHelperTest()
     jChecks["expandingReplacement"]:=HBBridge.Helper.HBBridgeStrTools():StrReplaceEx("a",{"a","aa"})=="aa"
     jChecks["emptyReplacementKey"]:=HBBridge.Helper.HBBridgeStrTools():StrReplaceEx("text",{"","x"})=="text"
     jChecks["collapsedWhitespace"]:=HBBridge.Helper.HBBridgeStrTools():StrReplaceEx("a    b",{"  "," "})=="a b"
+    jChecks["normalizeTokens"]:=HBBridge.Helper.HBBridgeStrTools():NormalizeStringToken("A-B_C","/")=="A/B/C"
+    jChecks["preserveIgnoredToken"]:=HBBridge.Helper.HBBridgeStrTools():NormalizeStringToken("A-B_C","/","-")=="A-B/C"
 
     // FWFilter's custom-filter interface requires a positional native array.
     jFilters:Set(Array(1))

@@ -51,6 +51,7 @@ STATIC FUNCTION MBRun( cConfigPath, cProfile, cRoute, cRows, cPageSize, ;
 
     LOCAL nRows, nPageSize, nIterations, nWarmup, nTimeoutMs, nServeSeconds, nIndex, nStarted, nElapsed, nCalls
     LOCAL nPreviousArea, nPreviousConnection
+    LOCAL nServeMilliseconds
 
     hHost := NIL
     nRows := MBInteger( cRows, 1, 100000 )
@@ -195,7 +196,8 @@ STATIC FUNCTION MBRun( cConfigPath, cProfile, cRoute, cRows, cPageSize, ;
             ENDIF
             ? "M08 isolated host ready; endpoints.json contains fixture-only endpoints and token."
             nStarted := HBBridgeMonotonicMs()
-            DO WHILE HBBridgeMonotonicMs() - nStarted < nServeSeconds * 1000 .AND. ;
+            nServeMilliseconds := nServeSeconds * 1000
+            DO WHILE HBBridgeMonotonicMs() - nStarted < nServeMilliseconds .AND. ;
                 ! hb_FileExists( "m08.stop" )
                 hb_idleSleep( 0.05 )
             ENDDO

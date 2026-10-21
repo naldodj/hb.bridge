@@ -1965,3 +1965,49 @@ somente leitura aceitaram **242 arquivos**; links locais existentes nos **89
 documentos** e whitespace aprovado. Recibo: `commit-check.log` no diretório
 final de artefatos. A validação inclui os padrões de fonte e a renovação do
 pacote; encerrar o pacote não implica commit ou publicação.
+
+<a id="source-conventions-review-on-2026-10-21"></a>
+
+## Revisão das convenções de fonte em 2026-10-21
+
+Manutenção geral revisou 38 fontes Harbour e 49 TLPP, seis módulos C e a
+fixture JSON em C, módulos Zig/build, scripts, headers e fixture do navegador.
+Declarações agrupadas pela ordem dos prefixos de tipo; comprimentos/constantes
+invariantes antecipados aos loops. Preservadas dependências e ordem de
+inicialização/chamadas, assinaturas/layouts nativos, sincronização SQL e posse
+do estado por thread. Relógios, I/O, buffers variáveis e estado de filtros
+mutável externamente continuam avaliados durante a varredura. Fontes de
+terceiros não foram reformatados.
+
+Revisão cruzada verificou 380 expressões de inicialização Harbour e 211
+sequências de inicialização dos testes TLPP. Corrigida a referência existente
+a `IgnoreToken`, sem declaração, em `NormalizeStringToken()`, usando o
+parâmetro `cIgnoreToken`. A suíte helper agora cobre substituição comum e
+tokens explicitamente ignorados (14 checks).
+
+Estes checks novos de manutenção consideram a base `56128e9` e os ajustes da
+árvore de trabalho, separados das evidências históricas do encerramento M09.
+Artefatos: `tmp/source-standards-c880afdd71de4088864ab57b7e2023ac/`.
+Seu `manifest.json` relaciona identidades dos fontes/binários/RPO e recibos.
+
+| Verificação | Resultado |
+| --- | --- |
+| Build isolado do produto; ajuda/configuração SQLite pública | Aprovados; ambos os comandos smoke retornam 0, sem iniciar listeners do produto. |
+| Regressão nativa / MSSQL real / integridade origem-transporte | 752 / 92 / 73 checks; zero falhas. |
+| Recuperação de falhas MSSQL / concorrência / addon benchmark nativos | 46 / 458 / 47 checks; zero falhas. |
+| Pooling ODBC nativo em modo driver | 61 checks; zero falhas. Não exercitado segundo banco configurado. |
+| Smoke nativo de build/correção do benchmark local/TCP/HTTP | Uma linha e uma iteração medida por rota, sem aquecimento; aprovado. Não é baseline de desempenho. |
+| Compilação TLPP privada | Todos os 49 fontes, seguidos de três atualizações de fontes de testes e duas de helpers; zero erros e saída 0 em cada compilação. |
+| Suítes locais/simuladas no AppServer | JSON 31; dataset 67; helpers 14; tabela HTTP 71; benchmark visual 61; benchmark REST 43. Todas as asserções aprovadas. |
+| Integridade MSSQL real no AppServer TCP/HTTP | 80 checks; zero falhas, saída cliente/servidor 0. |
+| Zig / DOM real no Chromium | Dois testes unitários / dois testes de navegador aprovados. |
+| Sintaxe PowerShell / crivos do repositório | 16 scripts, zero erros de análise; três validadores aceitaram 242 arquivos. Links locais nos 89 documentos e whitespace aprovados. |
+
+Entradas procedure de dataset/helpers retornam -4 ao processo sem retorno CLI
+numérico; seus resumos completos de asserções comprovam o resultado local/
+simulado. Demais suítes locais retornam 0. Compilação/execução AppServer em
+RPO isolado, sem substituir serviços/RPO instalados. Evidência de transporte
+real: `tmp/standards-protheus-22dd10fb14bd4ecbb6ce550fa4a61634/validation.json`.
+Escopo Windows/HTTP sem TLS e limitações existentes preservados. T01 do pacote
+002 continua planejado; a revisão não implementa novas capacidades SQL, de
+apresentação ou de credenciais.

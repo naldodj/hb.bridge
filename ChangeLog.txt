@@ -5,6 +5,21 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Add UTF-8 JSON and MSSQL integrity coverage)"
  */
 
+2026-10-21 22:26 UTC naldodj (Apply source conventions and verify regressions)
+  * Review project-owned Harbour, TLPP, C, Zig and scripts; group declarations
+    by type prefix and cache proven loop invariants. Preserve initializer
+    order, native ABI, SQL synchronization and thread-state ownership.
+  ! Correct NormalizeStringToken to use its cIgnoreToken parameter; add two
+    helper regression checks for ordinary replacement and ignored tokens.
+  ; Private TLPP compilation: 49 sources and final updates, zero errors.
+    AppServer JSON/dataset/helpers/table/visual/REST checks: 31/67/14/71/61/43;
+    real MSSQL TCP/HTTP integrity: 80 checks. All assertions passed.
+  ; Native suites: 752/92/73/46/458/47/61 checks, zero failures. Product smoke,
+    three-route native benchmark correctness smoke, Zig/browser and all three
+    repository gates passed. Record distinct receipts and isolated RPO scope.
+  * Record paired acceptance/WIP maintenance evidence; package 002 T01 remains
+    planned. Preserve historical M09 closure and unsupported capabilities.
+
 2026-10-21 15:12 UTC naldodj (Close MSSQL acceptance and record source conventions)
   * Complete M09/package 001 for the recorded Windows/MSSQL/AppServer scope;
     renew paired WIP for planned package 002 typed SQL/native presentation.

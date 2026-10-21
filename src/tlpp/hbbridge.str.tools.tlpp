@@ -856,7 +856,7 @@ static method NormalizeStringToken(cString,cNormalizedToken,cIgnoreToken) class 
         //Armazena o Token
         cToken:=__aTokens[nToken]
         //Verifica se o Token Sera Ignorado na Normalizacao
-        if ((lIgnoreToken).and.(cToken==IgnoreToken))
+        if ((lIgnoreToken).and.(cToken==cIgnoreToken))
             //Ignora
             loop
         endif

@@ -19,6 +19,7 @@ static method Run() class HBBridgeJSONTest
     local cText := "" as character
     local cName := "" as character
     local cUnicode as character
+    local cNul := Chr(0) as character
 
     local jChecks as json
     local jInput as json
@@ -51,23 +52,23 @@ static method Run() class HBBridgeJSONTest
         do case
         case nIndex == 1
             cName := "middle"
-            cText := "A" + Chr(0) + "B"
+            cText := "A" + cNul + "B"
         case nIndex == 2
             cName := "leading"
-            cText := Chr(0) + "B"
+            cText := cNul + "B"
         case nIndex == 3
             cName := "trailing"
-            cText := "A" + Chr(0)
+            cText := "A" + cNul
         case nIndex == 4
             cName := "only"
-            cText := Chr(0)
+            cText := cNul
         otherwise
             cName := "repeated"
-            cText := Chr(0) + "A" + Chr(0) + Chr(0) + "B" + Chr(0)
+            cText := cNul + "A" + cNul + cNul + "B" + cNul
         endcase
         jInput["text"] := cText
         cJSON := HBBridge.Client.HBBridgeJSON():Encode(jInput)
-        jChecks[cName + "Encoded"] := "\u0000" $ cJSON .and. !(Chr(0) $ cJSON)
+        jChecks[cName + "Encoded"] := "\u0000" $ cJSON .and. !(cNul $ cJSON)
         lParsed := HBBridge.Client.HBBridgeJSON():Parse(cJSON, jOutput)
         jChecks[cName + "RoundTrip"] := lParsed .and. Len(jOutput["text"]) == Len(cText) .and. ;
             jOutput["text"] == cText

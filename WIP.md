@@ -27,6 +27,15 @@ is inferred. See [closure, exact artifacts and limitations](docs/acceptance.md#p
 | Reference | Base `8db2823`; package 001 validated working-tree artifacts are identified in its closure manifest. This is not a new release tag. |
 | Next task | T01: inventory existing connector/client APIs and specify compatible parameter/source/logical/wire metadata contracts before implementation. |
 
+### Preparatory maintenance completed on 2026-10-21
+
+- [x] Review project-owned sources against AGENTS: group declarations by type,
+  preserve initializer order and cache proven loop invariants. Correct the
+  ignored-token parameter reference and add two helper regression checks.
+  Native, real AppServer and repository checks passed; see the separate
+  [source-review evidence](docs/acceptance.md#source-conventions-review-on-2026-10-21).
+  This maintenance does not implement T01; T01 remains the next task.
+
 ### Decisions retained
 
 - Keep one implementation and the accepted `RPCRDD.Query`/page/dataset behavior.

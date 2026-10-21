@@ -21,6 +21,7 @@ static method RunCLI(aArguments) class HBBridgeFailureTest
     local cArgument := "" as character
     local cKey := "" as character
     local cValue := "" as character
+    local cNul := Chr(0), cLF := Chr(10), cCR := Chr(13) as character
 
     local jFlags as json
     local jSeen as json
@@ -82,8 +83,8 @@ static method RunCLI(aArguments) class HBBridgeFailureTest
                 endif
                 jFlags[cKey] := nValue
             else
-                if Len(cValue) == 0 .or. At(Chr(0), cValue) > 0 .or. ;
-                    At(Chr(10), cValue) > 0 .or. At(Chr(13), cValue) > 0
+                if Len(cValue) == 0 .or. At(cNul, cValue) > 0 .or. ;
+                    At(cLF, cValue) > 0 .or. At(cCR, cValue) > 0
                     lValid := .F.
                     exit
                 endif

@@ -393,6 +393,7 @@ STATIC FUNCTION MTExchange( hSocket, cJson, cSignature )
     LOCAL hResponse
 
     LOCAL nZipError, nReceived, nDeadline := HBBridgeMonotonicMs() + MT_TIMEOUT_MS, nHeaderEnd
+    LOCAL nChunkBytes := 4096
 
     hb_default( @cSignature, "HBBRIDGE/1" )
     cFrame := cSignature + "|JSON|" + hb_ntos( hb_BLen( cJson ) ) + hb_BChar( 10 ) + cJson
@@ -406,8 +407,8 @@ STATIC FUNCTION MTExchange( hSocket, cJson, cSignature )
         RETURN NIL
     ENDIF
     DO WHILE HBBridgeMonotonicMs() < nDeadline
-        cChunk := Space( 4096 )
-        nReceived := hb_socketRecv( hSocket, @cChunk, hb_BLen( cChunk ), 0, ;
+        cChunk := Space( nChunkBytes )
+        nReceived := hb_socketRecv( hSocket, @cChunk, nChunkBytes, 0, ;
             Max( 1, nDeadline - HBBridgeMonotonicMs() ) )
         IF nReceived == 0
             EXIT

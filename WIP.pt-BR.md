@@ -27,6 +27,15 @@ HTTPS ou BLOB JSON. Veja [encerramento, artefatos e limites](docs/acceptance.pt-
 | Referência | Base `8db2823`; artefatos da árvore de trabalho validados no pacote 001 identificados no manifesto de encerramento. Não é nova tag de release. |
 | Próxima tarefa | T01: inventariar APIs existentes dos conectores/clientes e especificar contratos compatíveis de parâmetros/metadados de origem/lógicos/transporte antes da implementação. |
 
+### Manutenção preparatória concluída em 2026-10-21
+
+- [x] Revisar fontes próprios conforme AGENTS: agrupar declarações por tipo,
+  preservar ordem das inicializações e antecipar invariantes comprovados.
+  Corrigida a referência ao parâmetro de token ignorado, com dois novos checks
+  de regressão. Checks nativos, AppServer real e crivos do repositório aprovados;
+  veja as [evidências dessa revisão](docs/acceptance.pt-BR.md#source-conventions-review-on-2026-10-21).
+  A manutenção não implementa T01; T01 permanece como próxima tarefa.
+
 ### Decisões preservadas
 
 - Manter implementação única e comportamento homologado de `RPCRDD.Query`,
