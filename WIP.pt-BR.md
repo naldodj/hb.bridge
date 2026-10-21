@@ -12,11 +12,11 @@ registra resultados verificados; ChangeLog e Git preservam o histórico.
 | Item | Valor atual |
 | --- | --- |
 | ID | `001-mssql-acceptance` |
-| Abertura / atualização | 2026-10-07 / 2026-10-19 |
-| Situação | D02/M06/M07/M08 mantêm seus aceites registrados. V01/V02 concluídas em 2026-10-19 para o escopo visual/AppServer demonstrado e checks focados registrados separadamente. D03 é a próxima tarefa; checks finais M09 e encerramento do pacote continuam pendentes. |
+| Abertura / atualização | 2026-10-07 / 2026-10-21 |
+| Situação | D02/M06/M07/M08 mantêm seus aceites registrados. V01/V02 concluídas em 2026-10-19 para o escopo visual/AppServer demonstrado e checks focados registrados separadamente. D03 homologada em 2026-10-21 para a fixture Windows/MSSQL identificada. Checks finais M09 e encerramento do pacote continuam pendentes. |
 | Objetivo | Homologar RPCRDD.Query/dataset existentes em banco MSSQL real identificado, por Harbour, TCP Protheus e HTTP Protheus. |
 | Referência do produto | Código publicado `50e1c65`; checkout na abertura `bce52d2` inclui atualização do badge de clones. |
-| Próxima tarefa | D03: reproduzir e corrigir integridade UTF-8/FLOAT bruto por Harbour, TCP/HTTP e Protheus. Manter escala de negócio/CAST definida pelo chamador. Depois concluir M09; pacote 001 permanece aberto. |
+| Próxima tarefa | M09: consolidar regressões finais, identificação de artefatos/configuração e documentação bilíngue após o aceite D03; pacote 001 permanece aberto. |
 
 ### Decisões já tomadas
 
@@ -128,27 +128,23 @@ constatações de aceite, sem motivo para repetir o inventário concluído.
   `U_HBBridgeHelperTest`, 17:56:45, thread 28300, **12 checks**. Todos true,
   ambos os resultados OK. Veja [escopo/evidências](docs/acceptance.pt-BR.md#validação-do-dataset-e-helpers-em-2026-10-13).
   Homologado o contrato mock/interface; integridade textual/numérica nativa permanece em D03.
-- [ ] **D03 — Corrigir integridade textual e numérica.** Primeiro comprovar que
-  driver/RDD entrega ao Harbour nativo o texto pretendido do banco antes de
-  serializar JSON, usando valores conhecidos e metadados explícitos da origem.
-  Depois verificar execução UTF-8 e requisições/respostas textuais nos dois
-  sentidos entre Protheus e hbBridge via TCP/HTTP, conversão cliente e binários;
-  corrigir a perda FLOAT fracionária reproduzida no JSON e definir decimal
-  exato/metadados nativos versus lógicos do chamador sem consultas ERP implícitas.
-  Veja [constatações e contrato](docs/dataset.pt-BR.md). Os aceites ASCII/DECIMAL
-  anteriores não homologam esses casos recém-identificados.
-  As observações de apresentação em 2026-10-13 mantêm o exemplo HTTP funcional
-  e validação desktop ampliada. Esclarecido em 2026-10-19: `DecodeUTF8()` continua
-  sendo conversão esperada quando Protheus exige outra codepage; removê-la não
-  é critério de aceite. Corrigir a interface não comprova a leitura do banco.
-  Veja os [checks por etapa](docs/dataset.pt-BR.md#prioridade-d03-integridade-da-origem-em-2026-10-19).
-  Separar preservação FLOAT genérica da escala
-  DECIMAL de negócio definida pelo chamador; CAST é projeção disponível,
-  sem ser pré-requisito para transporte FLOAT genérico. Metadados lógicos
-  explícitos seguem como extensão proposta. Veja a [análise](docs/dataset.pt-BR.md#escala-de-negócio-e-float-bruto-análise-em-2026-10-13).
-  Addons de metadados e reescritor opcional da projeção SQL em TLPP/Zig adiados;
-  sua [avaliação](docs/dataset.pt-BR.md#addon-de-metadados-e-reescrita-sql-adiados)
-  não adiciona API/dependência nem bloqueia casos independentes de M06.
+- [x] **D03 — Corrigir integridade textual e numérica.** Homologada para a
+  fixture Windows/MSSQL identificada em 2026-10-21: AppServer real automatizado
+  por TCP/HTTP, **80 checks, zero falhas, saída 0**. Cobertos pedidos/respostas
+  UTF-8, `DecodeUTF8()` uma vez no consumidor, frações/magnitudes FLOAT,
+  escala DECIMAL do chamador, decimal textual exato e NUL embutido, inclusive
+  nas cópias defensivas do dataset. Checks nativos separados em 2026-10-19:
+  **752 padrão / 73 integridade MSSQL / 92 MSSQL anterior / 7 ODBC independente /
+  2 Zig**, todos sem falhas. Codecs compartilhados e patch ODBC gerenciado
+  corrigem os defeitos reproduzidos. A perda de NUL no JSONObject Protheus foi
+  isolada na [issue #14](https://github.com/naldodj/totvs-protheus-open-issues/issues/14);
+  o helper TLPP preserva o conteúdo sem aceitar fixtures truncadas.
+  Binário nativo é exato; JSON versão 1 recusa explicitamente binários brutos
+  até a definição de representação versionada. Projeção SQL hex/texto disponível.
+  Escala de negócio/CAST e SX3/TOP_FIELD permanecem no chamador. Metadados lógicos,
+  addons de metadados e reescrita SQL seguem adiados. Sem inferir aceite Linux,
+  outro driver ou BLOB automático em JSON. Veja
+  [evidências e limites](docs/acceptance.pt-BR.md#d03-integrity-on-2026-10-21).
 - [x] **S01 — Ampliar desenho de credenciais.** Abranger SQL, NETIO/admin e
   HTTP no hbBridge e segredos cliente locais do AppServer, chaves externas por
   instalação, provedores portáveis e suporte TLPP verificado separadamente.
@@ -415,12 +411,11 @@ conexões, pressão de portas e aceite do ciclo lógico/físico adaptado conclu�
 depois M07 no escopo Windows registrado. As falhas com 130 foram analisadas;
 resumos posteriores com espaçamento até 500 workers estão homologados no seu
 escopo. M08 foi concluída em 2026-10-16; V01/V02 foram concluídas no escopo
-registrado em 2026-10-19. Retomar D03 e depois os checks finais M09.
+registrado em 2026-10-19; D03 passou em 2026-10-21. Retomar checks finais M09.
 Preservar mutex SQL e distinguir requisições concorrentes de execução paralela
-no banco. Integridade D03 continua
-pendente após o ajuste explícito da prioridade, mantendo CAST no chamador.
+no banco. CAST permanece disponível para escala de negócio do chamador.
 Sem nova evidência que exija revisão, não repetir migração, inventário ou
-casos nativos/TCP/HTTP homologados. M09, D03 e critérios do pacote permanecem.
+casos nativos/TCP/HTTP homologados. M09 e critérios do pacote permanecem.
 
 A [observação de reuso de conexões SQL](docs/sql-connections.pt-BR.md) de
 2026-10-12 foi repriorizada para M07 em 2026-10-15. `HBBridgeSQLPool` agora
@@ -470,7 +465,7 @@ entram em seu escopo registrado, sem abrir outra frente silenciosamente.
   de implantação são pré-requisitos, sem suporte entregue presumido.
 
 [Desenho, ambiente de referência e sequência de aceite](docs/benchmark-evolution.pt-BR.md).
-As tarefas futuras mantêm a próxima ação: D03, depois checks finais M09.
+As tarefas futuras mantêm a próxima ação: checks finais M09 após aceite delimitado de D03.
 
 ## Atualização e renovação do WIP
 

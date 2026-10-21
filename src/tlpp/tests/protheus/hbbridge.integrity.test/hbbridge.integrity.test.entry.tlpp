@@ -2,6 +2,9 @@
 #include "totvs.ch"
 #include "tlpp-core.th"
 
+function U_HBBridgeJSONTest()
+return(HBBridge.Test.HBBridgeJSONTest():Run())
+
 // Borrow the native variadic CLI array without duplicating it.
 function U_HBBridgeIntegrityCLI(oArguments as variadic)
     local aDefaults:=Array(0) as array

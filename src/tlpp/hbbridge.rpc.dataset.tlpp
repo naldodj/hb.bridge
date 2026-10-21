@@ -487,7 +487,7 @@ method Header() class HBBridgeRPCDataSet
 
     // The caller owns this deep snapshot and releases it with FreeObj().
     if (ValType(self:jResult)=="J")
-        jHeader:FromJSON(self:jResult["header"]:ToJSON())
+        HBBridge.Client.HBBridgeJSON():Parse(HBBridge.Client.HBBridgeJSON():Encode(self:jResult["header"]), jHeader)
     endif
 
 return(jHeader)
@@ -516,7 +516,7 @@ method FieldInfo(cFieldName) class HBBridgeRPCDataSet
 
     if ((ValType(self:jResult)=="J").and.(self:jResult:HasProperty("header")))
         if (self:jResult["header"]:HasProperty(cKey))
-            jField:FromJSON(self:jResult["header"][cKey]:ToJSON())
+            HBBridge.Client.HBBridgeJSON():Parse(HBBridge.Client.HBBridgeJSON():Encode(self:jResult["header"][cKey]), jField)
         endif
     endif
 
@@ -545,7 +545,7 @@ method GetRow() class HBBridgeRPCDataSet
     local jRow:=JSONObject():New() as json
 
     if (!self:Eof())
-        jRow:FromJSON(self:jResult["rows"][tlpp.ToStr(self:nRowIndex)]:ToJSON())
+        HBBridge.Client.HBBridgeJSON():Parse(HBBridge.Client.HBBridgeJSON():Encode(self:jResult["rows"][tlpp.ToStr(self:nRowIndex)]), jRow)
     endif
 
 return(jRow)
@@ -553,7 +553,7 @@ return(jRow)
 method GetRows() class HBBridgeRPCDataSet
     local jRows:=JSONObject():New() as json
     if ((ValType(self:jResult)=="J").and.(self:jResult:HasProperty("rows")))
-        jRows:FromJSON(self:jResult["rows"]:ToJSON())
+        HBBridge.Client.HBBridgeJSON():Parse(HBBridge.Client.HBBridgeJSON():Encode(self:jResult["rows"]), jRows)
     endif
 return(jRows)
 

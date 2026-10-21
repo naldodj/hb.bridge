@@ -12,6 +12,7 @@ return
 static procedure HBBridgeBrowseDataTestSRA()
     local cAliasTmp as character
     local cSRASQLName:=RetSQLName("SRA") as character
+    local nColumn:=0 as numeric
     local jParameters:=JSONObject():New() as json
     jParameters["cEmp"]:=if((Type("cEmpAnt")=="C").and.!Empty(cEmpAnt),cEmpAnt,"99")
     jParameters["cFil"]:=if((Type("cFilAnt")=="C").and.!Empty(cFilAnt),cFilAnt,"01")
@@ -20,14 +21,7 @@ static procedure HBBridgeBrowseDataTestSRA()
         FreeObj(@jParameters)
         return
     endif
-    beginContent var jParameters["cSQL"]
-        SELECT *
-        FROM SRA990 SRA
-        WHERE (1=1)
-        AND SRA.D_E_L_E_T_=''
-    endContent
-    jParameters["cSQL"]:=StrTran(jParameters["cSQL"],"SRA990",cSRASQLName)
-    jParameters["cSQL"]:=StrTran(jParameters["cSQL"],"*",jParameters["cSQLFields"])
+    jParameters["cSQL"]:="SELECT "+jParameters["cSQLFields"]+" FROM "+cSRASQLName+" SRA WHERE SRA.D_E_L_E_T_=' '"
     jParameters["bOpenTables"]:={||;
         ChkFile("CTT");
         ,cAliasTmp:=GetNextAlias();
@@ -39,9 +33,13 @@ static procedure HBBridgeBrowseDataTestSRA()
     jParameters["jHBBridgeDataSetPage"]["size"]:=18
     jParameters["jHBBridgeDataSetPage"]["orderBy"]:="RA_FILIAL,RA_MAT"
     jParameters["aAcho"]:=StrTokArr2(StrTran(StrTran(jParameters["cSQLFields"],"[",""),"]",""),",")
+    // The browse API requires a native array of field names.
+    for nColumn:=1 to Len(jParameters["aAcho"])
+        jParameters["aAcho"][nColumn]:=AllTrim(jParameters["aAcho"][nColumn])
+    next nColumn
     jParameters["cATRecNoMsMGet"]:="R_E_C_N_O_"
-    //TODO: Resolve this Workaround private __cPrefixQryAlias
-    private __cPrefixQryAlias:="SRA" as character//TODO: resolver Alias para campos comuns (R_E_C_N_O_,R_E_C_D_E_L_,D_E_L_E_T_,etc) com HBBridgeSqlTools():PrefixQryAlias ou FieldAlias ou FielPrefixdAlias?
+    // TODO: Replace the private prefix workaround with an explicit browse option.
+    private __cPrefixQryAlias:="SRA" as character
     U_HBBridgeBrowseDataTest(jParameters)
     if (Select(cAliasTmp)>0)
         (cAliasTmp)->(dbCloseArea())
@@ -98,8 +96,8 @@ static procedure HBBridgeBrowseDataTestSRAWithCast()
         ,"CTT_DESC01";
     }
     jParameters["cATRecNoMsMGet"]:="R_E_C_N_O_"
-    //TODO: Resolve this Workaround private __cPrefixQryAlias
-    private __cPrefixQryAlias:="SRA" as character//TODO: resolver Alias para campos comuns (R_E_C_N_O_,R_E_C_D_E_L_,D_E_L_E_T_,etc) com HBBridgeSqlTools():PrefixQryAlias ou FieldAlias ou FielPrefixdAlias?
+    // TODO: Replace the private prefix workaround with an explicit browse option.
+    private __cPrefixQryAlias:="SRA" as character
     U_HBBridgeBrowseDataTest(jParameters)
     if (Select(cAliasTmp)>0)
         (cAliasTmp)->(dbCloseArea())

@@ -1708,3 +1708,88 @@ generic CLI defect. No independent rerun or isolated cause measurement is
 inferred. Earlier isolated StartJob CLI `ENVIRONMENT_FAILED`/`CONNECTION_FAILED`
 initialization attempts are a different configuration-specific record.
 V01/V02 remain complete; D03 is next and M09/package 001 remain open.
+
+<a id="d03-integrity-on-2026-10-21"></a>
+
+## D03 UTF-8, numeric and NUL integrity on 2026-10-21
+
+D03 is accepted for the identified Windows x64 / SQL Server 16.0.1200.5 /
+Microsoft ODBC Driver 18 target and read-only `d03.mssql.constants.v1`
+fixture. Native retrieval, serialization and the Protheus consumer have
+separate evidence; a UI conversion alone does not prove a correct database
+read. M09/package 001 remain open.
+
+Native checks completed on 2026-10-19, all without failures:
+
+| Scope | Checks | Artifact |
+| --- | --- | --- |
+| Default regression, including JSON codec | 752 | `tmp/d03-native-final.log`; `tmp/tests-5733f80fe0ec4a30a4310adc37247e8c/` |
+| Real MSSQL native/TCP/HTTP integrity | 73 | `tmp/d03-mssql-integrity-fixed.log`; `tmp/mssql-tests-d6d74b0b70be4cf8b4a6a0b0e8b56545/` |
+| Existing real MSSQL regression | 92 | `tmp/d03-mssql-regression.log`; `tmp/mssql-tests-7c3c29255b1341dd988561123160de10/` |
+| Independent `System.Data.Odbc`, without Harbour/JSON | 7 | `tmp/d03-odbc-reference.json` |
+| Zig binary64 formatting/parsing | 2 | `src/zig/runtime/hbbridge.number.zig` unit checks |
+
+The managed ODBC patch corrects supplementary Unicode in UTF-8 SQL input as
+well as outgoing UTF-16 chunks. Before the input correction the 73-check run
+had five failures: `tmp/d03-mssql-integrity.log`. No pinned upstream checkout
+was modified. The shared numeric codec preserves fractional native FLOAT
+and binary64 round trips; Protheus `N` comparisons use tolerances within 15
+significant digits. CAST defines caller business scale; exact large decimal
+values use explicit SQL text projection. SX3/TOP_FIELD are never inferred.
+
+The final automated real AppServer CLI run on 2026-10-21 passed **80 checks,
+zero failures, client/server exit 0**, against the isolated MSSQL host through
+production TCP/HTTP clients and the common dataset. Receipt:
+`tmp/d03-protheus-9c3d1606250449c9a659f92f92c5c6e6/validation.json`;
+`protheus.log` contains all keyed checks. Native host SHA-256:
+`96A7AC7B0D29C2016B15CAC4D8DCD18E5FA4CE075AF1BA28DE4719A5E8BE5CA1`.
+The earlier 80-check run also passed in
+`tmp/d03-protheus-4c82aad9154f4bfe8ae533f6c947ac48/`.
+Coverage includes accented VARCHAR, euro, Unicode outside CP1252, surrogate
+chunk boundaries, long text, FLOAT fractions/magnitudes, explicit DECIMAL
+scales, exact decimal text, NUL/empty/null, EOF, HTTP status and defensive
+row/page copies. Clients encode CP1252 fixture inputs once; received values
+stay UTF-8 and consumer text uses `DecodeUTF8()` once when needed.
+
+A standalone `JSONObject` probe confirmed a separate AppServer defect:
+assigned `A + Chr(0) + B` remains `410042`; `ToJSON()` emits `{"text":"A"}`;
+`FromJSON('{"text":"A\u0000B"}')` returns Nil and yields `4142` (AB).
+The round trip yields `41` (A), without SQL or transport. Exact reproduction
+and build 7.00.240223P / 24.3.1.5 / SVN 46783 are published in
+[issue #14](https://github.com/naldodj/totvs-protheus-open-issues/issues/14).
+Probe: `tmp/d03-local-7baba9a141dc4c2cae22a80db76779af/protheus.log`.
+
+`HBBridge.Client.HBBridgeJSON` now preserves real NUL string escapes without
+recoding UTF-8 or changing native scalar/numeric handling. Both clients and
+dataset snapshots use it. Truncated/removed NUL remains a failed assertion;
+no fallback changes the expected value to A or AB. Closed AppServer checks
+passed **31/zero failures, exit 0**, including NUL positions/density, literal
+escapes, Unicode keys, empty containers and failure clearing:
+`tmp/d03-local-334459cffda64ccd89f8760b27c8d266/protheus.log`.
+
+The private RPO compiled all ten selected sources with **zero source errors,
+process exit 0**: `tmp/d03-protheus-rpo/compile.log`. Installed services/RPO
+were not replaced or restarted for these final runs. An intermediate compile
+reported an empty/corrupt source despite exit 0; the subsequent complete
+compile passed. AppServer mock regressions also passed: dataset **67/31
+calls** (`tmp/d03-local-bfc974373fdc40f78e6143d7500834bc/`), helpers **12**
+(`tmp/d03-local-11b6fb42fcb94c788f9bdc0c52b1cede/`), HTTP table **71**
+(`tmp/d03-local-496df9338ec545c8bd713748a2829dab/`). The two procedure entries
+returned process -4 without a numeric CLI return; acceptance uses their
+complete successful assertion summaries, not a fabricated exit 0.
+
+Native binary bytes remain exact. Version-1 JSON explicitly refuses SQL
+binary columns with `BINARY_JSON_UNSUPPORTED`; explicit SQL hexadecimal text
+projection is tested. This does not implement automatic BLOB JSON support.
+The Protheus projection helper excludes binary base types, retains long text,
+orders columns, escapes the supplied table literal and removes the hardcoded
+dbo assumption. The revised SRA browse compiles; its UI/business-data run was
+not repeated here. Earlier manual accent/no-CAST/DecodeUTF8 observations keep
+their manual scope. Linux, other drivers/codepages, arbitrary-precision JSON,
+automatic ERP scale and a versioned binary representation require separate
+implementation/acceptance.
+
+Final D03 documentation/source gates passed on 2026-10-21: all three required
+validators accepted **242 files**, local links exist across **89 documents**,
+and whitespace checks passed. Receipt: `tmp/d03-final-commit-check.log`.
+These checks do not close M09/package 001.

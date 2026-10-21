@@ -11,12 +11,6 @@ class HBBridgeJSONTest
 endclass
 
 // Closed checks: no socket, credentials, database or ERP environment is used.
-procedure U_HBBridgeJSONTest()
-
-    HBBridge.Test.HBBridgeJSONTest():Run()
-
-return
-
 static method Run() class HBBridgeJSONTest
 
     local jChecks := JSONObject():New() as json
@@ -80,9 +74,20 @@ static method Run() class HBBridgeJSONTest
         jOutput["text"] == "A\u0000B"
     jChecks["unicodeEscapeBeforeNul"] := HBBridge.Client.HBBridgeJSON():Parse('{"text":"\u00e7\u0000B"}', jOutput) .and. ;
         jOutput["text"] == EncodeUTF8(Chr(231)) + Chr(0) + "B"
+    jChecks["emptyContainersWithNul"] := HBBridge.Client.HBBridgeJSON():Parse('{"text":"\u0000","object":{},"array":[]}', jOutput) .and. ;
+        ValType(jOutput["object"]) == "J" .and. ValType(jOutput["array"]) == "A" .and. Len(jOutput["array"]) == 0
+    jChecks["escapedAndUnicodeKeys"] := HBBridge.Client.HBBridgeJSON():Parse('{"a\\b\"c":"\u0000","\u00e7":"A\u0000B"}', jOutput) .and. ;
+        jOutput['a\b"c'] == Chr(0) .and. jOutput[EncodeUTF8(Chr(231))] == "A" + Chr(0) + "B"
+    jInput["text"] := Replicate(Chr(0), 16384)
+    cJSON := HBBridge.Client.HBBridgeJSON():Encode(jInput)
+    jChecks["denseNulRoundTrip"] := HBBridge.Client.HBBridgeJSON():Parse(cJSON, jOutput) .and. ;
+        Len(jOutput["text"]) == 16384 .and. jOutput["text"] == jInput["text"]
     jChecks["jsonNulKeyRejected"] := !HBBridge.Client.HBBridgeJSON():Parse('{"A\u0000B":"text"}', jOutput)
     jChecks["rawNulRejected"] := !HBBridge.Client.HBBridgeJSON():Parse('{"text":"A' + Chr(0) + 'B"}', jOutput)
     jChecks["malformedRejected"] := !HBBridge.Client.HBBridgeJSON():Parse('{"text":"A\u0000B"', jOutput)
+    aNames := jOutput:GetNames()
+    jChecks["rejectedParseClearsResult"] := Len(aNames) == 0
+    FWFreeArray(@aNames)
     jInput["A" + Chr(0) + "B"] := "unsupported key"
     jChecks["nativeNulKeyRejected"] := Empty(HBBridge.Client.HBBridgeJSON():Encode(jInput))
 

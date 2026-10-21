@@ -111,20 +111,21 @@ accept D02's dataset/helper scope. The historical result key
 `dsStructDefensiveAlias` exercises a `Header()` copy and `FieldInfo()`.
 `Header()` remains the canonical metadata API; `DSStruct()` remains removed.
 
-These runs exercise no transport, SQL backend or ERP table. D03 is the next
-task for the UTF-8/FLOAT integrity findings below; broader TCP/HTTP text and
-numeric acceptance and M06–M09 remain open. See [tests](../tests/README.md)
-and [acceptance](acceptance.md) for the execution record.
+These runs exercise no transport, SQL backend or ERP table. D03's subsequent
+MSSQL/TCP/HTTP integrity acceptance is recorded below; package closure and
+M09 remain separate. See [tests](../tests/README.md) and
+[acceptance](acceptance.md) for the execution record.
 
 ## Encoding finding on 2026-10-08
 
-The current HTTP worker and native MSSQL harness select Harbour `UTF8EX`.
-The TCP adapter does not select it and serializes JSON without an explicit
+At this review, the HTTP worker and native MSSQL harness selected Harbour
+`UTF8EX`, but the TCP adapter serialized JSON without selecting an explicit
 codepage. The pinned Harbour default `EN` is CP437. The TLPP TCP request also
-sends `ToJSON()` without the explicit UTF-8 conversion used by HTTP.
-Consequently, existing ASCII TCP acceptance does not certify accented text.
+sent `ToJSON()` without the explicit UTF-8 conversion used by HTTP.
+Consequently, the earlier ASCII TCP acceptance did not certify accented text.
 `OemToAnsi(FieldGet(...))` repairing display is consistent with an intermediate
 OEM conversion; it does not establish the original SQL column encoding.
+These gaps were corrected and exercised by D03, as recorded below.
 
 ### D03 source integrity priority on 2026-10-19
 
@@ -135,8 +136,8 @@ UTF-8 to its consumer codepage when needed. Each conversion has one explicit
 owner, including any native parser/channel conversion. Consumer codepage
 selection does not change the wire encoding. Binary values retain their
 explicit binary representation and never enter these text conversions.
-This is the required D03 contract; the TCP gap above remains to be corrected
-and accepted.
+The implementation now follows this contract; the demonstrated acceptance
+scope is the MSSQL fixture and AppServer runtime recorded below.
 
 The first acceptance gate is the database-to-driver/RDD-to-Harbour path,
 before JSON or a Protheus UI. Confirm the intended characters using a known
@@ -188,18 +189,21 @@ Whole-document recoding/reparsing can change JSON keys/control strings and
 inherits native serializer/parser behavior; it is not the default policy yet.
 `DecodeUTF8()` supports an explicit target encoding; see the TOTVS reference below.
 
-Required correction, **not implemented by the navigation methods**:
+Implemented boundary policy:
 
-1. Use UTF-8 consistently for TCP/HTTP JSON and execute requests under
-   `UTF8EX`, restoring the worker's prior state.
-2. Let the TLPP consumer choose its target text encoding, such as `cp1252`
-   or `utf-8`, with a strict error for unrepresentable text. Convert text once
-   after JSON decoding; never convert binary values as text.
-3. Describe source text/binary semantics explicitly. Any legacy OEM override
-   must identify its field and source encoding and preserve original bytes
-   before a lossy ODBC conversion; never infer encoding from an alias or sample.
-4. Verify accented text, CJK, supplementary characters, escaped Unicode,
-   NULL/empty and binary data through both TCP and HTTP in the actual AppServer.
+1. TCP/HTTP JSON uses UTF-8. The TCP adapter selects `UTF8EX` for request
+   execution and restores its previous state. Both TLPP clients encode an
+   ordinary AppServer text request once, before measuring/framing its bytes.
+2. Returned text stays UTF-8. A consumer calls `DecodeUTF8()` once where its
+   local codepage is required and checks conversion success. Values outside
+   that codepage remain UTF-8 or need another explicit consumer representation.
+   Binary values never enter these text conversions.
+3. The managed ODBC patch handles Unicode SQL input and retrieval explicitly,
+   including supplementary characters and chunk boundaries. A source mismatch
+   still requires type/collation diagnosis, rather than an alias-based repair.
+4. The actual AppServer fixture covers accents, CJK, supplementary characters,
+   escaped Unicode, NUL and NULL/empty through TCP/HTTP. Raw binary retrieval
+   and its separate JSON restriction are recorded below.
 
 Collation governs comparison/sorting and influences non-Unicode SQL types;
 it is not the response encoding. hbBridge must not silently change database
@@ -207,6 +211,60 @@ or column collation. Caller-supplied SQL can explicitly select a collation
 where its query semantics require it. References:
 [Microsoft collation/Unicode](https://learn.microsoft.com/en-us/sql/relational-databases/collations/collation-and-unicode-support?view=sql-server-ver17),
 [TOTVS UTF-8 conversion](https://centraldeatendimento.totvs.com/hc/pt-br/articles/360025758092-Cross-Segmento-TOTVS-Backoffice-Linha-Protheus-ADVPL-Converte-uma-string-com-codifica%C3%A7%C3%A3o-UTF-8).
+
+### D03 implementation and acceptance on 2026-10-21
+
+The read-only `d03.mssql.constants.v1` fixture passed **80 checks, zero
+failures**, through the production TCP/HTTP clients and dataset on Windows
+AppServer **24.3.1.5**, using an isolated private RPO. Coverage includes source
+text, raw fractional FLOAT, explicit DECIMAL scale, exact decimal text, NUL,
+defensive row/page snapshots and explicit binary hexadecimal projection.
+Receipt: `tmp/d03-protheus-9c3d1606250449c9a659f92f92c5c6e6/validation.json`.
+The native server artifact SHA-256 is
+`96A7AC7B0D29C2016B15CAC4D8DCD18E5FA4CE075AF1BA28DE4719A5E8BE5CA1`.
+This accepts D03 for that fixture/runtime; it does not certify other drivers,
+Linux, all business-field ranges or raw BLOB values in JSON.
+
+Earlier native validation on 2026-10-19 passed **752 generic checks**,
+**73 new MSSQL integrity checks**, **92 existing MSSQL checks**, **7 independent
+.NET ODBC reference checks** and **2 Zig numeric checks**, all without failures.
+The independent reference bypasses Harbour/JSON. The managed ODBC patch fixes
+UTF-8 SQL input containing supplementary characters, as well as preserving
+Unicode/binary retrieval; the pinned dependency checkout remains unchanged.
+
+#### Embedded NUL in the AppServer JSON implementation
+
+The isolated reproduction on this AppServer retained `A` + `Chr(0)` + `B`
+in a direct property, but native `ToJSON()` reduced bytes `410042` to `41`.
+Native `FromJSON()` reduced `"A\u0000B"` to `4142`, removing the NUL. This
+serializer/parser defect is tracked in
+[Protheus issue 14](https://github.com/naldodj/totvs-protheus-open-issues/issues/14).
+UTF-8 decoding cannot recover the lost byte.
+
+[`HBBridge.Client.HBBridgeJSON`](../src/tlpp/hbbridge.json.tlpp) now preserves
+embedded NUL through `Encode()`/`Parse()` and is used by both clients and
+dataset snapshots. Ordinary documents retain native scalar/container/numeric
+handling; NUL-bearing strings use JSON `\u0000` escapes without sentinels.
+The helper performs no codepage conversion. `Encode()` first walks the values
+to detect NUL, so ordinary serialization has an additional linear traversal
+and native key-enumeration allocations. NUL in a property name is rejected
+explicitly, rather than silently changing the key.
+
+The closed `U_HBBridgeJSONTest()` run passed **31 checks, zero failures**, on
+2026-10-21, independently of sockets/SQL. Evidence:
+`tmp/d03-local-334459cffda64ccd89f8760b27c8d266/protheus.log`.
+The subsequent 80-check TCP/HTTP run proves NUL round trips and defensive
+`GetRow()`/`GetRows()` copies in the integrated path.
+
+#### Binary projection
+
+Native SQL retrieval retains binary bytes exactly. Version 1 JSON query routes
+return `BINARY_JSON_UNSUPPORTED` for a raw binary result instead of applying
+text conversion or returning partial rows. The caller can select hexadecimal
+text explicitly, for example `CONVERT(varchar(max), binary_value, 2)` on MSSQL.
+The SRA example resolves its own projection on Protheus and omits binary
+columns; ordinary long text is not classified as binary. Automatic base64/raw
+BLOB JSON representation remains a future versioned contract.
 
 ## Numeric finding on 2026-10-08
 
@@ -229,8 +287,9 @@ SELECT CAST(123.4567 AS FLOAT) AS FLOAT_VALUE,
 The native FLOAT retained `123.4567`, but its RDD metadata reported zero
 decimals and Harbour's JSON formatter emitted `123`. The two DECIMAL columns
 emitted `123.4567` and `123.46`. Evidence: `tmp/numeric-probe-20261008.log`.
-This identifies a serialization defect; the earlier 92 native MSSQL checks
-did not cover a raw FLOAT JSON round trip. Navigation improvements do not fix it.
+This identified a serialization defect; the earlier 92 native MSSQL checks
+did not cover a raw FLOAT JSON round trip. D03 now corrects the wire codec
+and tests this case separately from navigation.
 
 Protheus must resolve SX3/TOP_FIELD or another business schema and supply its
 logical definitions explicitly. hbBridge must not query those tables or infer
@@ -257,33 +316,40 @@ value fits its range. It rounds to the selected decimal scale in SQL. Keep
 the choice on Protheus, including dictionary resolution. SQL precision counts
 digits and must not be confused with a display width that includes formatting.
 
-This does not replace the generic transport correction. The inspected
-SDDODBC retains the FLOAT double but attaches zero decimal-format metadata;
-the JSON encoder then uses that metadata with fixed-point formatting. Raw
-FLOAT must preserve the received approximate value without requiring a CAST
-or assuming that every numeric field has two decimal places.
+This does not replace generic transport preservation. SDDODBC retains the
+FLOAT double but attaches zero decimal-format metadata; the earlier JSON
+encoder used that metadata with fixed-point formatting. The implemented
+C/Zig wire codec preserves the received approximate value without requiring
+a CAST or assuming that every numeric field has two decimal places.
 
 | Approach | Role / status |
 | --- | --- |
 | Caller SQL CAST to DECIMAL | Available now; defines SQL result scale/rounding. |
-| Correct raw FLOAT serialization | Required generic fix; preserve the received double through encoder/decoder and client parsing. Not implemented. |
+| Correct raw FLOAT serialization | Implemented C/Zig codec; native binary64 round trips and the AppServer's stated numeric tolerances are verified separately. |
 | Explicit caller logical precision/scale | Proposed alternative without changing SQL; apply only the supplied field rule, distinguish representation/rounding from display. Not accepted parameters yet. |
 | Decimal text projected in SQL | Available option for exact decimal digits beyond double capacity; keep the string representation until intentional conversion. |
 
-Harbour's upstream `hb_odbcNumSetLen()` illustrates per-item formatting metadata
-without changing the native numeric value. It belongs to `hbodbc`, which the
-product does not currently link; an equivalent small C wrapper can be evaluated.
-It is not a universal floating-point encoder or a new public hbBridge API.
+Harbour's upstream `hb_odbcNumSetLen()` was an inspection reference for per-item
+formatting metadata without changing the native numeric value. It belongs to
+`hbodbc`, which the product does not link. D03 instead uses the C/Zig wire codec;
+the upstream helper is not a new public hbBridge API.
 Source references: [ODBC numeric metadata helper](https://github.com/harbour/core/blob/6deac9cf3ad977ae829e5bca543d553b92dd4b6d/contrib/hbodbc/odbc.c#L1203),
 [JSON number formatting](https://github.com/harbour/core/blob/6deac9cf3ad977ae829e5bca543d553b92dd4b6d/src/rtl/hbjson.c#L259).
 
-Implementation must test a real general/shortest double formatter and both
-parsers. The pinned Harbour `hb_snprintf()` maps general/scientific specifiers
-to fixed-point formatting; a simple change to `%.17g` there is insufficient.
-Fixed 17 fractional places is not 17 significant digits. Include tiny/large
-magnitudes, scientific notation and values requiring 17 significant digits,
-while preserving declared DECIMAL semantics. FLOAT remains approximate;
-neither a transport fix nor CAST reconstructs precision already absent in storage.
+The implemented formatter emits a shortest round-trip representation when
+native fixed formatting would change the received double. Its decoder preserves
+the native binary64 value; tests include tiny/large magnitudes, scientific
+notation, negative zero and values requiring 17 significant digits. A native
+DECIMAL-format token is retained only when it round-trips to the same value.
+The pinned Harbour `hb_snprintf()` maps general/scientific specifiers to fixed
+formatting, so merely changing its format to `%.17g` was insufficient.
+
+The Protheus checks use native `N` values with explicit tolerances within
+15 significant digits, not a promise of binary64 bit identity in its JSON
+parser. `DEC_CREATE()` creates a different fixed-decimal type; it does not
+restore precision already lost when reading a JSON number. Project exact large
+DECIMAL/BIGINT digits as text when required by the consumer. FLOAT remains
+approximate; neither a transport fix nor CAST reconstructs absent source digits.
 
 The next versioned result contract must distinguish:
 
@@ -294,15 +360,17 @@ The next versioned result contract must distinguish:
 | `wire` | Text encoding and representation: JSON number, exact decimal string or binary encoding. |
 
 These groups and `targetEncoding` are a design, **not additional parameters
-accepted by the current strict service**. Tests must include fractional FLOAT,
-large DECIMAL, BIGINT beyond `2^53-1`, large-field metadata and TCP/HTTP parity.
+accepted by the current strict service**. A future extension still needs its
+own large-field/logical metadata and exact-number acceptance beyond the
+representations exercised by D03.
 
 ### Deferred metadata addon and SQL rewriting
 
 Decision on 2026-10-13: keep Protheus metadata addons and automatic decimal
 policy on hold. Caller SQL CAST remains the available business-scale approach.
-The raw FLOAT transport defect and broader UTF-8 acceptance remain unresolved;
-this choice does not certify them or close D03. Independent M06 work can proceed.
+At that decision, raw FLOAT and broader UTF-8 acceptance remained unresolved;
+the separate D03 implementation/acceptance above subsequently addressed its
+demonstrated scope without adding metadata addons or SQL rewriting.
 
 A later optional static method on `HBBridge.SQL.Tools.HBBridgeSqlTools` could
 accept SQL plus a caller-resolved JSON schema and insert numeric CASTs before

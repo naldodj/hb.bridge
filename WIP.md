@@ -12,11 +12,11 @@ acceptance records verified results; ChangeLog and Git preserve history.
 | Item | Current value |
 | --- | --- |
 | ID | `001-mssql-acceptance` |
-| Opened / updated | 2026-10-07 / 2026-10-19 |
-| Status | D02/M06/M07/M08 retain their recorded acceptance. V01/V02 completed on 2026-10-19 for the demonstrated visual/AppServer scope and separately recorded focused checks. D03 is next; final M09 checks and package closure remain pending. |
+| Opened / updated | 2026-10-07 / 2026-10-21 |
+| Status | D02/M06/M07/M08 retain their recorded acceptance. V01/V02 completed on 2026-10-19 for the demonstrated visual/AppServer scope and separately recorded focused checks. D03 accepted on 2026-10-21 for the identified Windows/MSSQL fixture. Final M09 checks and package closure remain pending. |
 | Goal | Accept the existing RPCRDD.Query/dataset against an identified real MSSQL database through Harbour, Protheus TCP and Protheus HTTP. |
 | Product reference | Published code `50e1c65`; checkout at package opening `bce52d2` includes the clone badge update. |
-| Next task | D03: reproduce and correct UTF-8/raw-FLOAT integrity across Harbour, TCP/HTTP and Protheus. Keep caller-defined business scale/CAST. Then complete M09; package 001 stays open. |
+| Next task | M09: consolidate final regressions, artifact/configuration identities and paired documentation after D03 acceptance; package 001 stays open. |
 
 ### Decisions already made
 
@@ -126,27 +126,23 @@ new acceptance findings, not reasons to repeat the completed inventory.
   `U_HBBridgeHelperTest`, 17:56:45, thread 28300, **12 checks**. All checks true,
   both reports OK. See [scope/evidence](docs/acceptance.md#dataset-and-helper-validation-on-2026-10-13).
   This accepts the mock/interface contract; native text/numeric integrity remains D03.
-- [ ] **D03 — Correct text and numeric integrity.** First prove that the
-  driver/RDD delivers the database's intended text to native Harbour before
-  JSON serialization, using known fixture values and explicit source metadata.
-  Then verify UTF-8 execution and text requests/responses in both directions
-  between Protheus and hbBridge over TCP/HTTP, client conversion and binary handling;
-  fix the reproduced fractional FLOAT JSON loss and define lossless decimal/
-  native versus caller-supplied logical metadata without implicit ERP lookups.
-  See [findings and contract](docs/dataset.md). Do not count old ASCII/DECIMAL
-  fixture results as acceptance of these newly identified cases.
-  The 2026-10-13 presentation observations retain the working HTTP example
-  and further desktop validation. Clarified on 2026-10-19: `DecodeUTF8()` remains
-  an expected consumer conversion when Protheus requires another codepage;
-  removing it is not an acceptance criterion. A UI repair does not prove the
-  database read. See the [staged checks](docs/dataset.md#d03-source-integrity-priority-on-2026-10-19).
-  Separate generic FLOAT preservation from
-  caller-selected DECIMAL business scale; CAST is an available projection,
-  not a prerequisite for generic FLOAT transport. Explicit logical metadata
-  remains a proposed extension. See the [analysis](docs/dataset.md#business-scale-and-raw-float-analysis-on-2026-10-13).
-  Metadata addons and an optional TLPP/Zig SQL projection rewriter are deferred;
-  their [evaluation](docs/dataset.md#deferred-metadata-addon-and-sql-rewriting)
-  does not add an API/dependency or block independent M06 cases.
+- [x] **D03 — Correct text and numeric integrity.** Accepted for the identified
+  Windows/MSSQL fixture on 2026-10-21: automated real AppServer TCP/HTTP
+  **80 checks, zero failures, exit 0**. UTF-8 requests/responses, consumer
+  `DecodeUTF8()` once, raw FLOAT fractions/magnitudes, caller DECIMAL scale,
+  exact decimal text and embedded NUL (including defensive dataset copies)
+  are covered. Native source/wire checks passed separately on 2026-10-19:
+  **752 default / 73 MSSQL integrity / 92 legacy MSSQL / 7 independent ODBC /
+  2 Zig**, all zero failures. Shared codecs and the managed ODBC patch correct
+  the reproduced defects. Protheus JSONObject NUL loss is isolated in
+  [issue #14](https://github.com/naldodj/totvs-protheus-open-issues/issues/14);
+  the TLPP helper preserves the value without accepting truncated fixtures.
+  Native binary is exact; version-1 JSON explicitly rejects raw binary until
+  a versioned representation is defined. SQL hex/text projection is available.
+  Business scale/CAST and SX3/TOP_FIELD remain caller-owned. Logical metadata,
+  metadata addons and SQL rewriting remain deferred. No Linux/other-driver or
+  automatic BLOB JSON acceptance is inferred. See
+  [evidence and limitations](docs/acceptance.md#d03-integrity-on-2026-10-21).
 - [x] **S01 — Expand credential design.** Cover SQL, NETIO/admin and HTTP on
   hbBridge and local AppServer client secrets, external per-installation keys,
   portable providers and separately verified TLPP support. Encryption is still
@@ -409,13 +405,12 @@ analysis and acceptance of the adapted logical/physical connection lifecycle
 subsequently completed M07 for the recorded Windows scope. The 130-worker
 failures are reviewed; later paced-load summaries through 500 workers are
 accepted within their summary scope. M08 time/memory reference completed on
-2026-10-16. V01/V02 completed for the recorded scope on 2026-10-19. Resume
-D03, then final M09 checks; preserve the SQL mutex and distinguish concurrent
-requests from parallel database execution.
-D03 integrity remains pending after
-explicit reprioritization, with caller CAST retained.
-Do not repeat accepted migrations, inventory or native/TCP/HTTP cases without
-new evidence requiring it. M09, D03 and the package completion criteria remain.
+2026-10-16. V01/V02 completed for the recorded scope on 2026-10-19 and D03
+integrity passed on 2026-10-21. Resume final M09 checks; preserve the SQL mutex
+and distinguish concurrent requests from parallel database execution. Caller
+CAST remains available for business scale. Do not repeat accepted migrations,
+inventory or native/TCP/HTTP cases without new evidence requiring it.
+M09 and the package completion criteria remain.
 
 The 2026-10-12 [SQL connection-reuse observation](docs/sql-connections.md)
 was reprioritized into M07 on 2026-10-15. `HBBridgeSQLPool` now owns exclusive
@@ -465,7 +460,7 @@ package belong in its recorded scope, rather than silently opening another front
   deployment acceptance are prerequisites, not delivered support.
 
 [Design, reference environment and acceptance sequence](docs/benchmark-evolution.md).
-These future tasks do not change the next action: D03, then final M09 checks.
+These future tasks do not change the next action: final M09 checks after scoped D03 acceptance.
 
 ## Updating and renewing WIP
 

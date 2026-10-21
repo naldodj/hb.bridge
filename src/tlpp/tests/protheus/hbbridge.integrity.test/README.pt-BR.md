@@ -8,12 +8,12 @@ Informar explicitamente um alias de perfil MSSQL configurado. As consultas
 usam constantes e não leem nem alteram tabelas de negócio ERP. O teste não
 inicia listeners nem modifica os INIs hbBridge/AppServer.
 
-Compilar este diretório com toda a árvore `src/tlpp` atual, incluindo o cliente
-TCP atualizado, usando SDK/includes do AppServer de destino. O hbBridge de
+Compilar este diretório com toda a árvore `src/tlpp` atual, incluindo
+`HBBridgeJSON`, ambos os clientes e dataset, usando SDK/includes do AppServer de destino. O hbBridge de
 destino precisa incluir a implementação atual de transporte/números e o patch
 ODBC gerenciado. Veja o [script de compilação](../../../../../scripts/build-totvs.cmd).
-Compilação/aceite runtime novos no AppServer continuam pendentes; resultados
-nativos locais não comprovam execução deste teste TLPP nem concluem D03.
+A execução AppServer registrada em 2026-10-21 passou em **80 checks, zero
+falhas**; seu escopo exato e a rodada fechada separada do helper JSON estão abaixo.
 
 ## Preparar um destino MSSQL isolado
 
@@ -83,12 +83,14 @@ linha final `hbBridge integrity Protheus OK/FAILED` como evidência runtime.
 - SQL/dataset cobre FLOAT fracionário/negativo, magnitudes pequenas/grandes,
   check numérico de 15 dígitos significativos, escalas DECIMAL declaradas,
   VARCHAR acentuado, Unicode fora de CP1252, par substituto em fronteira de
-  blocos ODBC, NUL/vazio/null, EOF e fechamento TCP próprio. HTTP também verifica
-  status 200.
+  blocos ODBC, NUL/vazio/null, EOF e fechamento TCP próprio. NUL também é
+  verificado nas cópias defensivas `GetRow()`/`GetRows()`. HTTP verifica status 200.
 - Valores TLPP nativos `N` usam tolerâncias explícitas; os checks de magnitude
   pequena/grande normalizam os valores perto de um. Isso não promete preservar
   todos os bits binary64 pelo parser JSON AppServer. Checks do codec nativo têm
   escopo separado. CAST do chamador define escala de negócio; não se deduz SX3.
+  `DEC_CREATE()` retorna outro tipo decimal fixo e não é usado para ocultar
+  precisão já perdida ao interpretar um número JSON.
 - `EXACT_TEXT` projeta `DECIMAL(30,10)` como texto e deve preservar exatamente
   `12345678901234567890.1234567890`. Converter essa string para número nativo
   está fora da asserção e pode perder dígitos.
@@ -104,6 +106,56 @@ em UTF-8; um valor acentuado representável passa depois por uma conversão
 CP1252 permanecem UTF-8, sem forçar essa conversão. A conversão de parser/canal
 deve ter responsável explícito único para evitar duplicidade. Nenhuma dessas
 conversões textuais se aplica a binários nem corrige serialização numérica.
+
+## Falha NUL nativa do AppServer e helper de compatibilidade
+
+No AppServer testado, a propriedade direta preserva `A` + `Chr(0)` + `B`, mas
+o `ToJSON()` nativo trunca seus bytes de `410042` para `41`. O `FromJSON()`
+nativo remove NUL escapado em `"A\u0000B"`, retornando `4142`.
+A reprodução independente está registrada na
+[issue Protheus 14](https://github.com/naldodj/totvs-protheus-open-issues/issues/14).
+Isso é separado da conversão UTF-8 e não pode ser reparado por `DecodeUTF8()`.
+
+`HBBridge.Client.HBBridgeJSON():Encode()`/`:Parse()` agora preservam NUL em
+valores dos dois clientes e nas cópias do dataset. O helper mantém semântica
+numérica nativa, não converte codepages e distingue escapes `\u0000` reais
+de texto de escape literal. Nomes de propriedade com NUL são recusados
+explicitamente. A codificação comum ainda percorre os valores para detectar
+NUL antes da serialização nativa, adicionando varredura linear/enumeração de chaves.
+
+A regressão fechada do helper não precisa de SQL nem de destino hbBridge:
+
+```tlpp
+nResult := U_HBBridgeJSONTest()
+```
+
+Exercita serialização comum, fronteiras/repetição de NUL, objetos/arrays
+aninhados, Unicode e outros escapes, preservação de escape literal e das
+entradas, além de entradas inválidas/não suportadas. Manter sua contagem e
+resultado separados de `U_HBBridgeIntegrityTest()`.
+
+## Aceite registrado
+
+Em **2026-10-21**, Windows AppServer **24.3.1.5**, com RPO privado isolado,
+passou na fixture MSSQL pelos clientes TCP/HTTP do produto: **80 checks, zero
+falhas**, códigos de saída cliente/servidor 0. Recibo:
+`tmp/d03-protheus-9c3d1606250449c9a659f92f92c5c6e6/validation.json`.
+SHA-256 do artefato servidor nativo:
+`96A7AC7B0D29C2016B15CAC4D8DCD18E5FA4CE075AF1BA28DE4719A5E8BE5CA1`.
+A rodada fechada separada do helper JSON passou em **31 checks, zero falhas**:
+`tmp/d03-local-334459cffda64ccd89f8760b27c8d266/protheus.log`.
+
+As rodadas nativas anteriores de **2026-10-19** passaram em 752 checks genéricos,
+73 checks de integridade MSSQL, 92 checks MSSQL existentes, 7 checks de referência
+.NET ODBC independentes e 2 checks numéricos Zig, todos sem falhas. Complementam
+a evidência AppServer, sem substituí-la. A correção ODBC gerenciada inclui
+caracteres suplementares na entrada SQL UTF-8, além da decodificação da saída.
+
+Os resultados homologam D03 na fixture/runtime demonstrados. Não certificam
+Linux, outros drivers ODBC, BLOB bruto em JSON nem precisão binary64 nativa
+completa no Protheus. Dígitos grandes exatos permanecem projeções SQL textuais
+explícitas; CAST do chamador continua como opção para escala de negócio.
+Extensões de metadados lógicos permanecem futuras.
 
 Os checks homologam somente o runtime e a fixture registrados. Preservar
 SQL Server, driver, identidade de fontes/binário/RPO, configuração cliente,

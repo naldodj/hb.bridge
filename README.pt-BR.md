@@ -44,10 +44,12 @@ em INI/JSON privado, sem misturar as duas formas. As chaves estão no guia de
 O [desenho de credenciais](docs/credentials.pt-BR.md) agora abrange também
 NETIO/admin, HTTP e token cliente do AppServer, com provedores locais e chaves
 distintas por instalação. Os provedores de armazenamento cifrado não foram implementados.
-O [estudo do dataset](docs/dataset.pt-BR.md) detalha a API de metadados/
-navegação e as falhas identificadas em 2026-10-08: codepage TCP inconsistente
-e perda de fração FLOAT no JSON. Aceites anteriores preservam seu escopo;
-correções de integridade e aceite da extensão TLPP estão no [WIP](WIP.pt-BR.md).
+O [contrato do dataset](docs/dataset.pt-BR.md) detalha metadados/navegação e
+transporte UTF-8. D03 corrigiu codepage TCP, perda FLOAT no JSON e NUL embutido
+no Protheus. O aceite automatizado AppServer TCP/HTTP MSSQL passou em 80 checks
+em 2026-10-21. Consumidores usam `DecodeUTF8()` uma vez quando necessário;
+binários exigem projeção SQL textual explícita no JSON versão 1.
+Veja [evidências](docs/acceptance.pt-BR.md#d03-integrity-on-2026-10-21).
 
 Ponte extensível que disponibiliza os recursos de Harbour, C e Zig ao ERP
 TOTVS Protheus (AdvPL/TLPP) e a clientes Harbour nativos. O objetivo é ampliar
@@ -1053,7 +1055,12 @@ oferece formulário FWWebEx, gráficos e exportação JSON/HTML pelo mesmo núcl
 O aceite manual AppServer/FWWebEx de 2026-10-19 abrange três rodadas das quatro
 rotas cliente e do addon restrito ao servidor: 105 amostras e 684 checks dos
 relatórios/zero falhas. Veja o [escopo e as evidências V01/V02](docs/acceptance.pt-BR.md#v01-v02-benchmark-acceptance-on-2026-10-19).
-A integridade UTF-8/FLOAT de D03 é a próxima tarefa; checks finais M09 permanecem abertos.
+A integridade UTF-8/FLOAT de D03 está homologada para a fixture Windows/MSSQL
+registrada: 80 checks automatizados no AppServer por TCP/HTTP em 2026-10-21.
+O consumidor usa `DecodeUTF8()` uma vez quando precisa de texto na sua página
+de código. Binários exigem projeção SQL textual explícita para JSON versão 1.
+Veja o [aceite D03](docs/acceptance.pt-BR.md#d03-integrity-on-2026-10-21).
+Checks finais M09 e pacote 001 permanecem abertos.
 Serviço e conectores estão implementados; o launcher aceita
 perfis em JSON ou INI, como `-Config config/examples/sqlite.ini`.
 Em paralelo, a base de integração

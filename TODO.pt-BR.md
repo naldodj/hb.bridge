@@ -596,7 +596,7 @@ testado; somente versões e capacidades efetivamente implementadas são anunciad
   AppServer TCP/HTTP reais, aquecimento separado, artefatos identificados e
   amostras do processo pelo SO.
   [Resultados e escopo](docs/acceptance.pt-BR.md#m08-performance-baseline-on-2026-10-16).
-  Checks finais M09 e D03 continuam abertos no [WIP](WIP.pt-BR.md).
+  Checks finais M09 continuam abertos no [WIP](WIP.pt-BR.md); D03 tem aceite delimitado.
 - [x] Ampliar benchmark visual com comparação opcional Protheus StartJob/REST
   e hbBridge TCP/HTTP, além de addon Harbour no servidor. Preservar fixture fixa,
   aquecimentos e escopos de tempo distintos; addon retorna estatísticas em vez
@@ -610,7 +610,7 @@ testado; somente versões e capacidades efetivamente implementadas são anunciad
   ciclo dos clientes, navegador e addon mantêm seu escopo separado de validação.
   Evidências de autenticação, limpeza dos recursos próprios e recuperação
   constam no [aceite](docs/acceptance.pt-BR.md#v01-v02-benchmark-acceptance-on-2026-10-19).
-  A integridade UTF-8/FLOAT de D03 é a próxima tarefa; checks finais M09 e pacote
+  A integridade UTF-8/FLOAT de D03 tem aceite delimitado em 2026-10-21; checks finais M09 e pacote
   001 permanecem abertos. O CLI TCP/HTTP também passou em rodada de dez linhas;
   veja [escopo CLI e esclarecimento da carga/timeout](docs/acceptance.pt-BR.md#m08-manual-cli-validation-on-2026-10-19).
   Falhas anteriores de inicialização StartJob CLI isolada são outro registro. Veja o [guia do benchmark](src/tlpp/tests/protheus/hbbridge.benchmark.test/README.pt-BR.md).
@@ -675,10 +675,16 @@ testado; somente versões e capacidades efetivamente implementadas são anunciad
   e segundo banco/perfil MSSQL configurado; nenhum é inferido da rodada
   Windows atual com autenticação SQL.
 
-- [ ] Correção de integridade UTF-8/FLOAT identificada no aceite: TCP atual pode
-  usar CP437 Harbour e a prova de 2026-10-08 perdeu fração FLOAT no JSON.
-  Separar metadados SQL nativos, definições lógicas do chamador e valores no
-  transporte; SX3/TOP_FIELD resolvidos no Protheus. [Análise](docs/dataset.pt-BR.md).
+- [x] Corrigir e homologar integridade UTF-8/FLOAT para a fixture Windows/MSSQL:
+  UTF-8 explícito TCP/HTTP, codec numérico, entrada SQL Unicode suplementar no
+  ODBC e serialização/parsing Protheus com NUL íntegro, inclusive snapshots.
+  AppServer: 80 checks/zero falhas em 2026-10-21. Binário nativo preservado;
+  JSON versão 1 recusa binário bruto com `BINARY_JSON_UNSUPPORTED`; usar projeção
+  SQL hexadecimal/textual explícita. CAST do chamador define escala de negócio;
+  SX3/TOP_FIELD permanecem no Protheus e metadados lógicos são extensão futura.
+  [Evidência](docs/acceptance.pt-BR.md#d03-integrity-on-2026-10-21).
+- [ ] Definir representação versionada de binários/BLOB para clientes JSON, com
+  codificação/tipo explícitos e aceite da integridade dos bytes entre clientes.
 - [ ] Adiado: addon opcional de metadados Protheus ou reescritor TLPP da projeção
   SQL usando JSON explícito para CAST automático. Avaliar gramática restrita,
   mapeamento completo de colunas/aliases e preservação semântica antes de implementar;
@@ -688,7 +694,7 @@ testado; somente versões e capacidades efetivamente implementadas são anunciad
   incluindo falha/recuperação de página: 67 checks/31 chamadas simuladas,
   zero falhas, em 2026-10-13 às 17:56:23 São Paulo, thread 32332. Helpers puros
   passaram nos 12 checks às 17:56:45, thread 28300. O escopo de mocks de D02
-  está homologado; integridade UTF-8/FLOAT de D03 permanece pendente. M06 tem
+  está homologado; D03 tem aceite posterior delimitado em 2026-10-21. M06 tem
   aceite isolado posterior; M07/M08 estão homologadas nos escopos registrados e M09
   permanece aberto. Essas rodadas não exercitam transporte, backend SQL nem
   tabela ERP. [Evidência](docs/dataset.pt-BR.md).

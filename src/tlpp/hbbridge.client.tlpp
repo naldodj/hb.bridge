@@ -94,7 +94,6 @@ method CallService(cService, jParams) class HBBridgeClient
     local nExpectedSize := 0 as numeric
     local nMaxFrameBytes := 0, nSendBytes := 0 as numeric
 
-    local xJSONError as variant
     local xSocketError as variant
 
     paramtype 1 var cService as character
@@ -119,7 +118,7 @@ method CallService(cService, jParams) class HBBridgeClient
     jReq["params"] := jParams
     // Match HTTP: parameters use the AppServer codepage; the wire uses UTF-8.
     // Convert before byte budgets, framing and gzip. Do not pre-encode values.
-    cJSONReq := EncodeUTF8(jReq:ToJSON())
+    cJSONReq := EncodeUTF8(HBBridge.Client.HBBridgeJSON():Encode(jReq))
     FreeObj(@jReq)
 
     if self:nTimeout < 1 .or. self:nTimeout != Int(self:nTimeout)
@@ -288,8 +287,7 @@ method CallService(cService, jParams) class HBBridgeClient
             endif
             // Keep received text in UTF-8. The consumer converts individual
             // text values once when its local codepage requires it.
-            xJSONError := jResp:FromJSON(cPayload)
-            if ValType(xJSONError) != "U"
+            if !HBBridge.Client.HBBridgeJSON():Parse(cPayload, jResp)
                 cCode := "INVALID_JSON"
                 cError := "Response contains invalid JSON."
             endif

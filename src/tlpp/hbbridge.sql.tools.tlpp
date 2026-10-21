@@ -37,6 +37,7 @@ class HBBridgeSqlTools
     static method SQLDelete(cTable as character,cWhere as character,cTCSQLError as character) as numeric
     static method SQLSetDeleted(cTable as character,cWhere as character,cTCSQLError as character) as numeric
 
+    static method GetTableName(cAlias as character) as character
     static method GetAliasTableName(cAlias as character) as character
     static method GetTmpRealNameByAlias(cAlias as character) as character
 
@@ -292,24 +293,25 @@ static method SQLSetDeleted(cTable,cWhere,cTCSQLError) class HBBridgeSqlTools
 
 return(nTCSQLExec)
 
-static method GetAliasTableName(cAlias) class HBBridgeSqlTools
-    local cTableRealName
+static method GetTableName(cAlias) class HBBridgeSqlTools
+    local cType as character
+    local cTableName as character
     paramtype 1 var cAlias as character optional default Alias()
-    //https://tdn.totvs.com/display/tec/DBInfo
-    cTableRealName:=(cAlias)->(dbInfo(DBI_FULLPATH))
-return(cTableRealName)
+    cTableName:=(cAlias)->(dbInfo(DBI_FULLPATH))
+    if (!TCCanOpen(cTableName))
+        //https://tdn.totvs.com/display/tec/TCObject
+        if ((TCObject(cTableName,@cType)).and.(cType=="TEMPORARY TABLE"))
+            //https://tdn.totvs.com/display/tec/TCConfig
+            cTableName:=TCConfig("GETTEMPNAME="+cTableName)
+        endif
+    endif
+return(cTableName)
+
+static method GetAliasTableName(cAlias) class HBBridgeSqlTools
+return(HBBridgeSqlTools():GetTableName(cAlias))
 
 static method GetTmpRealNameByAlias(cAlias) class HBBridgeSqlTools
-    local cType as character
-    local cTableRealName as character
-    paramtype 1 var cAlias as character optional default Alias()
-    cTableRealName:=HBBridgeSqlTools():GetAliasTableName(cAlias)
-    //https://tdn.totvs.com/display/tec/TCObject
-    if ((TCObject(cTableRealName,@cType)).and.(cType=="TEMPORARY TABLE"))
-        //https://tdn.totvs.com/display/tec/TCConfig
-        cTableRealName:=TCConfig("GETTEMPNAME="+cTableRealName)
-    endif
-return(cTableRealName)
+return(HBBridgeSqlTools():GetTableName(cAlias))
 
 static method PrefixQryAlias(cAlias,cSQL) class HBBridgeSqlTools
 
@@ -499,26 +501,48 @@ static method GetNextFieldNum(cAlias,cField,nOrder,cMyIUseCode,lUseFilial,lIgnor
 return(cNextNum)
 
 static method GetNonBlobColumns(cTable) class HBBridgeSqlTools
+
     local aTCSQLResult as array
-    local cTCGetDB:=TCGetDB() as character
-    local cNonBlobColumns as character
+    local cTCGetDB as character
+    local cNonBlobColumns:="" as character
+
     paramtype 1 var cTable as character
+
+    if (Empty(AllTrim(cTable)))
+        return("")
+    endif
+
+    cTCGetDB:=TCGetDB()
+
     if (cTCGetDB=="MSSQL")
         beginContent var cNonBlobColumns
-            SELECT STRING_AGG(QUOTENAME(c.name), ', ') AS COLUNAS
+            SELECT STRING_AGG(CAST(QUOTENAME(c.name) AS nvarchar(max)), ', ')
+                WITHIN GROUP (ORDER BY c.column_id) AS COLUMN_LIST
             FROM sys.columns c
-            JOIN sys.types t ON c.user_type_id = t.user_type_id
-            WHERE c.object_id = OBJECT_ID('dbo.[@@__TABLE__@@]')
-            AND t.name NOT IN ('image', 'text', 'ntext', 'varbinary')
-            AND NOT (t.name IN ('varchar', 'nvarchar', 'varbinary') AND c.max_length = -1)
+            JOIN sys.types t ON c.system_type_id = t.user_type_id
+            WHERE c.object_id = OBJECT_ID('@@__TABLE__@@')
+            AND t.name NOT IN ('image', 'binary', 'varbinary', 'timestamp', 'rowversion')
         endContent
-        cNonBlobColumns:=StrTran(cNonBlobColumns,"@@__TABLE__@@",cTable)
+        // The caller resolves the physical table/schema. Escape the SQL literal;
+        // alias types use their base type. Long text is not binary data.
+        cNonBlobColumns:=StrTran(cNonBlobColumns,"@@__TABLE__@@",StrTran(cTable,"'","''"))
+        // TCSQLToArr requires a native array for this single metadata row.
         aTCSQLResult:=Array(0)
-        if ((TCSQLToArr(cNonBlobColumns,@aTCSQLResult)!=0).or.(Empty(aTCSQLResult)))
-            FWFreeArray(@aTCSQLResult)
-            return("")
+        if (TCSQLToArr(cNonBlobColumns,@aTCSQLResult)==0)
+            cNonBlobColumns:=""
+            if (Len(aTCSQLResult)>0)
+                if (ValType(aTCSQLResult[1])=="A")
+                    if (Len(aTCSQLResult[1])>0)
+                        if (ValType(aTCSQLResult[1][1])=="C")
+                            cNonBlobColumns:=AllTrim(aTCSQLResult[1][1])
+                        endif
+                    endif
+                endif
+            endif
+        else
+            cNonBlobColumns:=""
         endif
-        cNonBlobColumns:=aTCSQLResult[1][1]
         FWFreeArray(@aTCSQLResult)
     endif
+
 return(cNonBlobColumns)

@@ -760,11 +760,12 @@ and dictionary interpretation stay on Protheus.
 The [extension review](docs/extensions-review.md) evaluates SQLRDD, Duktape and
 CCHarbour as optional future work; no JavaScript/agent engine is installed.
 
-The [dataset review](docs/dataset.md) documents the new metadata/navigation
-API and the 2026-10-08 findings: TCP codepage inconsistency and fractional
-FLOAT loss in JSON. Earlier fixture acceptance remains valid for its exercised
-cases; these integrity corrections and AppServer acceptance of the extension
-are tracked in [WIP](WIP.md).
+The [dataset contract](docs/dataset.md) documents metadata/navigation and the
+UTF-8 wire boundary. D03 corrected TCP codepage handling, FLOAT JSON loss and
+embedded NUL handling on Protheus. Automated AppServer TCP/HTTP MSSQL integrity
+passed 80 checks on 2026-10-21; consumer text uses `DecodeUTF8()` once when its
+local codepage requires it. Raw binary needs an explicit SQL text projection
+for version-1 JSON. See [acceptance](docs/acceptance.md#d03-integrity-on-2026-10-21).
 
 [Syslog](src/hb/telemetry/hbbridge.syslog.hb) sends UDP to `127.0.0.1:514`
 but is not integrated into lifecycle/RPC yet.
@@ -777,7 +778,8 @@ provides a FWWebEx form, charts and JSON/HTML exports through the same core.
 Manual AppServer/FWWebEx acceptance on 2026-10-19 covers three runs of the four
 client routes and server-only addon: 105 samples and 684 report checks/zero failures.
 See the [V01/V02 scope and evidence](docs/acceptance.md#v01-v02-benchmark-acceptance-on-2026-10-19).
-D03 UTF-8/FLOAT integrity is next; final M09 checks remain open.
+D03 UTF-8/FLOAT integrity is accepted for the recorded Windows/MSSQL fixture;
+final M09 checks and package 001 remain open.
 Blocks, DBF, TLPP VF,
 services, jobs/batches and functional C/Zig extensions follow incrementally.
 Discover only delivered capabilities; metrics for correlation, latency,

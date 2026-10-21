@@ -104,8 +104,11 @@ method CallService(cService, jParams) class HBBridgeHTTPClient
     jRequest["service"] := cService
     jRequest["params"] := jParams
     // Inputs use the AppServer text encoding. Do not pre-encode JSON strings.
-    cBody := EncodeUTF8(jRequest:ToJSON())
+    cBody := EncodeUTF8(HBBridge.Client.HBBridgeJSON():Encode(jRequest))
     FreeObj(@jRequest)
+    if Empty(cBody)
+        return HTTPFailure("INVALID_REQUEST", "Request JSON contains an unsupported value or property name.")
+    endif
 
 return(self:Request("POST", "/api/v1/rpc", cBody))
 
@@ -120,7 +123,6 @@ method Request(cMethod, cPath, cBody) class HBBridgeHTTPClient
     local cResponse := "" as character
     local cInternalError := "" as character
     local lConnected := .F. as logical
-    local xJSONError as variant
     // FWRest's native API requires an array of header strings.
     local aHeaders := { ;
         "Accept: application/json", ;
@@ -179,10 +181,9 @@ method Request(cMethod, cPath, cBody) class HBBridgeHTTPClient
         return HTTPFailure("INVALID_HTTP_RESPONSE", "The HTTP response has no JSON body.")
     endif
 
-    // Decode through the native JSON parser; do not recode the whole response.
+    // Retain native JSON types and recover embedded NUL without recoding text.
     // HTML/proxy errors fail here without logging raw headers or body contents.
-    xJSONError := jResponse:FromJSON(cResponse)
-    if ValType(xJSONError) != "U"
+    if !HBBridge.Client.HBBridgeJSON():Parse(cResponse, jResponse)
         FreeObj(@jResponse)
         if (!Empty(cInternalError))
             return HTTPFailure(cInternalError, "Internal Error.")

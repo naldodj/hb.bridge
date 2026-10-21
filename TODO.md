@@ -416,7 +416,7 @@ per-value limits; tested slow-consumer/invalid-decode/disconnect behavior.
   fixture, native Harbour/TCP/HTTP off/driver processes and real AppServer
   TCP/HTTP, separate warmups, identified artifacts and OS process samples.
   [Results and scope](docs/acceptance.md#m08-performance-baseline-on-2026-10-16).
-  Final M09 checks and D03 remain open in [WIP](WIP.md).
+  Final M09 checks remain open in [WIP](WIP.md); D03 has scoped acceptance.
 - [x] Extend the visual benchmark with optional Protheus StartJob/REST and
   hbBridge TCP/HTTP comparisons plus a server-side Harbour addon. Keep the
   fixed fixture, warmups and distinct timing scopes; the addon returns statistics
@@ -429,7 +429,7 @@ per-value limits; tested slow-consumer/invalid-decode/disconnect behavior.
   Local controller, REST, client-lifecycle, browser and addon checks retain their
   separate validation scope. Authentication, owned-resource cleanup and recovery
   evidence is recorded in the [acceptance](docs/acceptance.md#v01-v02-benchmark-acceptance-on-2026-10-19).
-  D03 UTF-8/FLOAT integrity is next; final M09 checks and package 001 remain open.
+  D03 UTF-8/FLOAT integrity has scoped acceptance on 2026-10-21; final M09 checks and package 001 remain open.
   Manual TCP/HTTP CLI also passed a separate ten-row run; see
   [CLI scope and workload/timeout clarification](docs/acceptance.md#m08-manual-cli-validation-on-2026-10-19).
   Earlier isolated StartJob CLI initialization failures remain a distinct record.
@@ -472,10 +472,16 @@ per-value limits; tested slow-consumer/invalid-decode/disconnect behavior.
 - [ ] SQL bind values and size/precision/null type metadata; identifier resolution
   stays with the caller. Generic connector/dialect registry, including Oracle
   after real type/pagination acceptance; PostgreSQL sddpg/hbpgsql and MySQL sddmy.
-- [ ] Acceptance-driven UTF-8/FLOAT correction: current TCP can use Harbour
-  CP437, and the 2026-10-08 constant probe lost a FLOAT fraction in JSON.
-  Separate native SQL metadata, caller logical definitions and wire values;
-  SX3/TOP_FIELD stay caller-resolved. [Analysis](docs/dataset.md).
+- [x] Correct and accept UTF-8/FLOAT integrity for the Windows/MSSQL fixture:
+  explicit UTF-8 TCP/HTTP, numeric wire codec, ODBC supplementary Unicode SQL
+  input and Protheus NUL-safe serialization/parsing and dataset snapshots.
+  AppServer: 80 checks/zero failures on 2026-10-21. Native binary is preserved;
+  version-1 JSON rejects raw binary with `BINARY_JSON_UNSUPPORTED`; use explicit
+  SQL hex/text projection. Caller CAST defines business scale; SX3/TOP_FIELD
+  stay caller-resolved and logical metadata remains a future extension.
+  [Evidence](docs/acceptance.md#d03-integrity-on-2026-10-21).
+- [ ] Define a versioned binary/BLOB representation for JSON clients, with
+  explicit encoding/type metadata and cross-client byte-integrity acceptance.
 - [ ] Deferred: optional Protheus metadata addon or TLPP SQL projection rewriter
   using explicit JSON metadata for automatic CAST. Evaluate a restricted grammar,
   complete column/alias mappings and semantic preservation before implementation;
@@ -484,8 +490,8 @@ per-value limits; tested slow-consumer/invalid-decode/disconnect behavior.
   FieldExist/GetRow/GetRows, totals and previous/next/MoreToRead traversal,
   including page failure/recovery: 67 checks/31 mock calls, zero failures,
   2026-10-13 at 17:56:23 São Paulo, thread 32332. Pure helpers passed all 12
-  checks at 17:56:45, thread 28300. D02's mock scope is accepted; D03's
-  UTF-8/FLOAT integrity remains pending; M06 has subsequent live acceptance,
+  checks at 17:56:45, thread 28300. D02's mock scope is accepted; D03 has
+  subsequent scoped integrity acceptance on 2026-10-21; M06 has live acceptance,
   with M07/M08 now accepted in their recorded scopes and M09 open. These runs exercise
   no transport, SQL backend or ERP table. [Evidence](docs/dataset.md).
 - [x] ROW_NUMBER/BETWEEN pages, sentinel hasNext, explicit order, OpenPage/

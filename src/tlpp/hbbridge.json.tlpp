@@ -110,7 +110,7 @@ static function JSONEncodeValue(xValue as variant, jScratch as json, lValid as l
 
     local cType := ValType(xValue), cResult := "", cToken := "" as character
     local aNames as array
-    local nIndex := 0, nStart := 1, nNul := 0 as numeric
+    local nIndex := 0, nStart := 1, nPosition := 1, nRun := 0 as numeric
 
     if cType == "J" .or. cType == "O"
         aNames := xValue:GetNames()
@@ -145,15 +145,27 @@ static function JSONEncodeValue(xValue as variant, jScratch as json, lValid as l
         cResult += "]"
     elseif cType == "C" .and. Chr(0) $ xValue
         cResult := '"'
-        do while nStart <= Len(xValue)
-            nNul := At(Chr(0), SubStr(xValue, nStart))
-            if nNul == 0
-                exit
+        // Scan forward; repeatedly copying the remaining suffix for each NUL
+        // makes dense input unnecessarily expensive. Emit adjacent NULs once.
+        do while nPosition <= Len(xValue)
+            if SubStr(xValue, nPosition, 1) != Chr(0)
+                nPosition++
+                loop
             endif
-            nNul += nStart - 1
-            cToken := JSONScalarToken(SubStr(xValue, nStart, nNul - nStart), jScratch)
-            cResult += SubStr(cToken, 2, Len(cToken) - 2) + "\u0000"
-            nStart := nNul + 1
+            if nPosition > nStart
+                cToken := JSONScalarToken(SubStr(xValue, nStart, nPosition - nStart), jScratch)
+                cResult += SubStr(cToken, 2, Len(cToken) - 2)
+            endif
+            nRun := 0
+            do while nPosition <= Len(xValue)
+                if SubStr(xValue, nPosition, 1) != Chr(0)
+                    exit
+                endif
+                nRun++
+                nPosition++
+            enddo
+            cResult += Replicate("\u0000", nRun)
+            nStart := nPosition
         enddo
         cToken := JSONScalarToken(SubStr(xValue, nStart), jScratch)
         cResult += SubStr(cToken, 2, Len(cToken) - 2) + '"'
