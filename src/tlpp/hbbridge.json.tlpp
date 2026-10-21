@@ -14,10 +14,13 @@ endclass
 // handles embedded NUL; it does not change codepages or numeric semantics.
 static method Encode(jValue) class HBBridgeJSON
 
-    local nMode := JSONNulMode(jValue) as numeric
-    local jScratch as json
     local cResult := "" as character
+
+    local jScratch as json
+
     local lValid := .T. as logical
+
+    local nMode := JSONNulMode(jValue) as numeric
 
     if nMode == 0
         return jValue:ToJSON()
@@ -34,8 +37,10 @@ return if(lValid, cResult, "")
 static method Parse(cJSON, jResult) class HBBridgeJSON
 
     local jScratch as json
-    local nPosition := 1 as numeric
+
     local lValid := .F. as logical
+
+    local nPosition := 1 as numeric
 
     if Chr(0) $ cJSON
         jResult:FromJSON("{}")
@@ -63,17 +68,20 @@ return lValid
 // remain keyed; no intermediate copy of the page/rows is allocated here.
 static function JSONNulMode(xValue as variant) as numeric
 
-    local cType := ValType(xValue) as character
     local aNames as array
+
+    local cType := ValType(xValue) as character
+    local cCHR_0 := Chr(0) as character
+
     local nIndex := 0, nMode := 0, nChild := 0 as numeric
 
     if cType == "C"
-        return if(Chr(0) $ xValue, 1, 0)
+        return if(cCHR_0 $ xValue, 1, 0)
     endif
     if cType == "J" .or. cType == "O"
         aNames := xValue:GetNames()
         for nIndex := 1 to Len(aNames)
-            if Chr(0) $ aNames[nIndex]
+            if cCHR_0 $ aNames[nIndex]
                 nMode := 2
                 exit
             endif
@@ -98,6 +106,7 @@ return nMode
 static function JSONScalarToken(xValue as variant, jScratch as json) as character
 
     local cJSON := "" as character
+
     local nColon := 0 as numeric
 
     jScratch["v"] := xValue
@@ -108,15 +117,17 @@ return SubStr(cJSON, nColon + 1, Len(cJSON) - nColon - 1)
 
 static function JSONEncodeValue(xValue as variant, jScratch as json, lValid as logical) as character
 
-    local cType := ValType(xValue), cResult := "", cToken := "" as character
     local aNames as array
+    local cCHR_0 := Chr(0) as character
+    local cType := ValType(xValue), cResult := "", cToken := "" as character
     local nIndex := 0, nStart := 1, nPosition := 1, nRun := 0 as numeric
+    local nLen as numeric
 
     if cType == "J" .or. cType == "O"
         aNames := xValue:GetNames()
         cResult := "{"
         for nIndex := 1 to Len(aNames)
-            if Chr(0) $ aNames[nIndex]
+            if cCHR_0 $ aNames[nIndex]
                 lValid := .F.
                 exit
             endif
@@ -143,12 +154,13 @@ static function JSONEncodeValue(xValue as variant, jScratch as json, lValid as l
             endif
         next nIndex
         cResult += "]"
-    elseif cType == "C" .and. Chr(0) $ xValue
+    elseif cType == "C" .and. cCHR_0 $ xValue
         cResult := '"'
         // Scan forward; repeatedly copying the remaining suffix for each NUL
         // makes dense input unnecessarily expensive. Emit adjacent NULs once.
-        do while nPosition <= Len(xValue)
-            if SubStr(xValue, nPosition, 1) != Chr(0)
+        nLen:=Len(xValue)
+        do while nPosition <= nLen
+            if SubStr(xValue, nPosition, 1) != cCHR_0
                 nPosition++
                 loop
             endif
@@ -157,8 +169,8 @@ static function JSONEncodeValue(xValue as variant, jScratch as json, lValid as l
                 cResult += SubStr(cToken, 2, Len(cToken) - 2)
             endif
             nRun := 0
-            do while nPosition <= Len(xValue)
-                if SubStr(xValue, nPosition, 1) != Chr(0)
+            do while nPosition <= nLen
+                if SubStr(xValue, nPosition, 1) != cCHR_0
                     exit
                 endif
                 nRun++
@@ -177,7 +189,9 @@ return cResult
 
 static function JSONSkipSpace(cJSON as character, nPosition as numeric)
 
-    do while nPosition <= Len(cJSON)
+    local nJSONLen:=Len(cJSON) as numeric
+
+    do while nPosition <= nJSONLen
         if !(Asc(SubStr(cJSON, nPosition, 1)) == 32 .or. ;
             Asc(SubStr(cJSON, nPosition, 1)) == 9 .or. ;
             Asc(SubStr(cJSON, nPosition, 1)) == 10 .or. ;
@@ -193,14 +207,16 @@ return
 // token boundaries so escaped backslashes never become actual NUL escapes.
 static function JSONStringToken(cJSON as character, nPosition as numeric, cToken as character) as logical
 
-    local nStart := nPosition as numeric
     local cByte := "" as character
+
+    local nStart := nPosition as numeric
+    local nJSONLen := Len(cJSON) as numeric
 
     if SubStr(cJSON, nPosition, 1) != '"'
         return .F.
     endif
     nPosition++
-    do while nPosition <= Len(cJSON)
+    do while nPosition <= nJSONLen
         cByte := SubStr(cJSON, nPosition, 1)
         nPosition++
         if cByte == '"'
@@ -225,13 +241,17 @@ return .T.
 
 static function JSONDecodeNulString(cToken as character, jScratch as json, cValue as character, lHasNul as logical) as logical
 
-    local nPosition := 2, nStart := 2 as numeric
-    local xSegment as variant
+    local cCHR_0 := Chr(0) as character
     local cSegment := "" as character
+
+    local nPosition := 2, nStart := 2 as numeric
+    local nTokenLen:=Len(cToken) as numeric
+
+    local xSegment as variant
 
     cValue := ""
     lHasNul := .F.
-    do while nPosition < Len(cToken)
+    do while nPosition < nTokenLen
         if SubStr(cToken, nPosition, 1) == "\"
             if SubStr(cToken, nPosition, 6) == "\u0000"
                 cSegment := '"' + SubStr(cToken, nStart, nPosition - nStart) + '"'
@@ -241,7 +261,7 @@ static function JSONDecodeNulString(cToken as character, jScratch as json, cValu
                 if ValType(xSegment) != "C"
                     return .F.
                 endif
-                cValue += xSegment + Chr(0)
+                cValue += xSegment + cCHR_0
                 lHasNul := .T.
                 nPosition += 6
                 nStart := nPosition
@@ -267,17 +287,24 @@ return .T.
 
 static function JSONPatchValue(cJSON as character, nPosition as numeric, xValue as variant, jScratch as json) as logical
 
-    local cByte := "", cToken := "", cKey := "", cPatched := "", cClose := "" as character
-    local xKey, xChild as variant
-    local lHasNul := .F., lObject := .F., lValid := .T. as logical
-    local nCount := 0, nStart := 0 as numeric
-    local jSeen as json
     local aNames as array
+
+    local cByte := "", cToken := "", cKey := "", cPatched := "", cClose := "" as character
+    local cType:=ValType(xValue) as character
+
+    local lHasNul := .F., lObject := .F., lValid := .T. as logical
+
+    local jSeen as json
+
+    local nCount := 0, nStart := 0 as numeric
+    local nJSONLen := Len(cJSON)
+
+    local xKey, xChild as variant
 
     JSONSkipSpace(cJSON, @nPosition)
     cByte := SubStr(cJSON, nPosition, 1)
     if cByte == '"'
-        if ValType(xValue) != "C" .or. !JSONStringToken(cJSON, @nPosition, @cToken)
+        if cType != "C" .or. !JSONStringToken(cJSON, @nPosition, @cToken)
             return .F.
         endif
         if !JSONDecodeNulString(cToken, jScratch, @cPatched, @lHasNul)
@@ -290,10 +317,10 @@ static function JSONPatchValue(cJSON as character, nPosition as numeric, xValue 
     endif
     if cByte == "{" .or. cByte == "["
         lObject := cByte == "{"
-        if lObject .and. !(ValType(xValue) $ "JO")
+        if lObject .and. !(cType $ "JO")
             return .F.
         endif
-        if !lObject .and. ValType(xValue) != "A"
+        if !lObject .and. cType != "A"
             return .F.
         endif
         cClose := if(lObject, "}", "]")
@@ -301,7 +328,7 @@ static function JSONPatchValue(cJSON as character, nPosition as numeric, xValue 
         nPosition++
         JSONSkipSpace(cJSON, @nPosition)
         do while SubStr(cJSON, nPosition, 1) != cClose
-            if nPosition > Len(cJSON)
+            if nPosition > nJSONLen
                 lValid := .F.
                 exit
             endif
@@ -379,7 +406,7 @@ static function JSONPatchValue(cJSON as character, nPosition as numeric, xValue 
     endif
     // Numbers, logicals and NULL stay exactly as parsed by JSONObject.
     nStart := nPosition
-    do while nPosition <= Len(cJSON)
+    do while nPosition <= nJSONLen
         cByte := SubStr(cJSON, nPosition, 1)
         if cByte == "," .or. cByte == "}" .or. cByte == "]" .or. ;
             Asc(cByte) == 32 .or. Asc(cByte) == 9 .or. Asc(cByte) == 10 .or. Asc(cByte) == 13
