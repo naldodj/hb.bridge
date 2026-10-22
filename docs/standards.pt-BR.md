@@ -89,6 +89,27 @@ antes da extensão. Atualize ambas e preserve aceites, limitações e pendência
 Caminhos históricos do changelog descrevem os arquivos existentes na época;
 instruções atuais usam os nomes novos.
 
+## Arquivos gerados e reprodução
+
+`tmp/` é descartável por inteiro, incluindo logs, RPOs copiados, fixtures geradas
+e ponteiros. Comandos mantidos não exigem rodadas anteriores em tmp. Programas/
+probes reutilizáveis pertencem a `src/`, `addons/`, `scripts/` ou `tests/`;
+exemplos públicos ficam em `config/examples/`. `out/` contém entregáveis gerados
+e `.deps/` contém dependências resolvidas por entradas fixadas. Não versionar
+fontes nem evidência permanente em tmp/out.
+
+Manter resumos sanitizados, identidades dos fontes/dependências, comandos e
+pré-requisitos externos na [documentação de validação](validation/README.pt-BR.md).
+Nova execução gera novo log, sem recriar exatamente estado/tempos históricos.
+Arquivos históricos brutos opcionais são externos, nunca pré-requisitos.
+Caminhos tmp datados na homologação/ChangeLog descrevem saídas passadas, sem
+exigir sua existência atual. Exclusões explícitas da limpeza são escolhas
+operacionais temporárias, sem autorizar dependências ocultas.
+
+TLPP usa `#include "totvs.ch"` por padrão. Acrescentar `tlpp-core.th`,
+`tlpp-rest.th` ou outros headers somente por símbolos/macros utilizados, como
+anotações REST nativas. Namespace/classe por si só não exige includes adicionais.
+
 ## Pacotes de trabalho ativos
 
 Os nomes solicitados `WIP.md` e `WIP.pt-BR.md` são exceções explícitas às

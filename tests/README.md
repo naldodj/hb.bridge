@@ -2,6 +2,12 @@
 
 [Português](README.pt-BR.md)
 
+All reusable inputs belong to versioned sources/fixtures. `tmp/` may be absent;
+each runner creates current outputs and never requires a prior log or RPO copy.
+See [reproduction and durable summaries](../docs/validation/README.md).
+The standalone native thread-state probe is reproduced by
+`./scripts/test-harbour-thread-state.ps1` from `tests/probes/`.
+
 ```powershell
 ./scripts/bootstrap.ps1
 ./scripts/test-hbbridge.ps1

@@ -1,6 +1,5 @@
 /* Released to Public Domain. */
 #include "totvs.ch"
-#include "tlpp-core.th"
 
 // Pure callback contract checks: no browser, INI, socket or SQL connection.
 function U_HBBridgeBenchmarkVisualTest()

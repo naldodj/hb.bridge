@@ -33,7 +33,10 @@ existentes do desenvolvedor permanecem intactos.
 | `.deps/http/` | Preparo isolado hbhttpd/hbtcpio e registro de patch/build verificados. |
 | `.deps/odbc/` | Preparo isolado SDDODBC e registro de patch/build verificados. |
 | `.hbcommit/` | Fontes de manutenção; usam o mesmo `hbrun` compilado. |
-| `out/` | Executável do produto; `tmp/` guarda builds isolados e logs. |
+| `out/` | Produto/addons gerados, reconstruídos por fontes/scripts mantidos. |
+| `tmp/` | Trabalho/logs inteiramente descartáveis, nunca pré-requisitos. |
+| `scripts/`, `tests/` | Automação, fixtures e probes reutilizáveis versionados. |
+| `docs/validation/` | Resumos históricos sanitizados e comandos de reprodução. |
 
 `.deps/`, resultados de build e identidade local são ignorados pelo Git.
 Não se distribui outro runtime `bin/harbour`. Um build concluído grava

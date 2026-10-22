@@ -6,6 +6,28 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Adicionar cobertura de integridade para JSON UTF-8 e MSSQL)"
  */
 
+2026-10-22 15:17 UTC naldodj (Tornar os artefatos temporários inteiramente descartáveis)
+  + Adicionar limpeza PowerShell com prévia/Apply explícito, idade e caminhos delimitados.
+    Todas as entradas de tmp são descartáveis; preservar entregáveis de out ao limpar builds.
+    Remover retenção implícita por documentação, manifestos e apontadores de execução atual.
+    Preservar proteções de Git/links/processos e retenção explícita, sem parar processos existentes.
+  * Versionar verificador de links da documentação, executor CLI explícito do AppServer e
+    teste/fixture de estado por thread do Harbour. Manter resumos históricos sanitizados
+    e comandos de reprodução a partir dos fontes em docs/validation, sem SDK/RPO/configuração
+    privados nem arquivo permanente de logs gerados.
+  * Definir totvs.ch como include padrão TLPP; includes adicionais TLPP/REST exigem uso
+    dos símbolos/macros. Preservar as alterações revisadas nos includes do benchmark.
+  + Rejeitar artefatos versionados de tmp/out nos crivos de commit e ignorar arquivos
+    RPO gerados. Remover helpers/apontadores temporários obsoletos após o versionamento.
+  ; Aprovar 22 cenários isolados de limpeza, incluindo remoção integral de tmp,
+    ausência de tmp/out, ausência de retenção por apontadores/referências, bloqueios e links.
+    Teste nativo versionado de estado por thread: 31 asserções, zero falhas;
+    sintaxe PowerShell: 21 scripts, zero erros. Verificar rejeição de pré-requisitos ausentes no CLI.
+    Três crivos de commit aprovaram 253 arquivos; links locais passaram em 90 documentos.
+    Repetir verificações de estado por thread/links após remover fontes temporários obsoletos.
+  ; Prévias de limpeza no projeto não removeram arquivos. Sem nova compilação TLPP/RPO
+    ou aceite de execução no AppServer; pacote 002 T01 permanece planejado.
+
 2026-10-21 22:26 UTC naldodj (Aplicar convenções de código-fonte e verificar regressões)
   * Revisar Harbour, TLPP, C, Zig e scripts pertencentes ao projeto; agrupar declarações
     por prefixo de tipo e armazenar em cache invariantes de laço comprovados. Preservar a

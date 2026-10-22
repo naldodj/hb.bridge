@@ -48,6 +48,66 @@ log tmp/tests-d1b829ff332c414f816a6e70748152d1/results.log. These historical
 results predate the PascalCase/HTTP changes on 2026-10-06. See
 [acceptance](../docs/acceptance.md) for later validation.
 
+## Artifact cleanup
+
+`tmp/` is fully disposable. Reusable sources/runners belong in `scripts/` and
+`tests/`; sanitized results and recipes belong in [validation](../docs/validation/README.md).
+Documentation paths, JSON manifests, log extensions and `*-current.txt` do not
+silently retain temporary content. Outdated temporary inputs are never required.
+
+```powershell
+# Preview, without changing files (default age: seven days).
+$report = ./scripts/clean-artifacts.ps1
+$report.Candidates | Format-Table Path, Status, Bytes, Reason -AutoSize
+
+# Preview the entire tmp tree, including recent entries.
+./scripts/clean-artifacts.ps1 -Target tmp -MinAgeDays 0
+
+# Apply the same cleanup explicitly.
+./scripts/clean-artifacts.ps1 -Target tmp -MinAgeDays 0 -Apply
+
+# Remove only generated out build caches, preserving product/addons.
+./scripts/clean-artifacts.ps1 -Target out -MinAgeDays 0 -Apply
+```
+
+PowerShell 7 and working Git metadata are required; no compiler is needed.
+Paths are based on the script's project. `-Target` accepts `all` (default),
+`tmp` or `out`. The default `-MinAgeDays 7` protects recent trees, including
+any newer descendant. Use 0 for immediate cleanup. All top-level tmp entries
+are eligible, including unknown directories, RPO copies, logs, helpers and
+manifests. `out` cleanup selects generated build directories/objects and keeps
+the executable/debug files, benchmark addons and other deliverables outside builds.
+
+Safety exclusions remain: Git-tracked files, symbolic links/junctions, visible
+process paths and explicit `-KeepPath` paths. A linked root/ancestor aborts planning;
+a link inside a candidate protects it. `-KeepPath` is a temporary operational
+choice, not a durable storage contract. It accepts existing tmp/out paths.
+The commit gate rejects versioned tmp/out files: move any such source to its
+proper directory before committing.
+
+`-Apply -WhatIf` previews without deletion or report creation. Optional
+`-ReportPath` must name a new file in tmp/out; reports are also disposable.
+Locked/changed/inaccessible entries produce `Failed` and retain remaining
+content; inspect `$report.FailedCount` for automation. The script never stops
+processes. Process discovery is best effort: run between builds/tests.
+All deletion paths are checked; links are not traversed and only checked files
+and empty directories are removed. Concurrent changes can abort planning or
+leave a partially cleaned candidate. Byte counts are logical file lengths.
+
+```powershell
+./tests/unit/scripts/clean.artifacts.test.ps1
+./scripts/check-doc-links.ps1
+```
+
+The closed cleanup fixtures include an absent tmp/out tree, complete tmp
+disposability, non-retention by documentation/pointers, age, Git, links,
+explicit keeps, locked files, reports and preview/WhatIf behavior.
+
+Reusable validation helpers are maintained here: `check-doc-links.ps1`,
+`test-harbour-thread-state.ps1` and `run-protheus-cli.ps1`. The last requires
+explicit SDK/INI/program arguments and reports process results, not inferred
+assertion success. See the [source-based recipes](../docs/validation/README.md).
+
 ## Commit validation
 
 Before every commit:

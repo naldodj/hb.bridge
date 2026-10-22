@@ -1022,6 +1022,9 @@ executável estiver em execução, o script pede que seja encerrado ou que se us
 [dependências](docs/dependencies.pt-BR.md) e [scripts](scripts/README.pt-BR.md)
 para os caminhos gerenciados, parâmetros e SDKs externos.
 
+`tmp/` é inteiramente descartável. Fontes reutilizáveis e roteiros de validação
+ficam em locais versionados; veja [reprodução](docs/validation/README.pt-BR.md).
+
 Usar Zig como toolchain C para compilar Harbour é uma escolha de build distinta
 de implementar funcionalidades do servidor em Zig. Os dois usos já estão
 presentes no produto e fazem parte da base tecnológica do projeto; a evolução

@@ -1,6 +1,5 @@
 /* Released to Public Domain. */
 #include "totvs.ch"
-#include "tlpp-core.th"
 
 // Variadic:vArgs is the native AppServer CLI argument array; it is borrowed.
 function U_HBBridgeBenchmarkCLI(oArguments as variadic)

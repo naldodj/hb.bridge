@@ -9,6 +9,14 @@
   atendidos; commits/publicações intermediários não o reiniciam. TODO mantém o roadmap.
 - Use quatro espaços por nível de indentação nos fontes próprios. Preserve a
   formatação, os avisos de copyright e as licenças dos arquivos de terceiros.
+- Trate `tmp/` como área inteiramente descartável. Comandos não podem exigir
+  rodadas anteriores em tmp. Versione helpers/fixtures em `scripts/`/`tests/`
+  e resumos sanitizados em `docs/validation/`. Caminhos históricos de logs tmp
+  são proveniência, nunca exigência de retenção. `out/` é gerado; dependências
+  de compilação gerenciadas pertencem a `.deps/`.
+- Use `#include "totvs.ch"` como include TLPP padrão. Acrescente `tlpp-core.th`,
+  `tlpp-rest.th` ou outros headers somente por declarações/macros efetivamente
+  utilizados, não apenas por o fonte ter extensão `.tlpp`.
 - Agrupe declarações de variáveis por tipo de dado e ordene os grupos
   alfabeticamente pelo prefixo do tipo, por exemplo `a`, `c`, `d`, `j`, `l`,
   `n`, `o`, `x`. Os nomes completos dentro do grupo não precisam de ordem

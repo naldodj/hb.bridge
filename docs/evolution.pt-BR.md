@@ -38,6 +38,10 @@ Evidências: `tmp/thread-static-probe.log`, `tmp/thread-static-probe.hb` e
 `tmp/thread-static-addon.prg`. Essa prova complementa o teste de isolamento
 de módulos com STATIC comum, preservando aquela cobertura.
 
+Reprodução atual: `scripts/test-harbour-thread-state.ps1`, com fontes
+versionados em `tests/probes/`. Caminhos tmp acima são somente históricos.
+
+
 ## Alternativas de transporte HTTP
 
 Manter hbhttpd como adaptador atual e avaliar Zig quando requisitos medidos

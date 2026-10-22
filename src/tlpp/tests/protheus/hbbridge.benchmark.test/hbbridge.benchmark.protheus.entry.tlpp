@@ -1,5 +1,5 @@
 /* Released to Public Domain. */
-#include "tlpp-core.th"
+#include "totvs.ch"
 
 // StartJob receives and returns strings; the fixture never accepts caller SQL.
 function U_HBBridgeBenchmarkJob(cRequestJSON, cCompany, cBranch, cCredentialSection)

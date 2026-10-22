@@ -7,6 +7,10 @@ This document identifies the development environment and separates historical
 results, reported manual AppServer runs and local automated regressions.
 It does not certify other versions or subsequent changes automatically.
 
+`tmp/...` paths below are historical output locations, not retained project
+inputs. They may be deleted. Durable sanitized closure summaries and current
+source-based reproduction commands are in [validation](validation/README.md).
+
 ## Reference environment
 
 | Component | Reported reference |
@@ -1921,3 +1925,30 @@ is in `tmp/standards-protheus-22dd10fb14bd4ecbb6ce550fa4a61634/validation.json`.
 Plain HTTP/Windows scope and existing product limitations remain unchanged.
 Package 002 T01 remains planned; this source review implements no new SQL,
 presentation or credential capability.
+
+## Disposable work directories on 2026-10-22
+
+`tmp/` is no longer retained through documentation/manifest references or
+current pointers. Every entry is disposable; Git/link/process/age checks and
+explicit operational keep paths still constrain deletion. `out/` cleanup keeps
+deliverables and selects build caches. Reusable helpers now live in `scripts/`
+and the thread-state source/HRB fixture in `tests/probes/`. The curated
+[summaries and commands](validation/README.md) replace any need for historical
+tmp inputs; raw logs remain optional disposable output.
+
+Validation on Windows passed **22 isolated Git cleanup scenarios**, including
+absent tmp/out, complete tmp disposal and non-retention by documentation,
+JSON/pointers. The newly versioned native thread-state probe passed **31
+assertions/zero failures** from its maintained sources. PowerShell syntax passed
+for **21 scripts**, and the CLI launcher rejected missing SDK prerequisites
+before starting a child. That launcher was not used for new AppServer acceptance.
+
+Nine obsolete tmp helper/pointer files were removed after promotion. The native
+probe and the maintained documentation checker passed again without those files.
+
+All three commit gates accepted **253 files**; local links passed across **90
+Git-visible documents**, without tmp/out dependencies. Whitespace checks passed.
+Preserved the revised benchmark TLPP includes and registered `totvs.ch` as the
+default; specialized headers require actual symbols/macros. The licensed RPO
+was not rebuilt here. No previous SQL/runtime acceptance is extended to current
+source changes by these maintenance checks. Package 002 T01 remains planned.

@@ -4,6 +4,10 @@ A homologação das alterações de reorganização anteriores
 ao Marco 1 está OK. Os dados abaixo identificam esse ambiente de desenvolvimento;
 não certificam versões distintas nem a execução das novas alterações nele.
 
+Caminhos `tmp/...` abaixo são locais históricos de saída, não entradas a
+preservar no projeto. Podem ser excluídos. Resumos sanitizados e comandos
+atuais de reprodução por fontes estão em [validação](validation/README.pt-BR.md).
+
 | Componente | Referência informada |
 | --- | --- |
 | Sistema | Windows 11, x64 |
@@ -2011,3 +2015,31 @@ real: `tmp/standards-protheus-22dd10fb14bd4ecbb6ce550fa4a61634/validation.json`.
 Escopo Windows/HTTP sem TLS e limitações existentes preservados. T01 do pacote
 002 continua planejado; a revisão não implementa novas capacidades SQL, de
 apresentação ou de credenciais.
+
+## Diretórios de trabalho descartáveis em 2026-10-22
+
+`tmp/` não é mais preservado por referências em documentação/manifests ou
+ponteiros atuais. Toda entrada é descartável; permanecem as proteções de Git,
+links, processos, idade e caminhos explicitamente preservados por operação.
+A limpeza de `out/` mantém entregáveis e seleciona caches de build. Helpers
+reutilizáveis ficam em `scripts/` e o probe/fixture HRB de estado por thread
+em `tests/probes/`. [Resumos e comandos mantidos](validation/README.pt-BR.md)
+eliminam a necessidade de entradas históricas em tmp; logs brutos são saídas
+descartáveis opcionais.
+
+Validação Windows aprovou **22 cenários Git isolados**, incluindo ausência de
+tmp/out, descarte completo de tmp e ausência de retenção por documentação,
+JSON/ponteiros. O probe nativo versionado passou **31 asserções/zero falhas**
+usando seus fontes mantidos. Sintaxe PowerShell aprovada em **21 scripts**;
+o launcher CLI recusou SDK ausente antes de iniciar processo. Ele não foi
+utilizado para nova homologação AppServer.
+
+Removidos nove helpers/ponteiros tmp obsoletos após a migração. O probe nativo
+e o verificador mantido de documentação passaram novamente sem esses arquivos.
+
+Os três crivos aceitaram **253 arquivos**; links locais aprovados nos **90
+documentos visíveis ao Git**, sem dependência de tmp/out. Whitespace aprovado.
+Preservadas as revisões de includes TLPP do benchmark e registrado `totvs.ch`
+como padrão; headers específicos exigem símbolos/macros utilizados. O RPO
+licenciado não foi recompilado aqui. Esses checks de manutenção não estendem
+aceites SQL/runtime anteriores às mudanças atuais. T01 do pacote 002 segue planejado.

@@ -37,6 +37,10 @@ in one thread retained independent module storage. Evidence:
 `tmp/thread-static-addon.prg`. This complements the ordinary-STATIC module
 isolation test, rather than replacing that coverage.
 
+Current reproduction uses `scripts/test-harbour-thread-state.ps1` and the
+versioned sources in `tests/probes/`. Old tmp paths above are historical only.
+
+
 ## HTTP transport alternatives
 
 Keep hbhttpd as the current adapter and evaluate Zig when measured requirements

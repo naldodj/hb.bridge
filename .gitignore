@@ -6,6 +6,7 @@ zig-out/
 *.o
 *.erx_tlpp
 *.ppx_tlpp
+*.rpo
 *.lib
 *.a
 *.dll

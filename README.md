@@ -745,6 +745,9 @@ pwsh ./scripts/build-hbbridge.ps1
 pwsh ./scripts/test-hbbridge.ps1
 ~~~
 
+`tmp/` is entirely disposable. Reusable sources and validation recipes live
+in versioned directories; see [reproduction](docs/validation/README.md).
+
 See [dependencies](docs/dependencies.md) and [scripts](scripts/README.md) for
 arguments/profiles/tool locations and external SDKs.
 Zig runs `zig build` and `hbmk2 -comp=zig`; the managed `hbrun` also runs

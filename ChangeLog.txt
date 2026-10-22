@@ -5,6 +5,28 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Add UTF-8 JSON and MSSQL integrity coverage)"
  */
 
+2026-10-22 15:17 UTC naldodj (Make temporary artifacts fully disposable)
+  + Add PowerShell cleanup with preview/explicit Apply, age and bounded paths.
+    All tmp entries are disposable; keep out deliverables while cleaning builds.
+    Remove implicit retention through documentation, manifests and current pointers.
+    Retain Git/link/process/explicit-keep safety without stopping existing processes.
+  * Version documentation-link checks, an explicit AppServer CLI launcher and
+    the Harbour thread-state probe/fixture. Keep sanitized historical summaries
+    and source-based reproduction commands in docs/validation, without private
+    SDK/RPO/configuration or an archive of generated logs.
+  * Define totvs.ch as the TLPP default; extra TLPP/REST headers require used
+    symbols/macros. Preserve the reviewed benchmark include changes.
+  + Reject versioned tmp/out artifacts in commit checks and ignore generated
+    RPO files. Remove obsolete temporary helpers/pointers after promotion.
+  ; Pass 22 isolated cleanup fixtures, including complete tmp deletion,
+    absence of tmp/out, non-retention by pointers/references, locks and links.
+    Versioned native thread-state probe: 31 assertions, zero failures;
+    PowerShell syntax: 21 scripts, zero errors. Verify CLI prerequisite rejection.
+    Three commit gates accepted 253 files; local links passed in 90 documents.
+    Repeat probe/link checks after removing obsolete temporary sources.
+  ; Real-tree cleanup previews removed nothing. No new TLPP/RPO compilation
+    or AppServer runtime acceptance; package 002 T01 remains planned.
+
 2026-10-21 22:26 UTC naldodj (Apply source conventions and verify regressions)
   * Review project-owned Harbour, TLPP, C, Zig and scripts; group declarations
     by type prefix and cache proven loop invariants. Preserve initializer

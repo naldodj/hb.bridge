@@ -1,0 +1,244 @@
+{
+  "kind": "hbbridge.validation-summary",
+  "schemaVersion": 1,
+  "observedOn": "2026-10-21",
+  "scope": "Source standards Windows regression review",
+  "historicalSnapshot": {
+    "baseRevision": "56128e9107f478acb95299f2a5b1e9c194dcf9d4",
+    "includesWorkingTreeChanges": true,
+    "sourceFingerprintSHA256": "E71F49A69559CD35261200DFAE11035E7C894B94FFBAFCACFF61C5BA59294D13",
+    "fileSHA256": {
+      "addons/examples/hbbridgebenchmarkaddon.hb": "D76AA5845DE6947035A8153933ECC658CD959E7C0ED2955FD63D1407807EC58F",
+      "addons/examples/hbbridgesampleaddon.hb": "7DF0A1C4D1690786F51AF5B265451442CFAC2030A2FCF799DC4774CD6C89F7BF",
+      "build.zig": "CC190F61B8E62A4C94EE33C3E4197FE316723DBC3945A60C560625C295786AAD",
+      "config/dependencies.json": "8F6EFCD0AD919A54B5081FF18E4D067CE7ED9AD8B8206D8ABD177A59C15F6B4C",
+      "config/examples/databases.ini": "01129E102A78C07D8ADCF3B239A4A054FB8363C377313E69C75B6E81BB63A047",
+      "config/examples/hbbridge.ini": "2450748D9E9CF93A3359A6FD881BC373C522079D196B18ADC40A605BF894BEFC",
+      "config/examples/hbbridge.json": "1823643350C5737AA57F4088D18BA6ADFF6D30AA539BDECC89FFFF8A26B0A18A",
+      "config/examples/mssql.ini": "B4B781818A0A5861DA6AA2BB08307FFCBDE03BF31CBD68D4398E6AEC16D75E90",
+      "config/examples/mssql.json": "461B1C5CCA18D0314F499B21257AA6B6B15699BF375183B1AEB4244BF5D20CFC",
+      "config/examples/protheus-appserver.ini": "100FC75A621D984FEBD86CCA840E51BA33108B66F80C10DB62DC8668A29AB6AA",
+      "config/examples/sqlite.ini": "051D5C81160383FF18BF6D776ACA82F8E201C8EAA866537887B13418D329D2E9",
+      "config/examples/sqlite.json": "7A2111DBCF133973EC6A812203121CC53E24C437DEF9A80E01642D671D83C29F",
+      "config/hbbridge.benchmark.rest.ini": "F4AC2BA6E4A7F4D8EDD2AF4AC77AAAC3AD9DAACBBA22FFB5BC256E4535F0425C",
+      "config/patches/hbhttpd.patch": "B91FCF5318C418A808B3B902DEAF5EF0D9E54695B0A7AF5076AD05DCAC7F1764",
+      "config/patches/sddodbc.patch": "BDB3C8D901A553CFABDF09CF20537521F4C39D872E7BDF172B0AD5D913E9D751",
+      "examples/mvp/run.ps1": "4256A961E338A44DA76562620EE0B5AF4621EA2F545C579695D5CAFAB6336305",
+      "examples/sql/run.ps1": "084D263764013307C466378E7DBB6E7089C9219E692E7F42588DE4FDB5FD89EC",
+      "hbbridge.hbm": "C640D2475164C3E34FE0B014195CFBA6A3DB4B194B625F4794CADF6D2FBFACCF",
+      "hbbridge.hbp": "6DE6687AE4DE084E9BE4552A05A2ABE532989FCC70C3A94B337EDAC57DC6AB68",
+      "includes/hbbridge.h": "5E684E0A996FB1F2C965E9F02ACA9E999DB7E9ACF4CB487584BC438EC56F3387",
+      "scripts/benchmark-hbbridge-mssql.ps1": "7BC7D12396D9AE1D7F4CC0D2F5314DD6C8AB6F3A758015EB8F250ECDE7CC19D1",
+      "scripts/bootstrap.ps1": "11FE90BC33CBE6241BFD1C6054A2288B24B3E86F8DC2468B60C25856327BE14B",
+      "scripts/build-hbbridge-benchmark-addon.ps1": "988C57D880D8A0BA7B7E9AAC4856B4DC4A0B5DDB9919AD884435520635F6E53D",
+      "scripts/build-hbbridge.ps1": "E41383FA6089A51C3434BDAFC46D68E1611174C114D5F0F5675DE1F3AB747AE8",
+      "scripts/build-totvs.cmd": "043588E7297941515389C5DE025EFB18BE7BCEC7987452E42B93B94DDEDFF12F",
+      "scripts/commit-check.ps1": "9D957B352365C844F14ED83AAE55259A81EA78AF355EE3172873850BFDA6F242",
+      "scripts/findnoasciicharacters.ps1": "0CECE82CE960499DDB7602B3217A468C0D7654587825D73E704948452485EF8C",
+      "scripts/prepare-http.ps1": "553D346053AEE509EA10F8A20A94C0865AF2F72A1B3C0BF138CFD859872D66FF",
+      "scripts/prepare-odbc.ps1": "5296A0AE54E6D5B53AB99B50A477F2E178A9A6C4FE0EDB2F405056B5717794AF",
+      "scripts/prepare-totvs-sources.ps1": "013D2FA90DC3881DB5CB28B080F94447ED9B1EE3652067ACC7FB9ED6582DC9B7",
+      "scripts/run-hbbridge.ps1": "4A3EF3CBFD93CF15E4CE21ED265AC456C68081CF6D1CEC348166B196D151D9F8",
+      "scripts/test-hbbridge-benchmark-addon.ps1": "0ACAF863CC70AE77365FD20E0CD8A5ECA687A5844E8600A8981573485BF1C84A",
+      "scripts/test-hbbridge-mssql.ps1": "AFE9ADF625D235E067A125C51D0D122AAE00E1986C8EC632CA521CBA57BD7C76",
+      "scripts/test-hbbridge.ps1": "91C0C29C29222F1220B3A432B664FEBD5642F6251F660A8E3A538BD57F85D55A",
+      "scripts/toolchain.ps1": "CC10DD3414B006526D7B93F172893969C0F9567C553CE8479CFB7903E7B1BAD4",
+      "src/c/hbbridge.compressor.c": "C705F605D457B64FBFCB4F6AAE7640DC1534F65F5DE4FA47D0996344F5FD17D4",
+      "src/c/hbbridge.decoder.c": "97ECD24E000E7575010747086B34D3131B4677F36058BA0C5CB0EC9A612C85D7",
+      "src/c/hbbridge.json.c": "D1DBC5A4893E9D111812089C32664544BD242D4723579A6198C331B20B7E93FB",
+      "src/c/hbbridge.time.c": "3C22D3A0F486B06AA6B1CA2860D2D60143AF6F94805C53C68B6B73A8A6A74672",
+      "src/c/hbbridge.utf8.c": "A2D82324EC88DF49DD4BE0B7D84D9B2C2F90A9C6771F2B4DFD5AE4F13137AC45",
+      "src/c/hbbridge.zig.c": "110CB7A43B34578476265EF59727A036A5A45D93F4FE85CAD7C3F65A90F034E2",
+      "src/hb/addons/hbbridge.addon.hb": "123D44F7D9318E98AFFE013DE6C29658A2D6200F211DBF34B07FB6097050A3EF",
+      "src/hb/core/hbbridge.dispatcher.hb": "1B1F14FEB93AC631F766CEA0E0BB2BD4339815E4FCABACDD98AEBEB877172BB7",
+      "src/hb/core/hbbridge.wire.hb": "B29072ACB4D1CE9286B5AA75E050D4589A6D8D708DA116B63BBE0B200144616D",
+      "src/hb/host/hbbridge.config.hb": "97BC88E8AEEF738779F50261EE7FEC3102F195D5A77F1A2F620CF455348929DD",
+      "src/hb/host/hbbridge.ini.hb": "7DF791408DA69F635F48C4F3B19F9739967F3B0F472BE814326BC7D232231CA7",
+      "src/hb/host/hbbridge.life.cycle.hb": "DF0E2EFBB7BF202DF748C6599B9567634659AC88F91F66CC69ACA56FEA76F5A6",
+      "src/hb/host/hbbridge.main.hb": "B66D28121E4680303081144E2269C6B1EF76144FC77BA2495D4DA7ED755A9954",
+      "src/hb/services/hbbridge.query.hb": "6A5F42C492B18A485B9334E2A596C47F70C4A83981724D863756D02CBC40D962",
+      "src/hb/services/hbbridge.services.hb": "F041FD4F6C64CAE67D01A1E432DD07907F314800D4F0DEFA7131B5FC309952F6",
+      "src/hb/services/hbbridge.sql.pool.hb": "BA15177F86192851DE0700141269CDEFB277129DAD662A952B514118E3D38E78",
+      "src/hb/telemetry/hbbridge.syslog.hb": "897FD989E789F763CD0F4B652E2D72DEEBCB74A15E8DBBC5703C71A4CF92C9AF",
+      "src/hb/transports/http/hbbridge.http.hb": "6CD5C55B31463FDB141E0FFF3264239CA195B3F309C94D29BD379DA15B3AB977",
+      "src/hb/transports/netio/hbbridge.netio.hb": "80A290EB248CD306076F15679DE4461CBB9991F593CCB939A01B4E26541EB67B",
+      "src/hb/transports/protheus/hbbridge.adapter.hb": "7703EC226226E0FE508DD8D619703BBAE23FA3824A1F016622FAB4877F3527E7",
+      "src/hb/transports/protheus/hbbridge.framing.hb": "647A69A0A313630139A4E78DC73F91CA112D5882F9EBC6DDBAF071D76C20F7CC",
+      "src/hb/transports/protheus/hbbridge.server.hb": "95567010D25E7BBD9C34F9011B231C833FA5F3B17E3ABAEA54BD36D9C5DE0663",
+      "src/tlpp/__rpo-legacy-cleanup/hbbridge.helper.tlpp": "FB0FA9C560CB5A0D4B2521E138FEFF8AB2685056EE4EFA736F043AD28DAA4A31",
+      "src/tlpp/hbbridge.browse.data.tlpp": "3557640F70D0FF6008C04F7EF51590775CE876579BCA709A658A4E2648784F49",
+      "src/tlpp/hbbridge.client.tlpp": "856E1E7C9BD388C39428D5F2A771A62D5D8F83C3B5ED31F631313585BD531303",
+      "src/tlpp/hbbridge.config.tlpp": "AD4327AE66703821ED2D78B07EBA9CCAC4A001BDFA5A495E7F4658C174E906F9",
+      "src/tlpp/hbbridge.http.client.tlpp": "C519DA56D2406C1B3CC0A2AA361CE56E17EFA178940A838148C41D334AB2402D",
+      "src/tlpp/hbbridge.http.table.tlpp": "F078155B1CD31EB98E6FA312CC48292FA64111117EB33688C93E9D7B16A4C49E",
+      "src/tlpp/hbbridge.json.tlpp": "DB48712120783EA2B1113BA3644AC05F2823BFF2E8BE7A4BE9464B8923444578",
+      "src/tlpp/hbbridge.msmgetex.tlpp": "3F90D1651CBF51F6A88C3D23DCAD106C4B762659DC7C78795873AA8425F146BE",
+      "src/tlpp/hbbridge.number.tools.tlpp": "4BC804E2E2FC4AE53625950835A179CBE20A33DCF7EE7F1A7571A29C31E68567",
+      "src/tlpp/hbbridge.rpc.dataset.tlpp": "CFAAA7421A7ED3CC4A2C5EB2CB80CF27CAAD8893D000A0922B797B804421334B",
+      "src/tlpp/hbbridge.sql.tools.tlpp": "F43BC87DF8C858CA088894B3D9249CF13FF89E53B05224E3DE26D475B26F3567",
+      "src/tlpp/hbbridge.str.tools.tlpp": "7CDE9F97F273EE55945F6D773F2CFEE7B5AD6E8E2C0DE61DFD6F0F508B99AAD6",
+      "src/tlpp/hbbridge.time.tlpp": "AC8E667E1BCC83048A1B17C0E7492C5803EA7998F6D5A6DB6D0082441FC8DDD4",
+      "src/tlpp/hbbridge.totvs.filter.tlpp": "173DC18E620428C32C2D5D6A191FD95B2C4169D9C373E1222625BDC2E584E743",
+      "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.controller.tlpp": "1D6A208C79F3D70AF287EF9FF0566C36B9E199427ADE09D53535D7713B9FF853",
+      "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.example.tlpp": "056F628755071D102444F7E5D5805F2DCD56A1BD1B9E81140C4DF7F45D78AECD",
+      "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.native.client.tlpp": "596C3D2AECD2F0CA093A518A4ADECA2B51924E8AEA2662F3D3FC3068017784A9",
+      "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.page.tlpp": "DE32BF5E4B8A11C858E125FF89E8F057C66C88F6C5E5C8D0201301D00CC7D6AB",
+      "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.protheus.entry.tlpp": "7230F2CC120B91758A221D2A686E3B000B498CFE2E1CC4E680BAC50427E5A7C5",
+      "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.protheus.tlpp": "5B6FB2918D263DEBC65ADB18A36D8118DFFF6C393FC2F75D8D731669A8471897",
+      "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.rest.test.tlpp": "03CF120CB0384E3F9DEE6F07033899F3D31CB33338A8BFCDF49B698DA2504516",
+      "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.rest.tlpp": "758541624821C70E51EE91B4EDA0B03A20C619C5122A08B1F4AF2E5B960AB8D9",
+      "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.test.entry.tlpp": "C5A355E64DA8442079C3B35151C4363AD6268287F659AAD5AD25F344575BD533",
+      "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.test.tlpp": "A478A1DE62515487D67FD0F10AC7F9EA275558CBA5B061302BB617AA68D32CE5",
+      "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.visual.test.tlpp": "AEF7610A1BFFFF10D1D0B65534E83168FEB65987DEE5F1CFCABDAFCEEC30E869",
+      "src/tlpp/tests/protheus/hbbridge.browse.data.test/hbbridge.browse.data.test.sra.tlpp": "ACC6765D14ADC60B0248DEF98F319477C81FA3A7EED711A34752314EC98A3DC0",
+      "src/tlpp/tests/protheus/hbbridge.browse.data.test/hbbridge.browse.data.test.sx5.tlpp": "7FBC203EEBF071C0BAF347C2521097CDBC4CCB1E83E616D702DB2FC52601CB27",
+      "src/tlpp/tests/protheus/hbbridge.browse.data.test/hbbridge.browse.data.test.tlpp": "099FDD6F11F255191DE951E881FD090019F2BCCA71F612A11EFD8AF583AA7840",
+      "src/tlpp/tests/protheus/hbbridge.client.lifecycle.test/hbbridge.client.lifecycle.test.entry.tlpp": "1250A454FF895358F1C2847E5FBDA8FD84E2C754809CA3AB829A91366E56B89B",
+      "src/tlpp/tests/protheus/hbbridge.client.lifecycle.test/hbbridge.client.lifecycle.test.tlpp": "EDF5BD7D3F989CC7BAACBE142E10DE434A8D2A5C63E3DC54AFB50F6FC96AF574",
+      "src/tlpp/tests/protheus/hbbridge.concurrency.test/hbbridge.concurrency.test.entry.tlpp": "4485B05D6D0517FE68290369EF7066E571D2EE3205E2E7C22ADC14C525DFA82A",
+      "src/tlpp/tests/protheus/hbbridge.concurrency.test/hbbridge.concurrency.test.tlpp": "87DF3D2456BB0B2DBE3D5F8404EB7102F9E96672632AEE1E9ADB5D9A9735C3C9",
+      "src/tlpp/tests/protheus/hbbridge.config.test/hbbridge.config.test.tlpp": "0D36A2C822337B98C6D4014B512489BD7D90121A31A4FE45B7AF4F279D7F5F9E",
+      "src/tlpp/tests/protheus/hbbridge.connection.test/hbbridge.connection.test.tlpp": "40F74ABED76AD7687EB1F4D617B5D6E4EA2CB460085F93241BC6F838E858B5D2",
+      "src/tlpp/tests/protheus/hbbridge.dataset.test/hbbridge.dataset.mock.client.tlpp": "4116C0BD29C35A5185C6371F9EE238AD7FD3FB7514863D233B71A6286E3CC4D9",
+      "src/tlpp/tests/protheus/hbbridge.dataset.test/hbbridge.dataset.test.tlpp": "080AFBE1984DFA6C9E8A4A86A07D7DE4832DFB03B9155AF04F6106F25749BB07",
+      "src/tlpp/tests/protheus/hbbridge.failure.test/hbbridge.failure.test.entry.tlpp": "01FE1BB035C453A793A41EE8A713BD0E8A917434AE7EA2D868C3D3C7A6366982",
+      "src/tlpp/tests/protheus/hbbridge.failure.test/hbbridge.failure.test.tlpp": "696003110E56633D87CFA691C6C842F6F9DD0B736A158B3A184F1E7978BD4AAF",
+      "src/tlpp/tests/protheus/hbbridge.helper.test/hbbridge.helper.test.tlpp": "DEAD0DE7198619AC5E86C590596F362CF0ACD2A3BD185FA0FDAE5E0F7A43D087",
+      "src/tlpp/tests/protheus/hbbridge.http.table.test/hbbridge.http.table.example.tlpp": "2F55F6F565E3462489C957B7CBC33FDF3A8F71D10B69D64D3FCAC220A286C216",
+      "src/tlpp/tests/protheus/hbbridge.http.table.test/hbbridge.http.table.mock.client.tlpp": "4D71FD43B6FC70B93750504CE43A6552DCC6B6880576C379CF5437A9B3897BEC",
+      "src/tlpp/tests/protheus/hbbridge.http.table.test/hbbridge.http.table.test.tlpp": "2748BE835D30BEED952357F1AA05B9F0644B6C5D789A4E58AEFB14A9DA2E7912",
+      "src/tlpp/tests/protheus/hbbridge.http.test/hbbridge.http.test.tlpp": "271DCE3D7708B9EB16E02F11C2344CBD9E3D5908278676A0C598045F0FA43B81",
+      "src/tlpp/tests/protheus/hbbridge.integrity.test/hbbridge.integrity.test.entry.tlpp": "C16A6B934A984E9EC08D2EF9EB1F6D0049EA1935592F7984C53F88E8D90B135A",
+      "src/tlpp/tests/protheus/hbbridge.integrity.test/hbbridge.integrity.test.tlpp": "FD38A2F602894D331E443C02C911918BF79529D39AB5C3068DC930D0F3D87BCE",
+      "src/tlpp/tests/protheus/hbbridge.integrity.test/hbbridge.json.test.tlpp": "1F8B0293BDCE2CA5442616EA343F32EEB729A980C91CBC566F9E6C45FFAE9877",
+      "src/tlpp/tests/protheus/hbbridge.query.test/hbbridge.query.test.sqlite.tlpp": "C4A689AD6B1CF9748BC17E8D4DEA0F74C22FCC1FA2C5FF4A6836494537E3DA9A",
+      "src/tlpp/tests/protheus/hbbridge.query.test/hbbridge.query.test.tlpp": "D730263BB0864A7793D8236202657B1968DE913173971CF864DEB76FFEC10FCB",
+      "src/tlpp/tests/protheus/hbbridge.query.test/hbbridge.query.test.topinfo.tlpp": "EE6746311A6ED1FF0F2E7C64324972EAA576DECF1836E1BA19DE04707184EB48",
+      "src/zig/runtime/hbbridge.number.zig": "D78351BD3E36435ECFBC98DD4BB693F2789F0602DA2118A99F15C1A47A5BEC33",
+      "src/zig/runtime/hbbridge.runtime.zig": "ABEBF65E9C1381C067D64598DA4EA228D608F76353FBFE5EB9E42630C1CFC059",
+      "tests/contract/hbbridge.services.test.hb": "855E72FA81CDAB7A24F66457D32FA3A9F1D1073291F742D676B30D2CA5C5F2D4",
+      "tests/integration/harbour/hbbridge.benchmark.addon.test.hb": "F06061E7378CFBB108DA5B9895638DD2A65393A23F0200B587681146FB7B895A",
+      "tests/integration/harbour/hbbridge.benchmark.addon.test.hbp": "3958A2DCC9E87BAD0AC13AF6B0F6EDCF44516CE0CFCEE8C81B219513DA4CFAB6",
+      "tests/integration/harbour/hbbridge.fault.addon.hb": "CD5155131E89A6854C9D16B5B9EB7EACDA0F1BE7E59F60609AEC0144712DBF88",
+      "tests/integration/harbour/hbbridge.framing.test.hb": "47D67CDAA3D00BC5387BA061BBC49859B5A6562B959839621919357A274504A6",
+      "tests/integration/harbour/hbbridge.http.test.hb": "32EF326E74347CFEEB13412E87877F3B2010FB4E9571AB5622C42E21F2D198AE",
+      "tests/integration/harbour/hbbridge.http.test.hbp": "3160E33CFA39B9C93F62C4DD3D60090E80EE12E99427F78A29DBE49CA35771BF",
+      "tests/integration/harbour/hbbridge.isolation.addon.hb": "77BAB7BE2B886FEE760664066249A45435672CBD3782499B17FC16C984F313F6",
+      "tests/integration/harbour/hbbridge.mssql.benchmark.test.hb": "A3425A7E27C65B47B5BEAE014EFE880A40E5E28497AC0CE11D85262959869B57",
+      "tests/integration/harbour/hbbridge.mssql.benchmark.test.hbp": "9888CFF8A28195AF136E0A28A21BFD5989E853720A184996034CE6DEB3066DF3",
+      "tests/integration/harbour/hbbridge.mssql.concurrency.test.hb": "58AFC8CC27878A2C903D59A743A7FD289A64EE88CC4536DBDD7467C2FC2B7753",
+      "tests/integration/harbour/hbbridge.mssql.concurrency.test.hbp": "29C2AB213E8EF066192E55B7002AE20473EFF42B9F690E934A822F4C74E9D8E1",
+      "tests/integration/harbour/hbbridge.mssql.failure.test.hb": "D5A38823168CEDC9D7EBB6FF094B2DBC86D0DAC3D3B3176DEBC30E214F193058",
+      "tests/integration/harbour/hbbridge.mssql.failure.test.hbp": "F5B4FDD5146CE4C6F4CF24B5B39F21D966F9E97E6424B4032D875B7F3B402255",
+      "tests/integration/harbour/hbbridge.mssql.integrity.test.hb": "234699F9C3AD7ADA2DEFB35A6FE14B76C0AB1C4458C962F9305CC0270AA1E1EE",
+      "tests/integration/harbour/hbbridge.mssql.integrity.test.hbp": "01D15E4B80D4BED5BD7533FCF3A4B1A9AF96E0416D8367FDE0B8D6B09E4BF468",
+      "tests/integration/harbour/hbbridge.mssql.pooling.test.hb": "78D7B01DC79B939DB819B7CDC306625E8CEB00EF7BE19626A8A377A58523C770",
+      "tests/integration/harbour/hbbridge.mssql.pooling.test.hbp": "7B0C713588DC6A585CA18BC5C0888ED60144BB79FC21F673992AAE3530B7D0E9",
+      "tests/integration/harbour/hbbridge.mssql.test.hb": "8D5FA7A61F9871299E4A590089A6215C1192BEFBB16512346F3CFE0DA605DE57",
+      "tests/integration/harbour/hbbridge.mssql.test.hbp": "3FE250BF3F46E7951E491FADAAF6D66388BFE48DEE8D38F063DA3799415BF94E",
+      "tests/integration/harbour/hbbridge.netio.test.hb": "E3B158269E5F95297D290B428CB688133BAA5805135F99637AE9541189D798F5",
+      "tests/integration/harbour/hbbridge.query.test.hb": "251D9A81D3EB2BA27793CBFB3919C49B2A3FCEC2D99FC1707E4F6BC593C27F03",
+      "tests/integration/harbour/hbbridge.server.test.hb": "2A1608B6262C48AC3D30868ACCE17ABEBDBC614046A55C6A40E674023AD5CE1C",
+      "tests/integration/harbour/hbbridge.server.test.hbp": "95735F86BA747BB44F9B00DFAE114B6E6B136A1248F610D3228F8218D2A690FE",
+      "tests/unit/browser/hbbridge.benchmark.page.test.mjs": "51B145AC82E2EE8AC772D738E782F3A07C8D11F513C829BCB7B2229F114B694E",
+      "tests/unit/hbbridge.config.ini.test.hb": "FBA7FBF7FBF255C9D18BB6CF29D982F0975410788A4B7AC42F7FC99646ECA4A5",
+      "tests/unit/hbbridge.config.test.hb": "1B6836D196A4751568D170B8AF41419F8D4D7E575BCDD40B30E6ACF5DA238C56",
+      "tests/unit/hbbridge.json.fixture.c": "1BD3E512BFE94E717BA5CE83781F640BE2583F9D8C70603AEC57AD52229B1DB9",
+      "tests/unit/hbbridge.json.test.hb": "BD70C6D3CE747BB93E006DFEC46AB287DD09474D0EBA64371C087FEBBBF68A3E",
+      "tests/unit/hbbridge.sql.pool.test.hb": "8ACC61DB30F56744E8EF405EA627322054257192618F67B7BEBE498F8D4B8689",
+      "tests/unit/hbbridge.time.test.hb": "F51B6A938FC14E87CDD250AA7D066DB23CAFC5D96310A894C08E94D1C28294EB"
+    }
+  },
+  "artifactIdentitiesAtMeasurement": {
+    "productSHA256": "A9DE649545DAD01C560E0051BB353AA0DAEF6C5D425C5372E4237238C9917AF6",
+    "runtimeHostSHA256": "2771299DA9F75BEACB8DF9A27BCEBE6567D7ED865AA9B0EE15ADBFC2889FF2E7",
+    "finalRpoSHA256": "4070F0F44954D027116CD86AB679D714F44F5C7F05E1D27F2BC02F5B59374B4D",
+    "appServerSHA256": "A14029C4CCD8F410FF9D0CA1782D0FFFD076283393D005A39D7BD072C64440D6"
+  },
+  "dependencyPins": {
+    "hbCompile": "2cb6f3ef59c297025a2c49c4cfa8c7639f3a1455",
+    "harbour": "6deac9cf3ad977ae829e5bca543d553b92dd4b6d",
+    "zig": "0.16.0"
+  },
+  "target": {
+    "profile": "MSSQL/pData",
+    "sqlServerVersion": "16.0.1210.3"
+  },
+  "results": {
+    "native": {
+      "native": {
+        "checks": 752,
+        "failures": 0
+      },
+      "mssql": {
+        "checks": 92,
+        "failures": 0
+      },
+      "integrity": {
+        "checks": 73,
+        "failures": 0
+      },
+      "failures": {
+        "checks": 46,
+        "failures": 0
+      },
+      "concurrency": {
+        "checks": 458,
+        "failures": 0
+      },
+      "benchmarkAddon": {
+        "checks": 47,
+        "failures": 0
+      },
+      "pooling": {
+        "checks": 61,
+        "failures": 0
+      }
+    },
+    "localAppServer": {
+      "json": {
+        "checks": 31,
+        "failures": 0,
+        "exitCode": 0
+      },
+      "dataset": {
+        "checks": 67,
+        "failures": 0,
+        "exitCode": -4
+      },
+      "helpers": {
+        "checks": 14,
+        "failures": 0,
+        "exitCode": -4
+      },
+      "httpTable": {
+        "checks": 71,
+        "failures": 0,
+        "exitCode": 0
+      },
+      "benchmarkVisual": {
+        "checks": 61,
+        "failures": 0,
+        "exitCode": 0
+      },
+      "benchmarkREST": {
+        "checks": 43,
+        "failures": 0,
+        "exitCode": 0
+      }
+    },
+    "realAppServer": {
+      "checks": 80,
+      "failures": 0,
+      "exitCode": 0,
+      "hostExitCode": 0
+    }
+  },
+  "reproduction": "Use scripts and sources documented in docs/validation/README.md, plus explicit private prerequisites. No historical tmp path is an input.",
+  "limitations": [
+    "Historical counts and identities do not accept the current checkout automatically.",
+    "New execution produces a new observation, not the original timing or log.",
+    "Windows scoped acceptance; no blanket Linux/HTTPS/binary JSON support.",
+    "Proprietary SDK/RPO and private configuration remain external."
+  ]
+}

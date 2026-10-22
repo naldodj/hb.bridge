@@ -1,5 +1,5 @@
 /* Released to Public Domain. */
-#include "tlpp-core.th"
+#include "totvs.ch"
 
 namespace HBBridge.Examples
 

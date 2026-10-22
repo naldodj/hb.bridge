@@ -1,6 +1,5 @@
 /* Released to Public Domain. */
 #include "totvs.ch"
-#include "tlpp-core.th"
 
 // Pure adapter/validation checks. No INI, listener, SQL or StartJob is used.
 function U_HBBridgeBenchmarkRESTTest()

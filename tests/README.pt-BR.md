@@ -2,6 +2,12 @@
 
 [English](README.md)
 
+Entradas reutilizáveis pertencem aos fontes/fixtures versionados. `tmp/` pode
+não existir: cada runner gera suas saídas, sem exigir logs ou RPOs anteriores.
+Veja [reprodução e resumos permanentes](../docs/validation/README.pt-BR.md).
+O probe nativo de estado por thread é reproduzido por
+`./scripts/test-harbour-thread-state.ps1`, com fontes em `tests/probes/`.
+
 Os fontes Protheus permanecem sob `src/tlpp`; agora os testes estão agrupados
 em subpastas de [tests/protheus](../src/tlpp/tests/protheus):
 

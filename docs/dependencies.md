@@ -33,7 +33,10 @@ local edits are preserved. Existing developer checkouts are untouched.
 | `.deps/http/` | Isolated hbhttpd/hbtcpio preparation and checked patch/build receipt. |
 | `.deps/odbc/` | Isolated SDDODBC preparation and checked patch/build receipt. |
 | `.hbcommit/` | Maintenance sources; uses the same compiled `hbrun`. |
-| `out/` | Product executable; `tmp/` holds isolated builds and logs. |
+| `out/` | Generated product/addons; rebuilt from maintained sources/scripts. |
+| `tmp/` | Fully disposable work directories and logs; never a prerequisite. |
+| `scripts/`, `tests/` | Versioned reusable automation, fixtures and probes. |
+| `docs/validation/` | Sanitized historical summaries and reproduction commands. |
 
 `.deps/`, build outputs and local identity configuration are ignored by Git.
 No duplicate `bin/harbour` runtime is distributed. A successful Harbour build

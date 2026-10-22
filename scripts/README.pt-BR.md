@@ -50,6 +50,61 @@ zero falhas e nenhum skip**; o log é
 Esses resultados históricos não homologam alterações posteriores.
 Veja [homologação](../docs/acceptance.pt-BR.md).
 
+## Limpeza de artefatos
+
+`tmp/` pode ser descartado por inteiro. Fontes e runners reutilizáveis ficam
+versionados em `scripts/` e `tests/`; veja [validação](../docs/validation/README.pt-BR.md).
+Logs, manifests, referências em documentos e `*-current.txt` não preservam
+arquivos temporários silenciosamente.
+
+```powershell
+# Simular; idade padrão: sete dias.
+$report = ./scripts/clean-artifacts.ps1
+$report.Candidates | Format-Table Path, Status, Bytes, Reason -AutoSize
+
+# Simular tmp inteiro, incluindo entradas recentes.
+./scripts/clean-artifacts.ps1 -Target tmp -MinAgeDays 0
+
+# Aplicar essa mesma limpeza explícitamente.
+./scripts/clean-artifacts.ps1 -Target tmp -MinAgeDays 0 -Apply
+
+# Limpar builds de out, preservando o produto/addons gerados.
+./scripts/clean-artifacts.ps1 -Target out -MinAgeDays 0 -Apply
+```
+
+Exige PowerShell 7 e Git acessível, sem compilador. `-Target` aceita `all`
+(padrão), `tmp` ou `out`. A idade mínima de sete dias considera descendentes;
+0 permite limpeza imediata. Todas as entradas de primeiro nível de tmp são
+candidatas, incluindo RPOs copiados, scripts avulsos e diretórios desconhecidos.
+Em out, o script remove caches de build/objetos, preservando demais entregaveis.
+
+Permanecem as proteções de arquivos Git, links/junctions, processos visíveis e
+`-KeepPath` explícito. A exclusão manual de um caminho é uma escolha operacional
+temporária, nunca requisito permanente do projeto. Links não são percorridos.
+O crivo de commit rejeita fontes/artefatos versionados em tmp/out.
+
+`-Apply -WhatIf` simula sem excluir nem criar relatório. `-ReportPath` opcional
+deve indicar arquivo novo em tmp/out; o relatório também é descartavel.
+Bloqueio ou alteração concorrente pode deixar candidato parcialmente limpo,
+com estado `Failed`; examine `$report.FailedCount`. O script não encerra
+processos. A detecção de processos é parcial: executar entre builds/testes.
+Caminhos são verificados; somente arquivos e diretórios vazios são removidos.
+Contagens de bytes representam tamanhos lógicos.
+
+```powershell
+./tests/unit/scripts/clean.artifacts.test.ps1
+./scripts/check-doc-links.ps1
+```
+
+As fixtures validam ausência de tmp/out, descarte completo de tmp, ausência de
+retenção por documentos/ponteiros, idade, Git, links, preservação explícita,
+arquivos bloqueados, relatórios e simulação/WhatIf.
+
+Helpers de validação mantidos: `check-doc-links.ps1`,
+`test-harbour-thread-state.ps1` e `run-protheus-cli.ps1`. O último exige
+SDK/INI/programa explícitos e informa resultados do processo, sem deduzir
+aprovação das asserções. Veja os [roteiros por fontes](../docs/validation/README.pt-BR.md).
+
 ## Validação de commits
 
 Antes de cada commit:

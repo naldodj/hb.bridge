@@ -35,6 +35,10 @@ function Test-ProjectConventions {
     $failures = [Collections.Generic.List[string]]::new()
     foreach ($relativePath in $Files) {
         $filePath = Join-Path $ValidationRoot $relativePath
+        if ($relativePath -match '^(tmp|out)/') {
+            $failures.Add("${relativePath}: generated tmp/out artifacts must not be versioned")
+            continue
+        }
         if ($relativePath.EndsWith('.md') -and
             -not $relativePath.StartsWith('.hbcommit/') -and
             -not $relativePath.StartsWith('brainstorming/')) {

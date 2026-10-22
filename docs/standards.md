@@ -86,6 +86,27 @@ the extension. Update both together and preserve acceptance records,
 restrictions and pending work. Historical changelog paths describe the files
 that existed at the time; current instructions use the new names.
 
+## Generated files and reproducibility
+
+`tmp/` is scratch: every entry may be discarded, including logs, copied RPOs,
+generated fixtures and pointers. No maintained command requires an earlier tmp
+run. Reusable programs/probes belong to `src/`, `addons/`, `scripts/` or `tests/`;
+public templates belong to `config/examples/`. `out/` contains generated
+deliverables, and `.deps/` contains dependencies resolved from pinned inputs.
+Neither tmp nor out is a location for versioned source or permanent evidence.
+
+Keep sanitized acceptance summaries, source/dependency identities, commands and
+external prerequisites in [validation documentation](validation/README.md).
+A new run produces a new log; it does not recreate the exact historical machine
+state/timing. Optional raw historical archives are external, never prerequisites.
+Dated tmp paths in acceptance/ChangeLog describe past output locations, without
+requiring their continued existence. Explicit cleanup exclusions are temporary
+operational choices, not permission to create hidden project dependencies.
+
+TLPP defaults to `#include "totvs.ch"`. Add `tlpp-core.th`, `tlpp-rest.th` or
+other headers only for symbols/macros actually used, for example native REST
+annotations. Namespace/class declarations alone do not justify extra includes.
+
 ## Active work packages
 
 The agreed `WIP.md` and `WIP.pt-BR.md` names are explicit uppercase filename

@@ -21,20 +21,29 @@ HTTPS ou BLOB JSON. Veja [encerramento, artefatos e limites](docs/acceptance.pt-
 | Item | Valor atual |
 | --- | --- |
 | ID | `002-typed-sql-presentation` |
-| Abertura / atualização | 2026-10-21 / 2026-10-21 |
+| Abertura / atualização | 2026-10-21 / 2026-10-22 |
 | Situação | Planejado; implementação não iniciada. |
 | Objetivo | Definir valores SQL/metadados tipados explícitos e adapter de apresentação nativa pertencente ao chamador Protheus sobre Query/dataset homologados. |
 | Referência | Base `8db2823`; artefatos da árvore de trabalho validados no pacote 001 identificados no manifesto de encerramento. Não é nova tag de release. |
 | Próxima tarefa | T01: inventariar APIs existentes dos conectores/clientes e especificar contratos compatíveis de parâmetros/metadados de origem/lógicos/transporte antes da implementação. |
 
-### Manutenção preparatória concluída em 2026-10-21
+### Manutenção preparatória
 
-- [x] Revisar fontes próprios conforme AGENTS: agrupar declarações por tipo,
+- [x] 2026-10-21: revisar fontes próprios conforme AGENTS: agrupar declarações por tipo,
   preservar ordem das inicializações e antecipar invariantes comprovados.
   Corrigida a referência ao parâmetro de token ignorado, com dois novos checks
   de regressão. Checks nativos, AppServer real e crivos do repositório aprovados;
   veja as [evidências dessa revisão](docs/acceptance.pt-BR.md#source-conventions-review-on-2026-10-21).
   A manutenção não implementa T01; T01 permanece como próxima tarefa.
+
+- [x] 2026-10-22: adicionar [script de limpeza de artefatos](scripts/README.pt-BR.md#limpeza-de-artefatos)
+  solicitado, com simulação/aplicação explícita, caminhos delimitados e idade.
+  Alinhar tmp inteiramente descartável, sem retenção por docs/manifests/ponteiros.
+  Versionar runners, probes e [resumos históricos](docs/validation/README.pt-BR.md).
+  Validação: 22 fixtures aprovadas, incluindo ausência de tmp/out; simulações
+  reais sem exclusões. Probe versionado: 31 asserções aprovadas.
+  Registrar convenção mínima de includes TLPP e preservar
+  fontes de benchmark revisados. Manter T01 planejado.
 
 ### Decisões preservadas
 

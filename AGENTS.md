@@ -9,6 +9,14 @@
   intermediate commits/publication do not reset it. TODO retains the roadmap.
 - Use four spaces per indentation level in project-owned sources. Preserve
   upstream formatting, copyright and license notices in third-party files.
+- Treat `tmp/` as entirely disposable scratch. Commands must not require a
+  previous tmp run. Version reusable helpers/fixtures in `scripts/`/`tests/`;
+  keep sanitized acceptance summaries in `docs/validation/`. Historical tmp
+  log paths are provenance, never retention requirements. `out/` is generated;
+  managed build dependencies belong in `.deps/`.
+- Use `#include "totvs.ch"` as the default TLPP header. Add `tlpp-core.th`,
+  `tlpp-rest.th` or other headers only for declarations/macros actually used,
+  not merely because a source has the `.tlpp` extension.
 - Group variable declarations by data type and order the groups alphabetically
   by their type prefix, for example `a`, `c`, `d`, `j`, `l`, `n`, `o`, `x`.
   Full variable names within a type group need not be alphabetized. Preserve

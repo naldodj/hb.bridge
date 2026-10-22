@@ -21,20 +21,29 @@ is inferred. See [closure, exact artifacts and limitations](docs/acceptance.md#p
 | Item | Current value |
 | --- | --- |
 | ID | `002-typed-sql-presentation` |
-| Opened / updated | 2026-10-21 / 2026-10-21 |
+| Opened / updated | 2026-10-21 / 2026-10-22 |
 | Status | Planned; implementation has not started. |
 | Goal | Define explicit typed SQL values/result metadata and a caller-owned native Protheus presentation adapter using the accepted Query/dataset. |
 | Reference | Base `8db2823`; package 001 validated working-tree artifacts are identified in its closure manifest. This is not a new release tag. |
 | Next task | T01: inventory existing connector/client APIs and specify compatible parameter/source/logical/wire metadata contracts before implementation. |
 
-### Preparatory maintenance completed on 2026-10-21
+### Preparatory maintenance
 
-- [x] Review project-owned sources against AGENTS: group declarations by type,
+- [x] 2026-10-21: review project-owned sources against AGENTS: group declarations by type,
   preserve initializer order and cache proven loop invariants. Correct the
   ignored-token parameter reference and add two helper regression checks.
   Native, real AppServer and repository checks passed; see the separate
   [source-review evidence](docs/acceptance.md#source-conventions-review-on-2026-10-21).
   This maintenance does not implement T01; T01 remains the next task.
+
+- [x] 2026-10-22: add the requested [artifact cleanup script](scripts/README.md#artifact-cleanup)
+  with preview/explicit apply, bounded paths and age. Align with fully disposable
+  tmp: no retention by docs/manifests/current pointers. Version reusable runners,
+  probes and sanitized [historical summaries](docs/validation/README.md).
+  Validation: 22 isolated fixtures passed, including absent tmp/out; real-tree
+  previews removed nothing. Versioned thread probe: 31 assertions passed.
+  Register the minimal TLPP include convention;
+  preserve the revised benchmark sources. Keep T01 planned.
 
 ### Decisions retained
 
