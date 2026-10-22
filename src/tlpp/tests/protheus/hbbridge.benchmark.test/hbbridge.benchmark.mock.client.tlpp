@@ -1,0 +1,171 @@
+/* Released to Public Domain. */
+#include "totvs.ch"
+
+namespace HBBridge.Test
+
+// In-memory contract fixture only. It owns no sockets, SQL handles or SDK jobs.
+class HBBridgeBenchmarkMockClient
+
+    private data cRoute as character
+    private data jState as json
+    private data nRows as numeric
+
+    public method New(jState as json, cRoute as character, nRows as numeric) as object
+    public method CallService(cService as character, jParams as json) as json
+    public method StatusCode() as numeric
+    public method Close() as logical
+
+endclass
+
+method New(jState, cRoute, nRows) class HBBridgeBenchmarkMockClient
+
+    self:jState := jState
+    self:cRoute := cRoute
+    self:nRows := nRows
+    self:jState["constructed"][cRoute]++
+
+return(self)
+
+method CallService(cService, jParams) class HBBridgeBenchmarkMockClient
+
+    local cKey := "" as character
+
+    local jResponse as json
+    local jHeader as json
+    local jRows as json
+    local jRow as json
+    local jPage as json
+    local jField as json
+
+    local nPage := 0 as numeric
+    local nSize := 0 as numeric
+    local nCount := 0 as numeric
+    local nRow := 0 as numeric
+    local nID := 0 as numeric
+
+    self:jState["calls"][self:cRoute]++
+    if cService == "ADDON.Execute"
+        return BenchmarkMockAddon(self:jState, jParams["params"])
+    endif
+    jResponse := JSONObject():New()
+    if cService != "RPCRDD.Query" .or. self:jState["mode"] == "queryFailure"
+        jResponse["success"] := .F.
+        jResponse["code"] := "MOCK_FAILURE"
+        return jResponse
+    endif
+    nPage := jParams["page"]["number"]
+    nSize := jParams["page"]["size"]
+    nCount := Min(nSize, self:nRows - (nPage - 1) * nSize)
+    jHeader := JSONObject():New()
+    jRows := JSONObject():New()
+    jPage := JSONObject():New()
+    for nRow := 1 to 3
+        cKey := "ID"
+        if nRow == 2
+            cKey := "NAME"
+        elseif nRow == 3
+            cKey := "AMOUNT"
+        endif
+        jField := JSONObject():New()
+        jField["position"] := nRow
+        jHeader[cKey] := jField
+        jField := Nil
+    next nRow
+    for nRow := 1 to nCount
+        nID := (nPage - 1) * nSize + nRow
+        jRow := JSONObject():New()
+        jRow["ID"] := nID
+        jRow["NAME"] := "hbbridge-" + AllTrim(Str(nID))
+        jRow["AMOUNT"] := nID / 4
+        jRows[AllTrim(Str(nRow))] := jRow
+        jRow := Nil
+    next nRow
+    jPage["number"] := nPage
+    jPage["size"] := nSize
+    jPage["hasNext"] := nPage * nSize < self:nRows
+    jPage["firstRow"] := (nPage - 1) * nSize + 1
+    jPage["lastRow"] := (nPage - 1) * nSize + nCount
+    jResponse["success"] := .T.
+    jResponse["resultVersion"] := 1
+    jResponse["header"] := jHeader
+    jResponse["rows"] := jRows
+    jResponse["rowCount"] := nCount
+    jResponse["totalRows"] := self:nRows
+    jResponse["totalPages"] := Int((self:nRows - 1) / nSize) + 1
+    jResponse["page"] := jPage
+
+return(jResponse)
+
+method StatusCode() class HBBridgeBenchmarkMockClient
+return(200)
+
+method Close() class HBBridgeBenchmarkMockClient
+
+    self:jState["closed"][self:cRoute]++
+
+return(self:jState["mode"] != "closeFailure")
+
+static function BenchmarkMockAddon(jState as json, jParams as json) as json
+
+    local cKey := "" as character
+
+    local jResponse := JSONObject():New() as json
+    local jSeries := JSONObject():New() as json
+    local jSamples := JSONObject():New() as json
+    local jWarmup := JSONObject():New() as json
+    local jSample as json
+
+    local nIteration := 0 as numeric
+    local nIterations := jParams["iterations"] as numeric
+    local nWarmup := jParams["warmup"] as numeric
+    local nRows := jParams["rows"] as numeric
+    local nPages := Int((nRows - 1) / jParams["pageSize"]) + 1 as numeric
+    local nTotal := nIterations * (nIterations + 1) / 2 as numeric
+
+    for nIteration := 1 to nIterations + nWarmup
+        jSample := JSONObject():New()
+        jSample["success"] := .T.
+        jSample["elapsedMs"] := nIteration - nWarmup
+        jSample["rowsRead"] := nRows
+        jSample["pagesRead"] := nPages
+        jSample["rpcCalls"] := nPages
+        if nIteration <= nWarmup
+            jSample["elapsedMs"] := 10000
+            cKey := AllTrim(Str(nIteration))
+            jWarmup[cKey] := jSample
+        else
+            cKey := AllTrim(Str(nIteration - nWarmup))
+            jSamples[cKey] := jSample
+        endif
+        jSample := Nil
+    next nIteration
+    jSeries["success"] := .T.
+    jSeries["failureCategory"] := ""
+    jSeries["completedIterations"] := nIterations
+    jSeries["warmupCompleted"] := nWarmup
+    jSeries["totalMs"] := nTotal
+    jSeries["minMs"] := 1
+    jSeries["maxMs"] := nIterations
+    jSeries["avgMs"] := nTotal / nIterations
+    jSeries["measuredRows"] := nRows * nIterations
+    jSeries["measuredCalls"] := nPages * nIterations
+    jSeries["samples"] := jSamples
+    jSeries["warmupSamples"] := jWarmup
+    if jState["mode"] == "addonBadSummary"
+        jSeries["totalMs"] := nTotal + 100
+    elseif jState["mode"] == "addonBadWarmup"
+        if nWarmup > 0
+            jWarmup["1"]["rowsRead"] := nRows + 1
+        endif
+    endif
+    jResponse["schemaVersion"] := 1
+    jResponse["success"] := .T.
+    jResponse["fixture"] := "m08.constant.v1"
+    jResponse["profile"] := jParams["profile"]
+    jResponse["rowsPerIteration"] := nRows
+    jResponse["pageSize"] := jParams["pageSize"]
+    jResponse["iterations"] := nIterations
+    jResponse["warmupIterations"] := nWarmup
+    jResponse["series"] := jSeries
+
+return(jResponse)

@@ -1,0 +1,431 @@
+/* Released to Public Domain. */
+#include "totvs.ch"
+
+// No SQL/socket/StartJob/REST is invoked. Measure uses the real dataset and
+// aggregation paths with an explicitly injected in-memory client factory.
+function U_HBBridgeBenchmarkControlTest()
+
+    // Native JSONObject key enumeration; no copied check list.
+    local aNames as array
+
+    local cName := "" as character
+
+    local jChecks := JSONObject():New() as json
+
+    local lOK := .T. as logical
+
+    local nCheck := 0 as numeric
+    local nChecks := 0 as numeric
+
+    BenchmarkControlRoutes(jChecks)
+    BenchmarkControlStats(jChecks)
+    BenchmarkControlMeasure(jChecks)
+    aNames := jChecks:GetNames()
+    nChecks := Len(aNames)
+    for nCheck := 1 to nChecks
+        cName := aNames[nCheck]
+        lOK := jChecks[cName] .and. lOK
+        ConOut("hbBridge benchmark control check " + cName + ": " + IIf(jChecks[cName], "PASS", "FAILED"))
+    next nCheck
+    ConOut("hbBridge benchmark control checks: " + AllTrim(Str(nChecks)) + "; " + IIf(lOK, "OK", "FAILED"))
+    FreeObj(@jChecks)
+
+return(IIf(lOK, 0, 1))
+
+static function BenchmarkControlRoutes(jChecks as json)
+
+    local jComparison := BenchmarkControlComparison() as json
+    local jRoutes as json
+    local jSelected as json
+
+    jSelected := HBBridge.Test.HBBridgeBenchmarkTest():Routes(Nil, Nil)
+    jChecks["legacyTCPHTTPDefaults"] := jSelected["tcp"] .and. jSelected["http"] .and. ;
+        !jSelected["protheusStartJob"] .and. !jSelected["protheusRest"] .and. !jSelected["hbbridgeAddon"]
+    FreeObj(@jSelected)
+    jSelected := HBBridge.Test.HBBridgeBenchmarkTest():Routes(jComparison, Nil)
+    jChecks["legacyComparisonDefaults"] := jSelected["protheusStartJob"] .and. ;
+        jSelected["protheusRest"] .and. jSelected["hbbridgeAddon"]
+    FreeObj(@jSelected)
+    jRoutes := BenchmarkControlSelection("tcp")
+    jSelected := HBBridge.Test.HBBridgeBenchmarkTest():Routes(jComparison, jRoutes)
+    jChecks["explicitOverridesLegacy"] := jSelected["tcp"] .and. !jSelected["http"] .and. ;
+        !jSelected["protheusStartJob"] .and. !jSelected["protheusRest"] .and. !jSelected["hbbridgeAddon"]
+    jSelected["tcp"] := .F.
+    jChecks["selectionIsDefensive"] := jRoutes["tcp"]
+    FreeObj(@jSelected)
+    jRoutes["tcp"] := .F.
+    jSelected := HBBridge.Test.HBBridgeBenchmarkTest():Routes(jComparison, jRoutes)
+    jChecks["emptySelectionRejected"] := ValType(jSelected) == "U"
+    jRoutes["tcp"] := "true"
+    jSelected := HBBridge.Test.HBBridgeBenchmarkTest():Routes(jComparison, jRoutes)
+    jChecks["textRouteRejected"] := ValType(jSelected) == "U"
+    jRoutes["tcp"] := Nil
+    jSelected := HBBridge.Test.HBBridgeBenchmarkTest():Routes(jComparison, jRoutes)
+    jChecks["nullRouteRejected"] := ValType(jSelected) == "U"
+    jRoutes["tcp"] := .T.
+    jRoutes["unknown"] := .T.
+    jSelected := HBBridge.Test.HBBridgeBenchmarkTest():Routes(jComparison, jRoutes)
+    jChecks["unknownRouteRejected"] := ValType(jSelected) == "U"
+    FreeObj(@jRoutes)
+    jRoutes := JSONObject():New()
+    jRoutes["tcp"] := .T.
+    jSelected := HBBridge.Test.HBBridgeBenchmarkTest():Routes(jComparison, jRoutes)
+    jChecks["partialSelectionRejected"] := ValType(jSelected) == "U"
+    FreeObj(@jRoutes)
+    FreeObj(@jComparison)
+
+return
+
+static function BenchmarkControlStats(jChecks as json)
+
+    local jSamples as json
+    local jStats as json
+    local jSeries as json
+    local jWarmup as json
+
+    jSamples := BenchmarkControlSamples(20)
+    jStats := HBBridge.Test.HBBridgeBenchmarkStats():Calculate(jSamples)
+    jChecks["statisticsTwentySamples"] := jStats["success"] .and. jStats["sampleCount"] == 20
+    jChecks["statisticsMedian"] := jStats["medianMs"] == 10.5
+    jChecks["statisticsNearestRankP95"] := jStats["p95Ms"] == 19
+    jChecks["statisticsPopulationSD"] := Abs(jStats["stdDevMs"] - Sqrt(33.25)) < 0.000001
+    jChecks["statisticsCV"] := Abs(jStats["cvPct"] - Sqrt(33.25) / 10.5 * 100) < 0.000001
+    jChecks["statisticsThroughput"] := Abs(jStats["throughputRowsSec"] - 200 / 210 * 1000) < 0.000001 .and. ;
+        Abs(jStats["throughputCallsSec"] - 40 / 210 * 1000) < 0.000001
+    jChecks["statisticsMethodIsRecorded"] := "nearest rank" $ jStats["statisticsMethod"] .and. ;
+        "population SD" $ jStats["statisticsMethod"]
+    FreeObj(@jStats)
+    jSamples["20"]["success"] := .F.
+    jSamples["20"]["elapsedMs"] := 999999
+    jStats := HBBridge.Test.HBBridgeBenchmarkStats():Calculate(jSamples)
+    jChecks["failedSamplesExcluded"] := jStats["success"] .and. jStats["sampleCount"] == 19 .and. ;
+        jStats["totalMs"] == 190 .and. jStats["maxMs"] == 19
+    FreeObj(@jStats)
+    FreeObj(@jSamples)
+    jSamples := BenchmarkControlSamples(1)
+    jStats := HBBridge.Test.HBBridgeBenchmarkStats():Calculate(jSamples)
+    jChecks["singleSampleSDZero"] := jStats["success"] .and. jStats["stdDevMs"] == 0 .and. ;
+        jStats["medianMs"] == 1 .and. jStats["p95Ms"] == 1
+    FreeObj(@jStats)
+    jSamples["1"]["elapsedMs"] := 0
+    jStats := HBBridge.Test.HBBridgeBenchmarkStats():Calculate(jSamples)
+    jChecks["zeroDurationRatiosNull"] := jStats["success"] .and. ValType(jStats["cvPct"]) == "U" .and. ;
+        ValType(jStats["throughputRowsSec"]) == "U" .and. ValType(jStats["throughputCallsSec"]) == "U"
+    FreeObj(@jStats)
+    jSamples["1"]["elapsedMs"] := -1
+    jStats := HBBridge.Test.HBBridgeBenchmarkStats():Calculate(jSamples)
+    jChecks["negativeSampleRejected"] := !jStats["success"]
+    FreeObj(@jStats)
+    jSamples["1"]["elapsedMs"] := "1"
+    jStats := HBBridge.Test.HBBridgeBenchmarkStats():Calculate(jSamples)
+    jChecks["nonnumericSampleRejected"] := !jStats["success"]
+    FreeObj(@jStats)
+    jSamples["1"]["elapsedMs"] := 1
+    jSamples["1"]["rowsRead"] := 0.5
+    jStats := HBBridge.Test.HBBridgeBenchmarkStats():Calculate(jSamples)
+    jChecks["fractionalRowCountRejected"] := !jStats["success"]
+    FreeObj(@jStats)
+    FreeObj(@jSamples)
+    jSeries := BenchmarkControlSeries()
+    jWarmup := BenchmarkControlSamples(1)
+    jWarmup["1"]["elapsedMs"] := 999999
+    jSeries["warmupSamples"] := jWarmup
+    jChecks["warmupsExcluded"] := HBBridge.Test.HBBridgeBenchmarkStats():Apply(jSeries) .and. ;
+        jSeries["sampleCount"] == 2 .and. jSeries["medianMs"] == 1.5 .and. jSeries["maxMs"] == 2
+    jSeries["totalMs"] := 30
+    jChecks["inconsistentTotalRejected"] := !HBBridge.Test.HBBridgeBenchmarkStats():Apply(jSeries) .and. ;
+        jSeries["totalMs"] == 30
+    jSeries["totalMs"] := 3
+    jSeries["completedIterations"] := 1
+    jChecks["inconsistentCompletedRejected"] := !HBBridge.Test.HBBridgeBenchmarkStats():Apply(jSeries)
+    jSeries["completedIterations"] := 2
+    jSeries["measuredRows"] := 21
+    jChecks["inconsistentRowsRejected"] := !HBBridge.Test.HBBridgeBenchmarkStats():Apply(jSeries)
+    jSeries["measuredRows"] := 20
+    jSeries["measuredCalls"] := 5
+    jChecks["inconsistentCallsRejected"] := !HBBridge.Test.HBBridgeBenchmarkStats():Apply(jSeries)
+    jWarmup := Nil
+    FreeObj(@jSeries)
+    jSamples := JSONObject():New()
+    jStats := HBBridge.Test.HBBridgeBenchmarkStats():Calculate(jSamples)
+    jChecks["emptyStatisticsNull"] := jStats["success"] .and. jStats["sampleCount"] == 0 .and. ;
+        ValType(jStats["medianMs"]) == "U" .and. ValType(jStats["p95Ms"]) == "U"
+    FreeObj(@jStats)
+    FreeObj(@jSamples)
+
+return
+
+static function BenchmarkControlMeasure(jChecks as json)
+
+    local bFactory as codeblock
+
+    local cRoute := "" as character
+    local cOther := "" as character
+
+    local jState as json
+    local jRoutes as json
+    local jComparison := BenchmarkControlComparison() as json
+    local jReport as json
+
+    local lOthers := .T. as logical
+
+    local nRoute := 0 as numeric
+    local nOther := 0 as numeric
+    local nExpectedCalls := 0 as numeric
+
+    for nRoute := 1 to 5
+        cRoute := BenchmarkControlKey(nRoute)
+        jState := BenchmarkControlState()
+        jRoutes := BenchmarkControlSelection(cRoute)
+        bFactory := {|cKey, cHost, nPort, cURL, cToken, nTimeout, jSettings, nRows| ;
+            BenchmarkControlFactory(jState, cKey, nRows)}
+        jReport := HBBridge.Test.HBBridgeBenchmarkTest():Measure("mock/profile", "mock-host", 1512, ;
+            "http://mock-host:8080", "mock-token", 30, 5, 2, 2, 1, jComparison, jRoutes, bFactory)
+        jChecks[cRoute + "OnlySuccess"] := jReport["success"] .and. jReport[cRoute]["success"]
+        jChecks[cRoute + "SelectedAndCompleted"] := jReport["selectedRoutes"][cRoute] .and. ;
+            jReport["routeStates"][cRoute] == "completed" .and. jReport["routeSelectionVersion"] == 1
+        nExpectedCalls := IIf(cRoute == "hbbridgeAddon", 1, 9)
+        jChecks[cRoute + "ConstructedAndCalledOncePerScope"] := jState["constructed"][cRoute] == 1 .and. ;
+            jState["calls"][cRoute] == nExpectedCalls
+        jChecks[cRoute + "CountIntegrity"] := jReport[cRoute]["completedIterations"] == 2 .and. ;
+            jReport[cRoute]["warmupCompleted"] == 1 .and. jReport[cRoute]["measuredRows"] == 10 .and. ;
+            jReport[cRoute]["measuredCalls"] == 6 .and. jReport[cRoute]["sampleCount"] == 2
+        lOthers := .T.
+        for nOther := 1 to 5
+            cOther := BenchmarkControlKey(nOther)
+            if cOther == cRoute
+                loop
+            endif
+            lOthers := !jReport:HasProperty(cOther) .and. jReport["routeStates"][cOther] == "skipped" .and. ;
+                jState["constructed"][cOther] == 0 .and. jState["calls"][cOther] == 0 .and. lOthers
+        next nOther
+        jChecks[cRoute + "DisabledRoutesUntouched"] := lOthers
+        if cRoute == "hbbridgeAddon"
+            jChecks["addonServerAndWholeCallSeparated"] := jReport[cRoute]["medianMs"] == 1.5 .and. ;
+                jReport[cRoute]["p95Ms"] == 2 .and. jReport[cRoute]["networkCalls"] == 1 .and. ;
+                ValType(jReport[cRoute]["callElapsedMs"]) == "N" .and. jReport[cRoute]["returnedDatasetRows"] == 0
+        endif
+        FreeObj(@jReport)
+        FreeObj(@jRoutes)
+        FreeObj(@jState)
+    next nRoute
+
+    jState := BenchmarkControlState()
+    bFactory := {|cKey, cHost, nPort, cURL, cToken, nTimeout, jSettings, nRows| ;
+        BenchmarkControlFactory(jState, cKey, nRows)}
+    jRoutes := BenchmarkControlSelection("http")
+    jComparison["restURL"] := "invalid"
+    jComparison["authorization"] := ""
+    jComparison["addonModule"] := ""
+    jReport := HBBridge.Test.HBBridgeBenchmarkTest():Measure("mock/profile", "", 0, ;
+        "http://mock-host:8080", "token", 30, 5, 2, 1, 0, jComparison, jRoutes, bFactory)
+    jChecks["HTTPDoesNotRequireTCPRESTAddonConfiguration"] := jReport["success"]
+    FreeObj(@jReport)
+    FreeObj(@jRoutes)
+    jRoutes := BenchmarkControlSelection("protheusStartJob")
+    jReport := HBBridge.Test.HBBridgeBenchmarkTest():Measure("mock/profile", "", 0, ;
+        "invalid", "", 30, 5, 2, 1, 0, jComparison, jRoutes, bFactory)
+    jChecks["StartJobDoesNotRequireNetworkEndpoints"] := jReport["success"]
+    FreeObj(@jReport)
+    FreeObj(@jRoutes)
+    jRoutes := BenchmarkControlSelection("tcp")
+    jReport := HBBridge.Test.HBBridgeBenchmarkTest():Measure("mock/profile", "host", 1512, ;
+        "invalid", "", 30, 5, 2, 1, 0, jComparison, jRoutes, bFactory)
+    jChecks["TCPDoesNotRequireHTTPEndpoints"] := jReport["success"]
+    FreeObj(@jReport)
+    FreeObj(@jRoutes)
+    FreeObj(@jState)
+    FreeObj(@jComparison)
+    jComparison := BenchmarkControlComparison()
+
+    jState := BenchmarkControlState()
+    jRoutes := BenchmarkControlSelection("http")
+    bFactory := {|cKey, cHost, nPort, cURL, cToken, nTimeout, jSettings, nRows| ;
+        BenchmarkControlFactory(jState, cKey, nRows)}
+    jReport := HBBridge.Test.HBBridgeBenchmarkTest():Measure("mock/profile", "host", 1512, ;
+        "invalid", "token", 30, 5, 2, 1, 0, jComparison, jRoutes, bFactory)
+    jChecks["SelectedInvalidHTTPRejectsBeforeFactory"] := !jReport["success"] .and. ;
+        jReport["failureCategory"] == "INVALID_CONFIGURATION" .and. jState["factoryCalls"] == 0
+    FreeObj(@jReport)
+    jRoutes["http"] := .F.
+    jReport := HBBridge.Test.HBBridgeBenchmarkTest():Measure("mock/profile", "host", 1512, ;
+        "http://host", "token", 30, 5, 2, 1, 0, jComparison, jRoutes, bFactory)
+    jChecks["EmptySelectionDoesNotPassOrConstruct"] := !jReport["success"] .and. ;
+        jReport["failureCategory"] == "INVALID_CONFIGURATION" .and. jState["factoryCalls"] == 0
+    FreeObj(@jReport)
+    FreeObj(@jRoutes)
+    jRoutes := BenchmarkControlSelection("protheusRest")
+    jComparison["authorization"] := ""
+    jReport := HBBridge.Test.HBBridgeBenchmarkTest():Measure("mock/profile", "host", 1512, ;
+        "http://host", "token", 30, 5, 2, 1, 0, jComparison, jRoutes, bFactory)
+    jChecks["SelectedRESTRequiresAuthorization"] := !jReport["success"] .and. ;
+        jReport["failureCategory"] == "INVALID_CONFIGURATION" .and. jState["factoryCalls"] == 0
+    FreeObj(@jReport)
+    FreeObj(@jRoutes)
+    FreeObj(@jState)
+    FreeObj(@jComparison)
+    jComparison := BenchmarkControlComparison()
+
+    jState := BenchmarkControlState()
+    jState["mode"] := "factoryFailure"
+    jRoutes := BenchmarkControlSelection("tcp")
+    jRoutes["http"] := .T.
+    bFactory := {|cKey, cHost, nPort, cURL, cToken, nTimeout, jSettings, nRows| ;
+        BenchmarkControlFactory(jState, cKey, nRows)}
+    jReport := HBBridge.Test.HBBridgeBenchmarkTest():Measure("mock/profile", "host", 1512, ;
+        "http://host", "token", 30, 5, 2, 1, 0, jComparison, jRoutes, bFactory)
+    jChecks["ConstructorFailureVisible"] := !jReport["success"] .and. jReport["routeStates"]["tcp"] == "failed"
+    jChecks["OtherSelectedRouteStillRuns"] := jReport["http"]["success"] .and. ;
+        jReport["routeStates"]["http"] == "completed" .and. jState["constructed"]["http"] == 1
+    FreeObj(@jReport)
+    FreeObj(@jRoutes)
+    FreeObj(@jState)
+    jState := BenchmarkControlState()
+    jRoutes := BenchmarkControlSelection("tcp")
+    jState["mode"] := "closeFailure"
+    bFactory := {|cKey, cHost, nPort, cURL, cToken, nTimeout, jSettings, nRows| ;
+        BenchmarkControlFactory(jState, cKey, nRows)}
+    jReport := HBBridge.Test.HBBridgeBenchmarkTest():Measure("mock/profile", "host", 1512, ;
+        "invalid", "", 30, 5, 2, 1, 0, jComparison, jRoutes, bFactory)
+    jChecks["CloseFailureCannotPass"] := !jReport["success"] .and. ;
+        jReport["failureCategory"] == "CLIENT_CLEANUP_FAILED" .and. jReport["routeStates"]["tcp"] == "failed" .and. ;
+        jState["closed"]["tcp"] == 1
+    FreeObj(@jReport)
+    jState["mode"] := "queryFailure"
+    jReport := HBBridge.Test.HBBridgeBenchmarkTest():Measure("mock/profile", "host", 1512, ;
+        "invalid", "", 30, 5, 2, 1, 0, jComparison, jRoutes, bFactory)
+    jChecks["QueryFailureCannotPass"] := !jReport["success"] .and. !jReport["tcp"]["success"] .and. ;
+        jReport["tcp"]["completedIterations"] == 0
+    FreeObj(@jReport)
+    jState["mode"] := "success"
+    jReport := HBBridge.Test.HBBridgeBenchmarkTest():Measure("mock/profile", "host", 1512, ;
+        "invalid", "", 30, 5, 2, 1, 0, jComparison, jRoutes, bFactory)
+    jChecks["SuccessAfterFailure"] := jReport["success"] .and. jReport["routeStates"]["tcp"] == "completed"
+    FreeObj(@jReport)
+    FreeObj(@jRoutes)
+    jRoutes := BenchmarkControlSelection("hbbridgeAddon")
+    jState["mode"] := "addonBadSummary"
+    jReport := HBBridge.Test.HBBridgeBenchmarkTest():Measure("mock/profile", "host", 1512, ;
+        "invalid", "", 30, 5, 2, 2, 1, jComparison, jRoutes, bFactory)
+    jChecks["AddonInconsistentSummaryRejected"] := !jReport["success"] .and. !jReport["hbbridgeAddon"]["success"]
+    FreeObj(@jReport)
+    jState["mode"] := "addonBadWarmup"
+    jReport := HBBridge.Test.HBBridgeBenchmarkTest():Measure("mock/profile", "host", 1512, ;
+        "invalid", "", 30, 5, 2, 2, 1, jComparison, jRoutes, bFactory)
+    jChecks["AddonInvalidWarmupRejected"] := !jReport["success"] .and. !jReport["hbbridgeAddon"]["success"]
+    FreeObj(@jReport)
+    FreeObj(@jRoutes)
+    FreeObj(@jState)
+    FreeObj(@jComparison)
+
+return
+
+static function BenchmarkControlFactory(jState as json, cRoute as character, nRows as numeric) as object
+
+    jState["factoryCalls"]++
+    if jState["mode"] == "factoryFailure" .and. cRoute == "tcp"
+        throw "Intentional benchmark constructor failure."
+    endif
+
+return(HBBridge.Test.HBBridgeBenchmarkMockClient():New(jState, cRoute, nRows))
+
+static function BenchmarkControlKey(nRoute as numeric) as character
+
+    do case
+    case nRoute == 1
+        return "tcp"
+    case nRoute == 2
+        return "http"
+    case nRoute == 3
+        return "protheusStartJob"
+    case nRoute == 4
+        return "protheusRest"
+    endcase
+
+return("hbbridgeAddon")
+
+static function BenchmarkControlSelection(cRoute as character) as json
+
+    local jRoutes := JSONObject():New() as json
+
+    local nRoute := 0 as numeric
+
+    for nRoute := 1 to 5
+        jRoutes[BenchmarkControlKey(nRoute)] := BenchmarkControlKey(nRoute) == cRoute
+    next nRoute
+
+return(jRoutes)
+
+static function BenchmarkControlState() as json
+
+    local cRoute := "" as character
+
+    local jState := JSONObject():New() as json
+    local jConstructed := JSONObject():New() as json
+    local jCalls := JSONObject():New() as json
+    local jClosed := JSONObject():New() as json
+
+    local nRoute := 0 as numeric
+
+    for nRoute := 1 to 5
+        cRoute := BenchmarkControlKey(nRoute)
+        jConstructed[cRoute] := 0
+        jCalls[cRoute] := 0
+        jClosed[cRoute] := 0
+    next nRoute
+    jState["mode"] := "success"
+    jState["factoryCalls"] := 0
+    jState["constructed"] := jConstructed
+    jState["calls"] := jCalls
+    jState["closed"] := jClosed
+
+return(jState)
+
+static function BenchmarkControlComparison() as json
+
+    local jComparison := JSONObject():New() as json
+
+    jComparison["enabled"] := .T.
+    jComparison["addonEnabled"] := .T.
+    jComparison["restURL"] := "https://mock-host:4323/rest"
+    jComparison["authorization"] := "Basic mock"
+    jComparison["addonModule"] := "mock/addon.hrb"
+    jComparison["addonTimeoutSeconds"] := 30
+    jComparison["company"] := "99"
+    jComparison["branch"] := "01"
+
+return(jComparison)
+
+static function BenchmarkControlSamples(nSamples as numeric) as json
+
+    local jSamples := JSONObject():New() as json
+    local jSample as json
+
+    local nSample := 0 as numeric
+
+    for nSample := 1 to nSamples
+        jSample := JSONObject():New()
+        jSample["success"] := .T.
+        jSample["elapsedMs"] := nSample
+        jSample["rowsRead"] := 10
+        jSample["rpcCalls"] := 2
+        jSamples[AllTrim(Str(nSample))] := jSample
+        jSample := Nil
+    next nSample
+
+return(jSamples)
+
+static function BenchmarkControlSeries() as json
+
+    local jSeries := JSONObject():New() as json
+
+    jSeries["completedIterations"] := 2
+    jSeries["measuredRows"] := 20
+    jSeries["measuredCalls"] := 4
+    jSeries["totalMs"] := 3
+    jSeries["minMs"] := 1
+    jSeries["maxMs"] := 2
+    jSeries["avgMs"] := 1.5
+    jSeries["samples"] := BenchmarkControlSamples(2)
+
+return(jSeries)

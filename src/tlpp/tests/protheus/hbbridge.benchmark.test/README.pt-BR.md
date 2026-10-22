@@ -12,8 +12,8 @@ O perfil é um alias opaco explícito; nenhum banco de demonstração ou do
 Protheus é presumido.
 
 Compile todos os fontes deste diretório com toda a árvore `src/tlpp`.
-O teste requer um processo hbBridge existente com o perfil MSSQL selecionado
-e listeners TCP/HTTP. O benchmark não reinicia serviços nem altera configurações.
+Rotas hbBridge selecionadas exigem processo existente com o perfil MSSQL
+e os listeners necessários. O benchmark não reinicia serviços nem altera configurações.
 
 ## Benchmark visual
 
@@ -27,6 +27,8 @@ não do núcleo.
 
 O formulário possui cinco campos numéricos: registros por iteração, registros
 por página, iterações medidas, aquecimentos e timeout por requisição em segundos.
+Controles de rota selecionam execução real; predefinições selecionam somente
+capacidades habilitadas pelo servidor.
 Perfil, destino TCP, URL HTTP e token HTTP são selecionados no AppServer;
 o navegador não fornece SQL, credenciais nem outro destino/perfil.
 `U_HBBridgeBenchmark()` lê a seção `[hbBridge]` ativa, incluindo `SQLProfile`.
@@ -37,8 +39,9 @@ HBBridge.Examples.HBBridgeBenchmarkExample():Show("MSSQL/pData", ;
     "127.0.0.1", 1512, "http://127.0.0.1:8080", cToken, 30)
 ```
 
-A página exibe situação completa/parcial, médias TCP e HTTP, quantidades de
-registros/chamadas medidas, mínimos/máximos, latência por iteração e observações
+A página exibe situação completa/parcial, rotas selecionadas/ignoradas, quantidades
+de registros/chamadas medidas, mínimo/máximo/média/mediana/P95, desvio padrão
+populacional e CV, vazão de registros/chamadas, latência por iteração e observações
 de aquecimento separadas. Amostras ausentes ou com falha geram lacunas nos
 gráficos; resultados parciais continuam marcados como falha. Séries grandes
 usam amostragem na apresentação; o JSON mantém todas as amostras. A memória
@@ -62,7 +65,8 @@ padrões.
 controlador, sem executar SQL/HTTP. O aceite V01/V02 em 2026-10-19 reúne
 três rodadas manuais nas cinco rotas e checks separados de controlador/REST/
 ciclo e Chromium. [Evidências e limites](../../../../../docs/acceptance.pt-BR.md#v01-v02-benchmark-acceptance-on-2026-10-19).
-M08 mantém seu escopo anterior. D03 é a próxima tarefa; M09 continua pendente.
+M08 mantém seu escopo anterior. D03/M09 estavam pendentes naquele aceite;
+seu fechamento posterior e o pacote atual estão registrados no WIP.
 
 ## Medição programática e linha de comando
 
@@ -103,7 +107,8 @@ apenas `--warmup` permite zero. O CLI reutiliza o array variádico nativo;
 objetos JSON com chaves armazenam amostras e relatórios. Respostas, descrições
 de exceção, SQL completo, endpoints e tokens não são registrados.
 
-Cada cenário usa concorrência **1**, primeiro TCP e depois HTTP. Cada um executa
+Cada cenário selecionado usa concorrência **1**, na ordem fixa das rotas. O
+padrão continua TCP seguido de HTTP. Cada rota selecionada executa
 seu próprio aquecimento antes das iterações medidas. Uma iteração abre a
 primeira página, busca todas as seguintes com o dataset real, valida todos os
 IDs/nomes/valores, ordem das colunas e totais, e fecha o dataset. Ambos os
@@ -158,6 +163,86 @@ Memória indisponível; pool/build/saída do processo não informados nesse resu
 Preservar seu escopo separado da execução automatizada.
 [Evidência manual](../../../../../docs/acceptance.pt-BR.md#m08-manual-protheus-validation-on-2026-10-16).
 
+## Rotas isoladas e controles estatísticos
+
+`Run`, `Measure` e `U_HBBridgeBenchmarkTest` aceitam `jRoutes` opcional após
+`jComparison`. Informar um `JSONObject` com os cinco campos booleanos:
+
+```tlpp
+jRoutes := JSONObject():New()
+jRoutes["tcp"] := .F.
+jRoutes["http"] := .T.
+jRoutes["protheusStartJob"] := .F.
+jRoutes["protheusRest"] := .F.
+jRoutes["hbbridgeAddon"] := .F.
+jReport := HBBridge.Test.HBBridgeBenchmarkTest():Measure("MSSQL/pData", ;
+    Nil, Nil, "http://127.0.0.1:8080", cToken, 30, 1000, 100, 5, 2, ;
+    Nil, jRoutes)
+// The caller reads/exports the result, then releases both owned objects.
+FreeObj(@jReport)
+FreeObj(@jRoutes)
+```
+
+Somente rotas selecionadas são criadas/executadas. Destino TCP inválido não
+invalida uma rodada apenas HTTP; credenciais REST Protheus ausentes não
+invalidam uma rodada apenas StartJob. Sem seleção, o padrão anterior continua:
+TCP/HTTP e configurações opcionais Protheus/addon. O mapa fornecido deve ser
+completo, booleano, sem chaves desconhecidas e selecionar pelo menos uma rota.
+
+O CLI permite isolamento explícito sem combinar flags antigas de comparação:
+
+```text
+--profile=MSSQL/pData --routes=http --rows=1000 --page-size=100 --iterations=5 --warmup=2 --timeout=30
+--profile=MSSQL/pData --routes=protheusStartJob --company=99 --branch=01 --rows=1000 --page-size=100 --iterations=5 --warmup=2 --timeout=60
+--profile=MSSQL/pData --routes=hbbridgeAddon --rows=1000 --page-size=100 --iterations=5 --warmup=2 --timeout=30
+```
+
+Acrescentar esses argumentos à entrada CLI AppServer licenciada existente.
+Destinos, credenciais REST, módulo e timeout da RPC completa do addon continuam
+na configuração privada do servidor/TLPP. `--routes` usa nomes exatos `tcp`,
+`http`, `protheusStartJob`, `protheusRest`, `hbbridgeAddon`; seleções desconhecidas,
+repetidas ou vazias falham antes da execução. As rotas seguem essa ordem fixa.
+Uma rodada apenas addon ainda exige seu transporte TCP. Os controles visuais
+selecionam somente capacidades habilitadas pelo exemplo/controlador confiável.
+
+Relatórios adicionam `routeSelectionVersion=1`, mapa booleano completo
+`selectedRoutes` e `routeStates` (`skipped`, `notStarted`, `completed`, `failed`).
+Rota não selecionada é ignorada, não aprovada. A rodada só pode ser aprovada
+quando todas as rotas selecionadas terminarem com sucesso; falhas e observações
+parciais continuam visíveis.
+
+Amostras medidas aprovadas fornecem `sampleCount`, `medianMs`, `p95Ms`,
+`stdDevMs`, `cvPct`, `throughputRowsSec`, `throughputCallsSec` e
+`statisticsMethod`. P95 usa nearest-rank, desvio padrão é populacional e
+aquecimentos/falhas são excluídos. A vazão cobre varreduras completas e validadas,
+não transferência bruta SQL/rede. Com cinco amostras, P95 é o máximo observado;
+isso não permite inferir cauda em produção. Denominadores ausentes/zerados
+permanecem indisponíveis. Comparações relativas cliente exigem cargas completas,
+equivalentes e aprovadas; tempo interno do addon mantém painel próprio.
+Veja o [método estatístico e os escopos de tempo](../../../../../docs/benchmarking.pt-BR.md#seleção-de-rotas-e-estatísticas-medidas).
+
+Esta manutenção exige nova compilação e regressões/checks AppServer reais
+focados. O aceite 2026-10-19 abaixo identifica a versão anterior; não homologa
+automaticamente os novos controles de rotas/estatísticas.
+
+Compilar todo o diretório do benchmark e a árvore da biblioteca; executar
+`U_HBBridgeBenchmarkControlTest()` e `U_HBBridgeBenchmarkVisualTest()` no
+AppServer licenciado. A regressão de controle usa clientes determinísticos
+para verificar execução de rotas, dependências ignoradas, seleções inválidas e
+aritmética das amostras; não homologa desempenho do backend. A regressão visual
+valida requisições/capacidades do controlador sem navegador ou SQL real.
+Executar o HTML realmente extraído em separado:
+
+```powershell
+node --test tests/unit/browser/hbbridge.benchmark.page.test.mjs
+```
+
+É necessário navegador Chromium local; `HBBRIDGE_TEST_BROWSER` pode selecionar
+seu executável. As fixtures de navegador executam sem destinos de produção.
+Depois, executar rotas CLI/visuais isoladas reais e carga equivalente com várias
+rotas na implantação MSSQL explicitamente configurada. Preservar resumos seguros
+e identidades dos fontes/RPO desse novo escopo de execução.
+
 ## Rodada manual extensa e ciclo de vida do componente cliente
 
 A nova rodada manual de 2026-10-16, identificador
@@ -192,7 +277,7 @@ serviço quando disponíveis.
 
 ## Quatro rotas cliente e um addon no servidor
 
-O visual inclui Protheus StartJob/REST 2.0 e hbBridge TCP/HTTP com a mesma
+O visual permite selecionar Protheus StartJob/REST 2.0 e hbBridge TCP/HTTP com a mesma
 fixture, checks do dataset e SELECT mais COUNT por página. StartJob inclui
 inicialização do worker/ambiente por página; não representa tráfego TCP.
 FWWebEx fornece `cEmpAnt`/`cFilAnt` selecionadas. O job prepara seu ambiente
@@ -244,4 +329,5 @@ linhas, uma página/varredura, zero aquecimentos, TCP 94.799800 ms e HTTP
 124.020300 ms (200). [Evidência CLI e contexto do timeout](../../../../../docs/acceptance.pt-BR.md#m08-manual-cli-validation-on-2026-10-19).
 Falhas anteriores de inicialização StartJob CLI isolada ficam separadas. O
 resultado da carga 100000 linhas/500 iterações preserva o esclarecimento sobre
-parâmetros elevados e timeout inadequado. D03 e checks finais M09 seguem abertos.
+parâmetros elevados e timeout inadequado. D03/M09 ainda estavam abertas;
+seu fechamento posterior e o pacote atual continuam registrados no WIP.

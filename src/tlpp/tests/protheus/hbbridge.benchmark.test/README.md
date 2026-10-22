@@ -11,8 +11,8 @@ That bound belongs to this fixture, not to hbBridge payload or query capacity.
 The profile is an explicit opaque alias; no demo or Protheus database is assumed.
 
 Compile all sources in this directory together with the complete `src/tlpp`
-tree. The test requires an existing hbBridge process with the selected MSSQL
-profile and TCP/HTTP listeners. No service restart or configuration edit is
+tree. Selected hbBridge routes require an existing process with the selected
+MSSQL profile and their required listeners. No service restart or configuration edit is
 performed by the benchmark.
 
 ## Visual benchmark
@@ -25,7 +25,8 @@ library: the average and iteration charts use SVG, with exact values in tables.
 FWWebEx is an optional dependency of the visual consumer, not of the core.
 
 The form has five numeric fields: rows per iteration, rows per page, measured
-iterations, warmup iterations and timeout per request in seconds. Profile,
+iterations, warmup iterations and timeout per request in seconds. Route controls
+select actual execution; presets only select server-enabled capabilities. Profile,
 TCP destination, HTTP URL and HTTP token are selected on the AppServer; the
 browser cannot supply SQL, credentials or a different destination/profile.
 `U_HBBridgeBenchmark()` reads the active `[hbBridge]` section, including
@@ -36,8 +37,9 @@ HBBridge.Examples.HBBridgeBenchmarkExample():Show("MSSQL/pData", ;
     "127.0.0.1", 1512, "http://127.0.0.1:8080", cToken, 30)
 ```
 
-The page displays complete/partial status, TCP and HTTP averages, measured
-row/call counts, min/max statistics, per-iteration latency and separate warmup
+The page displays complete/partial status, selected/skipped routes, measured
+row/call counts, min/max/mean/median/P95, population standard deviation and CV,
+row/call throughput, per-iteration latency and separate warmup
 observations. Failed or missing samples create chart gaps; partial results
 remain marked as failed. Large series are sampled for display; full samples
 remain in the JSON export. Memory remains explicitly unavailable unless
@@ -59,7 +61,8 @@ the synchronous AppServer callback run for a long time; start with the defaults.
 regression, without SQL/HTTP execution. V01/V02 acceptance on 2026-10-19
 combines three manual five-route runs with separate controller/REST/lifecycle
 and Chromium checks. [Evidence and limits](../../../../../docs/acceptance.md#v01-v02-benchmark-acceptance-on-2026-10-19).
-Earlier M08 results retain their own scope. D03 is next; M09 remains pending.
+Earlier M08 results retain their own scope. D03/M09 were pending at that
+acceptance; their later closure and the current package are recorded in WIP.
 
 ## Programmatic measurement and command line
 
@@ -99,7 +102,8 @@ integers; only `--warmup` permits zero. The CLI borrows the native variadic
 argument array; keyed JSON objects hold samples and reports. No response,
 exception description, complete SQL, endpoint or token is printed.
 
-Each scenario runs at concurrency **1**, first TCP and then HTTP. Each performs
+Each selected scenario runs at concurrency **1**, in fixed route order. The
+default remains TCP followed by HTTP. Each selected route performs
 its own warmup before its measured iterations. One iteration opens page one,
 fetches every subsequent page with the production dataset, validates every
 ID/name/amount plus column order and page totals, and closes the dataset.
@@ -152,6 +156,85 @@ pool/build/process exit are not supplied by this summary. Preserve its scope
 separately from the automated run.
 [Manual evidence](../../../../../docs/acceptance.md#m08-manual-protheus-validation-on-2026-10-16).
 
+## Isolated routes and statistical controls
+
+`Run`, `Measure` and `U_HBBridgeBenchmarkTest` accept an optional `jRoutes`
+after `jComparison`. Pass a `JSONObject` with all five boolean fields:
+
+```tlpp
+jRoutes := JSONObject():New()
+jRoutes["tcp"] := .F.
+jRoutes["http"] := .T.
+jRoutes["protheusStartJob"] := .F.
+jRoutes["protheusRest"] := .F.
+jRoutes["hbbridgeAddon"] := .F.
+jReport := HBBridge.Test.HBBridgeBenchmarkTest():Measure("MSSQL/pData", ;
+    Nil, Nil, "http://127.0.0.1:8080", cToken, 30, 1000, 100, 5, 2, ;
+    Nil, jRoutes)
+// The caller reads/exports the result, then releases both owned objects.
+FreeObj(@jReport)
+FreeObj(@jRoutes)
+```
+
+Only selected routes are constructed/executed. A malformed TCP destination
+does not invalidate an HTTP-only run; missing Protheus REST credentials do
+not invalidate a StartJob-only run. No selection means the existing default:
+TCP/HTTP, with optional Protheus/addon settings. A supplied map must be complete,
+boolean, contain no unknown keys and select at least one route.
+
+CLI supports explicit isolation without combining legacy comparison flags:
+
+```text
+--profile=MSSQL/pData --routes=http --rows=1000 --page-size=100 --iterations=5 --warmup=2 --timeout=30
+--profile=MSSQL/pData --routes=protheusStartJob --company=99 --branch=01 --rows=1000 --page-size=100 --iterations=5 --warmup=2 --timeout=60
+--profile=MSSQL/pData --routes=hbbridgeAddon --rows=1000 --page-size=100 --iterations=5 --warmup=2 --timeout=30
+```
+
+Append these arguments to the existing licensed AppServer CLI entry. Destinations,
+REST credentials, addon module and complete addon RPC timeout remain private
+server/TLPP settings. `--routes` uses the exact names `tcp`, `http`,
+`protheusStartJob`, `protheusRest`, `hbbridgeAddon`; unknown, duplicate or empty
+selections fail before execution. Selected routes run in that fixed order.
+An addon-only run still needs its TCP transport. The visual route controls
+can select only capabilities enabled by the trusted example/controller.
+
+Reports add `routeSelectionVersion=1`, a complete `selectedRoutes` boolean map
+and `routeStates` (`skipped`, `notStarted`, `completed`, `failed`). An unselected
+route is skipped, not passed. Only all selected routes completing successfully
+can produce a successful run; failures and partial observations remain visible.
+
+Successful measured samples supply `sampleCount`, `medianMs`, `p95Ms`,
+`stdDevMs`, `cvPct`, `throughputRowsSec`, `throughputCallsSec` and
+`statisticsMethod`. P95 uses nearest rank, standard deviation is population
+based, and warmups/failures are excluded. Throughput covers complete validated
+traversals, not raw SQL/network transfer. Five samples make P95 the observed
+maximum; this is insufficient to infer a production tail. Missing/zero
+denominators remain unavailable. Relative client comparisons require matching
+complete successful workloads; addon internal timing remains in its own panel.
+See the [statistical method and timing scopes](../../../../../docs/benchmarking.md#route-selection-and-measured-statistics).
+
+This maintenance requires fresh compilation and focused regression/real
+AppServer checks. The 2026-10-19 acceptance below identifies the earlier version;
+it does not automatically accept the new route/statistics controls.
+
+Compile the complete benchmark directory and library tree, then run
+`U_HBBridgeBenchmarkControlTest()` and `U_HBBridgeBenchmarkVisualTest()` in the
+licensed AppServer. The control regression uses deterministic clients to check
+route execution, skipped dependencies, selection failures and measured-sample
+arithmetic; it does not establish backend performance. The visual regression
+checks controller requests/capabilities without a browser or live SQL. Run the
+actual extracted HTML separately:
+
+```powershell
+node --test tests/unit/browser/hbbridge.benchmark.page.test.mjs
+```
+
+This requires a local Chromium browser; `HBBRIDGE_TEST_BROWSER` can select its
+executable. Browser fixtures run without production endpoints. Follow these
+checks with real CLI/visual isolated routes and a matched multi-route workload
+against the explicitly configured MSSQL deployment. Preserve safe summaries
+and source/RPO identities for that new execution scope.
+
 ## Large manual run and client-component lifetime
 
 The 2026-10-16 manual retry, run `93A0CC16D629E74FAA54843567C86E58`, started
@@ -183,7 +266,7 @@ phase/iteration/page, HTTP status and service-code diagnostics where available.
 
 ## Four client routes and a server-only addon
 
-The visual form includes Protheus StartJob/REST 2.0 and hbBridge TCP/HTTP,
+The visual form can select Protheus StartJob/REST 2.0 and hbBridge TCP/HTTP,
 using the same fixture, dataset checks and SELECT plus COUNT per page.
 StartJob includes worker/environment startup per page; it is not TCP traffic.
 FWWebEx supplies the selected `cEmpAnt`/`cFilAnt`. The job prepares its own
@@ -235,4 +318,5 @@ one page/traversal, zero warmups, TCP 94.799800 ms and HTTP 124.020300 ms (200).
 [CLI evidence and timeout context](../../../../../docs/acceptance.md#m08-manual-cli-validation-on-2026-10-19).
 Earlier isolated StartJob CLI initialization failures are separate. The large
 100000-row/500-iteration outcome retains the reported excessive-workload and
-inadequate-timeout context. D03 and final M09 checks remain open.
+inadequate-timeout context. D03/M09 were still open then; their later closure
+and the current package remain recorded in WIP.

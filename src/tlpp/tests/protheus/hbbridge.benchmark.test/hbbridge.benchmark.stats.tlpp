@@ -1,0 +1,206 @@
+/* Released to Public Domain. */
+#include "totvs.ch"
+
+namespace HBBridge.Test
+
+class HBBridgeBenchmarkStats
+
+    static method Calculate(jSamples as json) as json
+    static method Apply(jSeries as json) as logical
+
+endclass
+
+static method Calculate(jSamples) class HBBridgeBenchmarkStats
+
+    // Native GetNames()/ASort boundaries require arrays. Only durations are
+    // copied for exact order statistics; records and counters remain JSON.
+    local aNames as array
+    local aDurations := {} as array
+
+    local cKey := "" as character
+
+    local jResult := JSONObject():New() as json
+    local jSample as json
+
+    local nSample := 0 as numeric
+    local nSamples := 0 as numeric
+    local nCount := 0 as numeric
+    local nElapsed := 0 as numeric
+    local nTotal := 0 as numeric
+    local nRows := 0 as numeric
+    local nCalls := 0 as numeric
+    local nMean := 0 as numeric
+    local nDelta := 0 as numeric
+    local nM2 := 0 as numeric
+    local nMiddle := 0 as numeric
+    local nRank := 0 as numeric
+
+    jResult["success"] := .F.
+    jResult["failureCategory"] := "INVALID_STATISTICS"
+    jResult["sampleCount"] := 0
+    jResult["totalMs"] := Nil
+    jResult["minMs"] := Nil
+    jResult["maxMs"] := Nil
+    jResult["avgMs"] := Nil
+    jResult["measuredRows"] := 0
+    jResult["measuredCalls"] := 0
+    jResult["medianMs"] := Nil
+    jResult["p95Ms"] := Nil
+    jResult["stdDevMs"] := Nil
+    jResult["cvPct"] := Nil
+    jResult["throughputRowsSec"] := Nil
+    jResult["throughputCallsSec"] := Nil
+    jResult["statisticsMethod"] := "successful measured samples only; median of sorted durations; P95 nearest rank ceil(0.95*n); population SD via Welford; throughput=sum(count)/sum(ms)*1000; undefined ratios=null"
+    if ValType(jSamples) != "J"
+        return jResult
+    endif
+    aNames := jSamples:GetNames()
+    nSamples := Len(aNames)
+    for nSample := 1 to nSamples
+        cKey := AllTrim(Str(nSample))
+        if !jSamples:HasProperty(cKey)
+            return jResult
+        endif
+        jSample := jSamples[cKey]
+        if ValType(jSample) != "J"
+            return jResult
+        endif
+        if !jSample:HasProperty("success")
+            return jResult
+        endif
+        if ValType(jSample["success"]) != "L"
+            return jResult
+        endif
+        if !jSample["success"]
+            loop
+        endif
+        if !jSample:HasProperty("elapsedMs") .or. !jSample:HasProperty("rowsRead") .or. ;
+            !jSample:HasProperty("rpcCalls")
+            return jResult
+        endif
+        if !StatsFinite(jSample["elapsedMs"]) .or. !StatsCount(jSample["rowsRead"]) .or. ;
+            !StatsCount(jSample["rpcCalls"])
+            return jResult
+        endif
+        nElapsed := jSample["elapsedMs"]
+        if nElapsed < 0
+            return jResult
+        endif
+        nCount++
+        AAdd(aDurations, nElapsed)
+        nTotal += nElapsed
+        nRows += jSample["rowsRead"]
+        nCalls += jSample["rpcCalls"]
+        nDelta := nElapsed - nMean
+        nMean += nDelta / nCount
+        nM2 += nDelta * (nElapsed - nMean)
+        if !StatsFinite(nTotal) .or. !StatsCount(nRows) .or. !StatsCount(nCalls) .or. ;
+            !StatsFinite(nMean) .or. !StatsFinite(nM2)
+            return jResult
+        endif
+    next nSample
+    jResult["sampleCount"] := nCount
+    jResult["measuredRows"] := nRows
+    jResult["measuredCalls"] := nCalls
+    if nCount > 0
+        ASort(aDurations)
+        nMiddle := Int(nCount / 2)
+        nRank := Int((95 * nCount + 99) / 100)
+        jResult["totalMs"] := nTotal
+        jResult["minMs"] := aDurations[1]
+        jResult["maxMs"] := aDurations[nCount]
+        jResult["avgMs"] := nTotal / nCount
+        if nCount == 2 * nMiddle
+            jResult["medianMs"] := aDurations[nMiddle] + ;
+                (aDurations[nMiddle + 1] - aDurations[nMiddle]) / 2
+        else
+            jResult["medianMs"] := aDurations[nMiddle + 1]
+        endif
+        jResult["p95Ms"] := aDurations[nRank]
+        jResult["stdDevMs"] := Sqrt(Max(0, nM2) / nCount)
+        if nMean > 0
+            jResult["cvPct"] := jResult["stdDevMs"] / nMean * 100
+        endif
+        if nTotal > 0
+            jResult["throughputRowsSec"] := nRows / nTotal * 1000
+            jResult["throughputCallsSec"] := nCalls / nTotal * 1000
+        endif
+    endif
+    jResult["success"] := .T.
+    jResult["failureCategory"] := ""
+
+return(jResult)
+
+static method Apply(jSeries) class HBBridgeBenchmarkStats
+
+    local jStats as json
+
+    local lValid := .F. as logical
+
+    if ValType(jSeries) != "J"
+        return .F.
+    endif
+    if !jSeries:HasProperty("samples") .or. !jSeries:HasProperty("completedIterations") .or. ;
+        !jSeries:HasProperty("measuredRows") .or. !jSeries:HasProperty("measuredCalls") .or. ;
+        !jSeries:HasProperty("totalMs") .or. !jSeries:HasProperty("minMs") .or. ;
+        !jSeries:HasProperty("maxMs") .or. !jSeries:HasProperty("avgMs")
+        return .F.
+    endif
+    if !StatsCount(jSeries["completedIterations"]) .or. !StatsCount(jSeries["measuredRows"]) .or. ;
+        !StatsCount(jSeries["measuredCalls"])
+        return .F.
+    endif
+    jStats := HBBridge.Test.HBBridgeBenchmarkStats():Calculate(jSeries["samples"])
+    if jStats["success"]
+        lValid := jStats["sampleCount"] == jSeries["completedIterations"] .and. ;
+            jStats["measuredRows"] == jSeries["measuredRows"] .and. ;
+            jStats["measuredCalls"] == jSeries["measuredCalls"]
+        lValid := StatsSame(jSeries["totalMs"], jStats["totalMs"]) .and. ;
+            StatsSame(jSeries["minMs"], jStats["minMs"]) .and. ;
+            StatsSame(jSeries["maxMs"], jStats["maxMs"]) .and. ;
+            StatsSame(jSeries["avgMs"], jStats["avgMs"]) .and. lValid
+    endif
+    if lValid
+        // Existing aggregates are evidence: validate them; never repair them.
+        jSeries["sampleCount"] := jStats["sampleCount"]
+        jSeries["medianMs"] := jStats["medianMs"]
+        jSeries["p95Ms"] := jStats["p95Ms"]
+        jSeries["stdDevMs"] := jStats["stdDevMs"]
+        jSeries["cvPct"] := jStats["cvPct"]
+        jSeries["throughputRowsSec"] := jStats["throughputRowsSec"]
+        jSeries["throughputCallsSec"] := jStats["throughputCallsSec"]
+        jSeries["statisticsMethod"] := jStats["statisticsMethod"]
+    endif
+    FreeObj(@jStats)
+
+return(lValid)
+
+static function StatsFinite(xValue as variant) as logical
+
+    if ValType(xValue) != "N"
+        return .F.
+    endif
+
+return(xValue == xValue .and. xValue - xValue == 0)
+
+static function StatsCount(xValue as variant) as logical
+
+    if !StatsFinite(xValue)
+        return .F.
+    endif
+
+return(xValue >= 0 .and. xValue <= 9007199254740991 .and. xValue == Int(xValue))
+
+static function StatsSame(xActual as variant, xExpected as variant) as logical
+
+    if ValType(xExpected) == "U"
+        return ValType(xActual) == "U"
+    endif
+    if !StatsFinite(xActual)
+        return .F.
+    endif
+    if xActual < 0
+        return .F.
+    endif
+
+return(Abs(xActual - xExpected) <= Max(0.000000001, Abs(xExpected) * 0.000000001))

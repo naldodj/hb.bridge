@@ -45,6 +45,16 @@ HTTPS ou BLOB JSON. Veja [encerramento, artefatos e limites](docs/acceptance.pt-
   Registrar convenção mínima de includes TLPP e preservar
   fontes de benchmark revisados. Manter T01 planejado.
 
+- [ ] 2026-10-22: implementar manutenção de confiabilidade/controle do benchmark
+  explicitamente solicitada antes de retomar T01: execução real de rotas
+  isoladas por seleção CLI/TLPP/visual compatível, dependências somente das
+  rotas escolhidas, estados ignorado/falha explícitos e estatísticas das
+  amostras medidas. Manter configuração de destino/perfil/módulo/autenticação
+  confiável; separar varreduras cliente dos tempos internos/RPC do addon.
+  Compilar e verificar cenários determinísticos, de navegador e AppServer
+  real antes de registrar aceite. Essa repriorização não implementa contratos
+  SQL/apresentação de T01. Veja o [guia do benchmark](docs/benchmarking.pt-BR.md#seleção-de-rotas-e-estatísticas-medidas).
+
 ### Decisões preservadas
 
 - Manter implementação única e comportamento homologado de `RPCRDD.Query`,

@@ -119,6 +119,61 @@ whole benchmark. Waiting on or closing the page is not native cancellation.
 Failed scenarios retain samples and partial statistics; failed samples must
 not become zero-latency points or successful iterations.
 
+## Route selection and measured statistics
+
+The AppServer benchmark can execute any nonempty subset of `tcp`, `http`,
+`protheusStartJob`, `protheusRest` and `hbbridgeAddon`. Selection controls actual
+execution, client construction and dependency validation; it is not a chart
+filter. Selected routes retain that fixed order, with concurrency one. A
+skipped route has no successful measurement and must not be counted as passed.
+The additive `routeSelectionVersion=1`, `selectedRoutes` boolean map and
+`routeStates` fields record selection and `skipped`, `notStarted`, `completed`
+or `failed` outcomes. Existing calls without route selection retain their
+TCP/HTTP baseline and optional comparison/addon behavior.
+
+CLI accepts `--routes=http` or a comma-separated list such as
+`--routes=tcp,http`. Use the exact route names above. Empty selections, unknown
+names and duplicate routes are rejected before execution. Explicit `--routes`
+is sufficient to select Protheus/addon routes and replaces the legacy selection
+defaults. Without it, `--compare-protheus=1` and `--with-addon=1` keep their
+previous behavior. An addon-only run
+uses its TCP RPC and addon configuration; it does not execute HTTP or the
+client-side Query traversal. A Protheus-only selection does not require an
+hbBridge TCP/HTTP destination. Each selected route validates its own inputs.
+
+The visual form exposes only capabilities enabled by trusted TLPP configuration.
+It provides individual selection and presets, without allowing browser changes
+to the profile, destinations, module, ERP context or credentials. Disabled
+capabilities cannot be enabled by editing a browser request. The console,
+rendered results and JSON retain the selection so an isolated test cannot be
+mistaken for a successful full comparison.
+
+Per-route derived statistics use successful measured traversal samples only:
+`sampleCount`, `medianMs`, nearest-rank `p95Ms`, population `stdDevMs`, `cvPct`,
+`throughputRowsSec` and `throughputCallsSec`. `statisticsMethod` records the
+method. Warmup and failed samples remain visible separately. Median averages
+the two central values for even counts; P95 selects sorted rank
+`Ceiling(0.95 * count)`. Standard deviation divides by the measured sample
+count; CV divides that deviation by the mean and multiplies by 100. A metric
+with no valid denominator is unavailable rather than zero. End-to-end row/call
+throughput divides validated measured rows/calls by their summed traversal
+time; it does not measure raw database or network throughput.
+
+`HBBridgeBenchmarkStats.Apply()` verifies the existing completed count,
+row/call totals and duration aggregates against those samples before adding
+statistics. Floating-point duration comparisons use absolute/relative
+`1e-9` tolerance. Inconsistent existing totals fail explicitly instead of
+being silently repaired. A route's failure does not prevent independent
+selected routes from retaining their own execution outcome.
+
+Five measured samples provide only a small observation: nearest-rank P95 then
+equals the observed maximum and is not a production tail-latency estimate.
+Partial successful-sample statistics do not make a failed route comparable.
+Compare successful complete client routes with the same workload and timing
+scope. Addon server traversal statistics remain separate from complete addon
+RPC duration and from client traversal bars. Browser rendering time and payload
+size are not collected by this harness and are not inferred from elapsed time.
+
 New reports include the failed phase/iteration and per-sample `serviceCode`,
 `httpStatus` and `failedPage`. TCP has no HTTP status; absent page/status data
 does not identify a cause. Native exception text, SQL and credentials are
@@ -167,7 +222,8 @@ be retained, and is never part of JSON; nested service calls retain permissions.
 The [private REST configuration](../config/hbbridge.benchmark.rest.md) includes
 `BenchmarkProtheusURL`, `BenchmarkProtheusCredentialSection`, `BenchmarkAddonModule` and
 `BenchmarkAddonTimeoutSeconds` under `[hbBridge]`. The visual example enables
-all comparisons; CLI opts in with `--compare-protheus=1 --with-addon=1`.
+all comparison capabilities; the form selects routes for each run. CLI opts in
+with `--compare-protheus=1 --with-addon=1` or explicit `--routes`.
 Omitting these flags preserves the two-route CLI baseline. REST 2.0 validates
 Basic credentials from the private referenced `UserName`/`Password` section;
 no additional benchmark bearer is used. Authorization and addon module remain
@@ -190,7 +246,9 @@ a request is pending; they are not a server progress percentage or cancellation.
 V01/V02 are complete for the recorded manual AppServer scope and focused
 automated evidence. Three runs passed all five routes: 75 measured and 30
 warmup samples; the paired JSON/HTML audit passed 684 checks. See
-[results, hashes and limits](acceptance.md#v01-v02-benchmark-acceptance-on-2026-10-19). D03 is next; M09 remains open.
+[results, hashes and limits](acceptance.md#v01-v02-benchmark-acceptance-on-2026-10-19).
+D03/M09 were pending at that acceptance; their later package 001 closure and
+the current package are recorded in [WIP](../WIP.md).
 
 Use an additional whole-package comparison when the addon performs all work
 and returns metrics: compare its complete RPC with the sum of the same seven
@@ -218,4 +276,5 @@ and separate SQL/serialization/parsing/processing/RPC intervals are planned.
 The supplied Docker Protheus 12.1.2610/PostgreSQL environment is a future
 compatibility reference, requiring its own connector, dialect, SDK, encoding
 and deployment acceptance. See [design and plan](benchmark-evolution.md).
-These are future tasks; D03 and final M09 remain the active priorities.
+These remain future tasks; follow the current package and preparatory maintenance
+in [WIP](../WIP.md).

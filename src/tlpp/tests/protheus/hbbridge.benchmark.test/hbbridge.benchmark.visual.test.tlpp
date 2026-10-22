@@ -261,6 +261,7 @@ function U_HBBridgeBenchmarkVisualTest()
     FreeObj(@jResponse)
     FreeObj(@jRequest)
 
+    BenchmarkVisualSelectionChecks(jChecks)
     aNames := jChecks:GetNames()
     nNames := Len(aNames)
     for nCheck := 1 to nNames
@@ -276,6 +277,170 @@ function U_HBBridgeBenchmarkVisualTest()
     FreeObj(@jState)
 
 return(IIf(lOK, 0, 1))
+
+static function BenchmarkVisualSelectionChecks(jChecks as json)
+
+    local bMeasure as codeblock
+
+    local jState := JSONObject():New() as json
+    local jComparison := JSONObject():New() as json
+    local jRequest as json
+    local jResponse as json
+
+    local nCalls as numeric
+
+    local oController as object
+
+    jState["calls"] := 0
+    bMeasure := {|cProfile, cHost, nPort, cURL, cToken, nTimeout, nRows, nPageSize, nIterations, nWarmup, jSelected| ;
+        BenchmarkVisualSelectionMock(jState, jSelected)}
+    oController := HBBridge.Examples.HBBridgeBenchmarkController():New("visual-instance", ;
+        "trusted/profile", "trusted-host", 1512, "https://trusted-host:8080", "private-token", bMeasure)
+
+    jRequest := BenchmarkVisualRequest("selected-tcp")
+    jRequest["params"]["routes"] := BenchmarkVisualRoutes("tcp")
+    jResponse := oController:Handle(jRequest:ToJSON())
+    jChecks["selectedTCPReachesCallback"] := jState["calls"] == 1 .and. ;
+        jResponse["report"]["selectedRoutes"]["tcp"] .and. !jResponse["report"]:HasProperty("http")
+    jRequest["params"]["routes"]["tcp"] := .F.
+    jResponse["report"]["selectedRoutes"]["tcp"] := .F.
+    FreeObj(@jResponse)
+    jResponse := oController:Handle(jRequest:ToJSON())
+    jChecks["selectedResponseCacheIsDefensive"] := jState["calls"] == 1 .and. ;
+        jResponse["report"]["selectedRoutes"]["tcp"]
+    FreeObj(@jResponse)
+    FreeObj(@jRequest)
+
+    jRequest := BenchmarkVisualRequest("selected-http")
+    jRequest["params"]["routes"] := BenchmarkVisualRoutes("http")
+    jResponse := oController:Handle(jRequest:ToJSON())
+    jChecks["selectedHTTPReachesCallback"] := jResponse["report"]["selectedRoutes"]["http"] .and. ;
+        !jResponse["report"]:HasProperty("tcp")
+    FreeObj(@jResponse)
+    FreeObj(@jRequest)
+
+    jRequest := BenchmarkVisualRequest("empty-routes")
+    jRequest["params"]["routes"] := BenchmarkVisualRoutes("")
+    jChecks["rejectEmptyRouteSelection"] := BenchmarkVisualRejected(oController, jState, jRequest)
+    jRequest["requestID"] := "null-routes"
+    jRequest["params"]["routes"] := Nil
+    jChecks["rejectNullRouteSelection"] := BenchmarkVisualRejected(oController, jState, jRequest)
+    jRequest["requestID"] := "partial-routes"
+    jRequest["params"]["routes"] := JSONObject():New()
+    jRequest["params"]["routes"]["tcp"] := .T.
+    jChecks["rejectPartialRouteSelection"] := BenchmarkVisualRejected(oController, jState, jRequest)
+    jRequest["requestID"] := "text-route-flag"
+    jRequest["params"]["routes"] := BenchmarkVisualRoutes("tcp")
+    jRequest["params"]["routes"]["http"] := "false"
+    jChecks["rejectNonBooleanRouteSelection"] := BenchmarkVisualRejected(oController, jState, jRequest)
+    jRequest["requestID"] := "unknown-route"
+    jRequest["params"]["routes"] := BenchmarkVisualRoutes("tcp")
+    jRequest["params"]["routes"]["sql"] := .T.
+    jChecks["rejectUnknownRouteSelection"] := BenchmarkVisualRejected(oController, jState, jRequest)
+    jRequest["requestID"] := "unavailable-startjob"
+    jRequest["params"]["routes"] := BenchmarkVisualRoutes("protheusStartJob")
+    jChecks["rejectUnavailableStartJob"] := BenchmarkVisualRejected(oController, jState, jRequest)
+    jRequest["requestID"] := "unavailable-rest"
+    jRequest["params"]["routes"] := BenchmarkVisualRoutes("protheusRest")
+    jChecks["rejectUnavailableREST"] := BenchmarkVisualRejected(oController, jState, jRequest)
+    jRequest["requestID"] := "unavailable-addon"
+    jRequest["params"]["routes"] := BenchmarkVisualRoutes("hbbridgeAddon")
+    jChecks["rejectUnavailableAddon"] := BenchmarkVisualRejected(oController, jState, jRequest)
+    FreeObj(@jRequest)
+    oController:Close()
+    FreeObj(@oController)
+
+    jComparison["enabled"] := .T.
+    jComparison["addonEnabled"] := .T.
+    oController := HBBridge.Examples.HBBridgeBenchmarkController():New("visual-instance", ;
+        "trusted/profile", "trusted-host", 1512, "https://trusted-host:8080", "private-token", bMeasure, jComparison)
+    jRequest := BenchmarkVisualRequest("only-startjob")
+    jRequest["params"]["routes"] := BenchmarkVisualRoutes("protheusStartJob")
+    jResponse := oController:Handle(jRequest:ToJSON())
+    jChecks["allowStartJobWithoutREST"] := jResponse["report"]["selectedRoutes"]["protheusStartJob"] .and. ;
+        !jResponse["report"]:HasProperty("protheusRest")
+    FreeObj(@jResponse)
+    jRequest["requestID"] := "only-addon"
+    jRequest["params"]["routes"] := BenchmarkVisualRoutes("hbbridgeAddon")
+    jResponse := oController:Handle(jRequest:ToJSON())
+    jChecks["allowAddonOnly"] := jResponse["report"]["selectedRoutes"]["hbbridgeAddon"] .and. ;
+        !jResponse["report"]:HasProperty("tcp") .and. !jResponse["report"]:HasProperty("http")
+    jChecks["selectionDoesNotExposeConnection"] := !("private-token" $ jResponse:ToJSON()) .and. ;
+        !("trusted-host" $ jResponse:ToJSON()) .and. !("trusted/profile" $ jResponse:ToJSON())
+    FreeObj(@jResponse)
+    jState["fail"] := .T.
+    jRequest["requestID"] := "failed-addon-only"
+    jResponse := oController:Handle(jRequest:ToJSON())
+    jChecks["addonOnlyFailureKeepsPartialReport"] := jResponse:HasProperty("report") .and. ;
+        !jResponse["report"]["success"] .and. jResponse["report"]["routeStates"]["hbbridgeAddon"] == "failed"
+    FreeObj(@jResponse)
+    FreeObj(@jRequest)
+    nCalls := jState["calls"]
+    oController:Close()
+    jChecks["selectionCloseKeepsCallerState"] := jState["calls"] == nCalls
+    FreeObj(@oController)
+    FreeObj(@jComparison)
+    FreeObj(@jState)
+return
+
+static function BenchmarkVisualRoutes(cOnly as character) as json
+
+    local jRoutes := JSONObject():New() as json
+
+    jRoutes["tcp"] := cOnly == "tcp"
+    jRoutes["http"] := cOnly == "http"
+    jRoutes["protheusStartJob"] := cOnly == "protheusStartJob"
+    jRoutes["protheusRest"] := cOnly == "protheusRest"
+    jRoutes["hbbridgeAddon"] := cOnly == "hbbridgeAddon"
+
+return(jRoutes)
+
+static function BenchmarkVisualSelectionMock(jState as json, jRoutes as json) as json
+
+    // JSONObject enumeration uses the native borrowed array.
+    local aNames as array
+
+    local cName as character
+
+    local jReport := JSONObject():New() as json
+    local jSelected := JSONObject():New() as json
+    local jStates := JSONObject():New() as json
+    local jSeries as json
+
+    local lSuccess := .T. as logical
+
+    local nName as numeric
+    local nNames as numeric
+
+    jState["calls"]++
+    if jState:HasProperty("fail")
+        lSuccess := !jState["fail"]
+    endif
+    jSelected:FromJSON(jRoutes:ToJSON())
+    jReport["schemaVersion"] := 1
+    jReport["routeSelectionVersion"] := 1
+    jReport["success"] := lSuccess
+    jReport["failureCategory"] := IIf(lSuccess, "", "SCENARIO_FAILED")
+    jReport["selectedRoutes"] := jSelected
+    jReport["routeStates"] := jStates
+    aNames := jRoutes:GetNames()
+    nNames := Len(aNames)
+    for nName := 1 to nNames
+        cName := aNames[nName]
+        jStates[cName] := "skipped"
+        if jRoutes[cName]
+            jSeries := JSONObject():New()
+            jSeries["success"] := lSuccess
+            jSeries["avgMs"] := 1.5
+            jReport[cName] := jSeries
+            jStates[cName] := IIf(lSuccess, "completed", "failed")
+            jSeries := Nil
+        endif
+    next nName
+    jSelected := Nil
+    jStates := Nil
+
+return(jReport)
 
 static function BenchmarkVisualRawRequest(cRawRequestID as character) as character
 

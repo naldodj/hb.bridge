@@ -16,6 +16,7 @@ static method Render(cInstance, jDefaults) class HBBridgeBenchmarkPage
     local cHTML as character
 
     local jConfig as json
+    local jRoutes as json
 
     jConfig := JSONObject():New()
     cHTML := HBBridge.Examples.HBBridgeBenchmarkPage():HTML()
@@ -36,6 +37,13 @@ static method Render(cInstance, jDefaults) class HBBridgeBenchmarkPage
     if jDefaults:HasProperty("addonComparison")
         jConfig["addonComparison"] := jDefaults["addonComparison"]
     endif
+    jRoutes := JSONObject():New()
+    jRoutes["tcp"] := .T.
+    jRoutes["http"] := .T.
+    jRoutes["protheusStartJob"] := jConfig["protheusComparison"]
+    jRoutes["protheusRest"] := jConfig["protheusComparison"]
+    jRoutes["hbbridgeAddon"] := jConfig["addonComparison"]
+    jConfig["availableRoutes"] := jRoutes
     cConfig := jConfig:ToJSON()
     // JSON remains data, including aliases containing an HTML closing tag.
     cConfig := StrTran(cConfig, "<", "\u003c")
@@ -83,6 +91,11 @@ static method HTML() class HBBridgeBenchmarkPage
     #hbb-benchmark input:focus, #hbb-benchmark button:focus-visible, #hbb-benchmark summary:focus-visible { outline: 3px solid #a6dcdf; outline-offset: 2px; }
     #hbb-benchmark input:disabled { background: #f1f5f9; }
     #hbb-benchmark .hbb-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 19px; }
+    #hbb-benchmark .hbb-routes { border: 1px solid var(--hbb-line); border-radius: 8px; margin: 19px 0 0; padding: 14px; }
+    #hbb-benchmark .hbb-routes legend { font-size: 12px; font-weight: 700; padding: 0 6px; }
+    #hbb-benchmark .hbb-route-options { display: flex; flex-wrap: wrap; gap: 12px 24px; }
+    #hbb-benchmark .hbb-route-options label { display: flex; align-items: center; gap: 7px; }
+    #hbb-benchmark .hbb-route-options input { width: 17px; height: 17px; margin: 0; padding: 0; }
     #hbb-benchmark button { border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 15px; background: #fff; color: var(--hbb-ink); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
     #hbb-benchmark button.hbb-primary { background: var(--hbb-tcp); color: #fff; border-color: var(--hbb-tcp); }
     #hbb-benchmark button:disabled { opacity: .5; cursor: not-allowed; }
@@ -159,6 +172,12 @@ static method HTML() class HBBridgeBenchmarkPage
             <label for="hbb-warmup">Warmup iterations<input id="hbb-warmup" name="warmup" type="number" min="0" max="1000000" step="1" inputmode="numeric" required></label>
             <label for="hbb-timeoutSeconds">Call timeout (seconds)<input id="hbb-timeoutSeconds" name="timeoutSeconds" type="number" min="1" max="2147483" step="1" inputmode="numeric" required></label>
         </div>
+        <fieldset class="hbb-routes">
+            <legend>Execution routes · only selected routes run</legend>
+            <div id="hbb-route-options" class="hbb-route-options"></div>
+            <div id="hbb-presets" class="hbb-actions" aria-label="Route selection presets"></div>
+            <p class="hbb-help">Capabilities are configured by the server. Route order remains fixed. Select at least one route; each selected route includes its own warmup.</p>
+        </fieldset>
         <div class="hbb-actions">
             <button id="hbb-run" class="hbb-primary" type="submit" disabled>Run benchmark</button>
             <span id="hbb-run-help" class="hbb-help">Fixed fixture. Concurrency 1. TCP runs before HTTP. Warmup is excluded.</span>
@@ -177,15 +196,17 @@ static method HTML() class HBBridgeBenchmarkPage
             <span id="hbb-result-state" class="hbb-badge"></span>
         </div>
         <p id="hbb-result-meta" class="hbb-meta"></p>
+        <p id="hbb-result-routes" class="hbb-meta"></p>
+        <p id="hbb-comparison" class="hbb-status"></p>
         <div class="hbb-cards">
-            <div class="hbb-card"><span class="hbb-card-label">TCP average</span><strong id="hbb-tcp-average" class="hbb-value hbb-tcp">—</strong><span class="hbb-help">per complete traversal</span></div>
-            <div class="hbb-card"><span class="hbb-card-label">HTTP average</span><strong id="hbb-http-average" class="hbb-value hbb-http">—</strong><span class="hbb-help">per complete traversal</span></div>
+            <div id="hbb-tcp-card" class="hbb-card"><span class="hbb-card-label">TCP average</span><strong id="hbb-tcp-average" class="hbb-value hbb-tcp">—</strong><span class="hbb-help">per complete traversal</span></div>
+            <div id="hbb-http-card" class="hbb-card"><span class="hbb-card-label">HTTP average</span><strong id="hbb-http-average" class="hbb-value hbb-http">—</strong><span class="hbb-help">per complete traversal</span></div>
             <div id="hbb-startjob-card" class="hbb-card" hidden><span class="hbb-card-label">Protheus StartJob average</span><strong id="hbb-startjob-average" class="hbb-value hbb-startjob">—</strong><span class="hbb-help">in-process job, complete traversal</span></div>
             <div id="hbb-rest-card" class="hbb-card" hidden><span class="hbb-card-label">Protheus REST average</span><strong id="hbb-rest-average" class="hbb-value hbb-rest">—</strong><span class="hbb-help">per complete traversal</span></div>
             <div class="hbb-card"><span class="hbb-card-label">Measured rows</span><strong id="hbb-measured-rows" class="hbb-value">—</strong><span class="hbb-help">successful measured iterations</span></div>
             <div class="hbb-card"><span class="hbb-card-label">Complete run</span><strong id="hbb-run-time" class="hbb-value">—</strong><span class="hbb-help">includes warmup and orchestration</span></div>
         </div>
-        <div class="hbb-charts">
+        <div id="hbb-client-charts" class="hbb-charts">
             <section class="hbb-panel hbb-chart-box" aria-labelledby="hbb-average-title">
                 <h2 id="hbb-average-title">Average traversal</h2>
                 <div id="hbb-average-chart"></div>
@@ -198,12 +219,13 @@ static method HTML() class HBBridgeBenchmarkPage
                 <p id="hbb-chart-note" class="hbb-help">Warmup is separate. Missing or failed samples create gaps.</p>
             </section>
         </div>
-        <section class="hbb-panel hbb-scroll" aria-label="Measured transport statistics">
+        <section id="hbb-client-statistics" class="hbb-panel hbb-scroll" aria-label="Measured transport statistics">
             <table>
                 <caption>Complete paged traversal, including client calls, value checks and dataset close.</caption>
-                <thead><tr><th scope="col">Execution route</th><th scope="col">Result</th><th scope="col">Iterations</th><th scope="col">Min ms</th><th scope="col">Average ms</th><th scope="col">Max ms</th><th scope="col">Page calls</th><th scope="col">Rows</th></tr></thead>
+                <thead><tr><th scope="col">Execution route</th><th scope="col">Result</th><th scope="col">Samples</th><th scope="col">Min ms</th><th scope="col">Average ms</th><th scope="col">Median ms</th><th scope="col">P95 ms</th><th scope="col">SD ms</th><th scope="col">CV %</th><th scope="col">Max ms</th><th scope="col">Rows / s</th><th scope="col">Calls / s</th><th scope="col">Page calls</th><th scope="col">Rows</th></tr></thead>
                 <tbody id="hbb-stats-body"></tbody>
             </table>
+            <p id="hbb-statistics-method" class="hbb-help"></p>
         </section>
         <section id="hbb-addon-panel" class="hbb-panel hbb-addon-panel" aria-labelledby="hbb-addon-title" hidden>
             <div class="hbb-panel-head">
@@ -221,10 +243,11 @@ static method HTML() class HBBridgeBenchmarkPage
             <div class="hbb-scroll">
                 <table>
                     <caption>Harbour server traversal statistics; call elapsed includes the complete addon request.</caption>
-                    <thead><tr><th scope="col">Scope</th><th scope="col">Result</th><th scope="col">Iterations</th><th scope="col">Min ms</th><th scope="col">Average ms</th><th scope="col">Max ms</th><th scope="col">Rows</th></tr></thead>
+                    <thead><tr><th scope="col">Scope</th><th scope="col">Result</th><th scope="col">Samples</th><th scope="col">Min ms</th><th scope="col">Average ms</th><th scope="col">Median ms</th><th scope="col">P95 ms</th><th scope="col">SD ms</th><th scope="col">CV %</th><th scope="col">Max ms</th><th scope="col">Rows / s</th><th scope="col">Rows</th></tr></thead>
                     <tbody id="hbb-addon-stats-body"></tbody>
                 </table>
             </div>
+            <p id="hbb-addon-statistics-method" class="hbb-help"></p>
         </section>
         <details class="hbb-panel">
             <summary>Warmup observations — excluded from measured statistics</summary>
@@ -286,13 +309,82 @@ document.addEventListener("DOMContentLoaded", ()=>{
             {key: 'protheusStartJob', name: 'Protheus StartJob', color: '#c76b21'},
             {key: 'protheusRest', name: 'Protheus REST', color: '#316bb0'}
         ];
+        const AllRoutes = [...RouteDefinitions, {key: 'hbbridgeAddon', name: 'hbBridge addon (server)', color: '#496b32'}];
+        const Capabilities = Object.fromEntries(AllRoutes.map(route => [route.key,
+            (route.key === 'tcp' || route.key === 'http' ||
+            (route.key === 'hbbridgeAddon' ? Config.addonComparison === true : Config.protheusComparison === true)) &&
+            (!Record(Config.availableRoutes) || Config.availableRoutes[route.key] === true)]));
+        const Presets = [
+            {key: 'all', name: 'All available', keys: AllRoutes.map(route => route.key)},
+            {key: 'bridge', name: 'hbBridge TCP + HTTP', keys: ['tcp', 'http']},
+            ...AllRoutes.map(route => ({key: route.key, name: 'Only ' + route.name, keys: [route.key]}))
+        ];
         let Unsubscribe = null;
 
+        function Selection(report) {
+            if (report.routeSelectionVersion !== undefined || report.selectedRoutes !== undefined) {
+                if (report.routeSelectionVersion !== 1 || !Record(report.selectedRoutes) ||
+                    Object.keys(report.selectedRoutes).length !== AllRoutes.length ||
+                    !AllRoutes.every(route => typeof report.selectedRoutes[route.key] === 'boolean') ||
+                    !AllRoutes.some(route => report.selectedRoutes[route.key])) return null;
+                return report.selectedRoutes;
+            }
+            return {tcp: true, http: true,
+                protheusStartJob: report.protheusComparison === true || Record(report.protheusStartJob),
+                protheusRest: report.protheusComparison === true || Record(report.protheusRest),
+                hbbridgeAddon: report.addonComparison === true || Record(report.hbbridgeAddon)};
+        }
+
+        function RoutePassed(report, key) {
+            const data = report[key];
+            if (!Record(data) || data.success !== true) return false;
+            if (report.routeSelectionVersion === 1 && (!Record(report.routeStates) || report.routeStates[key] !== 'completed')) return false;
+            return [data.samples, data.warmupSamples].every(samples => SampleKeys(samples).every(key =>
+                Record(samples[key]) && samples[key].success === true));
+        }
+
+        function RouteContract(report, selected) {
+            if (!selected) return false;
+            if (report.routeSelectionVersion !== 1) return true;
+            return Record(report.routeStates) && Object.keys(report.routeStates).length === AllRoutes.length && AllRoutes.every(route =>
+                ['skipped', 'notStarted', 'completed', 'failed'].includes(report.routeStates[route.key]) &&
+                (selected[route.key] ? report.routeStates[route.key] !== 'skipped' :
+                report.routeStates[route.key] === 'skipped' && !Object.hasOwn(report, route.key)));
+        }
+
         function Routes(report) {
-            const compare = report.protheusComparison === true || Record(report.protheusStartJob) || Record(report.protheusRest);
-            return RouteDefinitions.filter((route, index) => index < 2 || compare).map(route => ({
+            const selected = Selection(report) || {};
+            return RouteDefinitions.filter(route => selected[route.key]).map(route => ({
                 ...route, data: Record(report[route.key]) ? report[route.key] : {}
             }));
+        }
+
+        function RouteControls() {
+            const options = Element('route-options');
+            AllRoutes.forEach(route => {
+                const label = document.createElement('label');
+                const input = document.createElement('input');
+                input.type = 'checkbox';
+                input.id = 'hbb-route-' + route.key;
+                input.checked = Capabilities[route.key];
+                input.disabled = !Capabilities[route.key];
+                label.appendChild(input);
+                label.appendChild(document.createTextNode(route.name + (Capabilities[route.key] ? '' : ' · unavailable')));
+                options.appendChild(label);
+            });
+            Presets.forEach(preset => {
+                const button = document.createElement('button');
+                const available = preset.key === 'all' || preset.keys.every(key => Capabilities[key]);
+                button.type = 'button';
+                button.id = 'hbb-preset-' + preset.key;
+                button.textContent = preset.name;
+                button.disabled = !available;
+                button.addEventListener('click', () => {
+                    if (State.busy || State.closed || !available) return;
+                    AllRoutes.forEach(route => { Element('route-' + route.key).checked = Capabilities[route.key] && preset.keys.includes(route.key); });
+                });
+                Element('presets').appendChild(button);
+            });
         }
 
         function Heading(compare, addon) {
@@ -313,6 +405,9 @@ document.addEventListener("DOMContentLoaded", ()=>{
             Element('run').disabled = value || !Bridge || State.closed;
             Element('run').textContent = value ? 'Benchmark running...' : 'Run benchmark';
             Object.keys(Fields).forEach(name => { Element(name).disabled = value; });
+            AllRoutes.forEach(route => { Element('route-' + route.key).disabled = value || State.closed || !Bridge || !Capabilities[route.key]; });
+            Presets.forEach(preset => { Element('preset-' + preset.key).disabled = value || State.closed || !Bridge ||
+                (preset.key !== 'all' && !preset.keys.every(key => Capabilities[key])); });
             Root.setAttribute('aria-busy', value ? 'true' : 'false');
             if (value) {
                 State.started = performance.now();
@@ -400,6 +495,47 @@ document.addEventListener("DOMContentLoaded", ()=>{
                 Number.isSafeInteger(Number(key))).sort((left, right) => Number(left) - Number(right)) : [];
         }
 
+        function Metrics(data) {
+            const samples = SampleKeys(data.samples).map(key => data.samples[key]).filter(sample =>
+                Record(sample) && sample.success === true && Finite(sample.elapsedMs));
+            const times = samples.map(sample => sample.elapsedMs).sort((left, right) => left - right);
+            const count = times.length;
+            const total = times.reduce((sum, value) => sum + value, 0);
+            const mean = count ? total / count : null;
+            const deviation = count ? Math.sqrt(times.reduce((sum, value) => sum + (value - mean) ** 2, 0) / count) : null;
+            const rate = field => total > 0 && samples.every(sample => Finite(sample[field])) ?
+                samples.reduce((sum, sample) => sum + sample[field], 0) * 1000 / total : null;
+            const derived = {sampleCount: count, medianMs: count ? (times[Math.floor((count - 1) / 2)] + times[Math.floor(count / 2)]) / 2 : null,
+                p95Ms: count ? times[Math.ceil(count * .95) - 1] : null, stdDevMs: deviation,
+                cvPct: mean > 0 ? deviation * 100 / mean : null, throughputRowsSec: rate('rowsRead'), throughputCallsSec: rate('rpcCalls')};
+            const result = {};
+            Object.keys(derived).forEach(key => { result[key] = Object.hasOwn(data, key) ? data[key] : derived[key]; });
+            result.derived = Object.keys(derived).some(key => !Object.hasOwn(data, key));
+            return result;
+        }
+
+        function StatisticsNote(routes) {
+            const counts = routes.map(route => route.name + ': n=' + Format(route.metrics.sampleCount)).join('; ');
+            return counts + '. ' + (routes.some(route => route.metrics.derived) ?
+                'Legacy fallback: missing metrics are derived in this browser from successful measured samples only. ' :
+                'Reported metrics use successful measured samples only. ') +
+                'P95 uses nearest rank; SD is population standard deviation; CV = SD / mean. Warmup and failed samples are excluded. ' +
+                'Small samples (especially n < 20) give an unstable tail estimate; these are descriptive measurements, not a significance test. ' +
+                'Throughput is rows or calls / summed successful elapsed seconds; it is not concurrent server capacity.';
+        }
+
+        function Comparison(report, routes, passed) {
+            const comparable = passed && routes.length >= 2 && routes.every(route =>
+                RoutePassed(report, route.key) && Finite(route.data.avgMs) && route.data.avgMs > 0 &&
+                route.data.completedIterations === report.iterations && route.data.warmupCompleted === report.warmupIterations &&
+                route.data.measuredRows === report.rowsPerIteration * report.iterations);
+            if (!comparable) return 'Relative comparison unavailable. At least two complete, successful client traversal routes with the same fixture and counts are required. Addon server timings have a separate scope.';
+            const fastest = routes.reduce((best, route) => route.data.avgMs < best.data.avgMs ? route : best);
+            return 'Lowest observed client average: ' + fastest.name + '. Mean elapsed / lowest mean: ' +
+                routes.map(route => route.name + ' ' + Format(route.data.avgMs / fastest.data.avgMs, 2) + '×').join('; ') +
+                '. Fixed execution order and local conditions can affect this comparison; addon server timings are excluded.';
+        }
+
         function SampleChart(routes, iterations, chartName = 'sample-chart', noteName = 'chart-note') {
             const svg = Chart(chartName, 'Measured iteration latency in milliseconds. Missing and failed samples create gaps.');
             const declared = Finite(iterations) ? iterations : 0;
@@ -454,31 +590,40 @@ document.addEventListener("DOMContentLoaded", ()=>{
         function RenderReport(report) {
             State.report = report;
             // A runtime failure may leave a configured route without a series.
-            const routes = Routes(report);
-            const addon = Record(report.hbbridgeAddon) ? report.hbbridgeAddon : null;
-            const passed = report.success === true && routes.every(route => route.data.success === true) && (!addon || addon.success === true);
+            const selected = Selection(report);
+            const routes = Routes(report).map(route => ({...route, metrics: Metrics(route.data)}));
+            const addon = selected && selected.hbbridgeAddon ? (Record(report.hbbridgeAddon) ? report.hbbridgeAddon : {}) : null;
+            const passed = report.success === true && RouteContract(report, selected) && AllRoutes.filter(route => selected[route.key]).every(route => RoutePassed(report, route.key));
             const rows = routes.every(route => Finite(route.data.measuredRows)) ?
                 routes.reduce((total, route) => total + route.data.measuredRows, 0) : null;
-            Heading(routes.length > 2, !!addon);
             Text('result-state', passed ? 'PASSED' : 'FAILED / partial results');
             Text('result-meta', 'Run ' + String(report.runID || 'unavailable') + ' · ' + String(report.startedLocal || 'date unavailable') +
                 ' · Profile ' + String(report.profile || Config.profile) + ' · ' + Format(report.rowsPerIteration) + ' rows / ' + Format(report.pageSize) +
                 ' per page · ' + Format(report.iterations) + ' measured + ' + Format(report.warmupIterations) + ' warmup / route');
-            Text('tcp-average', Milliseconds(routes[0].data.avgMs));
-            Text('http-average', Milliseconds(routes[1].data.avgMs));
-            Element('startjob-card').hidden = routes.length < 4;
-            Element('rest-card').hidden = routes.length < 4;
-            Text('startjob-average', Milliseconds(routes.length > 2 ? routes[2].data.avgMs : null));
-            Text('rest-average', Milliseconds(routes.length > 3 ? routes[3].data.avgMs : null));
+            Text('result-routes', selected ? 'Completed-run selection: ' + AllRoutes.map(route => route.name + ': ' +
+                (selected[route.key] ? (report.routeSelectionVersion === 1 && Record(report.routeStates) ? String(report.routeStates[route.key] || 'notStarted') :
+                (RoutePassed(report, route.key) ? 'completed' : 'failed / not started')) : 'skipped')).join(' · ') :
+                'Invalid completed-run route selection. The report cannot pass.');
+            Text('comparison', Comparison(report, routes, passed));
+            [['tcp', 'tcp'], ['http', 'http'], ['protheusStartJob', 'startjob'], ['protheusRest', 'rest']].forEach(([key, name]) => {
+                const route = routes.find(item => item.key === key);
+                Element(name + '-card').hidden = !route;
+                Text(name + '-average', Milliseconds(route ? route.data.avgMs : null));
+            });
+            Element('client-charts').hidden = routes.length === 0;
+            Element('client-statistics').hidden = routes.length === 0;
             Text('measured-rows', Format(rows));
             Text('run-time', Finite(report.runElapsedMs) ? Format(report.runElapsedMs / 1000, 2) + ' s' : 'Unavailable');
             const body = Element('stats-body');
             body.replaceChildren();
-            routes.forEach(({name, data: transport}) => {
-                Row(body, [name, transport.success === true ? 'PASS' : 'FAILED', Format(transport.completedIterations),
-                    Format(transport.minMs, 2), Format(transport.avgMs, 2), Format(transport.maxMs, 2),
+            routes.forEach(({key, name, data: transport, metrics}) => {
+                Row(body, [name, RoutePassed(report, key) ? 'PASS' : 'FAILED / not started', Format(metrics.sampleCount),
+                    Format(transport.minMs, 2), Format(transport.avgMs, 2), Format(metrics.medianMs, 2), Format(metrics.p95Ms, 2),
+                    Format(metrics.stdDevMs, 2), Format(metrics.cvPct, 2), Format(transport.maxMs, 2),
+                    Format(metrics.throughputRowsSec, 2), Format(metrics.throughputCallsSec, 2),
                     Format(transport.measuredCalls), Format(transport.measuredRows)]);
             });
+            Text('statistics-method', StatisticsNote(routes));
             const legend = Element('route-legend');
             legend.replaceChildren();
             routes.forEach(route => {
@@ -493,17 +638,25 @@ document.addEventListener("DOMContentLoaded", ()=>{
             });
             Element('addon-panel').hidden = !addon;
             if (addon) {
-                Text('addon-state', addon.success === true ? 'PASS · Server timing' : 'FAILED · Partial server timing');
+                const metrics = Metrics(addon);
+                const addonPassed = RoutePassed(report, 'hbbridgeAddon');
+                Text('addon-state', addonPassed ? 'PASS · Server timing' : 'FAILED · Partial server timing');
                 Text('addon-average', Milliseconds(addon.avgMs));
                 Text('addon-call', Milliseconds(addon.callElapsedMs));
                 Text('addon-rows', Format(addon.measuredRows));
                 const addonBody = Element('addon-stats-body');
                 addonBody.replaceChildren();
-                Row(addonBody, ['Harbour server', addon.success === true ? 'PASS' : 'FAILED', Format(addon.completedIterations),
-                    Format(addon.minMs, 2), Format(addon.avgMs, 2), Format(addon.maxMs, 2), Format(addon.measuredRows)]);
+                Row(addonBody, ['Harbour server', addonPassed ? 'PASS' : 'FAILED / not started', Format(metrics.sampleCount),
+                    Format(addon.minMs, 2), Format(addon.avgMs, 2), Format(metrics.medianMs, 2), Format(metrics.p95Ms, 2),
+                    Format(metrics.stdDevMs, 2), Format(metrics.cvPct, 2), Format(addon.maxMs, 2),
+                    Format(metrics.throughputRowsSec, 2), Format(addon.measuredRows)]);
+                Text('addon-statistics-method', StatisticsNote([{name: 'Harbour server', metrics}]));
                 SampleChart([{data: addon, color: '#496b32'}], report.iterations, 'addon-chart', 'addon-chart-note');
             }
-            const diagnosticRoutes = addon ? [...routes, {name: 'hbBridge addon (server)', data: addon}] : routes;
+            const diagnosticRoutes = addon ? [...routes, {name: 'hbBridge addon (server)', data: addon}] : [...routes];
+            AllRoutes.filter(route => selected && !selected[route.key] && Record(report[route.key])).forEach(route => {
+                diagnosticRoutes.push({name: route.name + ' (unexpected execution)', data: report[route.key]});
+            });
             const warmup = Element('warmup-body');
             warmup.replaceChildren();
             let warmupCount = 0;
@@ -538,21 +691,23 @@ document.addEventListener("DOMContentLoaded", ()=>{
                             Format(sample.httpStatus), Format(sample.failedPage)]);
                     });
                 });
-                if (transport.success === false && routeFailures === 0) {
+                if (transport.success !== true && routeFailures === 0) {
                     failureCount++;
                     if (failureCount <= 20) Row(failures, [name + ' / ' + String(transport.failurePhase || 'unavailable'),
                         Format(transport.failureIteration), Category(transport.failureCategory), 'Unavailable', 'Unavailable', 'Unavailable']);
                 }
             });
             Element('failures-panel').hidden = passed && failureCount === 0;
-            if (!passed && failureCount === 0) Row(failures, ['Run', 'Unavailable', Category(report.failureCategory), 'Unavailable', 'Unavailable', 'Unavailable']);
+            if (!passed && (failureCount === 0 || Category(report.failureCategory) !== 'Unavailable')) {
+                Row(failures, ['Run', 'Unavailable', Category(report.failureCategory), 'Unavailable', 'Unavailable', 'Unavailable']);
+            }
             Text('failure-caption', failureCount > 20 ? 'Showing the first 20 of ' + Format(failureCount) +
                 ' failed samples. Full diagnostics remain in JSON. No native error details are included.' :
                 'Safe service categories and failing pages. No native error details are included.');
             Text('scope', 'Concurrency ' + Format(report.concurrency) + '. Order: ' + String(report.transportOrder || 'unavailable') +
                 '. Statistics include successful measured iterations only. Client construction is excluded. ' +
                 'The production client compression policy applies. This is a traversal comparison, not a parallel SQL capacity test.' +
-                (routes.length > 2 ? ' Protheus StartJob is an in-process job, not a TCP transport. Its synchronous call cannot be cancelled by this harness. Verify DBAccess and the hbBridge alias target the same database.' : '') +
+                (routes.some(route => route.key === 'protheusStartJob') ? ' Protheus StartJob is an in-process job, not a TCP transport. Its synchronous call cannot be cancelled by this harness. Verify DBAccess and the hbBridge alias target the same database.' : '') +
                 (addon ? ' The addon runs the traversal inside Harbour and returns metrics in one TCP call; its server timings are a separate scope.' : ''));
             const memory = Record(report.memory) ? report.memory : {};
             Text('memory', memory.status === 'UNAVAILABLE' ?
@@ -610,11 +765,24 @@ document.addEventListener("DOMContentLoaded", ()=>{
                 }
                 params[name] = value;
             }
+            params.routes = {};
+            for (const route of AllRoutes) {
+                const checked = Element('route-' + route.key).checked;
+                if (checked && !Capabilities[route.key]) {
+                    Status('The selected route is unavailable in the server configuration (ROUTE_UNAVAILABLE).', 'failed');
+                    return;
+                }
+                params.routes[route.key] = checked;
+            }
+            if (!AllRoutes.some(route => params.routes[route.key])) {
+                Status('Select at least one execution route (ROUTE_SELECTION_EMPTY).', 'failed');
+                return;
+            }
             const requestID = Config.instance + '-' + (++State.sequence);
             State.pending = requestID;
             ClearResults();
             Busy(true);
-            Status('Running the configured benchmark scenarios. Warmup is excluded from measured statistics. Wait for the result before starting another run.', 'running');
+            Status('Running only the selected benchmark routes. Warmup is excluded from measured statistics. Wait for the result before starting another run.', 'running');
             // A UI notice never cancels SQL or releases the outstanding-run guard.
             State.notice = setTimeout(() => {
                 if (State.busy && State.pending === requestID && !State.closed) {
@@ -660,12 +828,15 @@ document.addEventListener("DOMContentLoaded", ()=>{
             Download(html, 'text/html;charset=utf-8', '.html');
         });
 
+        RouteControls();
         Object.keys(Fields).forEach(name => { Element(name).value = String(Config[name]); });
         Heading(Config.protheusComparison === true, Config.addonComparison === true);
         Text('profile', typeof Config.profile === 'string' ? Config.profile : 'Unavailable');
         if (!Bridge || typeof Bridge.send !== 'function' || typeof Bridge.onAdvplToJs !== 'function') {
             Status('Open this example in Protheus with FWWebEx to run a benchmark. This standalone page has no execution channel.');
             Object.keys(Fields).forEach(name => { Element(name).disabled = true; });
+            Element('route-options').querySelectorAll('input').forEach(node => { node.disabled = true; });
+            Element('presets').querySelectorAll('button').forEach(node => { node.disabled = true; });
         } else {
             try {
                 Unsubscribe = Bridge.onAdvplToJs(Receive);
@@ -681,10 +852,10 @@ document.addEventListener("DOMContentLoaded", ()=>{
             if (State.ticker !== null) clearInterval(State.ticker);
             State.ticker = null;
             if (typeof Unsubscribe === 'function') Unsubscribe();
-            Element('run').disabled = true;
+            Busy(false);
         }, {once: true});
         if (typeof globalThis.__HBBridgeBenchmarkTestHook === 'function') {
-            globalThis.__HBBridgeBenchmarkTestHook({Receive, RenderReport, State, SampleKeys, UpdateElapsed});
+            globalThis.__HBBridgeBenchmarkTestHook({Receive, RenderReport, State, SampleKeys, UpdateElapsed, Metrics, Selection});
         }
     })();
 });

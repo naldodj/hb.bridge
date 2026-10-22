@@ -6,6 +6,22 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Adicionar cobertura de integridade para JSON UTF-8 e MSSQL)"
  */
 
+2026-10-22 19:46 UTC naldodj (Controlar rotas e estatísticas medidas do benchmark)
+  + Selecionar execução real TCP, HTTP, Protheus StartJob/REST e addon por mapa
+    opcional completo e CLI --routes; preservar os padrões anteriores.
+    Validar somente dependências selecionadas e registrar estados ignorado/falha.
+  + Derivar mediana, P95 nearest-rank, desvio padrão populacional, CV e vazão
+    de linhas/chamadas das amostras medidas; excluir aquecimentos e falhas.
+    Separar escopos de varredura interna do addon e duração da RPC completa.
+  * Adicionar controles/predefinições de rotas, estados explícitos e estatísticas
+    no visual, preservando correlação, animação e exportações seguras.
+    Manter perfil, destinos, contexto ERP, módulo e credenciais no servidor.
+  * Documentar isolamento, métodos, razões indefinidas e limites de amostras
+    pequenas nos guias pareados. Registrar manutenção preparatória repriorizada
+    explicitamente; pacote 002 T01 permanece planejado, sem mudar contratos SQL/apresentação.
+  ; Nova compilação e validações focadas determinísticas/navegador/AppServer
+    seguem pendentes; o aceite histórico do benchmark mantém seu escopo original.
+
 2026-10-22 15:17 UTC naldodj (Tornar os artefatos temporários inteiramente descartáveis)
   + Adicionar limpeza PowerShell com prévia/Apply explícito, idade e caminhos delimitados.
     Todas as entradas de tmp são descartáveis; preservar entregáveis de out ao limpar builds.

@@ -8,11 +8,13 @@ class HBBridgeBenchmarkTest
     static method RunCLI(aArguments as array) as numeric
     static method Run(cProfile as character, cHost as character, nPort as numeric, ;
         cURL as character, cToken as character, nTimeoutSeconds as numeric, ;
-        nRows as numeric, nPageSize as numeric, nIterations as numeric, nWarmup as numeric, jComparison as json) as numeric
+        nRows as numeric, nPageSize as numeric, nIterations as numeric, nWarmup as numeric, ;
+        jComparison as json, jRoutes as json) as numeric
     static method Measure(cProfile as character, cHost as character, nPort as numeric, ;
         cURL as character, cToken as character, nTimeoutSeconds as numeric, ;
         nRows as numeric, nPageSize as numeric, nIterations as numeric, nWarmup as numeric, ;
-        jComparison as json) as json
+        jComparison as json, jRoutes as json, bClientFactory as codeblock) as json
+    static method Routes(jComparison as json, jRoutes as json) as json
     static method FixtureSQL(nRows as numeric) as character
     static method ComparisonSettings(lProtheus as logical, lAddon as logical) as json
 
@@ -27,6 +29,7 @@ static method RunCLI(aArguments) class HBBridgeBenchmarkTest
     local jFlags as json
     local jSeen as json
     local jComparison as json
+    local jRoutes as json
 
     local lValid := .T. as logical
 
@@ -54,6 +57,7 @@ static method RunCLI(aArguments) class HBBridgeBenchmarkTest
     jFlags["with-addon"] := "0"
     jFlags["company"] := Nil
     jFlags["branch"] := Nil
+    jFlags["routes"] := Nil
 
     // Only the native variadic argument contract uses an array. No argv copy.
     if ValType(aArguments) != "A"
@@ -114,6 +118,10 @@ static method RunCLI(aArguments) class HBBridgeBenchmarkTest
             lValid := .F.
         endif
     endif
+    if lValid .and. jSeen:HasProperty("routes")
+        jRoutes := BenchmarkCLIRoutes(jFlags["routes"])
+        lValid := ValType(jRoutes) == "J"
+    endif
     if lValid
         jComparison := HBBridge.Test.HBBridgeBenchmarkTest():ComparisonSettings(;
             jFlags["compare-protheus"] == "1", jFlags["with-addon"] == "1")
@@ -126,26 +134,27 @@ static method RunCLI(aArguments) class HBBridgeBenchmarkTest
         nResult := HBBridge.Test.HBBridgeBenchmarkTest():Run(jFlags["profile"], ;
             jFlags["host"], jFlags["port"], jFlags["url"], jFlags["token"], ;
             jFlags["timeout"], jFlags["rows"], jFlags["page-size"], ;
-            jFlags["iterations"], jFlags["warmup"], jComparison)
+            jFlags["iterations"], jFlags["warmup"], jComparison, jRoutes)
     else
         ConOut("hbBridge benchmark FAILED: supply unique valid flags and canonical decimal integers.")
     endif
     FreeObj(@jSeen)
     FreeObj(@jFlags)
     FreeObj(@jComparison)
+    FreeObj(@jRoutes)
 
 return(nResult)
 
 static method Run(cProfile, cHost, nPort, cURL, cToken, nTimeoutSeconds, ;
-    nRows, nPageSize, nIterations, nWarmup, jComparison) class HBBridgeBenchmarkTest
+    nRows, nPageSize, nIterations, nWarmup, jComparison, jRoutes) class HBBridgeBenchmarkTest
 
     local jReport := HBBridge.Test.HBBridgeBenchmarkTest():Measure(cProfile, cHost, nPort, ;
-        cURL, cToken, nTimeoutSeconds, nRows, nPageSize, nIterations, nWarmup, jComparison) as json
+        cURL, cToken, nTimeoutSeconds, nRows, nPageSize, nIterations, nWarmup, jComparison, jRoutes) as json
 
     local nResult := IIf(jReport["success"], 0, 1) as numeric
 
     if jReport["failureCategory"] == "INVALID_CONFIGURATION"
-        ConOut("hbBridge benchmark FAILED: supply an explicit profile, valid TCP/HTTP settings and valid fixture counts.")
+        ConOut("hbBridge benchmark FAILED: supply an explicit profile, valid selected-route settings and valid fixture counts.")
     else
         ConOut("hbBridge benchmark summary: " + jReport:ToJSON())
         if !jReport["success"]
@@ -162,84 +171,98 @@ static method Run(cProfile, cHost, nPort, cURL, cToken, nTimeoutSeconds, ;
 return(nResult)
 
 static method Measure(cProfile, cHost, nPort, cURL, cToken, nTimeoutSeconds, ;
-    nRows, nPageSize, nIterations, nWarmup, jComparison) class HBBridgeBenchmarkTest
+    nRows, nPageSize, nIterations, nWarmup, jComparison, jRoutes, bClientFactory) class HBBridgeBenchmarkTest
 
     local cIniFile as character
     local cSQL := "" as character
+    local cRoute := "" as character
+    local cOrder := "" as character
 
     local jReport as json
     local jMemory as json
-    local jTCP as json
-    local jHTTP as json
-    local jStartJob as json
-    local jProtheusRest as json
-    local jAddon as json
+    local jSelected as json
+    local jStates as json
+    local jSeries as json
 
     local lValid := .T. as logical
+    local lRouteOK := .F. as logical
     local lCompare := .F. as logical
     local lAddon := .F. as logical
 
     local nStarted as numeric
     local nFinished := 0 as numeric
+    local nRoute := 0 as numeric
+    local nRouteTimeout := 0 as numeric
 
-    local oTCP as object
-    local oHTTP as object
-    local oStartJob as object
-    local oProtheusRest as object
-    local oAddon as object
+    local oClient as object
 
     local xError as variant
 
     jReport := JSONObject():New()
-    cIniFile := GetSrvIniName()
-    nStarted := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs()
-
     jReport["schemaVersion"] := 1
     jReport["success"] := .F.
     jReport["failureCategory"] := "INVALID_CONFIGURATION"
+    jReport["routeSelectionVersion"] := 1
+    jSelected := HBBridge.Test.HBBridgeBenchmarkTest():Routes(jComparison, jRoutes)
+    if ValType(jSelected) != "J"
+        return jReport
+    endif
+    jStates := JSONObject():New()
+    for nRoute := 1 to 5
+        cRoute := BenchmarkRouteKey(nRoute)
+        jStates[cRoute] := IIf(jSelected[cRoute], "notStarted", "skipped")
+        if jSelected[cRoute]
+            if !Empty(cOrder)
+                cOrder += ","
+            endif
+            cOrder += BenchmarkRouteLabel(cRoute)
+        endif
+    next nRoute
+    jReport["selectedRoutes"] := jSelected
+    jReport["routeStates"] := jStates
+    jReport["transportOrder"] := cOrder
+    cIniFile := GetSrvIniName()
+    nStarted := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs()
+    lCompare := jSelected["protheusStartJob"] .or. jSelected["protheusRest"]
+    lAddon := jSelected["hbbridgeAddon"]
 
-    if ValType(cHost) == "U"
-        cHost := GetPvProfString("hbBridge", "Host", "127.0.0.1", cIniFile)
+    // Only selected routes resolve and validate their endpoint dependencies.
+    if jSelected["tcp"] .or. lAddon
+        if ValType(cHost) == "U"
+            cHost := GetPvProfString("hbBridge", "Host", "127.0.0.1", cIniFile)
+        endif
+        if ValType(nPort) == "U"
+            nPort := BenchmarkInteger(GetPvProfString("hbBridge", "Port", "1512", cIniFile), 65535, .F.)
+        endif
+        lValid := BenchmarkTextValid(cHost) .and. BenchmarkNumberValid(nPort, 1, 65535)
     endif
-    if ValType(nPort) == "U"
-        nPort := BenchmarkInteger(GetPvProfString("hbBridge", "Port", "1512", cIniFile), 65535, .F.)
-    endif
-    if ValType(cURL) == "U"
-        cURL := GetPvProfString("hbBridge", "HTTPURL", "http://127.0.0.1:8080", cIniFile)
-    endif
-    if ValType(cToken) == "U"
-        cToken := GetPvProfString("hbBridge", "HTTPToken", "", cIniFile)
+    if jSelected["http"]
+        if ValType(cURL) == "U"
+            cURL := GetPvProfString("hbBridge", "HTTPURL", "http://127.0.0.1:8080", cIniFile)
+        endif
+        if ValType(cToken) == "U"
+            cToken := GetPvProfString("hbBridge", "HTTPToken", "", cIniFile)
+        endif
+        lValid := BenchmarkURLValid(cURL) .and. BenchmarkTextValid(cToken) .and. lValid
     endif
     DEFAULT nTimeoutSeconds := 30
     DEFAULT nRows := 1000
     DEFAULT nPageSize := 100
     DEFAULT nIterations := 5
     DEFAULT nWarmup := 2
-
-    if ValType(jComparison) == "J"
-        if jComparison:HasProperty("enabled")
-            lCompare := ValType(jComparison["enabled"]) == "L"
-            if lCompare
-                lCompare := jComparison["enabled"]
-            endif
-        endif
-        if jComparison:HasProperty("addonEnabled")
-            if ValType(jComparison["addonEnabled"]) == "L"
-                lAddon := jComparison["addonEnabled"]
-            endif
-        endif
-    endif
-
-    lValid := BenchmarkTextValid(cProfile) .and. BenchmarkTextValid(cHost) .and. ;
-        BenchmarkURLValid(cURL) .and. BenchmarkTextValid(cToken)
-    lValid := BenchmarkNumberValid(nPort, 1, 65535) .and. ;
+    lValid := BenchmarkTextValid(cProfile) .and. ;
         BenchmarkNumberValid(nTimeoutSeconds, 1, 2147483) .and. lValid
     lValid := BenchmarkNumberValid(nRows, 1, 100000) .and. ;
         BenchmarkNumberValid(nPageSize, 1, 100000) .and. ;
         BenchmarkNumberValid(nIterations, 1, 1000000) .and. ;
         BenchmarkNumberValid(nWarmup, 0, 1000000) .and. lValid
-    if lCompare
-        if !jComparison:HasProperty("restURL") .or. !jComparison:HasProperty("authorization")
+    if ValType(bClientFactory) != "U" .and. ValType(bClientFactory) != "B"
+        lValid := .F.
+    endif
+    if jSelected["protheusRest"]
+        if ValType(jComparison) != "J"
+            lValid := .F.
+        elseif !jComparison:HasProperty("restURL") .or. !jComparison:HasProperty("authorization")
             lValid := .F.
         else
             lValid := BenchmarkURLValid(jComparison["restURL"]) .and. ;
@@ -247,7 +270,9 @@ static method Measure(cProfile, cHost, nPort, cURL, cToken, nTimeoutSeconds, ;
         endif
     endif
     if lAddon
-        if !jComparison:HasProperty("addonModule") .or. !jComparison:HasProperty("addonTimeoutSeconds")
+        if ValType(jComparison) != "J"
+            lValid := .F.
+        elseif !jComparison:HasProperty("addonModule") .or. !jComparison:HasProperty("addonTimeoutSeconds")
             lValid := .F.
         else
             lValid := BenchmarkTextValid(jComparison["addonModule"]) .and. ;
@@ -266,11 +291,9 @@ static method Measure(cProfile, cHost, nPort, cURL, cToken, nTimeoutSeconds, ;
     jReport["iterations"] := nIterations
     jReport["warmupIterations"] := nWarmup
     jReport["concurrency"] := 1
-    jReport["transportOrder"] := "TCP,HTTP"
     jReport["protheusComparison"] := lCompare
     jReport["addonComparison"] := lAddon
     if lCompare
-        jReport["transportOrder"] := "TCP,HTTP,ProtheusStartJob,ProtheusREST"
         jReport["protheusEnvironment"] := GetEnvServer()
         jReport["comparisonScope"] := "same constant SQL, SELECT plus COUNT per page and dataset validation; StartJob is an in-process job, not TCP"
         jReport["comparisonTimeout"] := "HTTP/TCP timeout per request; synchronous StartJob is checked after return and cannot be cancelled by this harness"
@@ -289,68 +312,85 @@ static method Measure(cProfile, cHost, nPort, cURL, cToken, nTimeoutSeconds, ;
     jMemory["scope"] := "sample the AppServer process externally; no per-thread or peak memory estimate"
     jReport["memory"] := jMemory
     jMemory := Nil
-    jReport["failureCategory"] := "RUNTIME_EXCEPTION"
+    jReport["success"] := .T.
+    jReport["failureCategory"] := ""
     cSQL := BenchmarkSQL(nRows)
 
-    try
-        oTCP := HBBridge.Client.HBBridgeClient():New(cHost, nPort, nTimeoutSeconds * 1000)
-        oHTTP := HBBridge.Client.HBBridgeHTTPClient():New(cURL, cToken, nTimeoutSeconds)
-        jTCP := BenchmarkSeries(oTCP, cProfile, cSQL, nRows, nPageSize, nIterations, nWarmup, .F.)
-        jReport["tcp"] := jTCP
-        jHTTP := BenchmarkSeries(oHTTP, cProfile, cSQL, nRows, nPageSize, nIterations, nWarmup, .T.)
-        jReport["http"] := jHTTP
-        jReport["success"] := jTCP["success"] .and. jHTTP["success"]
-        if lCompare
-            oStartJob := HBBridge.Test.HBBridgeBenchmarkNativeClient():New("startjob", nRows, nTimeoutSeconds, "", "", jComparison)
-            oProtheusRest := HBBridge.Test.HBBridgeBenchmarkNativeClient():New("rest", nRows, nTimeoutSeconds, ;
-                jComparison["restURL"], jComparison["authorization"])
-            jStartJob := BenchmarkSeries(oStartJob, cProfile, cSQL, nRows, nPageSize, nIterations, nWarmup, .F.)
-            jReport["protheusStartJob"] := jStartJob
-            jProtheusRest := BenchmarkSeries(oProtheusRest, cProfile, cSQL, nRows, nPageSize, nIterations, nWarmup, .T.)
-            jReport["protheusRest"] := jProtheusRest
-            jReport["success"] := jReport["success"] .and. jStartJob["success"] .and. jProtheusRest["success"]
+    // Fixed order, one owned client at a time. Disabled routes never construct clients.
+    for nRoute := 1 to 5
+        cRoute := BenchmarkRouteKey(nRoute)
+        if !jSelected[cRoute]
+            loop
         endif
-        if lAddon
-            oAddon := HBBridge.Client.HBBridgeClient():New(cHost, nPort, jComparison["addonTimeoutSeconds"] * 1000)
-            jAddon := BenchmarkAddon(oAddon, cProfile, jComparison["addonModule"], ;
-                nRows, nPageSize, nIterations, nWarmup)
-            jReport["hbbridgeAddon"] := jAddon
-            jReport["success"] := jReport["success"] .and. jAddon["success"]
+        lRouteOK := .F.
+        oClient := Nil
+        jSeries := Nil
+        nRouteTimeout := nTimeoutSeconds
+        if cRoute == "hbbridgeAddon"
+            nRouteTimeout := jComparison["addonTimeoutSeconds"]
         endif
-        jReport["failureCategory"] := IIf(jReport["success"], "", "SCENARIO_FAILED")
-    catch xError
-        // Never print exception descriptions, endpoints, credentials or SQL.
-        jReport["success"] := .F.
-        jReport["failureCategory"] := "RUNTIME_EXCEPTION"
-        if (ValType(xError)=="O")
-            FreeObj(xError)
+        try
+            if ValType(bClientFactory) == "B"
+                // Internal test seam; never populated from browser/request JSON.
+                oClient := Eval(bClientFactory, cRoute, cHost, nPort, cURL, cToken, ;
+                    nRouteTimeout, jComparison, nRows)
+            elseif cRoute == "tcp" .or. cRoute == "hbbridgeAddon"
+                oClient := HBBridge.Client.HBBridgeClient():New(cHost, nPort, nRouteTimeout * 1000)
+            elseif cRoute == "http"
+                oClient := HBBridge.Client.HBBridgeHTTPClient():New(cURL, cToken, nRouteTimeout)
+            elseif cRoute == "protheusStartJob"
+                oClient := HBBridge.Test.HBBridgeBenchmarkNativeClient():New("startjob", nRows, nRouteTimeout, "", "", jComparison)
+            else
+                oClient := HBBridge.Test.HBBridgeBenchmarkNativeClient():New("rest", nRows, nRouteTimeout, ;
+                    jComparison["restURL"], jComparison["authorization"])
+            endif
+            if ValType(oClient) != "O"
+                throw "Benchmark client factory returned no client."
+            endif
+            if cRoute == "hbbridgeAddon"
+                jSeries := BenchmarkAddon(oClient, cProfile, jComparison["addonModule"], ;
+                    nRows, nPageSize, nIterations, nWarmup)
+            else
+                jSeries := BenchmarkSeries(oClient, cProfile, cSQL, nRows, nPageSize, nIterations, nWarmup, ;
+                    cRoute == "http" .or. cRoute == "protheusRest")
+            endif
+            jReport[cRoute] := jSeries
+            lRouteOK := jSeries["success"]
+        catch xError
+            jReport["failureCategory"] := "RUNTIME_EXCEPTION"
+            if ValType(xError) == "O"
+                FreeObj(@xError)
+            endif
+        endtry
+        if ValType(oClient) == "O"
+            try
+                if cRoute != "http"
+                    if !oClient:Close()
+                        lRouteOK := .F.
+                        jReport["failureCategory"] := "CLIENT_CLEANUP_FAILED"
+                    endif
+                endif
+            catch xError
+                lRouteOK := .F.
+                jReport["failureCategory"] := "CLIENT_CLEANUP_FAILED"
+                if ValType(xError) == "O"
+                    FreeObj(@xError)
+                endif
+            endtry
+            FreeObj(@oClient)
         endif
-    endtry
-
-    if ValType(oTCP) == "O"
-        if !oTCP:Close()
-            jReport["success"] := .F.
-            jReport["failureCategory"] := "CLIENT_CLEANUP_FAILED"
+        if !lRouteOK .and. ValType(jSeries) == "J"
+            if jSeries["success"]
+                jSeries["success"] := .F.
+                jSeries["failureCategory"] := "CLIENT_CLEANUP_FAILED"
+            endif
         endif
-        FreeObj(@oTCP)
-    endif
-    if ValType(oHTTP) == "O"
-        FreeObj(@oHTTP)
-    endif
-    if ValType(oStartJob) == "O"
-        oStartJob:Close()
-        FreeObj(@oStartJob)
-    endif
-    if ValType(oProtheusRest) == "O"
-        oProtheusRest:Close()
-        FreeObj(@oProtheusRest)
-    endif
-    if ValType(oAddon) == "O"
-        if !oAddon:Close()
-            jReport["success"] := .F.
-            jReport["failureCategory"] := "CLIENT_CLEANUP_FAILED"
-        endif
-        FreeObj(@oAddon)
+        jStates[cRoute] := IIf(lRouteOK, "completed", "failed")
+        jReport["success"] := jReport["success"] .and. lRouteOK
+        jSeries := Nil
+    next nRoute
+    if !jReport["success"] .and. Empty(jReport["failureCategory"])
+        jReport["failureCategory"] := "SCENARIO_FAILED"
     endif
     nFinished := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs()
     jReport["runElapsedMs"] := Nil
@@ -360,14 +400,140 @@ static method Measure(cProfile, cHost, nPort, cURL, cToken, nTimeoutSeconds, ;
         jReport["success"] := .F.
         jReport["failureCategory"] := "CLOCK_REGRESSION"
     endif
-    // The caller owns the report, including its nested transport/sample JSON.
-    jTCP := Nil
-    jHTTP := Nil
-    jStartJob := Nil
-    jProtheusRest := Nil
-    jAddon := Nil
+    // Caller owns the report and its selected-route/state/series JSON.
+    jSelected := Nil
+    jStates := Nil
 
 return(jReport)
+
+static method Routes(jComparison, jRoutes) class HBBridgeBenchmarkTest
+
+    // JSONObject.GetNames() returns a native array; no second key container.
+    local aNames as array
+
+    local cRoute := "" as character
+
+    local jSelected := JSONObject():New() as json
+
+    local lAny := .F. as logical
+
+    local nRoute := 0 as numeric
+
+    if ValType(jRoutes) == "U"
+        jSelected["tcp"] := .T.
+        jSelected["http"] := .T.
+        jSelected["protheusStartJob"] := .F.
+        jSelected["protheusRest"] := .F.
+        jSelected["hbbridgeAddon"] := .F.
+        if ValType(jComparison) == "J"
+            if jComparison:HasProperty("enabled")
+                if ValType(jComparison["enabled"]) == "L"
+                    jSelected["protheusStartJob"] := jComparison["enabled"]
+                    jSelected["protheusRest"] := jComparison["enabled"]
+                endif
+            endif
+            if jComparison:HasProperty("addonEnabled")
+                if ValType(jComparison["addonEnabled"]) == "L"
+                    jSelected["hbbridgeAddon"] := jComparison["addonEnabled"]
+                endif
+            endif
+        endif
+        return jSelected
+    endif
+    if ValType(jRoutes) != "J"
+        FreeObj(@jSelected)
+        return Nil
+    endif
+    aNames := jRoutes:GetNames()
+    if Len(aNames) != 5
+        FreeObj(@jSelected)
+        return Nil
+    endif
+    for nRoute := 1 to 5
+        cRoute := BenchmarkRouteKey(nRoute)
+        if !jRoutes:HasProperty(cRoute)
+            FreeObj(@jSelected)
+            return Nil
+        endif
+        if ValType(jRoutes[cRoute]) != "L"
+            FreeObj(@jSelected)
+            return Nil
+        endif
+        jSelected[cRoute] := jRoutes[cRoute]
+        lAny := lAny .or. jSelected[cRoute]
+    next nRoute
+    if !lAny
+        FreeObj(@jSelected)
+        return Nil
+    endif
+
+return(jSelected)
+
+static function BenchmarkRouteKey(nRoute as numeric) as character
+
+    do case
+    case nRoute == 1
+        return "tcp"
+    case nRoute == 2
+        return "http"
+    case nRoute == 3
+        return "protheusStartJob"
+    case nRoute == 4
+        return "protheusRest"
+    endcase
+
+return("hbbridgeAddon")
+
+static function BenchmarkRouteLabel(cRoute as character) as character
+
+    do case
+    case cRoute == "tcp"
+        return "TCP"
+    case cRoute == "http"
+        return "HTTP"
+    case cRoute == "protheusStartJob"
+        return "ProtheusStartJob"
+    case cRoute == "protheusRest"
+        return "ProtheusREST"
+    endcase
+
+return("hbBridgeAddon")
+
+static function BenchmarkCLIRoutes(cValue as character) as json
+
+    local cRemaining := cValue as character
+    local cRoute := "" as character
+
+    local jRoutes := JSONObject():New() as json
+
+    local nRoute := 0 as numeric
+    local nComma := 0 as numeric
+
+    for nRoute := 1 to 5
+        jRoutes[BenchmarkRouteKey(nRoute)] := .F.
+    next nRoute
+    while .T.
+        nComma := At(",", cRemaining)
+        cRoute := cRemaining
+        if nComma > 0
+            cRoute := Left(cRemaining, nComma - 1)
+        endif
+        if !jRoutes:HasProperty(cRoute)
+            FreeObj(@jRoutes)
+            return Nil
+        endif
+        if jRoutes[cRoute]
+            FreeObj(@jRoutes)
+            return Nil
+        endif
+        jRoutes[cRoute] := .T.
+        if nComma == 0
+            exit
+        endif
+        cRemaining := SubStr(cRemaining, nComma + 1)
+    enddo
+
+return(jRoutes)
 
 static method FixtureSQL(nRows) class HBBridgeBenchmarkTest
 
@@ -437,6 +603,9 @@ static function BenchmarkAddon(oClient as object, cProfile as character, cModule
     jSeries["failurePhase"] := "call"
     jSeries["failureIteration"] := 0
     jSeries["avgMs"] := Nil
+    jSeries["totalMs"] := Nil
+    jSeries["measuredRows"] := 0
+    jSeries["measuredCalls"] := 0
     jSeries["minMs"] := Nil
     jSeries["maxMs"] := Nil
     jSeries["completedIterations"] := 0
@@ -467,6 +636,10 @@ static function BenchmarkAddon(oClient as object, cProfile as character, cModule
     else
         jSeries["success"] := .F.
         jSeries["failureCategory"] := "CLOCK_REGRESSION"
+    endif
+    if !HBBridge.Test.HBBridgeBenchmarkStats():Apply(jSeries)
+        jSeries["success"] := .F.
+        jSeries["failureCategory"] := "INVALID_STATISTICS"
     endif
     jSeries["transport"] := "TCP"
     jSeries["networkCalls"] := 1
@@ -521,6 +694,10 @@ static function BenchmarkAddonValid(jResponse as json, cProfile as character, ;
         jSeries["measuredCalls"] != nCompleted * (Int((nRows - 1) / nPageSize) + 1)
         return .F.
     endif
+    if !BenchmarkAddonSamples(jSeries["samples"], nCompleted, nRows, nPageSize, nIterations) .or. ;
+        !BenchmarkAddonSamples(jSeries["warmupSamples"], jSeries["warmupCompleted"], nRows, nPageSize, nWarmup)
+        return .F.
+    endif
     if jSeries["success"]
         if nCompleted != nIterations .or. jSeries["warmupCompleted"] != nWarmup .or. ;
             !Empty(jSeries["failureCategory"])
@@ -532,11 +709,68 @@ static function BenchmarkAddonValid(jResponse as json, cProfile as character, ;
             ValType(jSeries["maxMs"]) != "N" .or. ValType(jSeries["totalMs"]) != "N"
             return .F.
         endif
-        return jSeries["minMs"] >= 0 .and. jSeries["maxMs"] >= jSeries["minMs"] .and. ;
-            jSeries["avgMs"] >= jSeries["minMs"] .and. jSeries["avgMs"] <= jSeries["maxMs"]
+        if !(jSeries["minMs"] >= 0 .and. jSeries["maxMs"] >= jSeries["minMs"] .and. ;
+            jSeries["avgMs"] >= jSeries["minMs"] .and. jSeries["avgMs"] <= jSeries["maxMs"])
+            return .F.
+        endif
+    elseif jSeries["success"] .or. ValType(jSeries["avgMs"]) != "U"
+        return .F.
     endif
 
-return(!jSeries["success"] .and. ValType(jSeries["avgMs"]) == "U")
+return(HBBridge.Test.HBBridgeBenchmarkStats():Apply(jSeries))
+
+static function BenchmarkAddonSamples(jSamples as json, nCompleted as numeric, ;
+    nRows as numeric, nPageSize as numeric, nMaximum as numeric) as logical
+
+    // Native JSONObject key enumeration only; no row/sample copies.
+    local aNames := jSamples:GetNames() as array
+
+    local cKey := "" as character
+
+    local jSample as json
+
+    local nSample := 0 as numeric
+    local nSamples := Len(aNames) as numeric
+    local nPages := Int((nRows - 1) / nPageSize) + 1 as numeric
+
+    if nSamples < nCompleted .or. nSamples > nCompleted + 1 .or. nSamples > nMaximum
+        return .F.
+    endif
+    for nSample := 1 to nSamples
+        cKey := AllTrim(Str(nSample))
+        if !jSamples:HasProperty(cKey)
+            return .F.
+        endif
+        jSample := jSamples[cKey]
+        if ValType(jSample) != "J"
+            return .F.
+        endif
+        if !jSample:HasProperty("success")
+            return .F.
+        endif
+        if ValType(jSample["success"]) != "L"
+            return .F.
+        endif
+        if jSample["success"] != (nSample <= nCompleted)
+            return .F.
+        endif
+        if !jSample["success"]
+            loop
+        endif
+        if !jSample:HasProperty("elapsedMs") .or. !jSample:HasProperty("rowsRead") .or. ;
+            !jSample:HasProperty("pagesRead") .or. !jSample:HasProperty("rpcCalls")
+            return .F.
+        endif
+        if ValType(jSample["elapsedMs"]) != "N" .or. jSample["rowsRead"] != nRows .or. ;
+            jSample["pagesRead"] != nPages .or. jSample["rpcCalls"] != nPages
+            return .F.
+        endif
+        if !(jSample["elapsedMs"] >= 0 .and. jSample["elapsedMs"] - jSample["elapsedMs"] == 0)
+            return .F.
+        endif
+    next nSample
+
+return(.T.)
 
 static function BenchmarkSeries(oClient as object, cProfile as character, cSQL as character, ;
     nRows as numeric, nPageSize as numeric, nIterations as numeric, nWarmup as numeric, lHTTP as logical) as json
@@ -649,6 +883,10 @@ static function BenchmarkSeries(oClient as object, cProfile as character, cSQL a
         jSeries["minMs"] := nMinMs
         jSeries["maxMs"] := nMaxMs
         jSeries["avgMs"] := nTotalMs / nCompleted
+    endif
+    if !HBBridge.Test.HBBridgeBenchmarkStats():Apply(jSeries)
+        jSeries["success"] := .F.
+        jSeries["failureCategory"] := "INVALID_STATISTICS"
     endif
     // The returned report owns its nested samples through JSON references.
     jSamples := Nil

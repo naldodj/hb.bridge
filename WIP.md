@@ -45,6 +45,16 @@ is inferred. See [closure, exact artifacts and limitations](docs/acceptance.md#p
   Register the minimal TLPP include convention;
   preserve the revised benchmark sources. Keep T01 planned.
 
+- [ ] 2026-10-22: implement the explicitly requested benchmark reliability/control
+  maintenance before resuming T01: actual isolated route execution through
+  compatible CLI/TLPP/visual selection, selected-only dependencies, explicit
+  skipped/failed outcomes and measured-sample statistics. Keep endpoint/profile/
+  module/authentication configuration trusted; distinguish client traversals
+  from addon internal/RPC timings. Compile and verify focused deterministic,
+  browser and real AppServer scenarios before recording acceptance. This
+  reprioritization does not implement the SQL/presentation contracts of T01.
+  See the [benchmark guide](docs/benchmarking.md#route-selection-and-measured-statistics).
+
 ### Decisions retained
 
 - Keep one implementation and the accepted `RPCRDD.Query`/page/dataset behavior.

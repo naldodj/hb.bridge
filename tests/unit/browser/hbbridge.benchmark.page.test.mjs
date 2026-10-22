@@ -168,7 +168,11 @@ document.addEventListener('DOMContentLoaded', () => {
         A(!!api && !E('run').disabled, 'Live channel enables the run button.');
         A(E('profile').textContent.includes('<' + '/script><img'), 'A closing-tag alias remains literal text.');
         A(E('profile').querySelector('img') === null && !window.HBBInjected, 'Profile data cannot inject markup or a script.');
-        A(document.querySelectorAll('#hbb-form input').length === 5, 'Only the five numeric parameters are editable.');
+        A(document.querySelectorAll('#hbb-form input[type="number"]').length === 5 &&
+            document.querySelectorAll('#hbb-form input[type="checkbox"]').length === 5, 'Five numeric parameters and five explicit execution routes are available.');
+        A(E('route-tcp').checked && E('route-http').checked && E('route-protheusStartJob').disabled && E('route-hbbridgeAddon').disabled,
+            'Only trusted server capabilities are selected and optional unavailable routes are disabled.');
+        A(E('preset-protheusStartJob').disabled && E('preset-hbbridgeAddon').disabled, 'Unavailable isolated-route presets are disabled.');
         Submit();
         const firstID = api.State.pending;
         A(api.State.busy && E('run').disabled, 'Submitting disables the button and records one outstanding run.');
@@ -177,7 +181,10 @@ document.addEventListener('DOMContentLoaded', () => {
         api.UpdateElapsed();
         A(E('elapsed').textContent === '00:01:01', 'The interface clock measures elapsed monotonic time, independently of server statistics.');
         A(HBBTest.calls.length === 1 && HBBTest.calls[0].type === 'HBBRIDGE_BENCHMARK_REQUEST', 'The expected request type is sent.');
-        A(Object.keys(HBBTest.calls[0].content.params).join(',') === 'rows,pageSize,iterations,warmup,timeoutSeconds', 'The request has numeric parameters only.');
+        A(Object.keys(HBBTest.calls[0].content.params).join(',') === 'rows,pageSize,iterations,warmup,timeoutSeconds,routes', 'The request preserves all numeric parameters and adds the explicit route selection.');
+        A(JSON.stringify(HBBTest.calls[0].content.params.routes) === JSON.stringify({tcp: true, http: true, protheusStartJob: false,
+            protheusRest: false, hbbridgeAddon: false}), 'The sent route map contains exactly five booleans.');
+        A(E('preset-all').disabled && E('route-tcp').disabled, 'Route toggles and presets are locked for the whole pending execution.');
         A(!/token|password|host|url|port|profile/i.test(JSON.stringify(HBBTest.calls[0].content.params)), 'No endpoint, alias or credential is submitted by the browser.');
         Submit();
         A(HBBTest.calls.length === 1, 'A second click cannot submit an outstanding run again.');
@@ -195,6 +202,23 @@ document.addEventListener('DOMContentLoaded', () => {
         A(E('stats-body').children.length === 2 && E('warmup-body').children.length === 4, 'Measured statistics and warmup observations are separate.');
         A(E('average-chart').querySelectorAll('rect').length === 2 && E('sample-chart').querySelectorAll('path').length === 2, 'Both SVG charts render actual transport series.');
         A(E('memory').textContent.includes('unavailable') && E('memory').textContent.includes('not inferred'), 'Unavailable memory and physical pooling limits remain visible.');
+        const metrics = api.Metrics(Series());
+        A(metrics.sampleCount === 5 && metrics.medianMs === 1000 && metrics.p95Ms === 1200 &&
+            Math.abs(metrics.stdDevMs - Math.sqrt(20000)) < 1e-10 && Math.abs(metrics.cvPct - Math.sqrt(20000) / 10) < 1e-10 &&
+            metrics.throughputRowsSec === 1000 && metrics.throughputCallsSec === 10, 'Known samples produce median, nearest-rank P95, population SD, CV and elapsed-based throughput.');
+        const excluded = api.Metrics({samples: {'1': Sample(2), '2': Sample(4), '3': Sample(999999, false)}, warmupSamples: {'1': Sample(999999)}});
+        A(excluded.sampleCount === 2 && excluded.medianMs === 3 && excluded.p95Ms === 4 && excluded.stdDevMs === 1,
+            'Failed samples and warmup do not enter the derived statistics; even-count median is correct.');
+        const zeros = api.Metrics({samples: {'1': Sample(0)}});
+        A(zeros.sampleCount === 1 && zeros.medianMs === 0 && zeros.p95Ms === 0 && zeros.stdDevMs === 0 &&
+            zeros.cvPct === null && zeros.throughputRowsSec === null, 'A genuine zero elapsed sample remains zero; undefined ratios stay unavailable.');
+        const authoritative = api.Metrics({...Series(), medianMs: null, p95Ms: 987, throughputRowsSec: null});
+        A(authoritative.medianMs === null && authoritative.p95Ms === 987 && authoritative.throughputRowsSec === null,
+            'Authoritative values and explicit null metrics are preserved instead of being replaced by browser estimates.');
+        A(E('statistics-method').textContent.includes('Legacy fallback') && E('statistics-method').textContent.includes('n=5') &&
+            E('statistics-method').textContent.includes('n < 20'), 'Older reports show a labeled fallback, sample counts and the small-sample caveat.');
+        A(E('comparison').textContent.includes('Lowest observed client average') && !E('comparison').textContent.includes('server capacity'),
+            'Relative averages are descriptive complete-client comparisons.');
         E('export-json').click();
         E('export-html').click();
         const exportedJSON = await HBBTest.blobs[0].text();
@@ -220,6 +244,8 @@ document.addEventListener('DOMContentLoaded', () => {
             E('addon-call').textContent === '250.00 ms' && E('addon-average').textContent === '10.00 ms', 'The addon server series and whole-call elapsed occupy a separate timing panel.');
         A(E('measured-rows').textContent === '20,000' && E('addon-rows').textContent === '5,000', 'Addon server rows are separate from client traversal row totals.');
         A(E('warmup-body').children.length === 10 && E('result-state').textContent === 'PASSED', 'Warmup retains all five labelled scopes without entering measured averages.');
+        A(!E('comparison').textContent.includes('addon (server)') && E('comparison').textContent.includes('Protheus StartJob'),
+            'The faster addon internal scope never enters the client fastest-route ranking.');
         comparison.success = false;
         comparison.hbbridgeAddon.success = false;
         comparison.hbbridgeAddon.samples['5'] = {...Sample(30, false), serviceCode: 'QUERY_FAILED', failedPage: 2};
@@ -229,6 +255,31 @@ document.addEventListener('DOMContentLoaded', () => {
         api.RenderReport(Report());
         A(E('startjob-card').hidden && E('rest-card').hidden && E('addon-panel').hidden && E('stats-body').children.length === 2,
             'A later two-route result replaces optional comparison and addon content.');
+        const selected = {tcp: true, http: false, protheusStartJob: false, protheusRest: false, hbbridgeAddon: false};
+        const isolated = {...Report(), selectedRoutes: selected, routeSelectionVersion: 1,
+            routeStates: {tcp: 'completed', http: 'skipped', protheusStartJob: 'skipped', protheusRest: 'skipped', hbbridgeAddon: 'skipped'}};
+        delete isolated.http;
+        api.RenderReport(isolated);
+        A(E('result-state').textContent === 'PASSED' && E('stats-body').children.length === 1 && E('http-card').hidden &&
+            E('result-routes').textContent.includes('hbBridge HTTP: skipped'), 'A successful isolated TCP run passes with the other route explicitly skipped.');
+        const missing = structuredClone(isolated);
+        delete missing.tcp;
+        api.RenderReport(missing);
+        A(E('result-state').textContent.includes('FAILED'), 'An explicitly selected route without its result can never pass.');
+        const notStarted = structuredClone(isolated);
+        notStarted.routeStates.tcp = 'notStarted';
+        api.RenderReport(notStarted);
+        A(E('result-state').textContent.includes('FAILED'), 'A selected route which did not complete cannot pass even when a series claims success.');
+        const unexpected = structuredClone(isolated);
+        unexpected.http = {...Series(), success: false, failureCategory: 'QUERY_FAILED'};
+        api.RenderReport(unexpected);
+        A(E('result-state').textContent.includes('FAILED') && E('failures-body').textContent.includes('unexpected execution'),
+            'An inconsistent report cannot hide an executed failed series by marking its route skipped.');
+        api.RenderReport(isolated);
+        E('preset-http').click();
+        A(E('result-routes').textContent.includes('hbBridge TCP: completed') && E('result-state').textContent === 'PASSED',
+            'Changing the next-run selection does not rewrite the completed result selection or overall state.');
+        E('preset-bridge').click();
         Submit();
         HBBTest.receiver('HBBRIDGE_BENCHMARK_RESPONSE', {instance: 'browser-test', requestID: firstID, report: Report()});
         A(api.State.busy && E('results').hidden, 'A new run clears old results and ignores the old response ID.');
@@ -241,6 +292,17 @@ document.addEventListener('DOMContentLoaded', () => {
             A(!api.State.busy && !E('run').disabled && E('status').textContent.includes('CHANNEL_FAILED'), 'Channel ' + mode + ' is handled without exposing native detail.');
         }
         HBBTest.mode = 'ok';
+        E('route-tcp').checked = false;
+        E('route-http').checked = false;
+        const beforeSelection = HBBTest.calls.length;
+        Submit();
+        A(HBBTest.calls.length === beforeSelection && E('status').textContent.includes('ROUTE_SELECTION_EMPTY'),
+            'An empty route selection is rejected before any execution is sent.');
+        E('route-hbbridgeAddon').checked = true;
+        Submit();
+        A(HBBTest.calls.length === beforeSelection && E('status').textContent.includes('ROUTE_UNAVAILABLE'),
+            'Programmatic selection of an unavailable route is rejected before sending.');
+        E('preset-bridge').click();
         E('rows').value = '1e2';
         const beforeInvalid = HBBTest.calls.length;
         Submit();
@@ -270,6 +332,11 @@ document.addEventListener('DOMContentLoaded', () => {
         A(E('sample-chart').querySelectorAll('circle').length === 8, 'A genuine zero sample is plotted; null and failed samples are omitted.');
         A(!E('failures-panel').hidden && E('failures-body').textContent.includes('IO_TIMEOUT') &&
             E('failures-body').textContent.includes('QUERY_FAILED'), 'Safe failure details identify the failed sample and service code.');
+        A(E('comparison').textContent.includes('Relative comparison unavailable'), 'A partial failed run has no fastest-route comparison.');
+        E('preset-tcp').click();
+        A(E('result-state').textContent.includes('FAILED') && E('failures-body').textContent.includes('IO_TIMEOUT') &&
+            !E('http-card').hidden, 'Unchecking the failed route for the next run cannot hide its failure or turn the completed result into PASS.');
+        E('preset-bridge').click();
         Submit();
         Reply({schemaVersion: 1, success: false, failureCategory: 'INVALID_CONFIGURATION'});
         A(E('result-state').textContent.includes('FAILED') && E('failures-body').textContent.includes('INVALID_CONFIGURATION'), 'A failed report without transport objects retains its category.');
@@ -325,6 +392,71 @@ test('Benchmark page: standalone document cannot issue a request', async () => {
     assert.match(output, /id="hbb-run"[^>]*disabled/);
     assert.match(output, /This standalone page has no execution channel/);
     assert.doesNotMatch(output, /https?:\/\/[^"\s<]+\.(?:js|css)/i);
+});
+
+test('Benchmark page: trusted optional routes, isolated addon and completed selection', async () => {
+    const defaults = {...Defaults(), protheusComparison: true, addonComparison: true,
+        availableRoutes: {tcp: true, http: true, protheusStartJob: true, protheusRest: true, hbbridgeAddon: true}};
+    const observations = `<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const passed = [];
+    const failures = [];
+    const E = name => document.getElementById('hbb-' + name);
+    const A = (condition, name) => { if (!condition) throw new Error(name); passed.push(name); };
+    const Submit = () => E('form').dispatchEvent(new Event('submit', {cancelable: true}));
+    const Reply = report => HBBTest.receiver('HBBRIDGE_BENCHMARK_RESPONSE', {instance: 'browser-test', requestID: HBBTest.api.State.pending, report});
+    try {
+        A(!E('preset-protheusStartJob').disabled && !E('preset-hbbridgeAddon').disabled, 'Trusted comparison capabilities enable isolated presets.');
+        E('preset-protheusStartJob').click();
+        Submit();
+        const first = HBBTest.calls.at(-1).content.params.routes;
+        A(first.protheusStartJob && Object.values(first).filter(Boolean).length === 1, 'The StartJob-only preset sends only StartJob for actual execution.');
+        HBBTest.receiver('HBBRIDGE_BENCHMARK_RESPONSE', {instance: 'browser-test', requestID: HBBTest.api.State.pending, error: 'RUN_FAILED'});
+        E('preset-hbbridgeAddon').click();
+        Submit();
+        const routes = HBBTest.calls.at(-1).content.params.routes;
+        A(routes.hbbridgeAddon && Object.values(routes).filter(Boolean).length === 1, 'The addon-only preset sends exactly one selected execution route.');
+        const sample = {elapsedMs: 10, success: true, rowsRead: 1000, rpcCalls: 10};
+        const series = {success: true, completedIterations: 5, warmupCompleted: 2, avgMs: 10, minMs: 10, maxMs: 10,
+            callElapsedMs: 230, measuredRows: 5000, measuredCalls: 50, samples: {'1': sample, '2': sample, '3': sample, '4': sample, '5': sample},
+            sampleCount: 5, medianMs: 10, p95Ms: 10, stdDevMs: 0, cvPct: 0, throughputRowsSec: 100000, throughputCallsSec: 1000,
+            statisticsMethod: 'nearest-rank P95; population SD'};
+        const report = {schemaVersion: 1, success: true, runID: 'ADDON-ONLY', rowsPerIteration: 1000, pageSize: 100,
+            iterations: 5, warmupIterations: 2, concurrency: 1, selectedRoutes: routes, routeSelectionVersion: 1,
+            routeStates: {tcp: 'skipped', http: 'skipped', protheusStartJob: 'skipped', protheusRest: 'skipped', hbbridgeAddon: 'completed'},
+            hbbridgeAddon: series};
+        Reply(report);
+        A(E('result-state').textContent === 'PASSED' && !E('addon-panel').hidden && E('client-statistics').hidden &&
+            E('client-charts').hidden && E('tcp-card').hidden && E('http-card').hidden, 'An addon-only successful report renders without fictitious TCP or HTTP client series.');
+        A(E('addon-call').textContent === '230.00 ms' && E('addon-average').textContent === '10.00 ms', 'Addon server execution and complete-call elapsed stay separate.');
+        A(E('comparison').textContent.includes('Relative comparison unavailable') && !E('comparison').textContent.includes('Lowest observed'), 'An addon-only report never claims the fastest comparable client route.');
+        A(E('addon-statistics-method').textContent.includes('Reported metrics') && !E('addon-statistics-method').textContent.includes('Legacy fallback'), 'Complete authoritative addon metrics do not require a browser fallback.');
+        E('preset-all').click();
+        A(E('result-routes').textContent.includes('hbBridge TCP: skipped') && E('result-state').textContent === 'PASSED', 'Next-run presets preserve the immutable addon-only completed selection.');
+        const missing = structuredClone(report);
+        delete missing.hbbridgeAddon;
+        HBBTest.api.RenderReport(missing);
+        A(E('result-state').textContent.includes('FAILED') && E('addon-state').textContent.includes('FAILED'), 'A missing selected addon cannot be shown as successful.');
+        const empty = structuredClone(report);
+        empty.selectedRoutes = Object.fromEntries(Object.keys(routes).map(key => [key, false]));
+        HBBTest.api.RenderReport(empty);
+        A(E('result-state').textContent.includes('FAILED'), 'A report with an empty route selection cannot pass.');
+    } catch (error) { failures.push(error.message); }
+    const result = document.createElement('pre');
+    result.id = 'hbbridge-browser-verification';
+    result.textContent = JSON.stringify({checks: passed.length, passed, failures});
+    document.body.replaceChildren(result);
+});
+</script>`;
+    const path = join(ArtifactRoot, 'isolated-routes.html');
+    writeFileSync(path, Document(Template.replace('@@HBBRIDGE_BENCH_CONFIG@@', JSONForHTML(defaults)), Bootstrap, observations));
+    const output = await RunBrowser(path);
+    writeFileSync(join(ArtifactRoot, 'isolated-routes-dom.html'), output);
+    const match = output.match(/<pre id="hbbridge-browser-verification">([^<]*)<\/pre>/);
+    assert.ok(match, 'The optional-route verification must finish.');
+    const result = JSON.parse(match[1].replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>'));
+    assert.deepEqual(result.failures, [], JSON.stringify(result));
+    assert.ok(result.checks >= 10);
 });
 
 // Optional local artifact generation: the supplied log remains outside Git.

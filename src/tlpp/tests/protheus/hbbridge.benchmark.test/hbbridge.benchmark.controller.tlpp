@@ -56,6 +56,7 @@ method Handle(cContent) class HBBridgeBenchmarkController
     local jResponse as json
     local jReport as json
     local jComparison as json
+    local jRoutes as json
 
     local lRouted := .F. as logical
     local lValid := .F. as logical
@@ -111,6 +112,18 @@ method Handle(cContent) class HBBridgeBenchmarkController
     self:cLastRequestID := cRequestID
     self:cLastResponse := ""
     lValid := BenchmarkEnvelopeValid(jEnvelope)
+    if lValid
+        if !Empty(self:cComparison)
+            jComparison := JSONObject():New()
+            jComparison:FromJSON(self:cComparison)
+        endif
+        if jEnvelope["params"]:HasProperty("routes")
+            jRoutes := HBBridge.Test.HBBridgeBenchmarkTest():Routes(jComparison, jEnvelope["params"]["routes"])
+        else
+            jRoutes := HBBridge.Test.HBBridgeBenchmarkTest():Routes(jComparison)
+        endif
+        lValid := BenchmarkControllerRoutesAllowed(jComparison, jRoutes)
+    endif
     if !lValid
         jResponse := BenchmarkControllerError(self:cInstance, cRequestID, "INVALID_PARAMETERS")
     else
@@ -120,23 +133,19 @@ method Handle(cContent) class HBBridgeBenchmarkController
                 jReport := Eval(self:bMeasure, self:cProfile, self:cHost, self:nPort, ;
                     self:cURL, self:cToken, jEnvelope["params"]["timeoutSeconds"], ;
                     jEnvelope["params"]["rows"], jEnvelope["params"]["pageSize"], ;
-                    jEnvelope["params"]["iterations"], jEnvelope["params"]["warmup"])
+                    jEnvelope["params"]["iterations"], jEnvelope["params"]["warmup"], jRoutes)
             else
-                if !Empty(self:cComparison)
-                    jComparison := JSONObject():New()
-                    jComparison:FromJSON(self:cComparison)
-                endif
                 jReport := HBBridge.Test.HBBridgeBenchmarkTest():Measure(self:cProfile, ;
                     self:cHost, self:nPort, self:cURL, self:cToken, ;
                     jEnvelope["params"]["timeoutSeconds"], jEnvelope["params"]["rows"], ;
                     jEnvelope["params"]["pageSize"], jEnvelope["params"]["iterations"], ;
-                    jEnvelope["params"]["warmup"], jComparison)
+                    jEnvelope["params"]["warmup"], jComparison, jRoutes)
             endif
             if self:lClosed
                 jResponse := BenchmarkControllerError(self:cInstance, cRequestID, "CLOSED")
             elseif BenchmarkReportValid(jReport)
                 if !jReport["success"] .and. ;
-                    (!jReport:HasProperty("tcp") .or. !jReport:HasProperty("http"))
+                    !BenchmarkReportHasResults(jReport)
                     jResponse := BenchmarkControllerError(self:cInstance, cRequestID, jReport["failureCategory"])
                 else
                     jResponse := JSONObject():New()
@@ -158,6 +167,7 @@ method Handle(cContent) class HBBridgeBenchmarkController
     endif
     FreeObj(@jEnvelope)
     FreeObj(@jComparison)
+    FreeObj(@jRoutes)
     if !self:lClosed
         self:cLastResponse := jResponse:ToJSON()
     endif
@@ -252,8 +262,16 @@ static function BenchmarkEnvelopeValid(jEnvelope as json) as logical
     endif
     jParams := jEnvelope["params"]
     aNames := jParams:GetNames()
-    if Len(aNames) != 5
+    if Len(aNames) != 5 .and. Len(aNames) != 6
         return .F.
+    endif
+    if Len(aNames) == 6 .and. !jParams:HasProperty("routes")
+        return .F.
+    endif
+    if jParams:HasProperty("routes")
+        if ValType(jParams["routes"]) != "J"
+            return .F.
+        endif
     endif
     if !jParams:HasProperty("rows") .or. !jParams:HasProperty("pageSize") .or. ;
         !jParams:HasProperty("iterations") .or. !jParams:HasProperty("warmup") .or. ;
@@ -266,6 +284,46 @@ return(BenchmarkControllerInteger(jParams["rows"], 1, 100000) .and. ;
     BenchmarkControllerInteger(jParams["iterations"], 1, 1000000) .and. ;
     BenchmarkControllerInteger(jParams["warmup"], 0, 1000000) .and. ;
     BenchmarkControllerInteger(jParams["timeoutSeconds"], 1, 2147483))
+
+static function BenchmarkControllerRoutesAllowed(jComparison as json, jRoutes as json) as logical
+
+    // GetNames() supplies the native enumeration array; no duplicate route list.
+    local aNames as array
+
+    local cName as character
+
+    local jAvailable as json
+
+    local lAllowed := .T. as logical
+
+    local nName as numeric
+    local nNames as numeric
+
+    if ValType(jRoutes) != "J"
+        return .F.
+    endif
+    jAvailable := HBBridge.Test.HBBridgeBenchmarkTest():Routes(jComparison)
+    if ValType(jAvailable) != "J"
+        return .F.
+    endif
+    aNames := jRoutes:GetNames()
+    nNames := Len(aNames)
+    for nName := 1 to nNames
+        cName := aNames[nName]
+        if jRoutes[cName] .and. !jAvailable[cName]
+            lAllowed := .F.
+            exit
+        endif
+    next nName
+    FreeObj(@jAvailable)
+
+return(lAllowed)
+
+static function BenchmarkReportHasResults(jReport as json) as logical
+
+return(ValType(jReport["tcp"]) == "J" .or. ValType(jReport["http"]) == "J" .or. ;
+    ValType(jReport["protheusStartJob"]) == "J" .or. ValType(jReport["protheusRest"]) == "J" .or. ;
+    ValType(jReport["hbbridgeAddon"]) == "J")
 
 static function BenchmarkControllerInteger(xValue as variant, nMinimum as numeric, ;
     nMaximum as numeric) as logical

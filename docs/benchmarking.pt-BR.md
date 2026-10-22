@@ -124,6 +124,60 @@ Esperar ou fechar a página não cancela o trabalho nativo. Cenários falhos man
 amostras e estatísticas parciais; falhas não viram pontos com latência zero nem
 iterações aprovadas.
 
+## Seleção de rotas e estatísticas medidas
+
+O benchmark AppServer pode executar qualquer subconjunto não vazio de `tcp`,
+`http`, `protheusStartJob`, `protheusRest` e `hbbridgeAddon`. A seleção controla
+execução real, criação dos clientes e validação das dependências; não é filtro
+de gráfico. As rotas selecionadas mantêm essa ordem fixa, com concorrência um.
+Uma rota ignorada não possui medição aprovada nem deve ser contada como sucesso.
+Os campos adicionais `routeSelectionVersion=1`, mapa booleano `selectedRoutes`
+e `routeStates` registram seleção e estados `skipped`, `notStarted`, `completed`
+ou `failed`. Chamadas sem seleção preservam a referência TCP/HTTP e as opções
+anteriores de comparação/addon.
+
+O CLI aceita `--routes=http` ou uma lista como `--routes=tcp,http`. Usar os
+nomes exatos acima. Seleções vazias, nomes desconhecidos e rotas repetidas são
+rejeitados antes da execução. `--routes` explícito é suficiente para selecionar
+rotas Protheus/addon e substitui a seleção padrão anterior. Sem ele,
+`--compare-protheus=1` e `--with-addon=1` mantêm seu comportamento anterior.
+Uma rodada apenas do addon usa sua RPC TCP e configuração;
+não executa HTTP nem a varredura Query no cliente. Uma seleção apenas Protheus
+não exige destino TCP/HTTP hbBridge. Cada rota valida suas próprias entradas.
+
+O formulário visual expõe somente capacidades habilitadas pela configuração
+TLPP confiável. Oferece seleção individual e predefinições, sem permitir ao
+navegador alterar perfil, destinos, módulo, contexto ERP ou credenciais.
+Capacidades indisponíveis não podem ser ativadas alterando a requisição no
+navegador. Console, resultados e JSON preservam a seleção para não confundir
+um teste isolado com uma comparação completa aprovada.
+
+As estatísticas derivadas por rota usam somente amostras medidas de varredura
+aprovadas: `sampleCount`, `medianMs`, `p95Ms` por nearest-rank, `stdDevMs`
+populacional, `cvPct`, `throughputRowsSec` e `throughputCallsSec`.
+`statisticsMethod` registra o método. Aquecimentos e falhas ficam separados.
+A mediana usa a média dos dois valores centrais quando a contagem é par;
+P95 seleciona a posição ordenada `Ceiling(0.95 * count)`. O desvio padrão
+divide pela quantidade de amostras; CV divide esse desvio pela média e
+multiplica por 100. Métricas sem denominador válido ficam indisponíveis,
+não zeradas. Vazão de linhas/chamadas divide as quantidades medidas e validadas
+pelo tempo somado das varreduras; não representa vazão bruta do banco ou rede.
+
+`HBBridgeBenchmarkStats.Apply()` verifica contagem concluída, totais de
+linhas/chamadas e agregados de duração existentes frente às amostras antes
+de adicionar estatísticas. Comparações de duração em ponto flutuante usam
+tolerância absoluta/relativa `1e-9`. Totais inconsistentes falham explicitamente,
+sem correção silenciosa. Falha de uma rota não impede que outras rotas
+selecionadas e independentes preservem seu próprio resultado de execução.
+
+Cinco amostras medidas representam uma observação pequena: nesse caso P95
+nearest-rank coincide com o máximo observado e não estima cauda de latência
+em produção. Estatísticas parciais aprovadas não tornam comparável uma rota
+com falha. Comparar rotas cliente completas e aprovadas com a mesma carga e
+escopo temporal. Estatísticas internas do addon ficam separadas da RPC completa
+e das barras de varreduras cliente. Tempo de renderização no navegador e tamanho
+do payload não são medidos pelo teste nem inferidos do tempo decorrido.
+
 Novos relatórios incluem fase/iteração da falha e `serviceCode`, `httpStatus`
 e `failedPage` por amostra. TCP não tem status HTTP; dados ausentes não
 identificam causa. Texto nativo de exceções, SQL e credenciais são excluídos.
@@ -171,7 +225,8 @@ serializado; chamadas internas continuam sujeitas às permissões.
 A [configuração REST privada](../config/hbbridge.benchmark.rest.pt-BR.md) inclui
 `BenchmarkProtheusURL`, `BenchmarkProtheusCredentialSection`, `BenchmarkAddonModule` e
 `BenchmarkAddonTimeoutSeconds` em `[hbBridge]`. O exemplo visual habilita todas
-as comparações; o CLI habilita com `--compare-protheus=1 --with-addon=1`.
+as capacidades de comparação; o formulário seleciona as rotas de cada rodada.
+O CLI habilita com `--compare-protheus=1 --with-addon=1` ou `--routes` explícito.
 Sem essas flags, o CLI mantém a referência de duas rotas. REST 2.0 valida
 Basic com `UserName`/`Password` da seção privada referenciada, sem bearer
 adicional do benchmark. Autorização e módulo ficam na configuração confiável.
@@ -192,8 +247,9 @@ e tempo decorrido indicam requisição pendente, sem percentual real ou cancelam
 V01/V02 concluídas no escopo AppServer manual e evidências focadas registrados.
 Três rodadas passaram nas cinco rotas: 75 amostras medidas e 30 aquecimentos;
 auditoria dos pares JSON/HTML passou em 684 checks. Veja
-[resultados, hashes e limites](acceptance.pt-BR.md#v01-v02-benchmark-acceptance-on-2026-10-19). D03 é a próxima
-tarefa; M09 permanece aberta.
+[resultados, hashes e limites](acceptance.pt-BR.md#v01-v02-benchmark-acceptance-on-2026-10-19).
+D03/M09 estavam pendentes naquele aceite; seu fechamento posterior no pacote
+001 e o pacote atual estão no [WIP](../WIP.pt-BR.md).
 
 Quando o addon executa tudo e retorna métricas, uma comparação adicional de
 pacotes usa sua RPC completa frente à soma dos intervalos das mesmas sete
@@ -221,4 +277,5 @@ Harbour com o mesmo JSON e intervalos separados de SQL/serialização/parsing/
 processamento/RPC. O ambiente Docker Protheus 12.1.2610/PostgreSQL indicado é
 referência futura de compatibilidade, com aceite próprio de conector, dialeto,
 SDK, codificação e implantação. Veja [desenho e plano](benchmark-evolution.pt-BR.md).
-São tarefas futuras; D03 e checks finais M09 mantêm a prioridade ativa.
+Continuam como tarefas futuras; seguir o pacote atual e sua manutenção
+preparatória no [WIP](../WIP.pt-BR.md).
