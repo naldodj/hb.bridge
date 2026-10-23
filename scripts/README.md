@@ -280,10 +280,13 @@ service. Without the pair, serve mode uses the SQL mock. The owned server exits
 at `-ServeSeconds` (1..3600) or when `stop.request` appears in its printed run
 directory. Setup/compilation are separate from serving and sample timing.
 
-This minimal fixture leaves ODBC physical pooling **off**; it does not apply
-other runtime settings from the private configuration or reproduce a running
-server's pooling policy. It is a correctness/reproduction host, not a matched
-performance deployment. Use the
+With a private profile, the fixture configures the private `[SQL] ODBCPooling`
+policy before connections and prints its effective `odbcPooling` ready field.
+Without it, mock mode retains the off policy. Other runtime settings are not
+implicitly reproduced. The earlier 255-iteration fixture used pooling off;
+record the ready value of a new run instead of assuming equivalence to that
+run or the normal deployment. This is a correctness/reproduction host, not a
+matched performance deployment. Use the
 [client/module and 255/500-run recipe](../src/tlpp/tests/protheus/hbbridge.benchmark.test/README.md#reproduce-the-addon-host-with-an-explicit-mssql-profile).
 
 Merge the [REST configuration fragment](../config/hbbridge.benchmark.rest.md)

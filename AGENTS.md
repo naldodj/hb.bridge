@@ -17,6 +17,12 @@
 - Use `#include "totvs.ch"` as the default TLPP header. Add `tlpp-core.th`,
   `tlpp-rest.th` or other headers only for declarations/macros actually used,
   not merely because a source has the `.tlpp` extension.
+- Prefer `tlpp.ToStr(nValue)` for ordinary TLPP numeric-to-text conversion.
+  Use explicit formatting when width/scale is part of the output contract.
+  Keep alias-scoped negation inside the expression: `(cAlias)->(!Eof())`.
+- Numeric JSON uses the shared precision-preserving codec, independently of
+  `SET DECIMALS`/`SET FIXED`. Do not change global SETs to repair serialization
+  or infer business rounding. Restore temporary addon SET changes on every exit.
 - Group variable declarations by data type and order the groups alphabetically
   by their type prefix, for example `a`, `c`, `d`, `j`, `l`, `n`, `o`, `x`.
   Full variable names within a type group need not be alphabetized. Preserve

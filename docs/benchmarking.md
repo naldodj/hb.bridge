@@ -310,14 +310,14 @@ sources compiled again successfully with zero errors/exit 0; only artifacts
 from the matching source revision establish that check.
 
 After the codec repair, the full native suite passed 752 checks and the addon
-suite passed 74 checks: rational/tiny/large values in params
+suite passed 93 checks: rational/tiny/large values in params
 and returns under SET DECIMALS 2, accepted JSON whitespace, rejected trailing
 garbage, framed-TCP `1/3` round trip and exact aggregate validation at
 254/255/256/500 iterations without sleeps against a SQL mock. That mock proves
 its transport/fixture scope, not MSSQL workload acceptance. The actual TLPP
 client also passed the post-repair 255/500 checks below.
-The latest actual Chromium run passed three suites: 68 main DOM assertions,
-25 optional-route/server/timeout assertions and the no-channel guard. It covers
+The latest actual Chromium run passed three core suites: 69 main DOM assertions,
+30 optional-route/server/timeout/layout assertions and the no-channel guard. It covers
 254/255/500 estimate boundaries, explicit caps/manual overrides, legacy maps,
 report-owned provenance, failed-route visibility, exports and large graphs.
 Browser fixtures do not establish real SQL/StartJob acceptance.
@@ -343,13 +343,17 @@ The repair uses the existing `HBBridgeJSONEncode()`/`HBBridgeJSONDecode()` at
 the benchmark addon and common native addon handoff, preserving the JSON ABI
 and strict validation rather than increasing tolerances. Rebuild the host and
 HRB together so both sides contain the precision-preserving codec.
+Native presentation defaults remain `DECIMALS 2` / `FIXED OFF`; JSON precision
+is independent of those settings. See the [runtime SET policy](standards.md#runtime-sets-and-numeric-contracts)
+for temporary addon state and restoration.
 
 The local `hb_idleSleep(1.5)` workaround is removed: it adds 1.5 seconds per
 executed traversal outside sample timing and changes complete-call duration
 and pacing, without correcting JSON arithmetic. Earlier sleep-bearing runs
 retain that limitation. Windows native TCP 254/255/256/500 tests with SQL mock
-and no sleeps passed with exact aggregates after the codec repair; the 74-check
-precision/ABI suite passed. The actual Protheus TLPP client then passed 255
+and no sleeps passed with exact aggregates after the codec repair; the 93-check
+precision/ABI/SET suite passed; the final suite adds SET DECIMALS 2/18 ×
+FIXED off/on coverage and caller-setting restoration, totaling 93 checks. The actual Protheus TLPP client then passed 255
 measured traversals plus two warmups, and 500 plus zero warmups, through the
 real Harbour TCP host/HRB with a mock Query service. Strict aggregate validation
 passed in both. Means retained `15/255 = 0.0588235294117647` and
@@ -367,12 +371,58 @@ complete call 243648.6517 ms remained below 900 seconds. This run used ODBC
 physical pooling **off**, no artificial sleeps and the explicit private profile.
 Its timing is correctness evidence, not a comparison with the original user's
 pooling/cache/load configuration or a performance-improvement claim.
-The corresponding real 500-iteration case is still running/pending acceptance.
+The separate automated 500-iteration attempt exceeded its launcher budget;
+its client was closed before the native worker returned. It supplies no passing
+AppServer summary and is not a codec/SQL failure acceptance. The later provided
+1500-iteration manual run below has its own scope.
 
 No Linux/platform-wide acceptance is inferred. Rebuild hbBridge, the benchmark
 HRB and current TLPP together before repeating the supplied case in the normal
 deployment. Keep manual FWWebEx and matched deployment/performance validation
 separate. T01 of package 002 remains planned.
+
+## Provided FWWebEx run and presentation review on 2026-10-23
+
+Provided JSON/HTML run `41C06CC62E8CBC4F8F20C1D597D64FDB` reports success for
+1500 measured traversals plus two warmups, 1000 rows and page size 100 on
+`MSSQL/pData`. TCP, HTTP, Protheus REST, Harbour addon and Protheus single-job
+server completed; per-page StartJob was explicitly skipped. All five routes
+report 1500 completed measured samples and 1500000 measured rows. An independent
+recalculation using compensated totals, median, nearest-rank P95 and population
+SD matches the stored aggregates within relative `1e-9`. The provided files do
+not identify their compiled source/RPO hashes or effective physical pooling;
+this manual evidence must remain distinct from automated fixture acceptance.
+
+| Route | Mean per measured traversal (ms) | Complete server request (ms) |
+| --- | ---: | ---: |
+| hbBridge TCP client | 419.780244 | Different scope: per-page requests |
+| hbBridge HTTP client | 625.264503 | Different scope: per-page requests |
+| Protheus REST client | 754.723923 | Different scope: per-page requests |
+| Harbour addon, internal | 372.073333 | 558809.079800 |
+| Protheus single-job server, internal | 540.832381 | 815965.000300 |
+
+The complete addon call includes measured sum 558110 ms, warmups 562 ms and
+other call work; the Protheus call includes measured sum 811248.5717015 ms,
+warmups 989.5229 ms and job/environment/result work. These whole calls are
+not one iteration. Their remaining differences are not isolated network timers.
+
+The revised page groups both internal server routes in one aligned card grid,
+shared per-iteration charts and a single statistics table. Complete addon RPC,
+complete StartJob and whole benchmark duration move into a separate totals
+section with measured/warmup counts and included-work labels. Client and server
+internal ranking scopes remain separate. Safe exports retain the same grouping.
+The actual project page was rendered from the supplied JSON with external page
+HTTP/WebSocket requests blocked; external supplied HTML was not executed.
+Core Chromium checks include alignment, scope separation and standalone exports;
+an additional read-only recorded-report screenshot preview passed.
+
+The local fixture runner now honors the private `[SQL] ODBCPooling` policy and
+prints `odbcPooling` in its ready metadata. The earlier automated 255 run above
+used pooling off; that historical observation is unchanged. Record the actual
+ready value for each new run rather than inferring a match with the provided
+manual report. Confirm the revised live FWWebEx layout after rebuilding TLPP;
+manual performance comparisons still require matching deployment/workload and
+known source, pooling and cache conditions. T01 remains planned.
 
 ## Accepted visual comparison and whole packages on 2026-10-19
 

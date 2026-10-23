@@ -80,6 +80,8 @@ async function RunBrowser(path, screenshotPath = '') {
             socket.send(JSON.stringify({id, method, params}));
         });
         await CDP('Page.enable');
+        await CDP('Network.enable');
+        await CDP('Network.setBlockedURLs', {urls: ['http://*', 'https://*', 'ws://*', 'wss://*']});
         await CDP('Emulation.setDeviceMetricsOverride', {width: 1440, height: 1600, deviceScaleFactor: 1, mobile: false});
         await CDP('Page.navigate', {url: pathToFileURL(path).href});
         const verification = readFileSync(path, 'utf8').includes('hbbridge-browser-verification');
@@ -244,8 +246,11 @@ document.addEventListener('DOMContentLoaded', () => {
         A(E('stats-body').children.length === 4 && E('average-chart').querySelectorAll('rect').length === 4 &&
             E('sample-chart').querySelectorAll('path').length === 4, 'Four client traversal routes share the comparison charts and table.');
         A(!E('startjob-card').hidden && !E('rest-card').hidden && E('scope').textContent.includes('in-process job'), 'Protheus StartJob and REST averages keep their execution scope visible.');
-        A(!E('addon-panel').hidden && E('addon-chart').querySelectorAll('path').length === 1 &&
-            E('addon-call').textContent === '250.00 ms' && E('addon-average').textContent === '10.00 ms', 'The addon server series and whole-call elapsed occupy a separate timing panel.');
+        A(!E('addon-panel').hidden && E('server-sample-chart').querySelectorAll('path').length === 1 &&
+            E('addon-call').textContent === '250.00 ms' && E('addon-average').textContent === '10.00 ms', 'The addon internal series and whole-call elapsed retain separate measured scopes.');
+        A(E('server-panel').contains(E('addon-average')) && !E('server-panel').contains(E('addon-call')) &&
+            E('whole-execution').contains(E('addon-call')) && !E('run-time').closest('.hbb-card'),
+            'Per-iteration server metrics stay together; complete request and benchmark totals are outside average cards.');
         A(E('measured-rows').textContent === '20,000' && E('addon-rows').textContent === '5,000', 'Addon server rows are separate from client traversal row totals.');
         A(E('warmup-body').children.length === 10 && E('result-state').textContent === 'PASSED', 'Warmup retains all five labelled scopes without entering measured averages.');
         A(!E('comparison').textContent.includes('addon (server)') && E('comparison').textContent.includes('Protheus StartJob'),
@@ -402,7 +407,7 @@ test('Benchmark page: trusted optional routes, isolated addon and completed sele
     const defaults = {...Defaults(), protheusComparison: true, addonComparison: true,
         availableRoutes: {tcp: true, http: true, protheusStartJob: true, protheusRest: true, hbbridgeAddon: true, protheusServer: true}};
     const observations = `<script>
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     const passed = [];
     const failures = [];
     const E = name => document.getElementById('hbb-' + name);
@@ -434,7 +439,7 @@ document.addEventListener('DOMContentLoaded', () => {
             E('client-charts').hidden && E('tcp-card').hidden && E('http-card').hidden, 'An addon-only successful report renders without fictitious TCP or HTTP client series.');
         A(E('addon-call').textContent === '230.00 ms' && E('addon-average').textContent === '10.00 ms', 'Addon server execution and complete-call elapsed stay separate.');
         A(E('comparison').textContent.includes('Relative comparison unavailable') && !E('comparison').textContent.includes('Lowest observed'), 'An addon-only report never claims the fastest comparable client route.');
-        A(E('addon-statistics-method').textContent.includes('Reported metrics') && !E('addon-statistics-method').textContent.includes('Legacy fallback'), 'Complete authoritative addon metrics do not require a browser fallback.');
+        A(E('server-statistics-method').textContent.includes('Reported metrics') && !E('server-statistics-method').textContent.includes('Legacy fallback'), 'Complete authoritative addon metrics do not require a browser fallback.');
         E('preset-all').click();
         A(E('result-routes').textContent.includes('hbBridge TCP: skipped') && E('result-state').textContent === 'PASSED', 'Next-run presets preserve the immutable addon-only completed selection.');
         E('preset-protheusServer').click();
@@ -456,6 +461,34 @@ document.addEventListener('DOMContentLoaded', () => {
             E('scope').textContent.includes('environment preparation'), 'Server-only Protheus timings exclude job setup and never enter client ranking.');
         A(E('result-timeout').textContent.includes('effective 100 s') && E('result-timeout').textContent.includes('one complete server call'),
             'Completed reports show the authoritative effective timeout and its execution scope.');
+        const combined = structuredClone(serverReport);
+        combined.selectedRoutes.hbbridgeAddon = true;
+        combined.routeStates.hbbridgeAddon = 'completed';
+        combined.hbbridgeAddon = structuredClone(series);
+        HBBTest.api.RenderReport(combined);
+        A(E('server-stats-body').children.length === 2 && E('server-average-chart').querySelectorAll('rect').length === 2 &&
+            E('server-sample-chart').querySelectorAll('path').length === 2,
+            'Harbour addon and single-StartJob Protheus share one per-iteration statistics table and both internal charts.');
+        A(E('server-panel').contains(E('addon-average')) && E('server-panel').contains(E('protheus-server-average')) &&
+            !E('server-panel').contains(E('addon-call')) && !E('server-panel').contains(E('protheus-server-call')) &&
+            E('whole-execution').contains(E('addon-call')) && E('whole-execution').contains(E('protheus-server-call')),
+            'Whole TCP and StartJob requests are together in a totals table, separate from internal averages.');
+        A(E('addon-request-measured').textContent === '5' && E('addon-request-warmup').textContent === '2' &&
+            E('server-request-details').textContent.includes('Dividing by measured iterations alone'),
+            'Whole-call totals disclose measured and warmup counts and cannot be mistaken for a single iteration.');
+        const addonBox = E('addon-panel').getBoundingClientRect();
+        const serverBox = E('protheus-server-panel').getBoundingClientRect();
+        const addonAverage = E('addon-average').getBoundingClientRect();
+        const serverAverage = E('protheus-server-average').getBoundingClientRect();
+        A(Math.abs(addonBox.top - serverBox.top) <= 1 && Math.abs(addonBox.bottom - serverBox.bottom) <= 1 &&
+            Math.abs(addonAverage.top - serverAverage.top) <= 1,
+            'Side-by-side server cards align their top, bottom and numeric values at the desktop viewport.');
+        E('export-html').click();
+        const exported = await HBBTest.blobs.at(-1).text();
+        A(exported.includes('Server processing') && exported.includes('Whole execution') &&
+            exported.includes('Complete call elapsed') && !/<script|<form|<input|FWWebEx/i.test(exported),
+            'Standalone HTML retains shared internal comparisons and separate complete-call totals without execution code.');
+        HBBTest.api.RenderReport(serverReport);
         serverReport.protheusServer.success = false;
         serverReport.protheusServer.failureCategory = 'QUERY_FAILED';
         serverReport.routeStates.protheusServer = 'failed';
@@ -525,7 +558,7 @@ document.addEventListener('DOMContentLoaded', () => {
     assert.ok(match, 'The optional-route verification must finish.');
     const result = JSON.parse(match[1].replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>'));
     assert.deepEqual(result.failures, [], JSON.stringify(result));
-    assert.ok(result.checks >= 25);
+    assert.ok(result.checks >= 30);
 });
 
 // Optional local artifact generation: the supplied log remains outside Git.
@@ -533,8 +566,8 @@ if (process.env.HBBRIDGE_BENCHMARK_PREVIEW_REPORT) {
     test('Benchmark page: recorded result and explicitly simulated comparison previews', async () => {
         const input = readFileSync(process.env.HBBRIDGE_BENCHMARK_PREVIEW_REPORT, 'utf8');
         const line = input.split(/\r?\n/).find(value => value.startsWith('hbBridge benchmark summary: '));
-        assert.ok(line, 'The supplied local log must contain a benchmark summary.');
-        const recorded = JSON.parse(line.slice('hbBridge benchmark summary: '.length));
+        assert.ok(line || input.trimStart().startsWith('{'), 'Supply a report JSON or a local log containing a benchmark summary.');
+        const recorded = JSON.parse(line ? line.slice('hbBridge benchmark summary: '.length) : input);
         const simulated = structuredClone(recorded);
         simulated.runID = 'LAYOUT-PREVIEW-NOT-A-BENCHMARK';
         simulated.profile = 'preview-only';
@@ -542,6 +575,10 @@ if (process.env.HBBRIDGE_BENCHMARK_PREVIEW_REPORT) {
         simulated.protheusStartJob = structuredClone(recorded.tcp);
         simulated.protheusRest = structuredClone(recorded.http);
         simulated.hbbridgeAddon = {...structuredClone(recorded.tcp), callElapsedMs: recorded.runElapsedMs};
+        if (simulated.routeSelectionVersion === 1) {
+            simulated.selectedRoutes.protheusStartJob = true;
+            simulated.routeStates.protheusStartJob = 'completed';
+        }
         simulated.transportOrder = 'TCP,HTTP,ProtheusStartJob,ProtheusREST';
         for (const [kind, report, label] of [
             ['recorded', recorded, 'Recorded result preview. No benchmark was executed by this page.'],

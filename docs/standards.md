@@ -22,6 +22,12 @@ Compute changing values once per iteration where useful. Do not hoist clocks,
 I/O, mutable-state checks or lengths of containers that grow/shrink during
 iteration. A cached value must remain valid for the entire loop.
 
+For ordinary TLPP numeric-to-text conversion, use `tlpp.ToStr(nValue)` instead
+of `AllTrim(Str(nValue))`. Formatting with a required width, decimal scale or
+mask remains explicit; generic conversion must not silently replace such a
+contract. Write alias-scoped conditions as `(cAlias)->(!Eof())`, keeping the
+negation inside the selected work area's expression.
+
 Source basenames separate lowercase words with dots, for example
 `hbbridge.rpc.dataset.tlpp`. Removing dots must match the lowercase class
 name `HBBridgeRPCDataSet`. This word segmentation does not change namespaces.
@@ -80,6 +86,28 @@ per-request state uses locals/parameters or explicit initialization. A reused
 thread can retain values across requests and HRB reloads. Process-wide mutexes
 and coordinated shared resources remain ordinary synchronized statics. See
 [the runtime review](evolution.md#thread-state-and-request-state).
+
+## Runtime SETs and numeric contracts
+
+Keep Harbour's native presentation defaults (`DECIMALS 2`, `FIXED OFF`);
+increasing `SET DECIMALS` is not a serialization repair. The generic core
+does not establish a monetary scale or add an arbitrary SET override section
+to the INI. A functional requirement must identify each setting, its scope
+and its restoration before configuration is introduced. SQL logical scale
+and rounding remain explicit caller decisions.
+
+| Concern | Policy |
+| --- | --- |
+| `SET DECIMALS` / `SET FIXED` | Presentation/operation context, never JSON numeric precision. Preserve the finite native value with `HBBridgeJSONEncode/Decode`, including the addon JSON ABI. |
+| Temporary addon settings | Save the previous value and restore it in `ALWAYS`, including errors. Worker reuse and `THREAD STATIC` do not reset SETs between calls. |
+| JSON text/codepage | TCP/HTTP request adapters select UTF8EX for execution and restore the previous worker codepage on every exit. Configuration and credentials keep their original bytes. |
+| Business/DBF settings | Do not infer `DELETED`, `EXACT`, date format, epoch, locking or ERP rules from a SQL alias. A caller/addon defines any required behavior explicitly and owns temporary changes. |
+
+Binary floating-point remains approximate. A precision-preserving codec avoids
+additional serialization rounding; it does not make floating-point arithmetic
+an exact decimal type. Explicit SQL CAST/rounding and exact decimal text retain
+their documented roles. Regression checks exercise the addon ABI with both
+`DECIMALS 2/18` and `FIXED OFF/ON`, restoring the previous test context.
 
 English documentation uses the base filename; Portuguese adds `.pt-BR` before
 the extension. Update both together and preserve acceptance records,

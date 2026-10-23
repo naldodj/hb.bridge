@@ -909,7 +909,7 @@ static function BenchmarkAddonSamples(jSamples as json, nCompleted as numeric, ;
         return .F.
     endif
     for nSample := 1 to nSamples
-        cKey := AllTrim(Str(nSample))
+        cKey := tlpp.ToStr(nSample)
         if !jSamples:HasProperty(cKey)
             return .F.
         endif
@@ -999,7 +999,7 @@ static function BenchmarkSeries(oClient as object, cProfile as character, cSQL a
                 endif
             endif
             jSample := BenchmarkIteration(oDataSet, oClient, cSQL, nRows, nPageSize, lHTTP)
-            jWarmupSamples[AllTrim(Str(nIteration))] := jSample
+            jWarmupSamples[tlpp.ToStr(nIteration)] := jSample
             if !jSample["success"]
                 lWarmupOK := .F.
                 jSeries["failureCategory"] := "WARMUP_FAILED"
@@ -1022,7 +1022,7 @@ static function BenchmarkSeries(oClient as object, cProfile as character, cSQL a
                     endif
                 endif
                 jSample := BenchmarkIteration(oDataSet, oClient, cSQL, nRows, nPageSize, lHTTP)
-                jSamples[AllTrim(Str(nIteration))] := jSample
+                jSamples[tlpp.ToStr(nIteration)] := jSample
                 if !jSample["success"]
                     jSeries["failureCategory"] := "MEASURED_ITERATION_FAILED"
                     jSeries["failurePhase"] := "measured"
@@ -1172,7 +1172,7 @@ static function BenchmarkIteration(oDataSet as object, oClient as object, cSQL a
                     cFailure := "VALUE_TYPE_MISMATCH"
                     exit
                 endif
-                if xID != nID .or. AllTrim(xName) != "hbbridge-" + AllTrim(Str(nID)) .or. ;
+                if xID != nID .or. AllTrim(xName) != "hbbridge-" + tlpp.ToStr(nID) .or. ;
                     xAmount != nID / 4
                     cFailure := "VALUE_MISMATCH"
                     exit
@@ -1277,7 +1277,7 @@ static procedure BenchmarkLogFailure(jReport as json, cRoute as character)
         "; category=" + BenchmarkSafeCode(jSeries["failureCategory"])
     if jSeries:HasProperty("failureIteration")
         cPhase := jSeries["failurePhase"]
-        cKey := AllTrim(Str(jSeries["failureIteration"]))
+        cKey := tlpp.ToStr(jSeries["failureIteration"])
         cLine += "; phase=" + cPhase + "; iteration=" + cKey
         if cPhase == "warmup"
             jSample := jSeries["warmupSamples"][cKey]
@@ -1288,10 +1288,10 @@ static procedure BenchmarkLogFailure(jReport as json, cRoute as character)
             cLine += "; sample=" + BenchmarkSafeCode(jSample["failureCategory"]) + ;
                 "; serviceCode=" + BenchmarkSafeCode(jSample["serviceCode"])
             if ValType(jSample["failedPage"]) == "N"
-                cLine += "; page=" + AllTrim(Str(jSample["failedPage"]))
+                cLine += "; page=" + tlpp.ToStr(jSample["failedPage"])
             endif
             if ValType(jSample["httpStatus"]) == "N"
-                cLine += "; httpStatus=" + AllTrim(Str(jSample["httpStatus"]))
+                cLine += "; httpStatus=" + tlpp.ToStr(jSample["httpStatus"])
             endif
         endif
     endif
@@ -1307,7 +1307,7 @@ return("SELECT ID, CAST('hbbridge-' + CAST(ID AS VARCHAR(10)) AS VARCHAR(32)) AS
     "CAST(ID * 0.25 AS DECIMAL(15,2)) AS AMOUNT FROM (SELECT 1 + A.N + 10 * B.N + " + ;
     "100 * C.N + 1000 * D.N + 10000 * E.N AS ID FROM " + cDigits + " A(N) CROSS JOIN " + ;
     cDigits + " B(N) CROSS JOIN " + cDigits + " C(N) CROSS JOIN " + cDigits + ;
-    " D(N) CROSS JOIN " + cDigits + " E(N)) F WHERE ID <= " + AllTrim(Str(nRows)))
+    " D(N) CROSS JOIN " + cDigits + " E(N)) F WHERE ID <= " + tlpp.ToStr(nRows))
 
 static function BenchmarkNumberValid(xValue as variant, nMinimum as numeric, nMaximum as numeric) as logical
 
@@ -1326,7 +1326,7 @@ static function BenchmarkInteger(cValue as character, nMaximum as numeric, lAllo
     local nLength := 0 as numeric
 
 
-    if Empty(cValue) .or. Len(cValue) > Len(AllTrim(Str(nMaximum)))
+    if Empty(cValue) .or. Len(cValue) > Len(tlpp.ToStr(nMaximum))
         return -1
     endif
     if Len(cValue) > 1 .and. Left(cValue, 1) == "0"

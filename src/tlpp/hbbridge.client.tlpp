@@ -179,7 +179,7 @@ method CallService(cService, jParams) class HBBridgeClient
             if nRet != 0
                 nSocketError := self:oSocketClient:GetError(@cSocketError)
                 cCode := "CONNECT_FAILED"
-                cError := "Could not connect to hbBridge. Status: " + AllTrim(Str(nRet)) + "; " + cSocketError
+                cError := "Could not connect to hbBridge. Status: " + tlpp.ToStr(nRet) + "; " + cSocketError
                 exit
             endif
 

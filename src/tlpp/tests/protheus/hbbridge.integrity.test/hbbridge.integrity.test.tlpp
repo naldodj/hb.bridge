@@ -63,7 +63,7 @@ static method RunCLI(aArguments) class HBBridgeIntegrityTest
             cValue := SubStr(cArgument, nEqual + 1)
             if cKey == "port" .or. cKey == "timeout"
                 nValue := Val(cValue)
-                if Empty(cValue) .or. AllTrim(Str(nValue, 16, 0)) != cValue
+                if Empty(cValue) .or. tlpp.ToStr(nValue) != cValue
                     lValid := .F.
                     exit
                 endif

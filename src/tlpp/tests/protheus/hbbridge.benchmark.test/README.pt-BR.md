@@ -231,7 +231,8 @@ não transferência bruta SQL/rede. Com cinco amostras, P95 é o máximo observa
 isso não permite inferir cauda em produção. Denominadores ausentes/zerados
 permanecem indisponíveis. Comparações relativas cliente exigem cargas completas,
 equivalentes e aprovadas; tempos internos do addon e servidor Protheus mantêm
-painéis separados, fora dos gráficos/ranking das rotas cliente.
+a mesma seção interna de servidor, fora dos gráficos/ranking cliente.
+Chamadas completas ficam em seção de totais separada, sem cards de média.
 Veja o [método estatístico e os escopos de tempo](../../../../../docs/benchmarking.pt-BR.md#seleção-de-rotas-e-estatísticas-medidas).
 
 Esta manutenção exige checks AppServer próprios. Compilação isolada atual
@@ -239,15 +240,16 @@ aprovada para 54 fontes TLPP, zero erros/saída 0; AppServer CLI isolado aprovou
 82 checks de controle, 81 visuais/do controlador e 43 de contrato REST. Teste real MSSQL de correção
 com um StartJob passou (10 linhas, página de 5, duas varreduras medidas e um
 aquecimento), sem constituir referência de desempenho. Suítes nativas passaram
-752/74 checks após o codec, com precisão/ABI e fronteiras TCP exatas com SQL
+752/93 checks após o codec, com precisão/ABI e fronteiras TCP exatas com SQL
 simulado. Compilação final de 54 fontes TLPP passou com zero erros/saída 0. O Chromium real
-mais recente passou em três suítes: 68 asserções principais de DOM, 25 de rotas
-opcionais/servidor/timeout e proteção sem canal. Tentativa posterior de 500
+mais recente passou em três suítes principais: 69 asserções de DOM, 30 de rotas
+opcionais/servidor/timeout/layout e proteção sem canal. Tentativa posterior de 500
 iterações com cliente TLPP real/SQL simulado isolou perda de precisão dos
 agregados na ABI JSON do addon. Checks cliente TLPP/SQL simulado em 255/500 passaram após a correção;
 MSSQL real com 255 medidas + dois aquecimentos também passou, 1000 linhas/
-página100, pooling ODBC off e sem pausas. MSSQL500 real e validação manual
-FWWebEx/implantação equivalente continuam pendentes. Alterações
+página100, pooling ODBC off e sem pausas. A rodada FWWebEx1500 fornecida depois passou; fontes/pooling não foram
+identificados. Tentativa MSSQL500 automática separada excedeu o prazo do
+executor e é inconclusiva. Confirmar layout ativo revisado após recompilar. Alterações
 posteriores de fontes exigem recompilação focada. O aceite de 2026-10-19
 abaixo é da versão anterior.
 
@@ -302,8 +304,9 @@ timeout separado. [Política detalhada e limites](../../../../../docs/benchmarki
 job e executa todas as varreduras paginadas de aquecimento/medidas pelo
 Protheus/DBAccess, retornando só métricas. `samples.*.elapsedMs` interno exclui
 preparação do job; `callElapsedMs` inclui StartJob completo, preparação do
-ambiente, todas as iterações e resultado. Seu painel fica ao lado do addon;
-comparar escopos internos equivalentes ou chamadas inteiras equivalentes.
+ambiente, todas as iterações e resultado. As rotas internas compartilham cards alinhados, gráficos e tabela
+estatística. RPC/StartJob completos ficam em tabela separada de totais, com
+medidas/aquecimentos; comparar escopos equivalentes.
 StartJob continua síncrono e só verifica o prazo após retornar do bloqueio.
 Fechar a página ou atingir timeout no cliente não comprova cancelamento.
 
@@ -319,14 +322,15 @@ HRB juntos. Não caracteriza limite de iterações nem timeout completo.
 
 O contorno `hb_idleSleep(1.5)` é removido: alterava ritmo e acrescentava 1.5
 segundo por varredura fora das amostras, sem corrigir precisão JSON. Preservar
-essa limitação nos relatórios anteriores. A suíte de precisão/ABI passou 74
-checks após o codec. Cliente TLPP real passou 255 medidas + dois aquecimentos
+essa limitação nos relatórios anteriores. A suíte de precisão/ABI/SET passou 93
+checks, incluindo SET DECIMALS 2/18 × FIXED off/on e restauração. Cliente TLPP real passou 255 medidas + dois aquecimentos
 e 500 + zero usando host/HRB TCP Harbour reais e serviço Query simulado,
 com validação estrita dos agregados. Suíte nativa completa e compilação de
 54 fontes TLPP também passaram após a correção. TLPP→TCP→HRB→MSSQL real
 passou 255 medidas + dois aquecimentos, 1000 linhas/página100, agregados
-estritos, pooling ODBC off e sem pausas. MSSQL500 real e validação manual
-FWWebEx/implantação equivalente continuam pendentes. Fixtures de correção
+estritos, pooling ODBC off e sem pausas. A rodada FWWebEx1500 fornecida depois passou; fontes/pooling não foram
+identificados. Tentativa MSSQL500 automática separada excedeu o prazo do
+executor e é inconclusiva. Confirmar layout ativo revisado após recompilar. Fixtures de correção
 não comprovam ganho de desempenho nem aceite amplo de plataformas.
 Recompilar hbBridge, HRB e TLPP juntos antes de repetir o caso fornecido.
 
@@ -370,10 +374,13 @@ $arguments = @('--profile=MSSQL/pData', '--host=127.0.0.1', "--port=$fixturePort
 
 Repetir com `--iterations=500`, mantendo carga e política explícitas. Aumentar
 o teto deliberadamente quando a estimativa indicar limite atingido ou a
-implantação exigir; a estimativa escolhida não garante conclusão. Essa fixture
-mantém pooling físico ODBC **off** e carrega somente o perfil escolhido, sem
-outras configurações runtime do INI. Medições de correção não presumem mesmo
-pooling/cache/carga do servidor ativo nem comprovam ganho de desempenho.
+implantação exigir; a estimativa escolhida não garante conclusão. Com perfil
+privado, a fixture respeita `[SQL] ODBCPooling` antes de conectar e imprime
+`odbcPooling` efetivo na linha ready; demais opções runtime não são reproduzidas
+implicitamente. A rodada automática 255 anterior usou pooling off. Registrar
+a política ready atual, sem presumir equivalência com a rodada/implantação.
+Medições de correção não presumem mesmo pooling/cache/carga do servidor ativo
+nem comprovam ganho de desempenho.
 Para comparar desempenho equivalente, usar produto recompilado com parâmetros
 runtime explícitos registrados, separando tempos internos e da chamada inteira.
 

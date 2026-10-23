@@ -196,7 +196,7 @@ static function BenchmarkRestFrameworkReady() as logical
         if AllTrim(GetPvProfString("HTTPV11", "Enable", "0", cIni)) == "1" .and. ;
             AllTrim(GetPvProfString("HTTPREST", "Security", "0", cIni)) == "1" .and. ;
             !Empty(cEnvironment) .and. Upper(cEnvironment) == Upper(GetEnvServer()) .and. ;
-            nPort >= 1 .and. nPort <= 65535 .and. cPort == AllTrim(Str(nPort))
+            nPort >= 1 .and. nPort <= 65535 .and. cPort == tlpp.ToStr(nPort)
             nServicePort := oRest:GetThreadPoolServicePort()
             lReady := nServicePort == nPort
         endif

@@ -117,7 +117,7 @@ static method Run() class HBBridgeJSONTest
         endif
         ConOut("hbBridge JSON check " + aNames[nIndex] + ": " + if(jChecks[aNames[nIndex]], "PASS", "FAILED"))
     next nIndex
-    ConOut("hbBridge JSON checks: " + AllTrim(Str(Len(aNames))) + "; failures=" + AllTrim(Str(nFailures)) + ;
+    ConOut("hbBridge JSON checks: " + tlpp.ToStr(Len(aNames)) + "; failures=" + tlpp.ToStr(nFailures) + ;
         "; " + if(nFailures == 0, "OK", "FAILED"))
     FWFreeArray(@aNames)
     FreeObj(@jChecks)

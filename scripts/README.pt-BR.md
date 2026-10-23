@@ -289,10 +289,12 @@ Sem o par, serve mode usa SQL simulado. O servidor próprio termina em
 `-ServeSeconds` (1..3600) ou ao encontrar `stop.request` na pasta da execução
 impressa. Preparação/compilação ficam fora do tempo servido e das amostras.
 
-Essa fixture mínima mantém pooling físico ODBC **off**; não aplica demais
-configurações runtime do INI privado nem reproduz política de pooling do
-servidor ativo. É host de correção/reprodução, sem constituir implantação
-equivalente de desempenho. Veja o
+Com perfil privado, a fixture configura `[SQL] ODBCPooling` privado antes
+das conexões e imprime o campo ready `odbcPooling` efetivo. Sem esse perfil,
+o mock mantém política off. Demais opções runtime não são reproduzidas
+implicitamente. A fixture anterior de 255 iterações usou pooling off; registrar
+o ready atual sem presumir equivalência com a rodada anterior/implantação.
+É host de correção/reprodução, sem constituir implantação de desempenho equivalente. Veja o
 [roteiro do cliente/módulo e rodadas 255/500](../src/tlpp/tests/protheus/hbbridge.benchmark.test/README.pt-BR.md#reproduzir-o-host-do-addon-com-perfil-mssql-explícito).
 
 Mesclar o [fragmento REST](../config/hbbridge.benchmark.rest.pt-BR.md) à instalação

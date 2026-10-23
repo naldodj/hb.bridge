@@ -2,11 +2,11 @@
   "kind": "hbbridge.validation-summary",
   "schemaVersion": 1,
   "observedOn": "2026-10-23",
-  "scope": "Windows benchmark route controls, timeout policy, server-only Protheus path and addon JSON precision regression",
+  "scope": "Windows benchmark controls, separated server averages/whole-request totals, SET-independent numeric JSON and TLPP conventions",
   "historicalSnapshot": {
-    "baseRevision": "929c4ef36cbf90ca2eaa1d77c986e6d22e54cbf5",
+    "baseRevision": "200a17e6f77046f24675c88781064f1cbbe63615",
     "includesWorkingTreeChanges": true,
-    "sourceFingerprintSHA256": "BBFE71AA1E11F43A76B62806C1D5E7E3C6A7C3119BF07FD4BC8A401B14BC2C36",
+    "sourceFingerprintSHA256": "2D4F721CA8328A465BA2D356852E1EC0F59E22E53F42E912C94337E476DC9315",
     "fingerprintMethod": "SHA256 over UTF-8 lines: relative path, TAB, uppercase file SHA256, LF; paths sorted ascending",
     "fileSHA256": {
       "addons/examples/hbbridgebenchmarkaddon.hb": "2A5DCCD8DDBCF448205EAE51BF5CC17B0BA30BAA640903B5E188B09FA949AD8F",
@@ -15,7 +15,7 @@
       "scripts/build-hbbridge-benchmark-addon.ps1": "988C57D880D8A0BA7B7E9AAC4856B4DC4A0B5DDB9919AD884435520635F6E53D",
       "scripts/prepare-totvs-sources.ps1": "013D2FA90DC3881DB5CB28B080F94447ED9B1EE3652067ACC7FB9ED6582DC9B7",
       "scripts/run-protheus-cli.ps1": "026B9521801A1EAB9D26FF08ED64F3601AC3D0767E5FD19588E8F35D96AEFFCC",
-      "scripts/test-hbbridge-benchmark-addon.ps1": "20DACE1CEA36A550D028B567F0E4DC2CBED5342E60E8CC1545B625980954A4B7",
+      "scripts/test-hbbridge-benchmark-addon.ps1": "CAF167AF0E45CE81544C33B68E1762FF6506186A9C43F3B30E98E1EC8169768C",
       "scripts/test-hbbridge.ps1": "91C0C29C29222F1220B3A432B664FEBD5642F6251F660A8E3A538BD57F85D55A",
       "src/c/hbbridge.json.c": "D1DBC5A4893E9D111812089C32664544BD242D4723579A6198C331B20B7E93FB",
       "src/hb/addons/hbbridge.addon.hb": "BEA523066CFBC5D122E4F4FB926BCF3AAB3B28229A6024326E96486DD44215EF",
@@ -23,27 +23,27 @@
       "src/hb/services/hbbridge.services.hb": "D07606598F8CEE8368930955B0E9E0A5DC20221A615371621AB8DC6BE49E0FA8",
       "src/hb/transports/protheus/hbbridge.framing.hb": "5BD69E2FC3EBA5E6B6DC18F0D2339BB41C2ED4533F555BCB9B169AD8AD306007",
       "src/hb/transports/protheus/hbbridge.server.hb": "1EC0B1DA3DA522A6D90DD580DD8626125743B0C220CBF5E44BB8D9C73B3C7007",
-      "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.control.test.tlpp": "67259FF431CDE056ACDE11A4017CD86D3FD4802EB79E92EC0D091EE5CEDC73C0",
+      "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.control.test.tlpp": "21326A9D808FD36BD3607A03F68F5723DABD12BBF7A3C4DD1EF27F8620EF2802",
       "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.controller.tlpp": "A21275042E7B9A2B0A2017F3AA1601C9D55880EDA42AFBFB687301181C77A02F",
       "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.example.tlpp": "9D70404FCAA668A217E39CCFF91F22442C998DC6E7F82F15D4A86C2675EFBFA0",
-      "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.mock.client.tlpp": "CAFCA172504A9313911D8728160A479F91864296E06493EC049CC6ADF4EF5883",
+      "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.mock.client.tlpp": "BBA208AF99817A76F5D5E3BEDE3F200FCBF4C735435872080A7936F876653F31",
       "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.native.client.tlpp": "CB068F551A2C172C17FC59BB57D7B9780A0DCD050CA65B787A28180F9F3DCCB4",
-      "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.page.tlpp": "31EF51475E1003C5E54499B947F29BB12ED5D23520A84A014F936A928525D9E8",
+      "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.page.tlpp": "B07E2415CC599B6C8C6412439D982E0E313F811676327587569D03FDDFE3D112",
       "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.policy.tlpp": "F5AFDB66CEE6B2630BE236C4B0F0206B7738C3EA7687772D0ECBF00E38C6951D",
       "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.protheus.entry.tlpp": "4D04D857DDD0F4F5C421E40B2286EC8278EE718958D6E38B2F3A8A817C8078C1",
-      "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.protheus.tlpp": "98012556D4FC84E49156878385D64966329320ADECFC04DF972EDA0644A7ECEE",
+      "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.protheus.tlpp": "8DEDA13770BDA4E766DA5E560648F307726F7948D3D095D858C2465E5B0B69A2",
       "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.rest.test.tlpp": "F9138C9C4E22183AD90CA237D17F3C463CBB992FDF4B348518B152910D71E720",
-      "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.rest.tlpp": "758541624821C70E51EE91B4EDA0B03A20C619C5122A08B1F4AF2E5B960AB8D9",
+      "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.rest.tlpp": "33229A23ED63E02488EBE1D302CE2DE9A89EB10F36300B949F96871D7EC3B012",
       "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.server.client.tlpp": "B876F61BA1CB09C38665A13CBA9A371555A45E32567BFCA6E52901B514359BDA",
-      "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.stats.tlpp": "F9B84220C90C6099C39B48A8741772A125B2DD5EFF71A15FBB9DBDD221851C2A",
+      "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.stats.tlpp": "193676823D7E08BF4C6508FBAC03AB6B46F9833CE4A8F08C68836B94E8DA7859",
       "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.test.entry.tlpp": "F3417FA898CD705D9AB506CFD9BED58C607DFE414D7C53DCC81086BDDD766CA4",
-      "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.test.tlpp": "49C5D34D308DB0F388554DDC76B0258A805B2C5A308A7747EE1E22D5325194D7",
-      "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.visual.test.tlpp": "E306C13F486E10D7EDB7D23FC25DB2B40AA7F2A2B69466BCA58398574E50947D",
+      "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.test.tlpp": "F9140BDC4A822C14388C478F6813BC2820BD7480EBE4FE82F17C59ABB79CFB1A",
+      "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.visual.test.tlpp": "20C6BFD3CB2D2635DB23FAA59C6A24C48663DE01F8C3A1AEE7947CA1BC9D64D7",
       "src/zig/runtime/hbbridge.number.zig": "D78351BD3E36435ECFBC98DD4BB693F2789F0602DA2118A99F15C1A47A5BEC33",
-      "tests/integration/harbour/hbbridge.benchmark.addon.test.hb": "9A3E263EFCFDA4B0E69D3CA303984A01B17AD74F2C066C8AA4EFC426A85DACB3",
+      "tests/integration/harbour/hbbridge.benchmark.addon.test.hb": "63CC3CE83E74619071AF5FB58DE0793F6381EF529E89C242FA788B007508C6D1",
       "tests/integration/harbour/hbbridge.benchmark.addon.test.hbp": "3958A2DCC9E87BAD0AC13AF6B0F6EDCF44516CE0CFCEE8C81B219513DA4CFAB6",
       "tests/integration/harbour/hbbridge.numeric.addon.hb": "407B6B5C410338AE59ED495655E14385B89E959F3072DC40F13905572F79FAED",
-      "tests/unit/browser/hbbridge.benchmark.page.test.mjs": "5BC4DAC8B3EFE80AE505B6EAA5F2E0415D41175DB2601714BD2A9A9CCC0FA06E"
+      "tests/unit/browser/hbbridge.benchmark.page.test.mjs": "7423F884251E937112CF21359AF9CE319F8B387EBAEAEE4E3D1298CBE3F0A816"
     }
   },
   "dependencyPins": {
@@ -76,10 +76,10 @@
       "exitCode": 0
     },
     "benchmarkAddon": {
-      "checks": 74,
+      "checks": 93,
       "failures": 0,
       "exitCode": 0,
-      "scope": "Actual HRB and framed TCP, mock query handler, numeric ABI precision and iteration boundaries 254, 255, 256 and 500."
+      "scope": "Actual HRB/framed TCP with mock query handler; DECIMALS 2/18 crossed with FIXED OFF/ON, state restoration, numeric ABI precision and boundaries 254/255/256/500."
     },
     "licensedAppServer": {
       "isolation": "Dedicated SDK/RPO/configuration; existing services were not stopped or reconfigured.",
@@ -97,14 +97,25 @@
         "checks": 43,
         "failures": 0,
         "exitCode": 0
-      }
+      },
+      "jsonIntegrity": {
+        "checks": 31,
+        "failures": 0,
+        "exitCode": 0
+      },
+      "scope": "Fresh isolated AppServer execution after TLPP ToStr/alias conventions and benchmark layout changes."
     },
     "browser": {
       "tests": 3,
       "failures": 0,
-      "mainDOMObservations": 68,
-      "optionalRouteAndTimeoutObservations": 25,
-      "scope": "Real Chromium executes the HTML extracted from the maintained TLPP page with a simulated FWWebEx channel."
+      "mainDOMObservations": 69,
+      "optionalRouteAndTimeoutObservations": 30,
+      "scope": "Real Chromium executes the HTML extracted from the maintained TLPP page with a simulated FWWebEx channel.",
+      "optionalRecordedPreview": {
+        "tests": 4,
+        "failures": 0,
+        "scope": "Actual project HTML rendering the supplied 1500-iteration JSON with HTTP/WebSocket network requests blocked; external HTML not executed."
+      }
     },
     "tlppToRealTCPAndHRB": {
       "queryHandler": "mock",
@@ -137,7 +148,7 @@
       "scope": "Correctness smoke through one complete StartJob; internal DBAccess traversal and whole-call timing remain separate."
     },
     "realMSSQLAddonHighIteration": {
-      "status": "partial",
+      "status": "automated 255 passed; manual 1500 accepted separately",
       "transport": "TCP",
       "rowsPerIteration": 1000,
       "pageSize": 100,
@@ -156,7 +167,8 @@
         },
         {
           "measuredIterations": 500,
-          "status": "running"
+          "status": "inconclusive",
+          "reason": "The external test-process budget of 480 seconds interrupted the client before the native worker completed at 495047 ms. No result report was obtained; not accepted as a product benchmark failure."
         }
       ],
       "scope": "Actual TLPP client, rebuilt Harbour TCP host/HRB and local MSSQL constant queries; correctness acceptance only, not performance comparison with the original deployment."
@@ -166,6 +178,71 @@
       "documentFilesChecked": 90,
       "status": "passed",
       "scope": "Observed before adding this validation summary; run gates again for the final checkout."
+    },
+    "manualMSSQLVisual1500": {
+      "method": "User-provided FWWebEx JSON/HTML; seven aggregate statistics independently recomputed for each selected route",
+      "runID": "41C06CC62E8CBC4F8F20C1D597D64FDB",
+      "artifact": "hbbridge-benchmark-41C06CC62E8CBC4F8F20C1D597D64FDB.json",
+      "artifactSHA256": "6058983B51ECC51C5AB664F54D5D2FB9587FD5DD0B19421635E3FEDE3358C8C2",
+      "success": true,
+      "rowsPerIteration": 1000,
+      "pageSize": 100,
+      "measuredIterations": 1500,
+      "warmupIterations": 2,
+      "selectedRoutes": [
+        "tcp",
+        "http",
+        "protheusRest",
+        "hbbridgeAddon",
+        "protheusServer"
+      ],
+      "skippedRoutes": [
+        "protheusStartJob"
+      ],
+      "aggregateRecomputation": "total, mean, min, max, median, nearest-rank P95, population SD agree within relative/absolute tolerance 1e-9",
+      "compiledSourceRevision": "not supplied",
+      "physicalPooling": "not captured; do not infer",
+      "addon": {
+        "averageMs": 372.073333333333,
+        "measuredTotalMs": 558110,
+        "warmupTotalMs": 562,
+        "completeCallMs": 558809.07979995
+      },
+      "protheusServer": {
+        "averageMs": 540.832381134396,
+        "measuredTotalMs": 811248.5717015268,
+        "warmupTotalMs": 989.522899985313,
+        "completeCallMs": 815965.00029999
+      },
+      "scope": "Recorded manual execution of the report producer; does not by itself validate the revised HTML layout or imply an all-platform performance result."
+    },
+    "layout": {
+      "internalServerComparison": "Harbour addon and one-StartJob Protheus cards, shared charts/statistics",
+      "wholeRequestTotals": "Separate complete requests with measured/warmup counts; overall benchmark duration outside average cards",
+      "cardAlignment": "Actual browser bounding rectangles plus recorded-report visual inspection",
+      "validation": "passed"
+    },
+    "numericSETPolicy": {
+      "baseline": "Harbour native presentation defaults DECIMALS 2 / FIXED OFF retained",
+      "wire": "Shared exact native-number JSON codec independent of DECIMALS/FIXED; floating-point remains approximate",
+      "testedDecimals": [
+        2,
+        18
+      ],
+      "testedFixed": [
+        false,
+        true
+      ],
+      "temporaryChangesRestored": true,
+      "businessScale": "Explicit caller metadata/CAST/rounding; not inferred from runtime SETs"
+    },
+    "finalGates": {
+      "projectFilesChecked": 260,
+      "documentFilesChecked": 90,
+      "checkHB": "passed",
+      "commitHB": "passed",
+      "thirdPatchReadOnly": "passed",
+      "whitespace": "passed"
     }
   },
   "reproduction": {
@@ -184,7 +261,7 @@
       "./scripts/run-protheus-cli.ps1 -AppServerDirectory <test-appserver-directory> -IniFile <co-located-test-ini> -Program U_HBBridgeBenchmarkControlTest",
       "./scripts/run-protheus-cli.ps1 -AppServerDirectory <test-appserver-directory> -IniFile <co-located-test-ini> -Program U_HBBridgeBenchmarkVisualTest",
       "./scripts/run-protheus-cli.ps1 -AppServerDirectory <test-appserver-directory> -IniFile <co-located-test-ini> -Program U_HBBridgeBenchmarkRESTTest",
-      "./scripts/test-hbbridge-benchmark-addon.ps1 -Serve -ServeSeconds 600",
+      "./scripts/test-hbbridge-benchmark-addon.ps1 -Serve -ServeSeconds 1800",
       "./scripts/check-doc-links.ps1",
       "./scripts/commit-check.ps1",
       "./scripts/test-hbbridge-benchmark-addon.ps1 -Serve -ServeSeconds 1800 -Config <private-ini> -Profile <alias>"

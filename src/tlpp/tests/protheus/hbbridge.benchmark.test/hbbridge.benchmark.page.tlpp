@@ -109,10 +109,20 @@ static method HTML() class HBBridgeBenchmarkPage
     #hbb-benchmark .hbb-status[data-state="running"] { border-color: var(--hbb-tcp); background: #eaf5f5; }
     #hbb-benchmark .hbb-status[data-state="failed"] { border-color: #b14542; background: #fff0ee; color: #923b37; }
     #hbb-benchmark .hbb-status[data-state="passed"] { border-color: #287848; background: #edf7f0; color: #25653e; }
-    #hbb-benchmark .hbb-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 18px; }
-    #hbb-benchmark .hbb-card { border: 1px solid var(--hbb-line); border-radius: 12px; padding: 18px; background: #fff; }
-    #hbb-benchmark .hbb-card-label { display: block; font-size: 11px; color: var(--hbb-muted); font-weight: 700; text-transform: uppercase; letter-spacing: .8px; }
+    #hbb-benchmark .hbb-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); grid-auto-rows: 1fr; align-items: stretch; gap: 14px; margin-bottom: 18px; }
+    #hbb-benchmark .hbb-card { display: flex; flex-direction: column; height: 100%; border: 1px solid var(--hbb-line); border-radius: 12px; padding: 18px; background: #fff; }
+    #hbb-benchmark .hbb-card-label { display: block; min-height: 3.2em; font-size: 11px; color: var(--hbb-muted); font-weight: 700; text-transform: uppercase; letter-spacing: .8px; }
     #hbb-benchmark .hbb-value { display: block; font-size: clamp(21px, 2.4vw, 30px); line-height: 1.3; margin: 8px 0 3px; font-weight: 750; letter-spacing: -.6px; }
+    #hbb-benchmark .hbb-card > .hbb-help { margin-top: auto; }
+    #hbb-benchmark .hbb-server-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); align-items: stretch; gap: 16px; margin: 18px 0; }
+    #hbb-benchmark .hbb-server-route { display: flex; flex-direction: column; min-width: 0; padding: 16px; border: 1px solid var(--hbb-line); border-radius: 10px; background: #fff; }
+    #hbb-benchmark .hbb-server-route .hbb-panel-head { display: block; min-height: 104px; margin-bottom: 14px; }
+    #hbb-benchmark .hbb-server-route h2 { min-height: 3.1em; }
+    #hbb-benchmark .hbb-server-route .hbb-badge { display: inline-block; margin-top: 6px; }
+    #hbb-benchmark .hbb-server-route .hbb-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); flex: 1; margin: 0; }
+    #hbb-benchmark .hbb-server-route .hbb-card { padding: 13px; }
+    #hbb-benchmark .hbb-total-duration { font-size: 16px; margin: 14px 0; }
+    #hbb-benchmark .hbb-total-duration strong { font-variant-numeric: tabular-nums; }
     #hbb-benchmark .hbb-tcp { color: var(--hbb-tcp); }
     #hbb-benchmark .hbb-http { color: var(--hbb-http); }
     #hbb-benchmark .hbb-startjob { color: #c76b21; }
@@ -146,7 +156,7 @@ static method HTML() class HBBridgeBenchmarkPage
         #hbb-benchmark .hbb-head { flex-direction: column; }
         #hbb-benchmark .hbb-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         #hbb-benchmark .hbb-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-        #hbb-benchmark .hbb-charts, #hbb-benchmark .hbb-notes { grid-template-columns: 1fr; }
+        #hbb-benchmark .hbb-charts, #hbb-benchmark .hbb-notes, #hbb-benchmark .hbb-server-cards { grid-template-columns: 1fr; }
         #hbb-benchmark .hbb-panel { padding: 16px; }
     }
     @media print {
@@ -211,13 +221,12 @@ static method HTML() class HBBridgeBenchmarkPage
         <p id="hbb-result-routes" class="hbb-meta"></p>
         <p id="hbb-result-timeout" class="hbb-meta"></p>
         <p id="hbb-comparison" class="hbb-status"></p>
-        <div class="hbb-cards">
+        <div id="hbb-client-cards" class="hbb-cards">
             <div id="hbb-tcp-card" class="hbb-card"><span class="hbb-card-label">TCP average</span><strong id="hbb-tcp-average" class="hbb-value hbb-tcp">—</strong><span class="hbb-help">per complete traversal</span></div>
             <div id="hbb-http-card" class="hbb-card"><span class="hbb-card-label">HTTP average</span><strong id="hbb-http-average" class="hbb-value hbb-http">—</strong><span class="hbb-help">per complete traversal</span></div>
             <div id="hbb-startjob-card" class="hbb-card" hidden><span class="hbb-card-label">Protheus StartJob average</span><strong id="hbb-startjob-average" class="hbb-value hbb-startjob">—</strong><span class="hbb-help">in-process job, complete traversal</span></div>
             <div id="hbb-rest-card" class="hbb-card" hidden><span class="hbb-card-label">Protheus REST average</span><strong id="hbb-rest-average" class="hbb-value hbb-rest">—</strong><span class="hbb-help">per complete traversal</span></div>
-            <div class="hbb-card"><span class="hbb-card-label">Measured rows</span><strong id="hbb-measured-rows" class="hbb-value">—</strong><span class="hbb-help">successful measured iterations</span></div>
-            <div class="hbb-card"><span class="hbb-card-label">Complete run</span><strong id="hbb-run-time" class="hbb-value">—</strong><span class="hbb-help">includes warmup and orchestration</span></div>
+            <div class="hbb-card"><span class="hbb-card-label">Measured client rows</span><strong id="hbb-measured-rows" class="hbb-value">—</strong><span class="hbb-help">successful measured client iterations</span></div>
         </div>
         <div id="hbb-client-charts" class="hbb-charts">
             <section class="hbb-panel hbb-chart-box" aria-labelledby="hbb-average-title">
@@ -240,49 +249,62 @@ static method HTML() class HBBridgeBenchmarkPage
             </table>
             <p id="hbb-statistics-method" class="hbb-help"></p>
         </section>
-        <section id="hbb-addon-panel" class="hbb-panel hbb-addon-panel" aria-labelledby="hbb-addon-title" hidden>
-            <div class="hbb-panel-head">
-                <h2 id="hbb-addon-title">hbBridge addon · server execution</h2>
-                <span id="hbb-addon-state" class="hbb-badge">Different timing scope</span>
+        <section id="hbb-server-panel" class="hbb-panel hbb-addon-panel" aria-labelledby="hbb-server-title" hidden>
+            <h2 id="hbb-server-title">Server processing · per measured traversal</h2>
+            <p class="hbb-help">Both routes execute the paged fixture inside the server and return metrics. Compare one successful measured traversal at a time: SQL, page processing and value checks. Warmup, whole-request setup and transport are outside these internal averages.</p>
+            <div class="hbb-server-cards">
+                <article id="hbb-addon-panel" class="hbb-server-route" aria-labelledby="hbb-addon-title" hidden>
+                    <div class="hbb-panel-head">
+                        <h2 id="hbb-addon-title">hbBridge addon · Harbour</h2>
+                        <span id="hbb-addon-state" class="hbb-badge">Internal timing</span>
+                    </div>
+                    <div class="hbb-cards">
+                        <div class="hbb-card"><span class="hbb-card-label">Average per measured traversal</span><strong id="hbb-addon-average" class="hbb-value hbb-addon">—</strong><span class="hbb-help">one internal iteration; warmup excluded</span></div>
+                        <div class="hbb-card"><span class="hbb-card-label">Measured server rows</span><strong id="hbb-addon-rows" class="hbb-value">—</strong><span class="hbb-help">rows consumed within Harbour</span></div>
+                    </div>
+                </article>
+                <article id="hbb-protheus-server-panel" class="hbb-server-route" aria-labelledby="hbb-protheus-server-title" hidden>
+                    <div class="hbb-panel-head">
+                        <h2 id="hbb-protheus-server-title">Protheus server · one StartJob</h2>
+                        <span id="hbb-protheus-server-state" class="hbb-badge">Internal timing</span>
+                    </div>
+                    <div class="hbb-cards">
+                        <div class="hbb-card"><span class="hbb-card-label">Average per measured traversal</span><strong id="hbb-protheus-server-average" class="hbb-value hbb-startjob">—</strong><span class="hbb-help">one internal iteration; warmup excluded</span></div>
+                        <div class="hbb-card"><span class="hbb-card-label">Measured server rows</span><strong id="hbb-protheus-server-rows" class="hbb-value">—</strong><span class="hbb-help">rows consumed within Protheus/DBAccess</span></div>
+                    </div>
+                </article>
             </div>
-            <p class="hbb-help">The complete paged SQL traversal runs inside Harbour. One TCP call returns benchmark metrics instead of transferring every data page. Server execution is displayed separately from the client traversal comparison.</p>
-            <div class="hbb-cards hbb-actions">
-                <div class="hbb-card"><span class="hbb-card-label">Server traversal average</span><strong id="hbb-addon-average" class="hbb-value hbb-addon">—</strong><span class="hbb-help">successful measured iterations</span></div>
-                <div class="hbb-card"><span class="hbb-card-label">Call elapsed</span><strong id="hbb-addon-call" class="hbb-value">—</strong><span class="hbb-help">one TCP round trip, including all warmup and measured iterations</span></div>
-                <div class="hbb-card"><span class="hbb-card-label">Measured server rows</span><strong id="hbb-addon-rows" class="hbb-value">—</strong><span class="hbb-help">rows consumed within Harbour</span></div>
+            <div class="hbb-charts">
+                <div class="hbb-chart-box"><h2>Average internal traversal</h2><div id="hbb-server-average-chart"></div></div>
+                <div class="hbb-chart-box"><h2>Internal iteration latency</h2><div id="hbb-server-sample-chart"></div><div id="hbb-server-legend" class="hbb-legend"></div><p id="hbb-server-chart-note" class="hbb-help"></p></div>
             </div>
-            <div id="hbb-addon-chart" class="hbb-chart-box"></div>
-            <p id="hbb-addon-chart-note" class="hbb-help">Server iteration latency. Warmup is excluded. This timing scope differs from the four client traversal routes.</p>
             <div class="hbb-scroll">
                 <table>
-                    <caption>Harbour server traversal statistics; call elapsed includes the complete addon request.</caption>
-                    <thead><tr><th scope="col">Scope</th><th scope="col">Result</th><th scope="col">Samples</th><th scope="col">Min ms</th><th scope="col">Average ms</th><th scope="col">Median ms</th><th scope="col">P95 ms</th><th scope="col">SD ms</th><th scope="col">CV %</th><th scope="col">Max ms</th><th scope="col">Rows / s</th><th scope="col">Rows</th></tr></thead>
-                    <tbody id="hbb-addon-stats-body"></tbody>
+                    <caption>Internal server processing per successful measured traversal. Both scopes exclude complete-call setup/transport and warmup; verify backend, pooling and workload equivalence before comparison.</caption>
+                    <thead><tr><th scope="col">Server route</th><th scope="col">Result</th><th scope="col">Samples</th><th scope="col">Min ms</th><th scope="col">Average ms</th><th scope="col">Median ms</th><th scope="col">P95 ms</th><th scope="col">SD ms</th><th scope="col">CV %</th><th scope="col">Max ms</th><th scope="col">Rows / s</th><th scope="col">Rows</th></tr></thead>
+                    <tbody id="hbb-server-stats-body"></tbody>
                 </table>
             </div>
-            <p id="hbb-addon-statistics-method" class="hbb-help"></p>
+            <p id="hbb-server-statistics-method" class="hbb-help"></p>
         </section>
-        <section id="hbb-protheus-server-panel" class="hbb-panel hbb-addon-panel" aria-labelledby="hbb-protheus-server-title" hidden>
-            <div class="hbb-panel-head">
-                <h2 id="hbb-protheus-server-title">Protheus · server execution in one StartJob</h2>
-                <span id="hbb-protheus-server-state" class="hbb-badge">Different timing scope</span>
+        <section id="hbb-whole-execution" class="hbb-panel" aria-labelledby="hbb-whole-title">
+            <h2 id="hbb-whole-title">Whole execution · totals</h2>
+            <p class="hbb-total-duration">Complete benchmark: <strong id="hbb-run-time">—</strong></p>
+            <p class="hbb-help">All selected routes, warmups, measured iterations, setup and orchestration. This is a total duration, not an average iteration.</p>
+            <div id="hbb-server-request-details" hidden>
+                <h2>Complete server requests</h2>
+                <p class="hbb-help">Each row is one complete call containing every warmup and measured traversal. These totals include setup and result transport; they are not comparable to the per-iteration averages above. Dividing by measured iterations alone would also include warmup/setup.</p>
+                <div class="hbb-scroll">
+                    <table>
+                        <caption>One request for all server traversals. Internal averages and complete request totals have different scopes.</caption>
+                        <thead><tr><th scope="col">Request</th><th scope="col">Result</th><th scope="col">Complete call elapsed</th><th scope="col">Measured traversals</th><th scope="col">Warmup traversals</th><th scope="col">Included work</th></tr></thead>
+                        <tbody>
+                            <tr id="hbb-addon-request-row" hidden><th scope="row">hbBridge · one ADDON.Execute TCP call</th><td id="hbb-addon-request-state"></td><td id="hbb-addon-call"></td><td id="hbb-addon-request-measured"></td><td id="hbb-addon-request-warmup"></td><td>HRB loading, all traversals, JSON and transport</td></tr>
+                            <tr id="hbb-protheus-server-request-row" hidden><th scope="row">Protheus · one StartJob</th><td id="hbb-protheus-server-request-state"></td><td id="hbb-protheus-server-call"></td><td id="hbb-protheus-server-request-measured"></td><td id="hbb-protheus-server-request-warmup"></td><td>Job/environment preparation, all traversals and result</td></tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
-            <p class="hbb-help">The complete paged SQL traversal runs inside one Protheus StartJob through DBAccess. One job returns benchmark metrics instead of transferring every data page. Compare internal execution with the addon server scope; complete job elapsed is separate.</p>
-            <div class="hbb-cards hbb-actions">
-                <div class="hbb-card"><span class="hbb-card-label">Server traversal average</span><strong id="hbb-protheus-server-average" class="hbb-value hbb-addon">—</strong><span class="hbb-help">successful measured iterations</span></div>
-                <div class="hbb-card"><span class="hbb-card-label">Call elapsed</span><strong id="hbb-protheus-server-call" class="hbb-value">—</strong><span class="hbb-help">one StartJob, including environment preparation, all warmup and measured iterations</span></div>
-                <div class="hbb-card"><span class="hbb-card-label">Measured server rows</span><strong id="hbb-protheus-server-rows" class="hbb-value">—</strong><span class="hbb-help">rows consumed within Protheus</span></div>
-            </div>
-            <div id="hbb-protheus-server-chart" class="hbb-chart-box"></div>
-            <p id="hbb-protheus-server-chart-note" class="hbb-help">Server iteration latency. Warmup is excluded. This timing scope differs from the four client traversal routes.</p>
-            <div class="hbb-scroll">
-                <table>
-                    <caption>Protheus server traversal statistics; call elapsed includes the complete StartJob.</caption>
-                    <thead><tr><th scope="col">Scope</th><th scope="col">Result</th><th scope="col">Samples</th><th scope="col">Min ms</th><th scope="col">Average ms</th><th scope="col">Median ms</th><th scope="col">P95 ms</th><th scope="col">SD ms</th><th scope="col">CV %</th><th scope="col">Max ms</th><th scope="col">Rows / s</th><th scope="col">Rows</th></tr></thead>
-                    <tbody id="hbb-protheus-server-stats-body"></tbody>
-                </table>
-            </div>
-            <p id="hbb-protheus-server-statistics-method" class="hbb-help"></p>
         </section>
         <details class="hbb-panel">
             <summary>Warmup observations — excluded from measured statistics</summary>
@@ -556,8 +578,23 @@ document.addEventListener("DOMContentLoaded", ()=>{
             return svg;
         }
 
-        function AverageChart(routes) {
-            const svg = Chart('average-chart', 'Average complete client traversal in milliseconds. Exact values are available in the statistics table.');
+        function Legend(name, routes) {
+            const legend = Element(name);
+            legend.replaceChildren();
+            routes.forEach(route => {
+                const label = document.createElement('span');
+                label.style.color = route.color;
+                const dot = document.createElement('i');
+                dot.className = 'hbb-dot';
+                dot.setAttribute('aria-hidden', 'true');
+                label.appendChild(dot);
+                label.appendChild(document.createTextNode(route.name));
+                legend.appendChild(label);
+            });
+        }
+
+        function AverageChart(routes, name = 'average-chart', label = 'Average complete client traversal in milliseconds. Exact values are available in the statistics table.') {
+            const svg = Chart(name, label);
             svg.setAttribute('viewBox', '0 0 600 ' + (routes.length * 88 + 40));
             const entries = routes.map(route => ({name: route.name, value: route.data.avgMs, color: route.color}));
             const maximum = Math.max(1, ...entries.filter(entry => Finite(entry.value)).map(entry => entry.value));
@@ -698,6 +735,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
                 Element(name + '-card').hidden = !route;
                 Text(name + '-average', Milliseconds(route ? route.data.avgMs : null));
             });
+            Element('client-cards').hidden = routes.length === 0;
             Element('client-charts').hidden = routes.length === 0;
             Element('client-statistics').hidden = routes.length === 0;
             Text('measured-rows', Format(rows));
@@ -712,38 +750,37 @@ document.addEventListener("DOMContentLoaded", ()=>{
                     Format(transport.measuredCalls), Format(transport.measuredRows)]);
             });
             Text('statistics-method', StatisticsNote(routes));
-            const legend = Element('route-legend');
-            legend.replaceChildren();
-            routes.forEach(route => {
-                const label = document.createElement('span');
-                label.style.color = route.color;
-                const dot = document.createElement('i');
-                dot.className = 'hbb-dot';
-                dot.setAttribute('aria-hidden', 'true');
-                label.appendChild(dot);
-                label.appendChild(document.createTextNode(route.name));
-                legend.appendChild(label);
-            });
-            [{data: addon, key: 'hbbridgeAddon', prefix: 'addon', name: 'Harbour server', color: '#496b32'},
-                {data: protheusServer, key: 'protheusServer', prefix: 'protheus-server', name: 'Protheus server', color: '#a55a24'}].forEach(server => {
+            Legend('route-legend', routes);
+            const servers = [];
+            const serverBody = Element('server-stats-body');
+            serverBody.replaceChildren();
+            [{data: addon, key: 'hbbridgeAddon', prefix: 'addon', name: 'hbBridge addon (server)', color: '#496b32'},
+                {data: protheusServer, key: 'protheusServer', prefix: 'protheus-server', name: 'Protheus server (one StartJob)', color: '#a55a24'}].forEach(server => {
                 Element(server.prefix + '-panel').hidden = !server.data;
+                Element(server.prefix + '-request-row').hidden = !server.data;
                 if (!server.data) return;
                 const data = server.data;
                 const metrics = Metrics(data);
                 const serverPassed = RoutePassed(report, server.key);
-                Text(server.prefix + '-state', serverPassed ? 'PASS · Server timing' : 'FAILED · Partial server timing');
+                servers.push({...server, metrics});
+                Text(server.prefix + '-state', serverPassed ? 'PASS · Internal timing' : 'FAILED · Partial internal timing');
                 Text(server.prefix + '-average', Milliseconds(data.avgMs));
-                Text(server.prefix + '-call', Milliseconds(data.callElapsedMs));
                 Text(server.prefix + '-rows', Format(data.measuredRows));
-                const body = Element(server.prefix + '-stats-body');
-                body.replaceChildren();
-                Row(body, [server.name, serverPassed ? 'PASS' : 'FAILED / not started', Format(metrics.sampleCount),
+                Text(server.prefix + '-request-state', serverPassed ? 'PASS' : 'FAILED / not started');
+                Text(server.prefix + '-call', Milliseconds(data.callElapsedMs));
+                Text(server.prefix + '-request-measured', Format(data.completedIterations));
+                Text(server.prefix + '-request-warmup', Format(data.warmupCompleted));
+                Row(serverBody, [server.name, serverPassed ? 'PASS' : 'FAILED / not started', Format(metrics.sampleCount),
                     Format(data.minMs, 2), Format(data.avgMs, 2), Format(metrics.medianMs, 2), Format(metrics.p95Ms, 2),
                     Format(metrics.stdDevMs, 2), Format(metrics.cvPct, 2), Format(data.maxMs, 2),
                     Format(metrics.throughputRowsSec, 2), Format(data.measuredRows)]);
-                Text(server.prefix + '-statistics-method', StatisticsNote([{name: server.name, metrics}]));
-                SampleChart([{data, color: server.color}], report.iterations, server.prefix + '-chart', server.prefix + '-chart-note');
             });
+            Element('server-panel').hidden = servers.length === 0;
+            Element('server-request-details').hidden = servers.length === 0;
+            Text('server-statistics-method', StatisticsNote(servers));
+            Legend('server-legend', servers);
+            AverageChart(servers, 'server-average-chart', 'Average internal server traversal per measured iteration in milliseconds. Complete request totals are separate.');
+            SampleChart(servers, report.iterations, 'server-sample-chart', 'server-chart-note');
             const diagnosticRoutes = addon ? [...routes, {name: 'hbBridge addon (server)', data: addon}] : [...routes];
             if (protheusServer) diagnosticRoutes.push({name: 'Protheus server (one StartJob)', data: protheusServer});
             AllRoutes.filter(route => selected && !selected[route.key] && Record(report[route.key])).forEach(route => {

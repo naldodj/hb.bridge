@@ -24,6 +24,12 @@ relógios, E/S, verificações de estado mutável nem tamanhos de contêineres q
 crescem/diminuem durante a iteração. O valor armazenado precisa continuar
 válido durante todo o loop.
 
+Na conversão numérica comum para texto em TLPP, use `tlpp.ToStr(nValue)` em vez
+de `AllTrim(Str(nValue))`. Formatação com largura, escala decimal ou máscara
+exigida continua explícita; a conversão genérica não pode substituir esse
+contrato silenciosamente. Escreva condições por alias como `(cAlias)->(!Eof())`,
+mantendo a negação dentro da expressão da área selecionada.
+
 Os fontes separam palavras minúsculas por pontos, como
 `hbbridge.rpc.dataset.tlpp`. Remover os pontos deve produzir o nome da classe
 `HBBridgeRPCDataSet` em minúsculas. Isso não muda os namespaces.
@@ -83,6 +89,28 @@ estado da requisição usa locais/parâmetros ou inicialização explícita. A t
 reutilizada pode conservar valores entre requisições e recargas HRB. Mutexes
 do processo e recursos compartilhados continuam em estáticos sincronizados.
 Veja a [análise do runtime](evolution.pt-BR.md#estado-da-thread-e-estado-da-requisição).
+
+## SETs do runtime e contratos numéricos
+
+Preserve os padrões nativos de apresentação do Harbour (`DECIMALS 2`, `FIXED OFF`);
+aumentar `SET DECIMALS` não corrige a serialização. O núcleo genérico não
+estabelece escala monetária nem acrescenta seção arbitrária de SETs ao INI.
+Um requisito funcional precisa identificar cada configuração, seu escopo e
+sua restauração antes de introduzir parametrização. Escala lógica e
+arredondamento SQL continuam decisões explícitas do chamador.
+
+| Questão | Política |
+| --- | --- |
+| `SET DECIMALS` / `SET FIXED` | Contexto de apresentação/operação, nunca precisão numérica JSON. Preserve o valor nativo finito com `HBBridgeJSONEncode/Decode`, inclusive na ABI JSON dos addons. |
+| Configuração temporária do addon | Salve o valor anterior e restaure em `ALWAYS`, inclusive nos erros. Reutilização de workers e `THREAD STATIC` não reiniciam SETs entre chamadas. |
+| Texto JSON/codepage | Adaptadores TCP/HTTP selecionam UTF8EX na execução e restauram a codepage anterior do worker em toda saída. Configurações e credenciais mantêm os bytes originais. |
+| Configurações de negócio/DBF | Não deduza `DELETED`, `EXACT`, formato de data, epoch, locks ou regras do ERP a partir de alias SQL. Chamador/addon define o comportamento necessário explicitamente e responde pelas mudanças temporárias. |
+
+Ponto flutuante binário continua aproximado. O codec evita arredondamento
+adicional na serialização; não transforma aritmética de ponto flutuante em
+decimal exato. CAST/arredondamento SQL explícito e decimal exato textual
+mantêm seus papéis documentados. Regressões verificam a ABI do addon com
+`DECIMALS 2/18` e `FIXED OFF/ON`, restaurando o contexto anterior do teste.
 
 A documentação inglesa usa o nome de base; a portuguesa acrescenta `.pt-BR`
 antes da extensão. Atualize ambas e preserve aceites, limitações e pendências.

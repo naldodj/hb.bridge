@@ -5,6 +5,31 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Add UTF-8 JSON and MSSQL integrity coverage)"
  */
 
+2026-10-23 14:52 UTC naldodj (Align benchmark comparison scopes and runtime conventions)
+  * Group addon and single-StartJob Protheus internal per-iteration metrics
+    in aligned cards, shared charts and one statistics table. Put whole RPC,
+    whole job and complete benchmark durations in a separate totals section,
+    with measured/warmup counts and explicit setup/transport scope.
+  * Preserve route isolation, authoritative metrics, failed results and safe
+    exports; verify DOM alignment and recorded-report rendering with page
+    HTTP/WebSocket requests blocked. Do not execute supplied external HTML.
+  * Record the provided successful FWWebEx run separately: 1500 measured
+    plus two warmups per selected route, five routes; independent aggregates
+    match relative 1e-9. Source/RPO hashes and physical pooling are not supplied;
+    no comparative-performance or all-platform acceptance is inferred.
+  * Respect private SQL/ODBCPooling in the isolated serve fixture and print
+    its effective policy; preserve the historical 255/off run. An owned
+    500-iteration CLI launcher-budget abort is inconclusive, not product failure.
+  * Keep native DECIMALS 2/FIXED OFF presentation defaults; JSON precision is
+    independent of SETs. Restore temporary addon state, without adding a global
+    SET override. Document tlpp.ToStr and (cAlias)->(!Eof()); preserve TLPP edits.
+  ; Native addon precision/SET matrix: 93 checks passed for DECIMALS 2/18 and
+    FIXED off/on with restoration; full native suite 752/0. Final 54-source
+    TLPP compile: zero errors/exit 0; AppServer control/visual/REST/JSON:
+    82/81/43/31 checks passed. Chromium core 69+30 plus no-channel and recorded
+    preview passed. Revised live FWWebEx layout remains a manual check.
+    Package 002 T01 remains planned.
+
 2026-10-23 09:45 UTC naldodj (Preserve numeric precision across the addon JSON ABI)
   ! Diagnose the supplied 255-iteration and actual TLPP-client 500-iteration
     failures as aggregate JSON rounding: native hb_jsonEncode under

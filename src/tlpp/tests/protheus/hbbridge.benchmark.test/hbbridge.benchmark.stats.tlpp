@@ -57,7 +57,7 @@ static method Calculate(jSamples) class HBBridgeBenchmarkStats
     aNames := jSamples:GetNames()
     nSamples := Len(aNames)
     for nSample := 1 to nSamples
-        cKey := AllTrim(Str(nSample))
+        cKey := tlpp.ToStr(nSample)
         if !jSamples:HasProperty(cKey)
             return jResult
         endif

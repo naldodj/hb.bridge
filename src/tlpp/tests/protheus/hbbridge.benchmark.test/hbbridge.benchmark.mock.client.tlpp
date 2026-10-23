@@ -78,9 +78,9 @@ method CallService(cService, jParams) class HBBridgeBenchmarkMockClient
         nID := (nPage - 1) * nSize + nRow
         jRow := JSONObject():New()
         jRow["ID"] := nID
-        jRow["NAME"] := "hbbridge-" + AllTrim(Str(nID))
+        jRow["NAME"] := "hbbridge-" + tlpp.ToStr(nID)
         jRow["AMOUNT"] := nID / 4
-        jRows[AllTrim(Str(nRow))] := jRow
+        jRows[tlpp.ToStr(nRow)] := jRow
         jRow := Nil
     next nRow
     jPage["number"] := nPage
@@ -134,10 +134,10 @@ static function BenchmarkMockAddon(jState as json, jParams as json) as json
         jSample["rpcCalls"] := nPages
         if nIteration <= nWarmup
             jSample["elapsedMs"] := 10000
-            cKey := AllTrim(Str(nIteration))
+            cKey := tlpp.ToStr(nIteration)
             jWarmup[cKey] := jSample
         else
-            cKey := AllTrim(Str(nIteration - nWarmup))
+            cKey := tlpp.ToStr(nIteration - nWarmup)
             jSamples[cKey] := jSample
         endif
         jSample := Nil

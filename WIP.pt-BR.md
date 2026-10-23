@@ -60,13 +60,13 @@ HTTPS ou BLOB JSON. Veja [encerramento, artefatos e limites](docs/acceptance.pt-
   real antes de registrar aceite. Essa repriorização não implementa contratos
   SQL/apresentação de T01. Veja o [guia do benchmark](docs/benchmarking.pt-BR.md#seleção-de-rotas-e-estatísticas-medidas).
   Evidência atual: compilação isolada de 54 fontes TLPP aprovada, zero erros/
-  saída 0; AppServer isolado aprovou controle/visual/contrato REST com 82/81/43. Teste
+  saída 0; AppServer isolado aprovou controle/visual/REST/JSON com 82/81/43/31. Teste
   MSSQL de correção em um job aprovado (10 linhas, página 5, duas medidas +
-  um aquecimento). Suítes nativas completa/addon pós-codec: 752/74, com
+  um aquecimento). Suítes nativas completa/addon pós-codec: 752/93, com
   precisão/ABI e TCP 254/255/256/500 exatos com SQL simulado/sem pausas.
   Compilação TLPP final: 54 fontes, zero erros/saída 0.
-  Chromium: 3 suítes, 68 observações principais +
-  25 de servidor/timeout. Em 2026-10-23, diagnosticar falha fornecida de 255
+  Chromium principal: 3 suítes, 69 observações de DOM + 30 de servidor/timeout/
+  layout. Prévia opcional do relatório também passou com rede da página bloqueada. Em 2026-10-23, diagnosticar falha fornecida de 255
   iterações e reprodução TLPP/SQL simulado com 500 como arredondamento da média
   JSON na ABI addon/host sob SET DECIMALS 2, sem limite de iterações. Checks de
   amostras retornadas passam; falha somente a precisão dos agregados. Chamada
@@ -77,9 +77,24 @@ HTTPS ou BLOB JSON. Veja [encerramento, artefatos e limites](docs/acceptance.pt-
   e Query simulado, preservando agregados estritos. Separar fixture Windows de
   outras plataformas. MSSQL255 real também passou com TLPP/TCP/HRB,
   1000 linhas/página100, dois aquecimentos, agregados estritos, pooling off/
-  sem pausas. MSSQL500 real continua pendente. Manter acompanhamento manual
-  da implantação equivalente/FWWebEx após recompilar hbBridge, HRB e TLPP.
-  Comprova correção, sem aceite de produção/desempenho. T01 permanece planejada.
+  sem pausas. Tentativa automática de 500 iterações separada esgotou o prazo do executor
+  próprio; é inconclusiva, sem resumo AppServer aprovado. Evidência FWWebEx1500
+  fornecida segue abaixo, sem identificar fontes/pooling. T01 permanece planejada.
+
+- [x] 2026-10-23: revisar JSON/HTML FWWebEx1500 fornecidos com cinco rotas;
+  recálculos independentes de total/média/mediana/P95/desvio populacional
+  coincidem em tolerância 1e-9. Reunir métricas internas do addon Harbour e
+  Protheus em job único em cards alinhados, gráficos compartilhados e tabela
+  única; mover chamadas completas e duração do benchmark para seção separada
+  de totais. Preservar resultados imutáveis, métricas oficiais, exports seguros
+  e escopos cliente/servidor. Compilação final: 54 fontes TLPP/zero erros;
+  AppServer 82/81/43/31; Chromium 69+30 e prévia do relatório aprovados.
+  Matriz SET nativa: 93 checks DECIMALS 2/18 × FIXED off/on e restauração do estado
+  do chamador. Serve mode agora aplica/imprime SQL/ODBCPooling privado;
+  a rodada histórica 255/off preserva seu escopo. Manual1500 fornecido passou
+  1500+2 por rota escolhida; fontes/RPO compilados e pooling efetivo não foram
+  identificados. Confirmar o layout FWWebEx ativo após recompilar; não deduzir
+  ganho comparativo nem aceite de todas as plataformas. Pacote 002 T01 planejado.
 
 ### Decisões preservadas
 

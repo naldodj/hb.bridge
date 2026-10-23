@@ -269,7 +269,7 @@ function U_HBBridgeBenchmarkVisualTest()
         ConOut("hbBridge benchmark visual check " + aNames[nCheck] + ": " + ;
             IIf(jChecks[aNames[nCheck]], "PASS", "FAILED"))
     next nCheck
-    ConOut("hbBridge benchmark visual checks: " + AllTrim(Str(Len(aNames))) + "; " + ;
+    ConOut("hbBridge benchmark visual checks: " + tlpp.ToStr(Len(aNames)) + "; " + ;
         IIf(lOK, "OK", "FAILED"))
     FreeObj(@oController)
     FreeObj(@jInvalid)

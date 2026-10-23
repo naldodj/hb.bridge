@@ -415,7 +415,7 @@ static method PreInitScript(cInstance, nWaitMs, jTypes) class HBBridgeHTTPTableE
         }, {once: true});
     endContent
     cScript := StrTran(cScript, "__INSTANCE__", cInstance)
-    cScript := StrTran(cScript, "__WAIT_MS__", AllTrim(Str(nWaitMs, 15, 0)))
+    cScript := StrTran(cScript, "__WAIT_MS__", tlpp.ToStr(nWaitMs))
     cScript := StrTran(cScript, "__TYPES__", jTypes:ToJSON())
 return(cScript)
 

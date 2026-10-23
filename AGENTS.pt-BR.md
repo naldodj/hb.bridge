@@ -17,6 +17,12 @@
 - Use `#include "totvs.ch"` como include TLPP padrão. Acrescente `tlpp-core.th`,
   `tlpp-rest.th` ou outros headers somente por declarações/macros efetivamente
   utilizados, não apenas por o fonte ter extensão `.tlpp`.
+- Prefira `tlpp.ToStr(nValue)` na conversão numérica comum para texto em TLPP.
+  Use formatação explícita quando largura/escala fizer parte do contrato.
+  Mantenha a negação dentro da expressão do alias: `(cAlias)->(!Eof())`.
+- JSON numérico usa o codec compartilhado que preserva a precisão, independente
+  de `SET DECIMALS`/`SET FIXED`. Não altere SETs globais para corrigir serialização
+  nem inferir arredondamento de negócio. Restaure SETs temporários do addon em toda saída.
 - Agrupe declarações de variáveis por tipo de dado e ordene os grupos
   alfabeticamente pelo prefixo do tipo, por exemplo `a`, `c`, `d`, `j`, `l`,
   `n`, `o`, `x`. Os nomes completos dentro do grupo não precisam de ordem

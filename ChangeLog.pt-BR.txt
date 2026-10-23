@@ -6,6 +6,30 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Adicionar cobertura de integridade para JSON UTF-8 e MSSQL)"
  */
 
+2026-10-23 14:52 UTC naldodj (Alinhar escopos visuais do benchmark e convenções runtime)
+  * Reunir métricas internas por iteração do addon e Protheus em StartJob único
+    em cards alinhados, gráficos compartilhados e tabela estatística única.
+    Separar RPC/job completos e duração total do benchmark em seção de totais,
+    com contagens de medidas/aquecimentos e escopo explícito de preparação/rede.
+  * Preservar isolamento de rotas, métricas oficiais, falhas e exports seguros;
+    verificar alinhamento DOM e renderização do relatório com HTTP/WebSocket
+    da página bloqueados. Não executar HTML externo fornecido.
+  * Registrar manual FWWebEx aprovado separadamente: 1500 medidas mais dois
+    aquecimentos por rota, cinco rotas; recálculo independente em tolerância
+    relativa 1e-9. Hashes dos fontes/RPO e pooling não fornecidos; não deduzir
+    desempenho comparativo nem aceite de todas as plataformas.
+  * Respeitar SQL/ODBCPooling privado na fixture serve isolada e imprimir sua
+    política; preservar a rodada histórica 255/off. Aborto do executor de 500 iterações por
+    prazo próprio é inconclusivo, sem caracterizar falha do produto.
+  * Preservar defaults DECIMALS 2/FIXED OFF; precisão JSON independe de SETs.
+    Restaurar alterações temporárias do addon, sem override SET global.
+    Documentar tlpp.ToStr e (cAlias)->(!Eof()); preservar alterações TLPP.
+  ; Matriz nativa de precisão/SET: 93 checks DECIMALS 2/18 × FIXED off/on e
+    restauração; suíte completa: 752/0. Compilação final de 54 fontes TLPP: zero
+    erros/saída 0; AppServer controle/visual/REST/JSON: 82/81/43/31 aprovados.
+    Chromium 69+30, proteção sem canal e prévia do relatório aprovados.
+    Layout FWWebEx ativo revisado exige check manual; pacote 002 T01 planejado.
+
 2026-10-23 09:45 UTC naldodj (Preservar precisão numérica na ABI JSON dos addons)
   ! Diagnosticar falhas com 255 iterações fornecidas e 500 no cliente TLPP real
     como arredondamento JSON dos agregados: hb_jsonEncode nativo com

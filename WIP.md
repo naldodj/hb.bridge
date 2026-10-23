@@ -60,12 +60,13 @@ is inferred. See [closure, exact artifacts and limitations](docs/acceptance.md#p
   reprioritization does not implement the SQL/presentation contracts of T01.
   See the [benchmark guide](docs/benchmarking.md#route-selection-and-measured-statistics).
   Current evidence: isolated 54-source TLPP compile passed, zero errors/exit 0;
-  actual isolated AppServer control/visual/REST contract checks passed 82/81/43. Real single-job
+  actual isolated AppServer control/visual/REST/JSON checks passed 82/81/43/31. Real single-job
   MSSQL correctness smoke passed (10 rows, page 5, two measured + one warmup).
-  Post-codec native full/addon: 752/74, including precision/ABI and exact
+  Post-codec native full/addon: 752/93, including precision/ABI and exact
   TCP 254/255/256/500 with SQL mock/no sleeps. Final 54-source TLPP compile
   passed with zero errors/exit 0.
-  Chromium: 3 suites passed, 68 main DOM + 25 server/timeout observations.
+  Chromium core: 3 suites passed, 69 main DOM + 30 server/timeout/layout checks.
+  Optional recorded-report preview also passed with page network requests blocked.
   2026-10-23: diagnose the supplied 255-iteration failure and actual TLPP-client
   500-iteration SQL-mock reproduction as addon-ABI JSON mean rounding under
   SET DECIMALS 2, not an iteration limit. All returned sample checks pass;
@@ -77,10 +78,26 @@ is inferred. See [closure, exact artifacts and limitations](docs/acceptance.md#p
   Query, preserving strict aggregates. Keep Windows fixture scope distinct
   from other platforms and real-backend acceptance.
   Real MSSQL255 also passed: actual TLPP/TCP/HRB, 1000 rows/page100, two
-  warmups, strict aggregates, pooling off/no sleeps. Real MSSQL500 is pending.
-  Manual matched-deployment/FWWebEx follow-up remains pending after rebuilding
-  hbBridge, HRB and TLPP together. This is correctness evidence rather than
-  production/performance acceptance. T01 remains planned.
+  warmups, strict aggregates, pooling off/no sleeps. A separate automated500
+  attempt exhausted the owned launcher's budget and is inconclusive, without
+  a passing AppServer result. User-provided FWWebEx1500 evidence follows below;
+  it does not identify source/pooling. T01 remains planned.
+
+- [x] 2026-10-23: review the provided five-route FWWebEx1500 JSON/HTML run;
+  independent totals/mean/median/P95/population-SD checks match within 1e-9.
+  Group Harbour addon and Protheus single-job internal metrics in aligned
+  cards, shared charts and one table; move complete requests and benchmark
+  duration into a separate totals section. Preserve immutable results,
+  authoritative metrics, export safety and client/server scope separation.
+  Final compile: 54 TLPP sources/zero errors; AppServer checks 82/81/43/31;
+  Chromium 69+30 core observations and recorded-report preview passed.
+  Native addon SET matrix: 93 checks across DECIMALS 2/18 × FIXED off/on,
+  restoring caller state. Fixture serve mode now applies/prints private
+  SQL/ODBCPooling; the historical 255/off run retains its own scope.
+  Provided manual 1500-iteration run passed 1500+2 per selected route; compiled
+  source/RPO identity and effective pooling are not supplied. Confirm the revised live
+  FWWebEx layout after recompiling; do not infer comparative performance or
+  all-platform acceptance. Package 002 T01 remains planned.
 
 ### Decisions retained
 

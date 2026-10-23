@@ -222,7 +222,8 @@ traversals, not raw SQL/network transfer. Five samples make P95 the observed
 maximum; this is insufficient to infer a production tail. Missing/zero
 denominators remain unavailable. Relative client comparisons require matching
 complete successful workloads; addon and Protheus-server internal timing remain
-in separate panels, outside client charts and fastest-route rankings.
+together in a server-processing section, outside client charts and rankings.
+Complete calls remain in a separate totals section, not average cards.
 See the [statistical method and timing scopes](../../../../../docs/benchmarking.md#route-selection-and-measured-statistics).
 
 This maintenance requires its own focused regression/real AppServer checks.
@@ -231,16 +232,16 @@ actual isolated AppServer CLI passed 82 control, 81 visual/controller and 43
 REST contract checks.
 A real MSSQL single-StartJob correctness smoke passed (10 rows, page size 5,
 two measured traversals, one warmup); it is not a performance baseline.
-Post-codec full native/addon suites passed 752/74 checks, including exact
+Post-codec full native/addon suites passed 752/93 checks, including exact
 SQL-mock TCP iteration boundaries. Final 54-source TLPP compilation passed
 with zero errors/exit 0.
-Latest actual Chromium checks passed three suites: 68 main DOM assertions,
-25 optional-route/server/timeout assertions and the no-channel guard. A later
+Latest actual Chromium checks passed three core suites: 69 main DOM assertions,
+30 optional-route/server/timeout/layout assertions and the no-channel guard. A later
 actual-TLPP-client 500-iteration SQL-mock reproduction isolated an aggregate
 precision failure at the addon JSON ABI. Actual TLPP-client 255/500 SQL-mock checks passed after the codec repair;
 real MSSQL 255 measured + two warmups also passed with 1000 rows/page100,
-ODBC pooling off and no artificial sleeps. Real MSSQL500 and manual FWWebEx/
-matched-deployment validation remain pending. Any subsequent source
+ODBC pooling off and no artificial sleeps. A later provided FWWebEx1500 run passed; its source/pooling identity is not
+supplied. Confirm the revised live layout after recompilation. Any subsequent source
 changes require targeted recompilation. The 2026-10-19 acceptance below
 identifies the earlier version.
 
@@ -294,7 +295,9 @@ separate addon timeout. [Detailed policy and limits](../../../../../docs/benchma
 and executes all warmup/measured paged traversals inside Protheus/DBAccess,
 returning only metrics. Its internal `samples.*.elapsedMs` excludes job setup;
 `callElapsedMs` includes the complete StartJob, environment preparation, all
-iterations and result. Its panel sits beside the addon; compare matching
+iterations and result. Both internal server routes share aligned cards, charts and one statistics
+table. Complete RPC/StartJob requests are in a separate totals table with all
+warmup/measured counts; compare matching
 internal scopes or matching whole calls. StartJob remains synchronous and its
 deadline can only be checked after blocking work returns. Page closure or a
 client timeout does not prove cancellation.
@@ -311,13 +314,14 @@ whole-call timeout. [Diagnosis and exact scope](../../../../../docs/benchmarking
 The `hb_idleSleep(1.5)` workaround is removed: it changed pacing and added
 1.5 seconds per traversal outside measured samples without repairing JSON
 precision. Preserve that limitation for prior reports. Post-codec ABI suite:
-74 checks passed. Actual TLPP clients passed 255 measured + two warmups and
+93 checks passed, including SET DECIMALS 2/18 × FIXED off/on and restoration. Actual TLPP clients passed 255 measured + two warmups and
 500 + zero through the real Harbour TCP host/HRB and mock Query service,
 with strict aggregate validation. The full native suite and 54-source TLPP
 compilation also passed after repair. Actual TLPP→TCP→HRB→MSSQL also passed
 255 measured + two warmups, 1000 rows/page100, with strict aggregate checks,
-ODBC pooling off and no artificial sleeps. Real MSSQL500 and manual FWWebEx/
-matched-deployment checks remain pending. These correctness fixtures do not
+ODBC pooling off and no artificial sleeps. The later provided manual FWWebEx1500 run passed; its source/pooling identity
+is not supplied. A separate automated MSSQL500 attempt exhausted its launcher
+budget and is inconclusive. Confirm the revised live layout after recompilation. These correctness fixtures do not
 establish performance gains or all-platform acceptance. Rebuild hbBridge,
 HRB and TLPP together before repeating the supplied case.
 
@@ -362,8 +366,11 @@ $arguments = @('--profile=MSSQL/pData', '--host=127.0.0.1', "--port=$fixturePort
 Repeat with `--iterations=500`; retain the same selected workload and explicit
 policy. Increase the user ceiling deliberately when the reported estimate is
 capped or the deployment requires it; do not treat a chosen estimate as a
-completion guarantee. This fixture leaves ODBC physical pooling **off** and
-loads only the selected profile, not other runtime settings from the INI.
+completion guarantee. With a private profile, this fixture honors its
+`[SQL] ODBCPooling` policy before connecting and prints effective `odbcPooling`
+in the ready line; other runtime settings are not implicitly reproduced.
+The earlier automated 255 run used pooling off. Record the current ready
+policy instead of assuming it matches that run or the active deployment.
 Its correctness measurements do not assume the user's running server has the
 same pooling/cache/load or prove a performance improvement. For matched
 performance comparisons use the rebuilt product with explicitly recorded

@@ -31,7 +31,7 @@ function Get-BenchmarkFixtureSQL {
     }
     $expression = $functionBody.Substring($returnMatch.Index)
     $expression = [regex]::Replace($expression, '(?i)^\s*return\s*', '')
-    $tokenPattern = '"(?<literal>[^"]*)"|(?<digits>\bcDigits\b)|(?<rows>hb_ntos\s*\(\s*nRows\s*\)|AllTrim\s*\(\s*Str\s*\(\s*nRows\s*\)\s*\))'
+    $tokenPattern = '"(?<literal>[^"]*)"|(?<digits>\bcDigits\b)|(?<rows>hb_ntos\s*\(\s*nRows\s*\)|tlpp\.ToStr\s*\(\s*nRows\s*\)|AllTrim\s*\(\s*Str\s*\(\s*nRows\s*\)\s*\))'
     $residue = [regex]::Replace($expression, $tokenPattern, '', 'IgnoreCase')
     if ([regex]::Replace($residue, '[\s+;()]', '') -ne '') {
         throw "Unsupported benchmark fixture expression in $FunctionName."

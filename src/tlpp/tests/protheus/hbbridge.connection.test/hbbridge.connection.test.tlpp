@@ -103,7 +103,7 @@ procedure U_HBBridgeConnectionTest(cHost, nPort, nTimeout, nLargePayloadBytes)
             ConOut("hbBridge Echo fragmented FAILED: " + Left(jResponse:ToJSON(), 1024))
             lOk := .F.
         else
-            ConOut("hbBridge Echo fragmented Protheus OK: 200000 bytes, identical content; gzip request=" + AllTrim(Str(nCompressed)) + " bytes.")
+            ConOut("hbBridge Echo fragmented Protheus OK: 200000 bytes, identical content; gzip request=" + tlpp.ToStr(nCompressed) + " bytes.")
         endif
         FreeObj(@jResponse)
     endif

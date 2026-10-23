@@ -28,7 +28,7 @@ function U_HBBridgeBenchmarkControlTest()
         lOK := jChecks[cName] .and. lOK
         ConOut("hbBridge benchmark control check " + cName + ": " + IIf(jChecks[cName], "PASS", "FAILED"))
     next nCheck
-    ConOut("hbBridge benchmark control checks: " + AllTrim(Str(nChecks)) + "; " + IIf(lOK, "OK", "FAILED"))
+    ConOut("hbBridge benchmark control checks: " + tlpp.ToStr(nChecks) + "; " + IIf(lOK, "OK", "FAILED"))
     FreeObj(@jChecks)
 
 return(IIf(lOK, 0, 1))
@@ -417,7 +417,7 @@ static function BenchmarkControlSamples(nSamples as numeric) as json
         jSample["elapsedMs"] := nSample
         jSample["rowsRead"] := 10
         jSample["rpcCalls"] := 2
-        jSamples[AllTrim(Str(nSample))] := jSample
+        jSamples[tlpp.ToStr(nSample)] := jSample
         jSample := Nil
     next nSample
 

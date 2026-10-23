@@ -313,14 +313,14 @@ fontes TLPP foram recompilados com sucesso, zero erros/saída 0; somente
 artefatos da revisão correspondente comprovam esse check.
 
 Após corrigir o codec, a suíte nativa completa passou 752 checks e a de addon
-passou 74 checks: valores racionais/muito
+passou 93 checks: valores racionais/muito
 pequenos/grandes em parâmetros/retornos sob SET DECIMALS 2, espaços JSON
 aceitos, conteúdo inválido após JSON rejeitado, ida/volta TCP de `1/3` e
 agregados exatos em 254/255/256/500 iterações sem pausas com SQL simulado.
 Esse mock comprova seu escopo de transporte/fixture, sem homologar carga MSSQL.
 O cliente TLPP real também passou os checks pós-correção em 255/500 abaixo. O Chromium real
-mais recente passou nas três suítes: 68 asserções principais de DOM, 25 de
-rotas opcionais/servidor/timeout e proteção sem canal. Cobre estimativas em
+mais recente passou nas três suítes principais: 69 asserções de DOM, 30 de
+rotas opcionais/servidor/timeout/layout e proteção sem canal. Cobre estimativas em
 254/255/500, teto/modo manual, mapas antigos, política própria do relatório,
 falhas visíveis, exports e séries grandes. Fixtures de navegador não homologam
 SQL/StartJob reais.
@@ -346,13 +346,17 @@ usa os existentes `HBBridgeJSONEncode()`/`HBBridgeJSONDecode()` no addon de
 benchmark e na passagem nativa comum, preservando ABI JSON e validação
 estrita, sem aumentar tolerâncias. Recompilar host e HRB juntos para incluir
 o codec que preserva precisão dos dois lados.
+Defaults de apresentação continuam `DECIMALS 2` / `FIXED OFF`; a precisão JSON
+independe dessas opções. Veja a [política SET runtime](standards.pt-BR.md)
+para alterações temporárias do addon e restauração.
 
 O contorno local `hb_idleSleep(1.5)` é removido: acrescenta 1.5 segundo por
 varredura executada fora da amostra e altera ritmo/duração completos, sem
 corrigir aritmética JSON. Rodadas anteriores com pausa preservam essa
 limitação. Testes Windows TCP nativos com 254/255/256/500, SQL simulado e sem
-pausas passaram com agregados exatos após a correção; a suíte de precisão/ABI
-passou 74 checks. O cliente Protheus TLPP real depois passou 255 varreduras
+pausas passaram com agregados exatos após a correção; a suíte de precisão/ABI/SET
+passou 93 checks, incluindo SET DECIMALS 2/18 × FIXED off/on e restauração
+das configurações do chamador. O cliente Protheus TLPP real depois passou 255 varreduras
 medidas mais dois aquecimentos e 500 mais zero aquecimentos, usando host/HRB
 Harbour TCP reais e serviço Query simulado. A validação estrita de agregados
 passou nas duas rodadas. As médias preservaram
@@ -370,12 +374,59 @@ chamada completa de 243648.6517 ms abaixo de 900 segundos. Essa rodada usou
 pooling físico ODBC **off**, perfil privado explícito e nenhuma pausa
 artificial. Seu tempo comprova correção nesse escopo, sem comparar com
 pooling/cache/carga da implantação original nem alegar ganho de desempenho.
-O caso real correspondente com 500 iterações continua em execução/aceite pendente.
+A tentativa automática separada com 500 iterações excedeu o prazo do executor;
+o cliente foi fechado antes de o worker nativo retornar. Não fornece resumo
+AppServer aprovado nem homologa falha de codec/SQL. A rodada manual posterior
+com 1500 iterações abaixo preserva seu escopo próprio.
 
 Não deduzir aceite Linux/amplo de plataformas. Recompilar hbBridge, HRB de
 benchmark e TLPP atuais juntos antes de repetir o caso na implantação normal.
 Manter homologação manual FWWebEx e validação equivalente da implantação/
 desempenho separadas. T01 do pacote 002 permanece planejada.
+
+## Rodada FWWebEx fornecida e revisão visual em 2026-10-23
+
+A rodada JSON/HTML fornecida `41C06CC62E8CBC4F8F20C1D597D64FDB` informa sucesso
+com 1500 varreduras medidas e dois aquecimentos, 1000 linhas/página100 no
+perfil `MSSQL/pData`. TCP, HTTP, REST Protheus, addon Harbour e servidor
+Protheus em um job terminaram; StartJob por página foi explicitamente ignorado.
+As cinco rotas registram 1500 amostras medidas concluídas e 1500000 linhas
+medidas. Recálculo independente de totais compensados, mediana, P95 nearest-rank
+e desvio padrão populacional coincide com os agregados em tolerância relativa
+`1e-9`. Os arquivos fornecidos não identificam hashes dos fontes compilados/RPO
+nem pooling físico efetivo; essa evidência manual fica separada das fixtures.
+
+| Rota | Média por varredura medida (ms) | Chamada completa no servidor (ms) |
+| --- | ---: | ---: |
+| Cliente hbBridge TCP | 419.780244 | Escopo diferente: chamadas por página |
+| Cliente hbBridge HTTP | 625.264503 | Escopo diferente: chamadas por página |
+| Cliente REST Protheus | 754.723923 | Escopo diferente: chamadas por página |
+| Addon Harbour, interno | 372.073333 | 558809.079800 |
+| Servidor Protheus em um job, interno | 540.832381 | 815965.000300 |
+
+A RPC completa do addon inclui soma medida de 558110 ms, aquecimentos de
+562 ms e outros trabalhos da chamada; Protheus inclui soma medida de
+811248.5717015 ms, aquecimentos de 989.5229 ms e trabalho do job/ambiente/
+resultado. Essas chamadas completas não são uma iteração. Diferenças restantes
+não constituem cronômetros isolados da rede.
+
+A página revisada reúne ambas as rotas internas em cards alinhados, gráficos
+por iteração compartilhados e tabela estatística única. RPC inteira do addon,
+StartJob inteiro e duração total do benchmark ficam em seção de totais separada,
+com contagens de medidas/aquecimentos e trabalho incluído. Escopos/rankings de
+cliente e processamento interno continuam separados. Exports seguros mantêm a
+mesma organização. O HTML real do projeto foi renderizado com o JSON fornecido,
+bloqueando requisições HTTP/WebSocket externas; o HTML externo não foi executado.
+Checks Chromium cobrem alinhamento, separação de escopos e export standalone;
+prévia adicional com screenshot do relatório somente para leitura passou.
+
+O executor de fixture agora respeita `[SQL] ODBCPooling` privado e imprime
+`odbcPooling` nos metadados ready. A rodada automática 255 anterior usou pooling
+off; esse registro histórico continua válido. Registrar o valor ready efetivo
+de cada nova rodada, sem presumir equivalência com o relatório manual fornecido.
+Confirmar o layout FWWebEx ativo revisado após recompilar TLPP; comparações de
+desempenho exigem implantação/carga equivalentes e fontes/pooling/cache
+identificados. T01 permanece planejada.
 
 ## Comparação visual e pacotes homologados em 2026-10-19
 

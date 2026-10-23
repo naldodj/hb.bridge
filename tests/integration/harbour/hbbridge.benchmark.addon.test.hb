@@ -1,6 +1,7 @@
 /* Released to Public Domain. */
 #include "hbhrb.ch"
 #include "hbsocket.ch"
+#include "set.ch"
 
 PROCEDURE BenchmarkAddonTests( cAddonRoot, cRunMode, cServeSeconds, cConfig, cProfile )
 
@@ -272,36 +273,68 @@ RETURN HBBridgeRegistrySeal( hRegistry )
 
 STATIC PROCEDURE BenchmarkAddonNumbers( hRegistry, hContext, nFailures, nChecks )
 
-    LOCAL hParams, hResult
+    LOCAL cCase, cWhitespace
 
-    /* SET DECIMALS 2 must not change the external JSON numeric value. */
-    SET DECIMALS TO 2
-    hParams := { "mean" => 1 / 3, "small" => 0.00000000000000000001, "large" => 9007199254740991 }
-    hResult := HBBridgeDispatch( hRegistry, "ADDON.Execute", ;
-        { "module" => "hbbridge.numeric.addon.hrb", "params" => hParams }, hContext )
-    BenchmarkAddonAssert( hb_HGetDef( hResult, "success", .F. ), ;
-        "numeric addon ABI fixture succeeds under SET DECIMALS 2", @nFailures, @nChecks )
-    IF hb_HGetDef( hResult, "success", .F. )
-        BenchmarkAddonAssert( hResult[ "received" ][ "mean" ] == 1 / 3 .AND. ;
-            hResult[ "received" ][ "small" ] == 0.00000000000000000001 .AND. ;
-            hResult[ "received" ][ "large" ] == 9007199254740991, ;
-            "host-to-HRB JSON preserves fractional, tiny and large numbers", @nFailures, @nChecks )
-        BenchmarkAddonAssert( hResult[ "avgMs" ] == hResult[ "totalMs" ] / hResult[ "completedIterations" ] .AND. ;
-            hResult[ "small" ] == 0.00000000000000000001 .AND. hResult[ "large" ] == 9007199254740991, ;
-            "HRB-to-host JSON preserves exact mean and numeric values", @nFailures, @nChecks )
-        BenchmarkAddonAssert( hResult[ "decimalText" ] == "12345678901234567890.123456789", ;
-            "exact textual decimal remains textual at addon ABI", @nFailures, @nChecks )
-    ENDIF
-    hParams[ "suffix" ] := " " + Chr( 9 ) + Chr( 13 ) + Chr( 10 )
-    hResult := HBBridgeDispatch( hRegistry, "ADDON.Execute", ;
-        { "module" => "hbbridge.numeric.addon.hrb", "params" => hParams }, hContext )
-    BenchmarkAddonAssert( hb_HGetDef( hResult, "success", .F. ), ;
-        "addon result accepts JSON trailing whitespace", @nFailures, @nChecks )
-    hParams[ "suffix" ] := "{}"
-    hResult := HBBridgeDispatch( hRegistry, "ADDON.Execute", ;
-        { "module" => "hbbridge.numeric.addon.hrb", "params" => hParams }, hContext )
-    BenchmarkAddonAssert( hb_HGetDef( hResult, "code", "" ) == "ADDON_RESULT", ;
-        "addon result rejects trailing non-whitespace JSON", @nFailures, @nChecks )
+    LOCAL hCases, hCase, hParams, hResult
+
+    LOCAL lPreviousFixed
+
+    LOCAL nPreviousDecimals
+
+    /* Numeric presentation settings must not change the binary numeric value
+     * crossing JSON. This does not turn floating arithmetic into decimal math.
+     * Keep all test-only SET changes local in time, including failure cleanup.
+     */
+    lPreviousFixed := Set( _SET_FIXED )
+    nPreviousDecimals := Set( _SET_DECIMALS )
+    cWhitespace := " " + Chr( 9 ) + Chr( 13 ) + Chr( 10 )
+    hCases := { ;
+        "DECIMALS=2; FIXED=off" => { "decimals" => 2, "fixed" => .F. }, ;
+        "DECIMALS=2; FIXED=on" => { "decimals" => 2, "fixed" => .T. }, ;
+        "DECIMALS=18; FIXED=off" => { "decimals" => 18, "fixed" => .F. }, ;
+        "DECIMALS=18; FIXED=on" => { "decimals" => 18, "fixed" => .T. } }
+    BEGIN SEQUENCE WITH __BreakBlock()
+        FOR EACH hCase IN hCases
+            cCase := hCase:__enumKey()
+            Set( _SET_DECIMALS, hCase[ "decimals" ] )
+            Set( _SET_FIXED, hCase[ "fixed" ] )
+            hParams := { "mean" => 1 / 3, "small" => 0.00000000000000000001, ;
+                "large" => 9007199254740991, "decimalText" => "12345678901234567890.123456789" }
+            hResult := HBBridgeDispatch( hRegistry, "ADDON.Execute", ;
+                { "module" => "hbbridge.numeric.addon.hrb", "params" => hParams }, hContext )
+            BenchmarkAddonAssert( hb_HGetDef( hResult, "success", .F. ), ;
+                cCase + ": numeric addon ABI fixture succeeds", @nFailures, @nChecks )
+            IF hb_HGetDef( hResult, "success", .F. )
+                BenchmarkAddonAssert( hResult[ "received" ][ "mean" ] == 1 / 3 .AND. ;
+                    hResult[ "received" ][ "small" ] == 0.00000000000000000001 .AND. ;
+                    hResult[ "received" ][ "large" ] == 9007199254740991 .AND. ;
+                    hResult[ "received" ][ "decimalText" ] == "12345678901234567890.123456789", ;
+                    cCase + ": host-to-HRB JSON preserves numbers and decimal text", @nFailures, @nChecks )
+                BenchmarkAddonAssert( hResult[ "avgMs" ] == hResult[ "totalMs" ] / hResult[ "completedIterations" ] .AND. ;
+                    hResult[ "small" ] == 0.00000000000000000001 .AND. hResult[ "large" ] == 9007199254740991, ;
+                    cCase + ": HRB-to-host JSON preserves binary numeric values", @nFailures, @nChecks )
+                BenchmarkAddonAssert( hResult[ "decimalText" ] == "12345678901234567890.123456789", ;
+                    cCase + ": exact textual decimal remains textual at addon ABI", @nFailures, @nChecks )
+            ENDIF
+            hParams[ "suffix" ] := cWhitespace
+            hResult := HBBridgeDispatch( hRegistry, "ADDON.Execute", ;
+                { "module" => "hbbridge.numeric.addon.hrb", "params" => hParams }, hContext )
+            BenchmarkAddonAssert( hb_HGetDef( hResult, "success", .F. ), ;
+                cCase + ": addon result accepts JSON trailing whitespace", @nFailures, @nChecks )
+            hParams[ "suffix" ] := "{}"
+            hResult := HBBridgeDispatch( hRegistry, "ADDON.Execute", ;
+                { "module" => "hbbridge.numeric.addon.hrb", "params" => hParams }, hContext )
+            BenchmarkAddonAssert( hb_HGetDef( hResult, "code", "" ) == "ADDON_RESULT", ;
+                cCase + ": addon result rejects trailing non-whitespace JSON", @nFailures, @nChecks )
+        NEXT
+    RECOVER
+        BenchmarkAddonAssert( .F., "numeric addon SET regression raised an exception", @nFailures, @nChecks )
+    ALWAYS
+        Set( _SET_DECIMALS, nPreviousDecimals )
+        Set( _SET_FIXED, lPreviousFixed )
+    END SEQUENCE
+    BenchmarkAddonAssert( Set( _SET_DECIMALS ) == nPreviousDecimals .AND. Set( _SET_FIXED ) == lPreviousFixed, ;
+        "numeric addon regression restores the previous numeric settings", @nFailures, @nChecks )
 
 RETURN
 

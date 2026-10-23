@@ -85,8 +85,8 @@ static method Page(cRequestJSON) class HBBridgeBenchmarkProtheus
         cFixture := HBBridge.Test.HBBridgeBenchmarkTest():FixtureSQL(nRows)
         cSQL := "SELECT HBBPAGE.* FROM (SELECT ROW_NUMBER() OVER (ORDER BY HBBSRC.[ID] ASC)" + ;
             " AS __HBBRIDGE_ROWNO, HBBSRC.* FROM (" + cFixture + ") AS HBBSRC) AS HBBPAGE " + ;
-            "WHERE HBBPAGE.__HBBRIDGE_ROWNO BETWEEN " + AllTrim(Str(nFirst, 20, 0)) + ;
-            " AND " + AllTrim(Str(nEnd, 20, 0)) + " ORDER BY HBBPAGE.__HBBRIDGE_ROWNO"
+            "WHERE HBBPAGE.__HBBRIDGE_ROWNO BETWEEN " + tlpp.ToStr(nFirst) + ;
+            " AND " + tlpp.ToStr(nEnd) + " ORDER BY HBBPAGE.__HBBRIDGE_ROWNO"
 
         DbSelectArea(0)
         nQueryArea := Select()
@@ -100,7 +100,7 @@ static method Page(cRequestJSON) class HBBridgeBenchmarkProtheus
         jHeader["ID"] := ProtheusBenchmarkField(1, "N", 10, 0)
         jHeader["NAME"] := ProtheusBenchmarkField(2, "C", 32, 0)
         jHeader["AMOUNT"] := ProtheusBenchmarkField(3, "N", 15, 2)
-        while !(cAlias)->(Eof())
+        while (cAlias)->(!Eof())
             if nRow == nSize
                 lHasNext := .T.
                 exit
@@ -110,7 +110,7 @@ static method Page(cRequestJSON) class HBBridgeBenchmarkProtheus
             jRow["NAME"] := (cAlias)->(FieldGet(FieldPos("NAME")))
             jRow["AMOUNT"] := (cAlias)->(FieldGet(FieldPos("AMOUNT")))
             nRow++
-            jRows[AllTrim(Str(nRow))] := jRow
+            jRows[tlpp.ToStr(nRow)] := jRow
             jRow := Nil
             (cAlias)->(DbSkip())
         enddo
