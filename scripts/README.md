@@ -107,6 +107,12 @@ Reusable validation helpers are maintained here: `check-doc-links.ps1`,
 `test-harbour-thread-state.ps1` and `run-protheus-cli.ps1`. The last requires
 explicit SDK/INI/program arguments and reports process results, not inferred
 assertion success. See the [source-based recipes](../docs/validation/README.md).
+The supplied INI must reside beside the supplied isolated SDK executable;
+the tested AppServer rejects directory information in `-ini`. The launcher
+omits that option for default `appserver.ini`, or passes another INI by its
+basename as a separate argument. It does not copy an INI into or change a
+running installation. See the
+[TOTVS command-line reference](https://tdn.totvs.com/display/tec/Application%2BServer%2B-%2BCommand%2BLine).
 
 ## Commit validation
 
@@ -235,9 +241,10 @@ optional `-Route http -ServeSeconds 600` host for the
 
 ## Optional Protheus comparison and benchmark addon
 
-The [visual benchmark](../src/tlpp/tests/protheus/hbbridge.benchmark.test/README.md#four-client-routes-and-a-server-only-addon)
-compares hbBridge TCP/HTTP with Protheus StartJob/REST and an additional Harbour
-addon. All use the fixed paged fixture. StartJob includes worker/environment
+The [visual benchmark](../src/tlpp/tests/protheus/hbbridge.benchmark.test/README.md#four-client-routes-and-two-server-only-scopes)
+compares hbBridge TCP/HTTP with Protheus StartJob/REST and separate Harbour
+addon/Protheus single-job server scopes. All use the fixed paged fixture.
+Per-page StartJob includes worker/environment
 preparation per page; it does not simulate TCP network traffic. The addon runs
 complete traversals inside hbBridge and returns statistics only. Its internal
 measurements exclude transport and HRB loading; the enclosing single
@@ -257,6 +264,28 @@ reload and cleanup. Its log is `tmp/benchmark-addon-tests-<id>/results.log`.
 It requires the managed ODBC/Zig build dependencies, but no live MSSQL credentials.
 These checks do not establish AppServer or real MSSQL acceptance.
 
+To keep a freshly built isolated addon fixture available for an actual TLPP
+client, run it in a separate terminal:
+
+```powershell
+./scripts/test-hbbridge-benchmark-addon.ps1 -Serve -ServeSeconds 1800 `
+    -Config C:/tmp/hbbridge.ini -Profile MSSQL/pData
+```
+
+`-Config` and `-Profile` are optional together and require `-Serve`. With them,
+the host loads only that explicitly selected MSSQL profile into its built-in
+registry. It prints its ephemeral loopback TCP port, profile/backend and
+module `hbbridgebenchmarkaddon.hrb`; it never edits private INI or an existing
+service. Without the pair, serve mode uses the SQL mock. The owned server exits
+at `-ServeSeconds` (1..3600) or when `stop.request` appears in its printed run
+directory. Setup/compilation are separate from serving and sample timing.
+
+This minimal fixture leaves ODBC physical pooling **off**; it does not apply
+other runtime settings from the private configuration or reproduce a running
+server's pooling policy. It is a correctness/reproduction host, not a matched
+performance deployment. Use the
+[client/module and 255/500-run recipe](../src/tlpp/tests/protheus/hbbridge.benchmark.test/README.md#reproduce-the-addon-host-with-an-explicit-mssql-profile).
+
 Merge the [REST configuration fragment](../config/hbbridge.benchmark.rest.md)
 into the existing deployment: reuse one REST 2.0 listener with `Security=1`,
 its TLS configuration and deployment-owned company/branch preparation.
@@ -266,6 +295,7 @@ HTTP Basic credentials before the endpoint. No extra listener or benchmark
 bearer token is required. Browser input cannot supply SQL, ERP context or
 credentials; the trusted AppServer context and configuration supply them.
 `BenchmarkAddonModule` selects the installed HRB and
-`BenchmarkAddonTimeoutSeconds` budgets its complete call. Expanded runtime
-validation remains pending in [WIP](../WIP.md), separately from the accepted
-M08 baseline.
+`BenchmarkAddonTimeoutSeconds` budgets legacy calls. Explicit new timeout
+policy supplies the effective complete-call budget instead. Current automated
+checks and remaining manual acceptance are recorded in [WIP](../WIP.md),
+separately from the historical M08 baseline.

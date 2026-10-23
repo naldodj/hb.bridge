@@ -5,21 +5,57 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Add UTF-8 JSON and MSSQL integrity coverage)"
  */
 
-2026-10-22 19:46 UTC naldodj (Control benchmark routes and measured statistics)
-  + Select actual TCP, HTTP, Protheus StartJob/REST and addon execution through
-    a complete optional route map and CLI --routes; preserve legacy defaults.
-    Validate only selected dependencies and record skipped/failed route states.
+2026-10-23 09:45 UTC naldodj (Preserve numeric precision across the addon JSON ABI)
+  ! Diagnose the supplied 255-iteration and actual TLPP-client 500-iteration
+    failures as aggregate JSON rounding: native hb_jsonEncode under
+    SET DECIMALS 2 serializes 1/3 as 0.33 before the outer wire codec.
+    Preserve the existing HBBridgeJSONEncode/Decode at benchmark addon and
+    native host handoff; retain JSON ABI shape and strict aggregate validation.
+  - Remove the local 1.5s pacing workaround; it added whole-call time outside
+    measured samples and did not repair mean precision or establish a limit.
+  ; Supplied resultValidation confirms 255 measured samples plus two warmups
+    valid, only statisticsValid=false; call 87.9255s is below the 900s budget.
+    Rebuilt host/HRB addon suite passed 74 precision/ABI checks, including
+    framed TCP 1/3 and exact 254/255/256/500 aggregates without sleeps.
+    Full native: 752/0; final TLPP compile: 54 sources, zero errors/exit 0.
+    Final AppServer control/visual/REST contract checks: 82/81/43, zero failures.
+    Actual TLPP client passed 255 measured plus two warmups and 500 plus zero
+    through the real TCP host/HRB with Query mock, strict aggregate checks true.
+    Real TLPP/TCP/HRB/MSSQL255 also passed: 1000 rows/page100, two warmups,
+    strict aggregates, pooling off/no sleeps; call 243648.6517ms below 900s.
+    Real MSSQL500 and manual FWWebEx/matched deployment remain pending;
+    correctness fixtures do not establish all-platform support/performance gains.
+
+2026-10-23 02:20 UTC naldodj (Control benchmark routes, statistics and call budgets)
+  + Select actual TCP, HTTP, per-page Protheus StartJob/REST, addon and
+    server-only Protheus execution through optional route maps and CLI --routes.
+    Run all Protheus server traversals inside one owned StartJob; distinguish
+    internal samples from complete job/RPC elapsed and client traversal timings.
+    Validate selected dependencies, preserve legacy five-key maps/defaults and
+    five/six-parameter requests; emit normalized six-route states.
   + Derive measured-sample median, nearest-rank P95, population standard
-    deviation, CV and row/call throughput; exclude warmup and failed samples.
-    Keep addon internal traversal and complete RPC timing scopes separate.
-  * Add visual route controls/presets, explicit outcomes and statistical
-    presentation while retaining correlated requests, animation and safe exports.
-    Keep profile, destinations, ERP context, module and credentials server-owned.
-  * Document route isolation, methods, undefined ratios and small-sample limits
-    in paired guides. Record the explicitly reprioritized preparatory maintenance;
-    package 002 T01 remains planned. No SQL/presentation contract change.
-  ; Fresh compilation and focused deterministic/browser/AppServer validation
-    remain pending; historical benchmark acceptance retains its original scope.
+    deviation, CV and row/call throughput; validate existing aggregates and
+    exclude warmup/failed samples. Preserve partial failures and unavailable ratios.
+  + Add automatic/manual call budgets, explicit operational ceilings and
+    CLI --timeout=auto --timeout-max=900. Derive server-call estimates from
+    traversal/page counts; reject manual budgets above their ceiling.
+    Record effective report-owned policy; do not imply query cancellation.
+  * Extend visual controls/presets, separate server panels, statistical tables,
+    immutable completed-run outcomes and safe JSON/HTML exports. Keep profile,
+    destinations, ERP context, module and authentication server-owned.
+  ! Require launcher INI co-location with the explicit isolated AppServer SDK;
+    use the default appserver.ini implicitly or another basename argument.
+    Never copy private configuration into or change a running installation.
+  * Update paired methodology/examples/WIP. Keep package 002 T01 planned;
+    retain historical acceptance and the initial addon failure evidence.
+    Keep later addon-ABI precision repair and its acceptance separately recorded.
+  ; Full isolated TLPP compile: 54 sources, zero errors/exit 0. Actual isolated
+    AppServer control/visual: 82/81 checks passed; real single-StartJob MSSQL
+    correctness smoke passed, two measured traversals. Native suites: 752/61,
+    including TCP 254/255/256/500 without sleeps against SQL mock. Chromium:
+    three suites passed, 68 main DOM plus 25 server/timeout observations.
+    A later addon-ABI precision defect requires focused repair/acceptance;
+    manual matched FWWebEx/MSSQL acceptance remains separate. No baseline inferred.
 
 2026-10-22 15:17 UTC naldodj (Make temporary artifacts fully disposable)
   + Add PowerShell cleanup with preview/explicit Apply, age and bounded paths.

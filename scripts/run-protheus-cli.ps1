@@ -16,6 +16,10 @@ $configuration = [IO.Path]::GetFullPath($IniFile)
 $executable = Join-Path $serverDirectory $(if ($IsWindows) { 'appserver.exe' } else { 'appserver' })
 if (-not (Test-Path -LiteralPath $executable -PathType Leaf)) { throw 'AppServer executable not found.' }
 if (-not (Test-Path -LiteralPath $configuration -PathType Leaf)) { throw 'Explicit AppServer INI not found.' }
+$comparison = if ($IsWindows) { [StringComparison]::OrdinalIgnoreCase } else { [StringComparison]::Ordinal }
+if (-not [string]::Equals([IO.Path]::GetDirectoryName($configuration), $serverDirectory, $comparison)) {
+    throw 'The AppServer INI must be in the explicitly supplied AppServer directory. Use an isolated SDK copy for a private INI.'
+}
 $runRoot = Join-Path $projectRoot ('tmp/protheus-cli-' + [guid]::NewGuid().ToString('N'))
 [IO.Directory]::CreateDirectory($runRoot) | Out-Null
 $info = [Diagnostics.ProcessStartInfo]::new()
@@ -25,7 +29,11 @@ $info.UseShellExecute = $false
 $info.CreateNoWindow = $true
 $info.RedirectStandardOutput = $true
 $info.RedirectStandardError = $true
-foreach ($value in @(('-ini=' + $configuration), ('-run=' + $Program), ('-env=' + $Environment)) + $Argument) {
+$launchArguments = @(('-run=' + $Program), ('-env=' + $Environment))
+if (-not [string]::Equals([IO.Path]::GetFileName($configuration), 'appserver.ini', $comparison)) {
+    $launchArguments = @('-ini', [IO.Path]::GetFileName($configuration)) + $launchArguments
+}
+foreach ($value in $launchArguments + $Argument) {
     $info.ArgumentList.Add($value)
 }
 $process = [Diagnostics.Process]::new()

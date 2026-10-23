@@ -168,8 +168,8 @@ document.addEventListener('DOMContentLoaded', () => {
         A(!!api && !E('run').disabled, 'Live channel enables the run button.');
         A(E('profile').textContent.includes('<' + '/script><img'), 'A closing-tag alias remains literal text.');
         A(E('profile').querySelector('img') === null && !window.HBBInjected, 'Profile data cannot inject markup or a script.');
-        A(document.querySelectorAll('#hbb-form input[type="number"]').length === 5 &&
-            document.querySelectorAll('#hbb-form input[type="checkbox"]').length === 5, 'Five numeric parameters and five explicit execution routes are available.');
+        A(document.querySelectorAll('#hbb-form input[type="number"]').length === 6 &&
+            document.querySelectorAll('#hbb-route-options input[type="checkbox"]').length === 6, 'Five fixture parameters, an operational timeout ceiling and six explicit execution routes are available.');
         A(E('route-tcp').checked && E('route-http').checked && E('route-protheusStartJob').disabled && E('route-hbbridgeAddon').disabled,
             'Only trusted server capabilities are selected and optional unavailable routes are disabled.');
         A(E('preset-protheusStartJob').disabled && E('preset-hbbridgeAddon').disabled, 'Unavailable isolated-route presets are disabled.');
@@ -181,10 +181,13 @@ document.addEventListener('DOMContentLoaded', () => {
         api.UpdateElapsed();
         A(E('elapsed').textContent === '00:01:01', 'The interface clock measures elapsed monotonic time, independently of server statistics.');
         A(HBBTest.calls.length === 1 && HBBTest.calls[0].type === 'HBBRIDGE_BENCHMARK_REQUEST', 'The expected request type is sent.');
-        A(Object.keys(HBBTest.calls[0].content.params).join(',') === 'rows,pageSize,iterations,warmup,timeoutSeconds,routes', 'The request preserves all numeric parameters and adds the explicit route selection.');
+        A(Object.keys(HBBTest.calls[0].content.params).join(',') === 'rows,pageSize,iterations,warmup,timeoutSeconds,routes,timeoutPolicy', 'The request preserves all numeric parameters and adds explicit routes and timeout policy.');
         A(JSON.stringify(HBBTest.calls[0].content.params.routes) === JSON.stringify({tcp: true, http: true, protheusStartJob: false,
-            protheusRest: false, hbbridgeAddon: false}), 'The sent route map contains exactly five booleans.');
-        A(E('preset-all').disabled && E('route-tcp').disabled, 'Route toggles and presets are locked for the whole pending execution.');
+            protheusRest: false, hbbridgeAddon: false, protheusServer: false}), 'The sent route map contains exactly six booleans.');
+        A(HBBTest.calls[0].content.params.timeoutSeconds === 30 && HBBTest.calls[0].content.params.timeoutPolicy.mode === 'auto' &&
+            HBBTest.calls[0].content.params.timeoutPolicy.maximumSeconds === 900, 'Client-only automatic calls retain the 30-second page budget and explicit operational ceiling.');
+        A(E('preset-all').disabled && E('route-tcp').disabled && E('timeout-auto').disabled && E('timeout-maximum').disabled,
+            'Routes, timeout policy and presets are locked for the whole pending execution.');
         A(!/token|password|host|url|port|profile/i.test(JSON.stringify(HBBTest.calls[0].content.params)), 'No endpoint, alias or credential is submitted by the browser.');
         Submit();
         A(HBBTest.calls.length === 1, 'A second click cannot submit an outstanding run again.');
@@ -202,6 +205,7 @@ document.addEventListener('DOMContentLoaded', () => {
         A(E('stats-body').children.length === 2 && E('warmup-body').children.length === 4, 'Measured statistics and warmup observations are separate.');
         A(E('average-chart').querySelectorAll('rect').length === 2 && E('sample-chart').querySelectorAll('path').length === 2, 'Both SVG charts render actual transport series.');
         A(E('memory').textContent.includes('unavailable') && E('memory').textContent.includes('not inferred'), 'Unavailable memory and physical pooling limits remain visible.');
+        A(E('result-timeout').textContent.includes('Unavailable'), 'Legacy results do not infer a timeout policy from mutable next-run controls.');
         const metrics = api.Metrics(Series());
         A(metrics.sampleCount === 5 && metrics.medianMs === 1000 && metrics.p95Ms === 1200 &&
             Math.abs(metrics.stdDevMs - Math.sqrt(20000)) < 1e-10 && Math.abs(metrics.cvPct - Math.sqrt(20000) / 10) < 1e-10 &&
@@ -396,7 +400,7 @@ test('Benchmark page: standalone document cannot issue a request', async () => {
 
 test('Benchmark page: trusted optional routes, isolated addon and completed selection', async () => {
     const defaults = {...Defaults(), protheusComparison: true, addonComparison: true,
-        availableRoutes: {tcp: true, http: true, protheusStartJob: true, protheusRest: true, hbbridgeAddon: true}};
+        availableRoutes: {tcp: true, http: true, protheusStartJob: true, protheusRest: true, hbbridgeAddon: true, protheusServer: true}};
     const observations = `<script>
 document.addEventListener('DOMContentLoaded', () => {
     const passed = [];
@@ -423,7 +427,7 @@ document.addEventListener('DOMContentLoaded', () => {
             statisticsMethod: 'nearest-rank P95; population SD'};
         const report = {schemaVersion: 1, success: true, runID: 'ADDON-ONLY', rowsPerIteration: 1000, pageSize: 100,
             iterations: 5, warmupIterations: 2, concurrency: 1, selectedRoutes: routes, routeSelectionVersion: 1,
-            routeStates: {tcp: 'skipped', http: 'skipped', protheusStartJob: 'skipped', protheusRest: 'skipped', hbbridgeAddon: 'completed'},
+            routeStates: {tcp: 'skipped', http: 'skipped', protheusStartJob: 'skipped', protheusRest: 'skipped', hbbridgeAddon: 'completed', protheusServer: 'skipped'},
             hbbridgeAddon: series};
         Reply(report);
         A(E('result-state').textContent === 'PASSED' && !E('addon-panel').hidden && E('client-statistics').hidden &&
@@ -433,6 +437,71 @@ document.addEventListener('DOMContentLoaded', () => {
         A(E('addon-statistics-method').textContent.includes('Reported metrics') && !E('addon-statistics-method').textContent.includes('Legacy fallback'), 'Complete authoritative addon metrics do not require a browser fallback.');
         E('preset-all').click();
         A(E('result-routes').textContent.includes('hbBridge TCP: skipped') && E('result-state').textContent === 'PASSED', 'Next-run presets preserve the immutable addon-only completed selection.');
+        E('preset-protheusServer').click();
+        Submit();
+        const serverRoutes = HBBTest.calls.at(-1).content.params.routes;
+        A(serverRoutes.protheusServer && Object.values(serverRoutes).filter(Boolean).length === 1,
+            'The Protheus server preset selects one complete server-side StartJob rather than per-page StartJob.');
+        const serverReport = {...report, selectedRoutes: serverRoutes,
+            routeStates: {...report.routeStates, hbbridgeAddon: 'skipped', protheusServer: 'completed'},
+            timeoutPolicy: {mode: 'auto', timeoutSeconds: 100, maximumSeconds: 900, estimatedSeconds: 100, ceilingReached: false,
+                scope: 'one complete server call', method: 'heuristic; no completion guarantee'},
+            protheusServer: {...series, avgMs: 20, callElapsedMs: 430}};
+        delete serverReport.hbbridgeAddon;
+        Reply(serverReport);
+        A(E('result-state').textContent === 'PASSED' && !E('protheus-server-panel').hidden && E('addon-panel').hidden &&
+            E('client-statistics').hidden && E('protheus-server-call').textContent === '430.00 ms' &&
+            E('protheus-server-average').textContent === '20.00 ms', 'Protheus internal server execution and whole-job elapsed appear in their own scope.');
+        A(E('comparison').textContent.includes('Relative comparison unavailable') &&
+            E('scope').textContent.includes('environment preparation'), 'Server-only Protheus timings exclude job setup and never enter client ranking.');
+        A(E('result-timeout').textContent.includes('effective 100 s') && E('result-timeout').textContent.includes('one complete server call'),
+            'Completed reports show the authoritative effective timeout and its execution scope.');
+        serverReport.protheusServer.success = false;
+        serverReport.protheusServer.failureCategory = 'QUERY_FAILED';
+        serverReport.routeStates.protheusServer = 'failed';
+        HBBTest.api.RenderReport(serverReport);
+        E('preset-tcp').click();
+        A(E('result-state').textContent.includes('FAILED') && E('failures-body').textContent.includes('Protheus server') &&
+            !E('protheus-server-panel').hidden, 'A failed server-only Protheus execution remains visible after the next selection changes.');
+        E('preset-hbbridgeAddon').click();
+        E('rows').value = '10';
+        E('pageSize').value = '10';
+        E('warmup').value = '0';
+        for (const iterations of [254, 255, 500]) {
+            E('iterations').value = String(iterations);
+            E('iterations').dispatchEvent(new Event('input'));
+            Submit();
+            const params = HBBTest.calls.at(-1).content.params;
+            A(params.timeoutSeconds === 30 + iterations && params.timeoutPolicy.mode === 'auto',
+                'Automatic whole-server timeout scales without an iteration rollover at ' + iterations + '.');
+            HBBTest.receiver('HBBRIDGE_BENCHMARK_RESPONSE', {instance: 'browser-test', requestID: HBBTest.api.State.pending, error: 'RUN_FAILED'});
+        }
+        E('timeout-maximum').value = '100';
+        E('timeout-maximum').dispatchEvent(new Event('input'));
+        A(E('timeoutSeconds').value === '100' && E('timeout-explanation').textContent.includes('Ceiling reached'),
+            'A capped automatic estimate displays the selected ceiling and the uncapped estimate.');
+        E('timeout-maximum').value = '5';
+        E('timeout-maximum').dispatchEvent(new Event('input'));
+        A(E('timeoutSeconds').value === '5', 'An operational ceiling below the 30-second base remains respected.');
+        E('timeout-maximum').value = '100';
+        E('timeoutSeconds').value = '45';
+        E('timeoutSeconds').dispatchEvent(new Event('input'));
+        A(!E('timeout-auto').checked && E('timeoutSeconds').value === '45', 'Editing Call timeout selects manual mode and preserves the requested value.');
+        A(E('result-timeout').textContent.includes('effective 100 s'), 'Editing the next timeout cannot rewrite completed-run timeout provenance.');
+        Submit();
+        A(HBBTest.calls.at(-1).content.params.timeoutSeconds === 45 &&
+            HBBTest.calls.at(-1).content.params.timeoutPolicy.mode === 'manual', 'A manual override is sent with its explicit policy and ceiling.');
+        HBBTest.receiver('HBBRIDGE_BENCHMARK_RESPONSE', {instance: 'browser-test', requestID: HBBTest.api.State.pending, error: 'RUN_FAILED'});
+        const beforeInvalid = HBBTest.calls.length;
+        E('timeoutSeconds').value = '101';
+        Submit();
+        A(HBBTest.calls.length === beforeInvalid && E('status').textContent.includes('TIMEOUT_CEILING_EXCEEDED') &&
+            E('timeoutSeconds').value === '101', 'A manual timeout above the ceiling is visibly rejected without clamping.');
+        E('timeoutSeconds').value = '45';
+        E('timeout-maximum').value = '0';
+        Submit();
+        A(HBBTest.calls.length === beforeInvalid && E('status').textContent.includes('TIMEOUT_POLICY_INVALID'),
+            'An invalid operational ceiling cannot be submitted.');
         const missing = structuredClone(report);
         delete missing.hbbridgeAddon;
         HBBTest.api.RenderReport(missing);
@@ -456,7 +525,7 @@ document.addEventListener('DOMContentLoaded', () => {
     assert.ok(match, 'The optional-route verification must finish.');
     const result = JSON.parse(match[1].replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>'));
     assert.deepEqual(result.failures, [], JSON.stringify(result));
-    assert.ok(result.checks >= 10);
+    assert.ok(result.checks >= 25);
 });
 
 // Optional local artifact generation: the supplied log remains outside Git.

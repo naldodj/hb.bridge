@@ -1,13 +1,14 @@
 /* Released to Public Domain. */
 #include "hbhrb.ch"
+#include "hbsocket.ch"
 
-PROCEDURE BenchmarkAddonTests( cAddonRoot )
+PROCEDURE BenchmarkAddonTests( cAddonRoot, cRunMode, cServeSeconds, cConfig, cProfile )
 
-    LOCAL cJSON, cMode
+    LOCAL cJSON, cMode, cError, cBackend := "mock-query", cPooling := "off"
 
-    LOCAL hHRB, hState, hRegistry, hContext, hRestricted, hParams, hResult, hSeries, hInvalid
+    LOCAL hHRB, hState, hRegistry, hContext, hRestricted, hParams, hResult, hSeries, hInvalid, hPrivate
 
-    LOCAL nFailures, nChecks, nCalls
+    LOCAL nFailures, nChecks, nCalls, nStarted, nServeSeconds
 
     LOCAL xValue
 
@@ -19,6 +20,54 @@ PROCEDURE BenchmarkAddonTests( cAddonRoot )
 
     hb_default( @cAddonRoot, hb_cwd() + "addons" )
     hContext := HBBridgeContext( "benchmark-addon-test", cAddonRoot, hState )
+    IF cRunMode == "serve"
+        nServeSeconds := Val( hb_defaultValue( cServeSeconds, "120" ) )
+        IF nServeSeconds < 1 .OR. nServeSeconds > 3600
+            ErrorLevel( 2 )
+            RETURN
+        ENDIF
+        hState[ "rows" ] := 1
+        hState[ "size" ] := 1
+        hb_default( @cProfile, "opaque/profile" )
+        IF Empty( cProfile )
+            cProfile := "opaque/profile"
+        ENDIF
+        IF ! Empty( cConfig )
+            hPrivate := HBBridgeConfig( { "-config=" + cConfig }, @cError )
+            IF hPrivate == NIL .OR. ! hb_HHasKey( hPrivate[ "sqlProfiles" ], cProfile )
+                ? "Benchmark addon prerequisite failed: CONFIG_OR_PROFILE_INVALID"
+                ErrorLevel( 2 )
+                RETURN
+            ENDIF
+            IF hPrivate[ "sqlProfiles" ][ cProfile ][ "driver" ] != "mssql"
+                ? "Benchmark addon prerequisite failed: MSSQL_PROFILE_REQUIRED"
+                ErrorLevel( 2 )
+                RETURN
+            ENDIF
+            cPooling := hPrivate[ "sqlODBCPooling" ]
+            IF ! HBBridgeSQLConfigure( cPooling, @cError )
+                ? "Benchmark addon prerequisite failed: ODBC_POOLING_CONFIGURATION_FAILED"
+                ErrorLevel( 2 )
+                RETURN
+            ENDIF
+            hRegistry := HBBridgeBuiltinRegistry( { cProfile => hPrivate[ "sqlProfiles" ][ cProfile ] } )
+            cBackend := "mssql"
+        ENDIF
+        hResult := HBBridgeServerStart( 0, 4, "127.0.0.1", hRegistry, hContext )
+        IF ! HB_ISHASH( hResult )
+            ErrorLevel( 1 )
+            RETURN
+        ENDIF
+        OutStd( "Benchmark addon fixture ready: " + HBBridgeJSONEncode( { "port" => hResult[ "port" ], ;
+            "profile" => cProfile, "backend" => cBackend, "odbcPooling" => cPooling, ;
+            "module" => "hbbridgebenchmarkaddon.hrb" } ) + hb_eol() )
+        nStarted := HBBridgeMonotonicMs()
+        DO WHILE HBBridgeMonotonicMs() - nStarted < nServeSeconds * 1000 .AND. ! File( "stop.request" )
+            hb_idleSleep( 0.05 )
+        ENDDO
+        ErrorLevel( iif( HBBridgeServerStop( hResult ), 0, 1 ) )
+        RETURN
+    ENDIF
     BenchmarkAddonAssert( File( hb_DirSepAdd( cAddonRoot ) + "hbbridgebenchmarkaddon.hrb" ), ;
         "compiled benchmark HRB exists", @nFailures, @nChecks )
     BenchmarkAddonAssert( File( hb_DirSepAdd( cAddonRoot ) + "hbbridgesampleaddon.hrb" ), ;
@@ -171,6 +220,8 @@ PROCEDURE BenchmarkAddonTests( cAddonRoot )
     BenchmarkAddonAssert( hResult[ "code" ] == "INVALID_PARAMS", "malformed addon JSON rejected", @nFailures, @nChecks )
     hb_jsonDecode( hb_hrbDo( hHRB, "[]", hContext ), @hResult )
     BenchmarkAddonAssert( hResult[ "code" ] == "INVALID_PARAMS", "array addon parameters rejected", @nFailures, @nChecks )
+    HBBridgeJSONDecode( hb_hrbDo( hHRB, HBBridgeJSONEncode( hParams ) + "{}", hContext ), @hResult )
+    BenchmarkAddonAssert( hResult[ "code" ] == "INVALID_PARAMS", "trailing addon input JSON rejected", @nFailures, @nChecks )
     hb_hrbUnload( hHRB )
 
     hRestricted := HBBridgeContext( "restricted", cAddonRoot, hState )
@@ -198,6 +249,8 @@ PROCEDURE BenchmarkAddonTests( cAddonRoot )
     BenchmarkAddonAssert( hResult[ "code" ] == "INVALID_MODULE", ;
         "native context does not bypass module path restrictions", @nFailures, @nChecks )
 
+    BenchmarkAddonNumbers( hRegistry, hContext, @nFailures, @nChecks )
+    BenchmarkAddonBoundaries( hRegistry, hContext, hState, @nFailures, @nChecks )
     ? "Benchmark addon checks:", nChecks, "failures:", nFailures
     ErrorLevel( iif( nFailures == 0, 0, 1 ) )
 
@@ -216,6 +269,163 @@ STATIC FUNCTION BenchmarkAddonRegistry( hState )
     HBBridgeRegister( hRegistry, hSpec, {| hParams | BenchmarkAddonQuery( hParams, hState ) } )
 
 RETURN HBBridgeRegistrySeal( hRegistry )
+
+STATIC PROCEDURE BenchmarkAddonNumbers( hRegistry, hContext, nFailures, nChecks )
+
+    LOCAL hParams, hResult
+
+    /* SET DECIMALS 2 must not change the external JSON numeric value. */
+    SET DECIMALS TO 2
+    hParams := { "mean" => 1 / 3, "small" => 0.00000000000000000001, "large" => 9007199254740991 }
+    hResult := HBBridgeDispatch( hRegistry, "ADDON.Execute", ;
+        { "module" => "hbbridge.numeric.addon.hrb", "params" => hParams }, hContext )
+    BenchmarkAddonAssert( hb_HGetDef( hResult, "success", .F. ), ;
+        "numeric addon ABI fixture succeeds under SET DECIMALS 2", @nFailures, @nChecks )
+    IF hb_HGetDef( hResult, "success", .F. )
+        BenchmarkAddonAssert( hResult[ "received" ][ "mean" ] == 1 / 3 .AND. ;
+            hResult[ "received" ][ "small" ] == 0.00000000000000000001 .AND. ;
+            hResult[ "received" ][ "large" ] == 9007199254740991, ;
+            "host-to-HRB JSON preserves fractional, tiny and large numbers", @nFailures, @nChecks )
+        BenchmarkAddonAssert( hResult[ "avgMs" ] == hResult[ "totalMs" ] / hResult[ "completedIterations" ] .AND. ;
+            hResult[ "small" ] == 0.00000000000000000001 .AND. hResult[ "large" ] == 9007199254740991, ;
+            "HRB-to-host JSON preserves exact mean and numeric values", @nFailures, @nChecks )
+        BenchmarkAddonAssert( hResult[ "decimalText" ] == "12345678901234567890.123456789", ;
+            "exact textual decimal remains textual at addon ABI", @nFailures, @nChecks )
+    ENDIF
+    hParams[ "suffix" ] := " " + Chr( 9 ) + Chr( 13 ) + Chr( 10 )
+    hResult := HBBridgeDispatch( hRegistry, "ADDON.Execute", ;
+        { "module" => "hbbridge.numeric.addon.hrb", "params" => hParams }, hContext )
+    BenchmarkAddonAssert( hb_HGetDef( hResult, "success", .F. ), ;
+        "addon result accepts JSON trailing whitespace", @nFailures, @nChecks )
+    hParams[ "suffix" ] := "{}"
+    hResult := HBBridgeDispatch( hRegistry, "ADDON.Execute", ;
+        { "module" => "hbbridge.numeric.addon.hrb", "params" => hParams }, hContext )
+    BenchmarkAddonAssert( hb_HGetDef( hResult, "code", "" ) == "ADDON_RESULT", ;
+        "addon result rejects trailing non-whitespace JSON", @nFailures, @nChecks )
+
+RETURN
+
+STATIC PROCEDURE BenchmarkAddonBoundaries( hRegistry, hContext, hState, nFailures, nChecks )
+
+    LOCAL hServer, hParams, hResult
+
+    LOCAL nIterations, nSample, nTotal
+
+    hState[ "rows" ] := 1
+    hState[ "size" ] := 1
+    hState[ "mode" ] := "success"
+    hState[ "failAt" ] := 0
+    hServer := HBBridgeServerStart( 0, 4, "127.0.0.1", hRegistry, hContext, ;
+        { "protheusTimeoutMs" => 3000 } )
+    BenchmarkAddonAssert( HB_ISHASH( hServer ), "boundary fixture starts an isolated TCP server", @nFailures, @nChecks )
+    IF ! HB_ISHASH( hServer )
+        RETURN
+    ENDIF
+    hResult := BenchmarkAddonTCP( hServer[ "port" ], HBBridgeJSONEncode( ;
+        { "service" => "ADDON.Execute", "params" => { "module" => "hbbridge.numeric.addon.hrb", ;
+            "params" => { "mean" => 1 / 3 } } } ) )
+    BenchmarkAddonAssert( HB_ISHASH( hResult ) .AND. hb_HGetDef( hResult, "success", .F. ), ;
+        "numeric addon fixture completes through framed TCP", @nFailures, @nChecks )
+    IF HB_ISHASH( hResult ) .AND. hb_HGetDef( hResult, "success", .F. )
+        BenchmarkAddonAssert( hResult[ "avgMs" ] == 1 / 3 .AND. hResult[ "received" ][ "mean" ] == 1 / 3, ;
+            "both JSON ABI directions preserve fractional values through framed TCP", @nFailures, @nChecks )
+    ENDIF
+    FOR EACH nIterations IN { "254" => 254, "255" => 255, "256" => 256, "500" => 500 }
+        hState[ "calls" ] := 0
+        hParams := { "profile" => "opaque/profile", "rows" => 1, "pageSize" => 1, ;
+            "iterations" => nIterations, "warmup" => 0 }
+        hResult := BenchmarkAddonTCP( hServer[ "port" ], hb_jsonEncode( ;
+            { "service" => "ADDON.Execute", "params" => { "module" => "hbbridgebenchmarkaddon.hrb", "params" => hParams } } ) )
+        BenchmarkAddonAssert( HB_ISHASH( hResult ) .AND. hb_HGetDef( hResult, "success", .F. ), ;
+            "TCP addon completes " + hb_ntos( nIterations ) + " iterations without artificial sleeps", @nFailures, @nChecks )
+        IF HB_ISHASH( hResult ) .AND. hb_HHasKey( hResult, "series" )
+            BenchmarkAddonAssert( hResult[ "series" ][ "completedIterations" ] == nIterations .AND. ;
+                Len( hResult[ "series" ][ "samples" ] ) == nIterations .AND. ;
+                hb_HHasKey( hResult[ "series" ][ "samples" ], hb_ntos( nIterations ) ), ;
+                "TCP report preserves every sample beyond the 255 boundary", @nFailures, @nChecks )
+            BenchmarkAddonAssert( hState[ "calls" ] == nIterations .AND. ;
+                hResult[ "series" ][ "measuredRows" ] == nIterations .AND. ;
+                hResult[ "series" ][ "measuredCalls" ] == nIterations, ;
+                "boundary query and row counters remain exact", @nFailures, @nChecks )
+            nTotal := 0
+            FOR nSample := 1 TO nIterations
+                nTotal += hResult[ "series" ][ "samples" ][ hb_ntos( nSample ) ][ "elapsedMs" ]
+            NEXT
+            BenchmarkAddonAssert( hResult[ "series" ][ "totalMs" ] == nTotal .AND. ;
+                hResult[ "series" ][ "avgMs" ] == nTotal / nIterations, ;
+                "TCP aggregate mean matches all measured samples exactly", @nFailures, @nChecks )
+        ENDIF
+    NEXT
+    BenchmarkAddonAssert( HBBridgeServerStop( hServer ), "boundary server releases its worker sockets", @nFailures, @nChecks )
+
+RETURN
+
+STATIC FUNCTION BenchmarkAddonTCP( nPort, cJSON )
+
+    // Socket address and split framing header use the native array contracts.
+    LOCAL aHeader
+
+    LOCAL cFrame, cCompressed, cChunk, cBody, cResponse := ""
+
+    LOCAL hSocket, hResult := NIL
+
+    LOCAL nZipError, nReceived := -1, nHeader, nOffset := 1, nSent
+    LOCAL nDeadline := HBBridgeMonotonicMs() + 10000
+
+    hSocket := hb_socketOpen( HB_SOCKET_AF_INET, HB_SOCKET_PT_STREAM, HB_SOCKET_IPPROTO_IP )
+    IF Empty( hSocket )
+        RETURN NIL
+    ENDIF
+    BEGIN SEQUENCE WITH __BreakBlock()
+        IF ! hb_socketConnect( hSocket, { HB_SOCKET_AF_INET, "127.0.0.1", nPort }, 1000 )
+            Break( NIL )
+        ENDIF
+        cFrame := "HBBRIDGE/1|JSON|" + hb_ntos( hb_BLen( cJSON ) ) + hb_BChar( 10 ) + cJSON
+        cCompressed := hb_gzCompress( cFrame, NIL, @nZipError )
+        IF nZipError != 0
+            Break( NIL )
+        ENDIF
+        DO WHILE nOffset <= hb_BLen( cCompressed )
+            nSent := hb_socketSend( hSocket, hb_BSubStr( cCompressed, nOffset ), NIL, 0, 1000 )
+            IF nSent <= 0
+                Break( NIL )
+            ENDIF
+            nOffset += nSent
+        ENDDO
+        DO WHILE HBBridgeMonotonicMs() < nDeadline
+            cChunk := Space( 4096 )
+            nReceived := hb_socketRecv( hSocket, @cChunk, 4096, 0, Max( 1, nDeadline - HBBridgeMonotonicMs() ) )
+            IF nReceived <= 0
+                EXIT
+            ENDIF
+            cResponse += hb_BLeft( cChunk, nReceived )
+        ENDDO
+        IF nReceived != 0 .OR. Empty( cResponse )
+            Break( NIL )
+        ENDIF
+        cFrame := hb_ZUncompress( cResponse )
+        IF ! HB_ISSTRING( cFrame )
+            Break( NIL )
+        ENDIF
+        nHeader := hb_BAt( hb_BChar( 10 ), cFrame )
+        aHeader := hb_ATokens( hb_BLeft( cFrame, nHeader - 1 ), "|" )
+        cBody := hb_BSubStr( cFrame, nHeader + 1 )
+        IF Len( aHeader ) != 3
+            Break( NIL )
+        ENDIF
+        IF aHeader[ 1 ] != "HBBRIDGE/1" .OR. aHeader[ 2 ] != "JSON" .OR. Val( aHeader[ 3 ] ) != hb_BLen( cBody )
+            Break( NIL )
+        ENDIF
+        IF HBBridgeJSONDecode( cBody, @hResult ) != hb_BLen( cBody )
+            hResult := NIL
+        ENDIF
+    RECOVER
+        hResult := NIL
+    ALWAYS
+        hb_socketClose( hSocket )
+    END SEQUENCE
+
+RETURN hResult
 
 STATIC FUNCTION BenchmarkAddonRun( hRegistry, hContext, hParams )
 RETURN HBBridgeDispatch( hRegistry, "ADDON.Execute", ;

@@ -169,19 +169,31 @@ STATIC PROCEDURE HBBridgeClientWorker( hServer, hClientSocket )
 
     LOCAL cRequest, cResponse
 
+    LOCAL hDiagnostics := {=>}
+
+    LOCAL nStarted, nProcessingMs
+
     LOCAL oError
 
     BEGIN SEQUENCE WITH __BreakBlock()
         IF ReceiveRequest( hClientSocket, @cRequest, hServer[ "ioPolicy" ] )
             /* An application error becomes a reply on this connection only. */
+            nStarted := HBBridgeMonotonicMs()
             BEGIN SEQUENCE WITH __BreakBlock()
                 cResponse := DispatcherRequest( cRequest, hServer[ "registry" ], hServer[ "context" ] )
             RECOVER USING oError
                 cResponse := HBBridgeWireEncode( HBBridgeError( "SERVICE_ERROR", "Service execution failed", oError ) )
                 HBBridgeServerLog( hServer, "Service error in thread " + hb_ntos( hb_threadID() ) )
             END SEQUENCE
-            IF ! SendResponse( hClientSocket, cResponse, hServer[ "ioPolicy" ] )
-                HBBridgeServerLog( hServer, "Unable to send the response" )
+            nProcessingMs := HBBridgeMonotonicMs() - nStarted
+            IF ! SendResponse( hClientSocket, cResponse, hServer[ "ioPolicy" ], hDiagnostics )
+                HBBridgeServerLog( hServer, "Unable to send the response; code=" + ;
+                    hb_HGetDef( hDiagnostics, "failureCategory", "UNKNOWN" ) + ;
+                    "; processingMs=" + hb_ntos( nProcessingMs ) + ;
+                    "; sendMs=" + hb_ntos( hb_HGetDef( hDiagnostics, "elapsedMs", 0 ) ) + ;
+                    "; payloadBytes=" + hb_ntos( hb_HGetDef( hDiagnostics, "payloadBytes", 0 ) ) + ;
+                    "; wireBytes=" + hb_ntos( hb_HGetDef( hDiagnostics, "wireBytes", 0 ) ) + ;
+                    "; socketError=" + hb_ntos( hb_HGetDef( hDiagnostics, "socketError", 0 ) ) )
             ENDIF
         ELSE
             HBBridgeServerLog( hServer, "Invalid or incomplete request" )

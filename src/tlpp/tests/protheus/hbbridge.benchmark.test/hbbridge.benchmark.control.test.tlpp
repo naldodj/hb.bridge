@@ -20,6 +20,7 @@ function U_HBBridgeBenchmarkControlTest()
     BenchmarkControlRoutes(jChecks)
     BenchmarkControlStats(jChecks)
     BenchmarkControlMeasure(jChecks)
+    BenchmarkControlPolicy(jChecks)
     aNames := jChecks:GetNames()
     nChecks := Len(aNames)
     for nCheck := 1 to nChecks
@@ -173,7 +174,7 @@ static function BenchmarkControlMeasure(jChecks as json)
     local nOther := 0 as numeric
     local nExpectedCalls := 0 as numeric
 
-    for nRoute := 1 to 5
+    for nRoute := 1 to 6
         cRoute := BenchmarkControlKey(nRoute)
         jState := BenchmarkControlState()
         jRoutes := BenchmarkControlSelection(cRoute)
@@ -184,14 +185,14 @@ static function BenchmarkControlMeasure(jChecks as json)
         jChecks[cRoute + "OnlySuccess"] := jReport["success"] .and. jReport[cRoute]["success"]
         jChecks[cRoute + "SelectedAndCompleted"] := jReport["selectedRoutes"][cRoute] .and. ;
             jReport["routeStates"][cRoute] == "completed" .and. jReport["routeSelectionVersion"] == 1
-        nExpectedCalls := IIf(cRoute == "hbbridgeAddon", 1, 9)
+        nExpectedCalls := IIf(cRoute == "hbbridgeAddon" .or. cRoute == "protheusServer", 1, 9)
         jChecks[cRoute + "ConstructedAndCalledOncePerScope"] := jState["constructed"][cRoute] == 1 .and. ;
             jState["calls"][cRoute] == nExpectedCalls
         jChecks[cRoute + "CountIntegrity"] := jReport[cRoute]["completedIterations"] == 2 .and. ;
             jReport[cRoute]["warmupCompleted"] == 1 .and. jReport[cRoute]["measuredRows"] == 10 .and. ;
             jReport[cRoute]["measuredCalls"] == 6 .and. jReport[cRoute]["sampleCount"] == 2
         lOthers := .T.
-        for nOther := 1 to 5
+        for nOther := 1 to 6
             cOther := BenchmarkControlKey(nOther)
             if cOther == cRoute
                 loop
@@ -204,6 +205,11 @@ static function BenchmarkControlMeasure(jChecks as json)
             jChecks["addonServerAndWholeCallSeparated"] := jReport[cRoute]["medianMs"] == 1.5 .and. ;
                 jReport[cRoute]["p95Ms"] == 2 .and. jReport[cRoute]["networkCalls"] == 1 .and. ;
                 ValType(jReport[cRoute]["callElapsedMs"]) == "N" .and. jReport[cRoute]["returnedDatasetRows"] == 0
+        endif
+        if cRoute == "protheusServer"
+            jChecks["protheusServerTimingSeparated"] := jReport[cRoute]["medianMs"] == 1.5 .and. ;
+                jReport[cRoute]["networkCalls"] == 0 .and. jReport[cRoute]["workerCalls"] == 1 .and. ;
+                jReport[cRoute]["transport"] == "StartJob" .and. jReport[cRoute]["returnedDatasetRows"] == 0
         endif
         FreeObj(@jReport)
         FreeObj(@jRoutes)
@@ -340,6 +346,8 @@ static function BenchmarkControlKey(nRoute as numeric) as character
         return "protheusStartJob"
     case nRoute == 4
         return "protheusRest"
+    case nRoute == 6
+        return "protheusServer"
     endcase
 
 return("hbbridgeAddon")
@@ -350,7 +358,7 @@ static function BenchmarkControlSelection(cRoute as character) as json
 
     local nRoute := 0 as numeric
 
-    for nRoute := 1 to 5
+    for nRoute := 1 to 6
         jRoutes[BenchmarkControlKey(nRoute)] := BenchmarkControlKey(nRoute) == cRoute
     next nRoute
 
@@ -367,7 +375,7 @@ static function BenchmarkControlState() as json
 
     local nRoute := 0 as numeric
 
-    for nRoute := 1 to 5
+    for nRoute := 1 to 6
         cRoute := BenchmarkControlKey(nRoute)
         jConstructed[cRoute] := 0
         jCalls[cRoute] := 0
@@ -429,3 +437,51 @@ static function BenchmarkControlSeries() as json
     jSeries["samples"] := BenchmarkControlSamples(2)
 
 return(jSeries)
+
+static function BenchmarkControlPolicy(jChecks as json)
+
+    local jPolicy := JSONObject():New() as json
+    local jRoutes := BenchmarkControlSelection("hbbridgeAddon") as json
+    local jResolved as json
+
+    jPolicy["mode"] := "auto"
+    jPolicy["maximumSeconds"] := 900
+    jResolved := HBBridge.Test.HBBridgeBenchmarkPolicy():Resolve(1, 1, 254, 0, jRoutes, 1, jPolicy)
+    jChecks["autoTimeout254"] := jResolved["success"] .and. jResolved["timeoutSeconds"] == 284
+    FreeObj(@jResolved)
+    jResolved := HBBridge.Test.HBBridgeBenchmarkPolicy():Resolve(1, 1, 255, 0, jRoutes, 1, jPolicy)
+    jChecks["autoTimeout255"] := jResolved["success"] .and. jResolved["timeoutSeconds"] == 285
+    FreeObj(@jResolved)
+    jResolved := HBBridge.Test.HBBridgeBenchmarkPolicy():Resolve(1, 1, 500, 2, jRoutes, 1, jPolicy)
+    jChecks["autoTimeout500"] := jResolved["success"] .and. jResolved["timeoutSeconds"] == 532
+    FreeObj(@jResolved)
+    jResolved := HBBridge.Test.HBBridgeBenchmarkPolicy():Resolve(10, 3, 500, 2, jRoutes, 1, jPolicy)
+    jChecks["autoTimeoutCapped"] := jResolved["success"] .and. jResolved["timeoutSeconds"] == 900 .and. ;
+        jResolved["ceilingReached"] .and. jResolved["estimatedSeconds"] == 2038
+    FreeObj(@jResolved)
+    jPolicy["maximumSeconds"] := 5
+    jResolved := HBBridge.Test.HBBridgeBenchmarkPolicy():Resolve(1, 1, 500, 2, jRoutes, 1, jPolicy)
+    jChecks["autoRespectsSmallCeiling"] := jResolved["success"] .and. jResolved["timeoutSeconds"] == 5
+    FreeObj(@jResolved)
+    jPolicy["mode"] := "manual"
+    jResolved := HBBridge.Test.HBBridgeBenchmarkPolicy():Resolve(1, 1, 500, 2, jRoutes, 4, jPolicy)
+    jChecks["manualTimeoutPreserved"] := jResolved["success"] .and. jResolved["timeoutSeconds"] == 4
+    FreeObj(@jResolved)
+    jResolved := HBBridge.Test.HBBridgeBenchmarkPolicy():Resolve(1, 1, 500, 2, jRoutes, 6, jPolicy)
+    jChecks["manualAboveCeilingRejected"] := !jResolved["success"]
+    FreeObj(@jResolved)
+    jPolicy["mode"] := "unknown"
+    jResolved := HBBridge.Test.HBBridgeBenchmarkPolicy():Resolve(1, 1, 1, 0, jRoutes, 1, jPolicy)
+    jChecks["unknownTimeoutPolicyRejected"] := !jResolved["success"]
+    FreeObj(@jResolved)
+    jPolicy["mode"] := "auto"
+    jPolicy["maximumSeconds"] := 900
+    FreeObj(@jRoutes)
+    jRoutes := BenchmarkControlSelection("http")
+    jResolved := HBBridge.Test.HBBridgeBenchmarkPolicy():Resolve(1000, 1, 500, 2, jRoutes, 1, jPolicy)
+    jChecks["clientOnlyTimeoutPerPage"] := jResolved["success"] .and. jResolved["timeoutSeconds"] == 30
+    FreeObj(@jResolved)
+    FreeObj(@jRoutes)
+    FreeObj(@jPolicy)
+
+return

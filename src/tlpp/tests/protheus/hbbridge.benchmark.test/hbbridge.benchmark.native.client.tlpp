@@ -50,7 +50,7 @@ method New(cMode, nRows, nTimeoutSeconds, cRestURL, cAuthorization, jContext) cl
     endif
     self:nHTTPStatus := 0
     self:lClosed := .F.
-    self:lValid := (cMode == "startjob" .or. cMode == "rest") .and. ;
+    self:lValid := (cMode == "startjob" .or. cMode == "rest" .or. cMode == "local") .and. ;
         NativeBenchmarkInteger(nRows, 1, 100000) .and. ;
         NativeBenchmarkInteger(nTimeoutSeconds, 1, 2147483)
     if cMode == "rest"
@@ -99,7 +99,9 @@ method CallService(cService, jParams) class HBBridgeBenchmarkNativeClient
         jRequest["pageSize"] := jParams["page"]["size"]
         cBody := jRequest:ToJSON()
         nStarted := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs()
-        if self:cMode == "startjob"
+        if self:cMode == "local"
+            cResponse := HBBridge.Test.HBBridgeBenchmarkProtheus():Page(cBody)
+        elseif self:cMode == "startjob"
             if !NativeBenchmarkToken(self:cCompany) .or. !NativeBenchmarkToken(self:cBranch)
                 cFailure := "PROTHEUS_CONTEXT_REQUIRED"
                 throw "Supply the existing Protheus company and branch context."

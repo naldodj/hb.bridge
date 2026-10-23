@@ -1,0 +1,76 @@
+/* Released to Public Domain. */
+#include "totvs.ch"
+
+namespace HBBridge.Test
+
+class HBBridgeBenchmarkPolicy
+
+    static method Resolve(nRows as numeric, nPageSize as numeric, nIterations as numeric, ;
+        nWarmup as numeric, jRoutes as json, nRequested as numeric, jPolicy as json) as json
+
+endclass
+
+static method Resolve(nRows, nPageSize, nIterations, nWarmup, jRoutes, nRequested, jPolicy) class HBBridgeBenchmarkPolicy
+
+    // Native JSON enumeration is borrowed, not copied.
+    local aNames as array
+
+    local cMode := "manual" as character
+
+    local jResult := JSONObject():New() as json
+
+    local nMaximum := 2147483 as numeric
+    local nEstimate := 30 as numeric
+    local nEffective := nRequested as numeric
+    local nPages := 0 as numeric
+
+    jResult["success"] := .F.
+    if ValType(jPolicy) != "U"
+        if ValType(jPolicy) != "J"
+            return jResult
+        endif
+        aNames := jPolicy:GetNames()
+        if Len(aNames) != 2 .or. !jPolicy:HasProperty("mode") .or. !jPolicy:HasProperty("maximumSeconds")
+            return jResult
+        endif
+        cMode := jPolicy["mode"]
+        nMaximum := jPolicy["maximumSeconds"]
+        if ValType(cMode) != "C"
+            return jResult
+        endif
+        if (cMode != "auto" .and. cMode != "manual") .or. !PolicyInteger(nMaximum, 1, 2147483)
+            return jResult
+        endif
+    endif
+    if !PolicyInteger(nRows, 1, 100000) .or. !PolicyInteger(nPageSize, 1, 100000) .or. ;
+        !PolicyInteger(nIterations, 1, 1000000) .or. !PolicyInteger(nWarmup, 0, 1000000) .or. ;
+        ValType(jRoutes) != "J"
+        return jResult
+    endif
+    if cMode == "auto"
+        if jRoutes["hbbridgeAddon"] .or. jRoutes["protheusServer"]
+            nPages := Int((nRows - 1) / nPageSize) + 1
+            nEstimate += (nIterations + nWarmup) * nPages
+        endif
+        nEffective := Min(nMaximum, nEstimate)
+    elseif !PolicyInteger(nRequested, 1, nMaximum)
+        return jResult
+    endif
+    jResult["success"] := .T.
+    jResult["mode"] := cMode
+    jResult["maximumSeconds"] := nMaximum
+    jResult["timeoutSeconds"] := nEffective
+    jResult["estimatedSeconds"] := IIf(cMode == "auto", nEstimate, Nil)
+    jResult["ceilingReached"] := cMode == "auto" .and. nEstimate > nMaximum
+    jResult["method"] := "auto: min(maximum,30+serverTraversals*pages); one estimated second per page; client-only requests use min(maximum,30); estimate is not a completion guarantee"
+    jResult["scope"] := "per page for client traversals; one complete request for server-only series; synchronous StartJob can only check the deadline after a blocking call returns"
+
+return(jResult)
+
+static function PolicyInteger(xValue as variant, nMinimum as numeric, nMaximum as numeric) as logical
+
+    if ValType(xValue) != "N"
+        return .F.
+    endif
+
+return(xValue >= nMinimum .and. xValue <= nMaximum .and. xValue == Int(xValue))

@@ -1,0 +1,101 @@
+/* Released to Public Domain. */
+#include "totvs.ch"
+
+namespace HBBridge.Test
+
+class HBBridgeBenchmarkServerClient
+
+    private data cCompany as character
+    private data cBranch as character
+    private data cCredentialSection as character
+    private data lClosed as logical
+    private data nTimeoutSeconds as numeric
+
+    public method New(nTimeoutSeconds as numeric, jContext as json) as object
+    public method CallService(cService as character, jParams as json) as json
+    public method Close() as logical
+
+endclass
+
+method New(nTimeoutSeconds, jContext) class HBBridgeBenchmarkServerClient
+
+    self:cCompany := ""
+    self:cBranch := ""
+    self:cCredentialSection := "FWWEBEX_" + GetEnvServer()
+    self:lClosed := .F.
+    self:nTimeoutSeconds := nTimeoutSeconds
+    if ValType(jContext) == "J"
+        if ValType(jContext["company"]) == "C"
+            self:cCompany := jContext["company"]
+        endif
+        if ValType(jContext["branch"]) == "C"
+            self:cBranch := jContext["branch"]
+        endif
+        if ValType(jContext["credentialSection"]) == "C"
+            self:cCredentialSection := jContext["credentialSection"]
+        endif
+    endif
+
+return(self)
+
+method CallService(cService, jParams) class HBBridgeBenchmarkServerClient
+
+    local cResponse := "" as character
+    local cCode := "STARTJOB_FAILED" as character
+
+    local jResult := JSONObject():New() as json
+
+    local nStarted as numeric
+    local nFinished as numeric
+
+    local xError as variant
+
+    try
+        if self:lClosed .or. cService != "BENCHMARK.Run" .or. ValType(jParams) != "J"
+            cCode := "INVALID_REQUEST"
+            throw "Invalid server benchmark request."
+        endif
+        if Empty(self:cCompany) .or. Empty(self:cBranch)
+            cCode := "PROTHEUS_CONTEXT_REQUIRED"
+            throw "The Protheus company and branch must be explicit."
+        endif
+        nStarted := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs()
+        cResponse := StartJob("U_HBBridgeBenchmarkJob", GetEnvServer(), .T., jParams:ToJSON(), ;
+            self:cCompany, self:cBranch, self:cCredentialSection, "series")
+        nFinished := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs()
+        if nFinished < nStarted
+            cCode := "CLOCK_REGRESSION"
+            throw "The server benchmark clock regressed."
+        endif
+        if nFinished - nStarted > self:nTimeoutSeconds * 1000
+            cCode := "REQUEST_TIMEOUT"
+            throw "The synchronous server call exceeded its budget."
+        endif
+        cCode := "INVALID_RESULT"
+        if ValType(cResponse) != "C"
+            throw "The worker returned no serialized result."
+        endif
+        if ValType(jResult:FromJSON(cResponse)) != "U"
+            throw "The worker returned invalid JSON."
+        endif
+    catch xError
+        FreeObj(@jResult)
+        jResult := JSONObject():New()
+        jResult["success"] := .F.
+        jResult["code"] := cCode
+        jResult["error"] := "The server benchmark did not complete its request."
+        if ValType(xError) == "O"
+            FreeObj(@xError)
+        endif
+    endtry
+
+return(jResult)
+
+method Close() class HBBridgeBenchmarkServerClient
+
+    self:lClosed := .T.
+    self:cCompany := ""
+    self:cBranch := ""
+    self:cCredentialSection := ""
+
+return(.T.)

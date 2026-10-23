@@ -1,0 +1,202 @@
+{
+  "kind": "hbbridge.validation-summary",
+  "schemaVersion": 1,
+  "observedOn": "2026-10-23",
+  "scope": "Windows benchmark route controls, timeout policy, server-only Protheus path and addon JSON precision regression",
+  "historicalSnapshot": {
+    "baseRevision": "929c4ef36cbf90ca2eaa1d77c986e6d22e54cbf5",
+    "includesWorkingTreeChanges": true,
+    "sourceFingerprintSHA256": "BBFE71AA1E11F43A76B62806C1D5E7E3C6A7C3119BF07FD4BC8A401B14BC2C36",
+    "fingerprintMethod": "SHA256 over UTF-8 lines: relative path, TAB, uppercase file SHA256, LF; paths sorted ascending",
+    "fileSHA256": {
+      "addons/examples/hbbridgebenchmarkaddon.hb": "2A5DCCD8DDBCF448205EAE51BF5CC17B0BA30BAA640903B5E188B09FA949AD8F",
+      "addons/examples/hbbridgesampleaddon.hb": "7DF0A1C4D1690786F51AF5B265451442CFAC2030A2FCF799DC4774CD6C89F7BF",
+      "config/dependencies.json": "8F6EFCD0AD919A54B5081FF18E4D067CE7ED9AD8B8206D8ABD177A59C15F6B4C",
+      "scripts/build-hbbridge-benchmark-addon.ps1": "988C57D880D8A0BA7B7E9AAC4856B4DC4A0B5DDB9919AD884435520635F6E53D",
+      "scripts/prepare-totvs-sources.ps1": "013D2FA90DC3881DB5CB28B080F94447ED9B1EE3652067ACC7FB9ED6582DC9B7",
+      "scripts/run-protheus-cli.ps1": "026B9521801A1EAB9D26FF08ED64F3601AC3D0767E5FD19588E8F35D96AEFFCC",
+      "scripts/test-hbbridge-benchmark-addon.ps1": "20DACE1CEA36A550D028B567F0E4DC2CBED5342E60E8CC1545B625980954A4B7",
+      "scripts/test-hbbridge.ps1": "91C0C29C29222F1220B3A432B664FEBD5642F6251F660A8E3A538BD57F85D55A",
+      "src/c/hbbridge.json.c": "D1DBC5A4893E9D111812089C32664544BD242D4723579A6198C331B20B7E93FB",
+      "src/hb/addons/hbbridge.addon.hb": "BEA523066CFBC5D122E4F4FB926BCF3AAB3B28229A6024326E96486DD44215EF",
+      "src/hb/core/hbbridge.wire.hb": "B29072ACB4D1CE9286B5AA75E050D4589A6D8D708DA116B63BBE0B200144616D",
+      "src/hb/services/hbbridge.services.hb": "D07606598F8CEE8368930955B0E9E0A5DC20221A615371621AB8DC6BE49E0FA8",
+      "src/hb/transports/protheus/hbbridge.framing.hb": "5BD69E2FC3EBA5E6B6DC18F0D2339BB41C2ED4533F555BCB9B169AD8AD306007",
+      "src/hb/transports/protheus/hbbridge.server.hb": "1EC0B1DA3DA522A6D90DD580DD8626125743B0C220CBF5E44BB8D9C73B3C7007",
+      "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.control.test.tlpp": "67259FF431CDE056ACDE11A4017CD86D3FD4802EB79E92EC0D091EE5CEDC73C0",
+      "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.controller.tlpp": "A21275042E7B9A2B0A2017F3AA1601C9D55880EDA42AFBFB687301181C77A02F",
+      "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.example.tlpp": "9D70404FCAA668A217E39CCFF91F22442C998DC6E7F82F15D4A86C2675EFBFA0",
+      "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.mock.client.tlpp": "CAFCA172504A9313911D8728160A479F91864296E06493EC049CC6ADF4EF5883",
+      "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.native.client.tlpp": "CB068F551A2C172C17FC59BB57D7B9780A0DCD050CA65B787A28180F9F3DCCB4",
+      "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.page.tlpp": "31EF51475E1003C5E54499B947F29BB12ED5D23520A84A014F936A928525D9E8",
+      "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.policy.tlpp": "F5AFDB66CEE6B2630BE236C4B0F0206B7738C3EA7687772D0ECBF00E38C6951D",
+      "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.protheus.entry.tlpp": "4D04D857DDD0F4F5C421E40B2286EC8278EE718958D6E38B2F3A8A817C8078C1",
+      "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.protheus.tlpp": "98012556D4FC84E49156878385D64966329320ADECFC04DF972EDA0644A7ECEE",
+      "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.rest.test.tlpp": "F9138C9C4E22183AD90CA237D17F3C463CBB992FDF4B348518B152910D71E720",
+      "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.rest.tlpp": "758541624821C70E51EE91B4EDA0B03A20C619C5122A08B1F4AF2E5B960AB8D9",
+      "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.server.client.tlpp": "B876F61BA1CB09C38665A13CBA9A371555A45E32567BFCA6E52901B514359BDA",
+      "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.stats.tlpp": "F9B84220C90C6099C39B48A8741772A125B2DD5EFF71A15FBB9DBDD221851C2A",
+      "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.test.entry.tlpp": "F3417FA898CD705D9AB506CFD9BED58C607DFE414D7C53DCC81086BDDD766CA4",
+      "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.test.tlpp": "49C5D34D308DB0F388554DDC76B0258A805B2C5A308A7747EE1E22D5325194D7",
+      "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.visual.test.tlpp": "E306C13F486E10D7EDB7D23FC25DB2B40AA7F2A2B69466BCA58398574E50947D",
+      "src/zig/runtime/hbbridge.number.zig": "D78351BD3E36435ECFBC98DD4BB693F2789F0602DA2118A99F15C1A47A5BEC33",
+      "tests/integration/harbour/hbbridge.benchmark.addon.test.hb": "9A3E263EFCFDA4B0E69D3CA303984A01B17AD74F2C066C8AA4EFC426A85DACB3",
+      "tests/integration/harbour/hbbridge.benchmark.addon.test.hbp": "3958A2DCC9E87BAD0AC13AF6B0F6EDCF44516CE0CFCEE8C81B219513DA4CFAB6",
+      "tests/integration/harbour/hbbridge.numeric.addon.hb": "407B6B5C410338AE59ED495655E14385B89E959F3072DC40F13905572F79FAED",
+      "tests/unit/browser/hbbridge.benchmark.page.test.mjs": "5BC4DAC8B3EFE80AE505B6EAA5F2E0415D41175DB2601714BD2A9A9CCC0FA06E"
+    }
+  },
+  "dependencyPins": {
+    "hbCompile": "2cb6f3ef59c297025a2c49c4cfa8c7639f3a1455",
+    "harbour": "6deac9cf3ad977ae829e5bca543d553b92dd4b6d",
+    "zig": "0.16.0"
+  },
+  "diagnosis": {
+    "reportedRunID": "D24377B51C174447AA3C185DF76A876F",
+    "failure": "INVALID_SERVER_RESULT",
+    "measuredIterationsReceived": 255,
+    "warmupIterationsReceived": 2,
+    "sampleValidation": "passed",
+    "aggregateValidation": "failed",
+    "deterministicReproduction": "Native hb_jsonEncode serializes the computed value 1 / 3 as 0.33 under the observed numeric decimal metadata.",
+    "correction": "Use HBBridgeJSONEncode and HBBridgeJSONDecode for the benchmark addon and generic addon host ABI, with complete JSON validation.",
+    "invariant": "Keep strict sample and aggregate checks; no artificial sleeps or iteration cap replace correctness."
+  },
+  "results": {
+    "tlppCompilation": {
+      "sources": 54,
+      "succeeded": 54,
+      "errors": 0,
+      "exitCode": 0,
+      "scope": "Full current TLPP source list compiled into an isolated licensed test RPO."
+    },
+    "native": {
+      "checks": 752,
+      "failures": 0,
+      "exitCode": 0
+    },
+    "benchmarkAddon": {
+      "checks": 74,
+      "failures": 0,
+      "exitCode": 0,
+      "scope": "Actual HRB and framed TCP, mock query handler, numeric ABI precision and iteration boundaries 254, 255, 256 and 500."
+    },
+    "licensedAppServer": {
+      "isolation": "Dedicated SDK/RPO/configuration; existing services were not stopped or reconfigured.",
+      "benchmarkControl": {
+        "checks": 82,
+        "failures": 0,
+        "exitCode": 0
+      },
+      "benchmarkVisual": {
+        "checks": 81,
+        "failures": 0,
+        "exitCode": 0
+      },
+      "benchmarkREST": {
+        "checks": 43,
+        "failures": 0,
+        "exitCode": 0
+      }
+    },
+    "browser": {
+      "tests": 3,
+      "failures": 0,
+      "mainDOMObservations": 68,
+      "optionalRouteAndTimeoutObservations": 25,
+      "scope": "Real Chromium executes the HTML extracted from the maintained TLPP page with a simulated FWWebEx channel."
+    },
+    "tlppToRealTCPAndHRB": {
+      "queryHandler": "mock",
+      "rowsPerIteration": 1,
+      "pageSize": 1,
+      "strictStatisticsValidation": true,
+      "artificialSleep": false,
+      "runs": [
+        {
+          "measuredIterations": 255,
+          "warmupIterations": 2,
+          "success": true,
+          "exitCode": 0
+        },
+        {
+          "measuredIterations": 500,
+          "warmupIterations": 0,
+          "success": true,
+          "exitCode": 0
+        }
+      ]
+    },
+    "protheusServerOnlyMSSQL": {
+      "success": true,
+      "exitCode": 0,
+      "rowsPerIteration": 10,
+      "pageSize": 5,
+      "measuredIterations": 2,
+      "warmupIterations": 1,
+      "scope": "Correctness smoke through one complete StartJob; internal DBAccess traversal and whole-call timing remain separate."
+    },
+    "realMSSQLAddonHighIteration": {
+      "status": "partial",
+      "transport": "TCP",
+      "rowsPerIteration": 1000,
+      "pageSize": 100,
+      "warmupIterations": 2,
+      "physicalPooling": "off",
+      "strictStatisticsValidation": true,
+      "artificialSleep": false,
+      "runs": [
+        {
+          "measuredIterations": 255,
+          "success": true,
+          "exitCode": 0,
+          "callElapsedMs": 243648.65170002,
+          "meanMs": 944.850980392157,
+          "totalMs": 240937
+        },
+        {
+          "measuredIterations": 500,
+          "status": "running"
+        }
+      ],
+      "scope": "Actual TLPP client, rebuilt Harbour TCP host/HRB and local MSSQL constant queries; correctness acceptance only, not performance comparison with the original deployment."
+    },
+    "gatesBeforeValidationSummary": {
+      "projectFilesChecked": 259,
+      "documentFilesChecked": 90,
+      "status": "passed",
+      "scope": "Observed before adding this validation summary; run gates again for the final checkout."
+    }
+  },
+  "reproduction": {
+    "prerequisites": [
+      "Pinned managed dependencies from config/dependencies.json.",
+      "A licensed external AppServer SDK/RPO and a dedicated co-located test INI for TLPP runs.",
+      "An explicitly configured private database/driver/INI for real MSSQL runs; no private prerequisite is versioned."
+    ],
+    "runners": [
+      "./scripts/bootstrap.ps1",
+      "./scripts/build-hbbridge.ps1",
+      "./scripts/test-hbbridge.ps1",
+      "./scripts/test-hbbridge-benchmark-addon.ps1",
+      "node --test ./tests/unit/browser/hbbridge.benchmark.page.test.mjs",
+      "./scripts/build-totvs.cmd <test-appserver-directory> <include-directories>",
+      "./scripts/run-protheus-cli.ps1 -AppServerDirectory <test-appserver-directory> -IniFile <co-located-test-ini> -Program U_HBBridgeBenchmarkControlTest",
+      "./scripts/run-protheus-cli.ps1 -AppServerDirectory <test-appserver-directory> -IniFile <co-located-test-ini> -Program U_HBBridgeBenchmarkVisualTest",
+      "./scripts/run-protheus-cli.ps1 -AppServerDirectory <test-appserver-directory> -IniFile <co-located-test-ini> -Program U_HBBridgeBenchmarkRESTTest",
+      "./scripts/test-hbbridge-benchmark-addon.ps1 -Serve -ServeSeconds 600",
+      "./scripts/check-doc-links.ps1",
+      "./scripts/commit-check.ps1",
+      "./scripts/test-hbbridge-benchmark-addon.ps1 -Serve -ServeSeconds 1800 -Config <private-ini> -Profile <alias>"
+    ],
+    "details": "Use docs/validation/README.md and docs/benchmarking.md. For the served mock fixture, pass its freshly reported endpoint/profile/module to U_HBBridgeBenchmarkCLI with explicit routes=hbbridgeAddon. No historical tmp path, generated HRB, copied RPO or retained log is an input."
+  },
+  "limitations": [
+    "Dated source fingerprints identify this observation and do not automatically accept future changes.",
+    "Windows acceptance does not imply Linux or other AppServer/database-version acceptance.",
+    "Mock SQL validates the actual TLPP/TCP/HRB pipeline, not MSSQL query execution or high-load database behavior.",
+    "Automatic timeout is a bounded estimate, not a completion guarantee or cancellation of a blocking SQL/StartJob operation.",
+    "The Protheus server-only MSSQL smoke validates correctness, not a performance baseline.",
+    "Raw logs, private configurations, licensed RPOs and credentials remain external or disposable."
+  ]
+}

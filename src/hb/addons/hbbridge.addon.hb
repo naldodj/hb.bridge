@@ -41,7 +41,7 @@ FUNCTION ExecuteAddonHRB( cAddonName, oParams, cAddonRoot, hContext )
                     hHrb := hb_hrbLoad( HB_HRB_BIND_FORCELOCAL, cFile )
                 ENDIF
                 IF ! Empty( hHrb )
-                    cResult := hb_hrbDo( hHrb, hb_jsonEncode( oParams ), hContext )
+                    cResult := hb_hrbDo( hHrb, HBBridgeJSONEncode( oParams ), hContext )
                 ENDIF
                 EXIT
             OTHERWISE
@@ -51,7 +51,7 @@ FUNCTION ExecuteAddonHRB( cAddonName, oParams, cAddonRoot, hContext )
                 // Addons must initialize per-call state from explicit parameters.
                 hHrb := hb_hrbLoad( HB_HRB_BIND_FORCELOCAL, cFile )
                 IF ! Empty( hHrb )
-                    cResult := hb_hrbDo( hHrb, hb_jsonEncode( oParams ), hContext )
+                    cResult := hb_hrbDo( hHrb, HBBridgeJSONEncode( oParams ), hContext )
                 ENDIF
                 EXIT
             ENDSWITCH

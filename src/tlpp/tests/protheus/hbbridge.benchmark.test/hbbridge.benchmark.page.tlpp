@@ -29,6 +29,10 @@ static method Render(cInstance, jDefaults) class HBBridgeBenchmarkPage
     jConfig["iterations"] := jDefaults["iterations"]
     jConfig["warmup"] := jDefaults["warmup"]
     jConfig["timeoutSeconds"] := jDefaults["timeoutSeconds"]
+    jConfig["timeoutMaximumSeconds"] := 900
+    if jDefaults:HasProperty("timeoutMaximumSeconds")
+        jConfig["timeoutMaximumSeconds"] := jDefaults["timeoutMaximumSeconds"]
+    endif
     jConfig["protheusComparison"] := .F.
     jConfig["addonComparison"] := .F.
     if jDefaults:HasProperty("protheusComparison")
@@ -43,6 +47,7 @@ static method Render(cInstance, jDefaults) class HBBridgeBenchmarkPage
     jRoutes["protheusStartJob"] := jConfig["protheusComparison"]
     jRoutes["protheusRest"] := jConfig["protheusComparison"]
     jRoutes["hbbridgeAddon"] := jConfig["addonComparison"]
+    jRoutes["protheusServer"] := jConfig["protheusComparison"]
     jConfig["availableRoutes"] := jRoutes
     cConfig := jConfig:ToJSON()
     // JSON remains data, including aliases containing an HTML closing tag.
@@ -173,6 +178,13 @@ static method HTML() class HBBridgeBenchmarkPage
             <label for="hbb-timeoutSeconds">Call timeout (seconds)<input id="hbb-timeoutSeconds" name="timeoutSeconds" type="number" min="1" max="2147483" step="1" inputmode="numeric" required></label>
         </div>
         <fieldset class="hbb-routes">
+            <legend>Call timeout policy</legend>
+            <div class="hbb-route-options"><label for="hbb-timeout-auto"><input id="hbb-timeout-auto" type="checkbox" checked>Estimate automatically from the selected work</label></div>
+            <label for="hbb-timeout-maximum">Operational timeout ceiling (seconds)<input id="hbb-timeout-maximum" type="number" min="1" max="2147483" step="1" inputmode="numeric" value="900" required></label>
+            <p id="hbb-timeout-explanation" class="hbb-help"></p>
+            <p class="hbb-help">Editing Call timeout switches to manual. Both modes respect the operational ceiling; manual values above it are rejected. A timeout is an estimate, not a runtime guarantee or cancellation mechanism.</p>
+        </fieldset>
+        <fieldset class="hbb-routes">
             <legend>Execution routes · only selected routes run</legend>
             <div id="hbb-route-options" class="hbb-route-options"></div>
             <div id="hbb-presets" class="hbb-actions" aria-label="Route selection presets"></div>
@@ -197,6 +209,7 @@ static method HTML() class HBBridgeBenchmarkPage
         </div>
         <p id="hbb-result-meta" class="hbb-meta"></p>
         <p id="hbb-result-routes" class="hbb-meta"></p>
+        <p id="hbb-result-timeout" class="hbb-meta"></p>
         <p id="hbb-comparison" class="hbb-status"></p>
         <div class="hbb-cards">
             <div id="hbb-tcp-card" class="hbb-card"><span class="hbb-card-label">TCP average</span><strong id="hbb-tcp-average" class="hbb-value hbb-tcp">—</strong><span class="hbb-help">per complete traversal</span></div>
@@ -248,6 +261,28 @@ static method HTML() class HBBridgeBenchmarkPage
                 </table>
             </div>
             <p id="hbb-addon-statistics-method" class="hbb-help"></p>
+        </section>
+        <section id="hbb-protheus-server-panel" class="hbb-panel hbb-addon-panel" aria-labelledby="hbb-protheus-server-title" hidden>
+            <div class="hbb-panel-head">
+                <h2 id="hbb-protheus-server-title">Protheus · server execution in one StartJob</h2>
+                <span id="hbb-protheus-server-state" class="hbb-badge">Different timing scope</span>
+            </div>
+            <p class="hbb-help">The complete paged SQL traversal runs inside one Protheus StartJob through DBAccess. One job returns benchmark metrics instead of transferring every data page. Compare internal execution with the addon server scope; complete job elapsed is separate.</p>
+            <div class="hbb-cards hbb-actions">
+                <div class="hbb-card"><span class="hbb-card-label">Server traversal average</span><strong id="hbb-protheus-server-average" class="hbb-value hbb-addon">—</strong><span class="hbb-help">successful measured iterations</span></div>
+                <div class="hbb-card"><span class="hbb-card-label">Call elapsed</span><strong id="hbb-protheus-server-call" class="hbb-value">—</strong><span class="hbb-help">one StartJob, including environment preparation, all warmup and measured iterations</span></div>
+                <div class="hbb-card"><span class="hbb-card-label">Measured server rows</span><strong id="hbb-protheus-server-rows" class="hbb-value">—</strong><span class="hbb-help">rows consumed within Protheus</span></div>
+            </div>
+            <div id="hbb-protheus-server-chart" class="hbb-chart-box"></div>
+            <p id="hbb-protheus-server-chart-note" class="hbb-help">Server iteration latency. Warmup is excluded. This timing scope differs from the four client traversal routes.</p>
+            <div class="hbb-scroll">
+                <table>
+                    <caption>Protheus server traversal statistics; call elapsed includes the complete StartJob.</caption>
+                    <thead><tr><th scope="col">Scope</th><th scope="col">Result</th><th scope="col">Samples</th><th scope="col">Min ms</th><th scope="col">Average ms</th><th scope="col">Median ms</th><th scope="col">P95 ms</th><th scope="col">SD ms</th><th scope="col">CV %</th><th scope="col">Max ms</th><th scope="col">Rows / s</th><th scope="col">Rows</th></tr></thead>
+                    <tbody id="hbb-protheus-server-stats-body"></tbody>
+                </table>
+            </div>
+            <p id="hbb-protheus-server-statistics-method" class="hbb-help"></p>
         </section>
         <details class="hbb-panel">
             <summary>Warmup observations — excluded from measured statistics</summary>
@@ -309,7 +344,8 @@ document.addEventListener("DOMContentLoaded", ()=>{
             {key: 'protheusStartJob', name: 'Protheus StartJob', color: '#c76b21'},
             {key: 'protheusRest', name: 'Protheus REST', color: '#316bb0'}
         ];
-        const AllRoutes = [...RouteDefinitions, {key: 'hbbridgeAddon', name: 'hbBridge addon (server)', color: '#496b32'}];
+        const AllRoutes = [...RouteDefinitions, {key: 'hbbridgeAddon', name: 'hbBridge addon (server)', color: '#496b32'},
+            {key: 'protheusServer', name: 'Protheus server (one StartJob)', color: '#a55a24'}];
         const Capabilities = Object.fromEntries(AllRoutes.map(route => [route.key,
             (route.key === 'tcp' || route.key === 'http' ||
             (route.key === 'hbbridgeAddon' ? Config.addonComparison === true : Config.protheusComparison === true)) &&
@@ -323,16 +359,20 @@ document.addEventListener("DOMContentLoaded", ()=>{
 
         function Selection(report) {
             if (report.routeSelectionVersion !== undefined || report.selectedRoutes !== undefined) {
-                if (report.routeSelectionVersion !== 1 || !Record(report.selectedRoutes) ||
-                    Object.keys(report.selectedRoutes).length !== AllRoutes.length ||
-                    !AllRoutes.every(route => typeof report.selectedRoutes[route.key] === 'boolean') ||
-                    !AllRoutes.some(route => report.selectedRoutes[route.key])) return null;
-                return report.selectedRoutes;
+                if (report.routeSelectionVersion !== 1 || !Record(report.selectedRoutes)) return null;
+                const keys = Object.keys(report.selectedRoutes);
+                const legacy = keys.length === 5 && !Object.hasOwn(report.selectedRoutes, 'protheusServer');
+                const selected = legacy ? {...report.selectedRoutes, protheusServer: false} : report.selectedRoutes;
+                if (Object.keys(selected).length !== AllRoutes.length ||
+                    !AllRoutes.every(route => typeof selected[route.key] === 'boolean') ||
+                    !AllRoutes.some(route => selected[route.key])) return null;
+                return selected;
             }
             return {tcp: true, http: true,
                 protheusStartJob: report.protheusComparison === true || Record(report.protheusStartJob),
                 protheusRest: report.protheusComparison === true || Record(report.protheusRest),
-                hbbridgeAddon: report.addonComparison === true || Record(report.hbbridgeAddon)};
+                hbbridgeAddon: report.addonComparison === true || Record(report.hbbridgeAddon),
+                protheusServer: Record(report.protheusServer)};
         }
 
         function RoutePassed(report, key) {
@@ -346,10 +386,13 @@ document.addEventListener("DOMContentLoaded", ()=>{
         function RouteContract(report, selected) {
             if (!selected) return false;
             if (report.routeSelectionVersion !== 1) return true;
-            return Record(report.routeStates) && Object.keys(report.routeStates).length === AllRoutes.length && AllRoutes.every(route =>
-                ['skipped', 'notStarted', 'completed', 'failed'].includes(report.routeStates[route.key]) &&
-                (selected[route.key] ? report.routeStates[route.key] !== 'skipped' :
-                report.routeStates[route.key] === 'skipped' && !Object.hasOwn(report, route.key)));
+            if (!Record(report.routeStates)) return false;
+            const legacy = Object.keys(report.routeStates).length === 5 && !Object.hasOwn(report.routeStates, 'protheusServer') && !selected.protheusServer;
+            const states = legacy ? {...report.routeStates, protheusServer: 'skipped'} : report.routeStates;
+            return Object.keys(states).length === AllRoutes.length && AllRoutes.every(route =>
+                ['skipped', 'notStarted', 'completed', 'failed'].includes(states[route.key]) &&
+                (selected[route.key] ? states[route.key] !== 'skipped' :
+                states[route.key] === 'skipped' && !Object.hasOwn(report, route.key)));
         }
 
         function Routes(report) {
@@ -368,6 +411,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
                 input.id = 'hbb-route-' + route.key;
                 input.checked = Capabilities[route.key];
                 input.disabled = !Capabilities[route.key];
+                input.addEventListener('change', UpdateTimeout);
                 label.appendChild(input);
                 label.appendChild(document.createTextNode(route.name + (Capabilities[route.key] ? '' : ' · unavailable')));
                 options.appendChild(label);
@@ -382,15 +426,50 @@ document.addEventListener("DOMContentLoaded", ()=>{
                 button.addEventListener('click', () => {
                     if (State.busy || State.closed || !available) return;
                     AllRoutes.forEach(route => { Element('route-' + route.key).checked = Capabilities[route.key] && preset.keys.includes(route.key); });
+                    UpdateTimeout();
                 });
                 Element('presets').appendChild(button);
             });
         }
 
+        function EstimatedTimeout(params, routes, maximum) {
+            const server = routes.hbbridgeAddon || routes.protheusServer;
+            const pages = Math.max(1, Math.ceil(params.rows / params.pageSize));
+            const estimate = server ? 30 + Math.ceil((params.iterations + params.warmup) * pages) : 30;
+            return {seconds: Math.min(maximum, estimate), estimate, capped: estimate > maximum};
+        }
+
+        function UpdateTimeout() {
+            const maximum = Number(Element('timeout-maximum').value);
+            const params = Object.fromEntries(Object.keys(Fields).map(key => [key, Number(Element(key).value)]));
+            const routes = Object.fromEntries(AllRoutes.map(route => [route.key, Element('route-' + route.key).checked]));
+            if (!Number.isSafeInteger(maximum) || maximum < 1 || maximum > 2147483) {
+                Text('timeout-explanation', 'Set an operational ceiling from 1 to 2,147,483 whole seconds.');
+                return;
+            }
+            if (!Element('timeout-auto').checked) {
+                Text('timeout-explanation', 'Manual timeout: ' + Format(params.timeoutSeconds) + ' seconds per call; ceiling ' + Format(maximum) +
+                    ' seconds. The ceiling is enforced without changing the requested manual value.');
+                return;
+            }
+            if (!['rows', 'pageSize', 'iterations', 'warmup'].every(key => Number.isSafeInteger(params[key]) &&
+                params[key] >= Fields[key].min && params[key] <= Fields[key].max)) {
+                Text('timeout-explanation', 'Complete valid fixture counts to estimate the call timeout.');
+                return;
+            }
+            const result = EstimatedTimeout(params, routes, maximum);
+            Element('timeoutSeconds').value = String(result.seconds);
+            Text('timeout-explanation', 'Automatic: ' + Format(result.seconds) + ' seconds. ' +
+                (routes.hbbridgeAddon || routes.protheusServer ? '30-second base + 1 second per (measured + warmup) page, for the whole server call. ' :
+                '30-second base for each client page call. ') +
+                (result.capped ? 'Ceiling reached; uncapped estimate ' + Format(result.estimate) + ' seconds. ' : '') +
+                'This estimate does not guarantee completion or cancel SQL.');
+        }
+
         function Heading(compare, addon) {
             Text('description', compare ? 'Compare the same paged fixture through hbBridge and Protheus execution routes.' :
                 'Compare complete paged traversals through TCP and HTTP.');
-            Text('route-badge', 'M08 · One client · ' + (compare ? 'Four routes' : 'Two routes') + (addon ? ' + server addon' : ''));
+            Text('route-badge', 'M08 · One client · ' + (compare ? 'Four client routes + Protheus server' : 'Two client routes') + (addon ? ' + server addon' : ''));
             Text('run-help', compare ? 'Fixed fixture. Concurrency 1. TCP, HTTP, Protheus StartJob, then Protheus REST. Warmup is excluded.' :
                 'Fixed fixture. Concurrency 1. TCP runs before HTTP. Warmup is excluded.');
         }
@@ -404,7 +483,9 @@ document.addEventListener("DOMContentLoaded", ()=>{
             State.busy = value;
             Element('run').disabled = value || !Bridge || State.closed;
             Element('run').textContent = value ? 'Benchmark running...' : 'Run benchmark';
-            Object.keys(Fields).forEach(name => { Element(name).disabled = value; });
+            Object.keys(Fields).forEach(name => { Element(name).disabled = value || State.closed || !Bridge; });
+            Element('timeout-auto').disabled = value || State.closed || !Bridge;
+            Element('timeout-maximum').disabled = value || State.closed || !Bridge;
             AllRoutes.forEach(route => { Element('route-' + route.key).disabled = value || State.closed || !Bridge || !Capabilities[route.key]; });
             Presets.forEach(preset => { Element('preset-' + preset.key).disabled = value || State.closed || !Bridge ||
                 (preset.key !== 'all' && !preset.keys.every(key => Capabilities[key])); });
@@ -529,11 +610,11 @@ document.addEventListener("DOMContentLoaded", ()=>{
                 RoutePassed(report, route.key) && Finite(route.data.avgMs) && route.data.avgMs > 0 &&
                 route.data.completedIterations === report.iterations && route.data.warmupCompleted === report.warmupIterations &&
                 route.data.measuredRows === report.rowsPerIteration * report.iterations);
-            if (!comparable) return 'Relative comparison unavailable. At least two complete, successful client traversal routes with the same fixture and counts are required. Addon server timings have a separate scope.';
+            if (!comparable) return 'Relative comparison unavailable. At least two complete, successful client traversal routes with the same fixture and counts are required. Protheus server and addon internal timings have a separate scope.';
             const fastest = routes.reduce((best, route) => route.data.avgMs < best.data.avgMs ? route : best);
             return 'Lowest observed client average: ' + fastest.name + '. Mean elapsed / lowest mean: ' +
                 routes.map(route => route.name + ' ' + Format(route.data.avgMs / fastest.data.avgMs, 2) + '×').join('; ') +
-                '. Fixed execution order and local conditions can affect this comparison; addon server timings are excluded.';
+                '. Fixed execution order and local conditions can affect this comparison; Protheus server and addon internal timings are excluded.';
         }
 
         function SampleChart(routes, iterations, chartName = 'sample-chart', noteName = 'chart-note') {
@@ -593,6 +674,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
             const selected = Selection(report);
             const routes = Routes(report).map(route => ({...route, metrics: Metrics(route.data)}));
             const addon = selected && selected.hbbridgeAddon ? (Record(report.hbbridgeAddon) ? report.hbbridgeAddon : {}) : null;
+            const protheusServer = selected && selected.protheusServer ? (Record(report.protheusServer) ? report.protheusServer : {}) : null;
             const passed = report.success === true && RouteContract(report, selected) && AllRoutes.filter(route => selected[route.key]).every(route => RoutePassed(report, route.key));
             const rows = routes.every(route => Finite(route.data.measuredRows)) ?
                 routes.reduce((total, route) => total + route.data.measuredRows, 0) : null;
@@ -604,6 +686,12 @@ document.addEventListener("DOMContentLoaded", ()=>{
                 (selected[route.key] ? (report.routeSelectionVersion === 1 && Record(report.routeStates) ? String(report.routeStates[route.key] || 'notStarted') :
                 (RoutePassed(report, route.key) ? 'completed' : 'failed / not started')) : 'skipped')).join(' · ') :
                 'Invalid completed-run route selection. The report cannot pass.');
+            const policy = Record(report.timeoutPolicy) ? report.timeoutPolicy : null;
+            Text('result-timeout', policy ? 'Completed-run timeout: ' + String(policy.mode || 'Unavailable') + ' · effective ' +
+                Format(policy.timeoutSeconds) + ' s · operational ceiling ' + Format(policy.maximumSeconds) + ' s · uncapped estimate ' +
+                Format(policy.estimatedSeconds) + ' s · ceiling reached: ' + (typeof policy.ceilingReached === 'boolean' ? String(policy.ceilingReached) : 'Unavailable') +
+                '. ' + String(policy.scope || '') + ' ' + String(policy.method || '') :
+                'Completed-run timeout policy: Unavailable in this report. Current controls do not describe a previous run.');
             Text('comparison', Comparison(report, routes, passed));
             [['tcp', 'tcp'], ['http', 'http'], ['protheusStartJob', 'startjob'], ['protheusRest', 'rest']].forEach(([key, name]) => {
                 const route = routes.find(item => item.key === key);
@@ -636,24 +724,28 @@ document.addEventListener("DOMContentLoaded", ()=>{
                 label.appendChild(document.createTextNode(route.name));
                 legend.appendChild(label);
             });
-            Element('addon-panel').hidden = !addon;
-            if (addon) {
-                const metrics = Metrics(addon);
-                const addonPassed = RoutePassed(report, 'hbbridgeAddon');
-                Text('addon-state', addonPassed ? 'PASS · Server timing' : 'FAILED · Partial server timing');
-                Text('addon-average', Milliseconds(addon.avgMs));
-                Text('addon-call', Milliseconds(addon.callElapsedMs));
-                Text('addon-rows', Format(addon.measuredRows));
-                const addonBody = Element('addon-stats-body');
-                addonBody.replaceChildren();
-                Row(addonBody, ['Harbour server', addonPassed ? 'PASS' : 'FAILED / not started', Format(metrics.sampleCount),
-                    Format(addon.minMs, 2), Format(addon.avgMs, 2), Format(metrics.medianMs, 2), Format(metrics.p95Ms, 2),
-                    Format(metrics.stdDevMs, 2), Format(metrics.cvPct, 2), Format(addon.maxMs, 2),
-                    Format(metrics.throughputRowsSec, 2), Format(addon.measuredRows)]);
-                Text('addon-statistics-method', StatisticsNote([{name: 'Harbour server', metrics}]));
-                SampleChart([{data: addon, color: '#496b32'}], report.iterations, 'addon-chart', 'addon-chart-note');
-            }
+            [{data: addon, key: 'hbbridgeAddon', prefix: 'addon', name: 'Harbour server', color: '#496b32'},
+                {data: protheusServer, key: 'protheusServer', prefix: 'protheus-server', name: 'Protheus server', color: '#a55a24'}].forEach(server => {
+                Element(server.prefix + '-panel').hidden = !server.data;
+                if (!server.data) return;
+                const data = server.data;
+                const metrics = Metrics(data);
+                const serverPassed = RoutePassed(report, server.key);
+                Text(server.prefix + '-state', serverPassed ? 'PASS · Server timing' : 'FAILED · Partial server timing');
+                Text(server.prefix + '-average', Milliseconds(data.avgMs));
+                Text(server.prefix + '-call', Milliseconds(data.callElapsedMs));
+                Text(server.prefix + '-rows', Format(data.measuredRows));
+                const body = Element(server.prefix + '-stats-body');
+                body.replaceChildren();
+                Row(body, [server.name, serverPassed ? 'PASS' : 'FAILED / not started', Format(metrics.sampleCount),
+                    Format(data.minMs, 2), Format(data.avgMs, 2), Format(metrics.medianMs, 2), Format(metrics.p95Ms, 2),
+                    Format(metrics.stdDevMs, 2), Format(metrics.cvPct, 2), Format(data.maxMs, 2),
+                    Format(metrics.throughputRowsSec, 2), Format(data.measuredRows)]);
+                Text(server.prefix + '-statistics-method', StatisticsNote([{name: server.name, metrics}]));
+                SampleChart([{data, color: server.color}], report.iterations, server.prefix + '-chart', server.prefix + '-chart-note');
+            });
             const diagnosticRoutes = addon ? [...routes, {name: 'hbBridge addon (server)', data: addon}] : [...routes];
+            if (protheusServer) diagnosticRoutes.push({name: 'Protheus server (one StartJob)', data: protheusServer});
             AllRoutes.filter(route => selected && !selected[route.key] && Record(report[route.key])).forEach(route => {
                 diagnosticRoutes.push({name: route.name + ' (unexpected execution)', data: report[route.key]});
             });
@@ -708,7 +800,8 @@ document.addEventListener("DOMContentLoaded", ()=>{
                 '. Statistics include successful measured iterations only. Client construction is excluded. ' +
                 'The production client compression policy applies. This is a traversal comparison, not a parallel SQL capacity test.' +
                 (routes.some(route => route.key === 'protheusStartJob') ? ' Protheus StartJob is an in-process job, not a TCP transport. Its synchronous call cannot be cancelled by this harness. Verify DBAccess and the hbBridge alias target the same database.' : '') +
-                (addon ? ' The addon runs the traversal inside Harbour and returns metrics in one TCP call; its server timings are a separate scope.' : ''));
+                (addon ? ' The addon runs the traversal inside Harbour and returns metrics in one TCP call; its server timings are a separate scope.' : '') +
+                (protheusServer ? ' Protheus server executes all traversals inside one StartJob; internal traversal timings exclude job/environment preparation, which is included in complete job elapsed. Server-only timings stay outside the client ranking.' : ''));
             const memory = Record(report.memory) ? report.memory : {};
             Text('memory', memory.status === 'UNAVAILABLE' ?
                 'AppServer memory is unavailable in this report; sample the process externally. Physical ODBC reuse is not inferred from timing; record the hbBridge process configuration separately.' :
@@ -754,6 +847,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
         Element('form').addEventListener('submit', event => {
             event.preventDefault();
             if (State.closed || State.busy || !Bridge) return;
+            UpdateTimeout();
             const params = {};
             for (const [name, limits] of Object.entries(Fields)) {
                 const raw = Element(name).value;
@@ -776,6 +870,21 @@ document.addEventListener("DOMContentLoaded", ()=>{
             }
             if (!AllRoutes.some(route => params.routes[route.key])) {
                 Status('Select at least one execution route (ROUTE_SELECTION_EMPTY).', 'failed');
+                return;
+            }
+            const rawMaximum = Element('timeout-maximum').value;
+            const maximum = Number(rawMaximum);
+            if (!/^[1-9]\d*$/.test(rawMaximum) || !Number.isSafeInteger(maximum) || maximum > 2147483) {
+                Status('The operational timeout ceiling requires a whole number from 1 to 2,147,483 (TIMEOUT_POLICY_INVALID).', 'failed');
+                Element('timeout-maximum').focus();
+                return;
+            }
+            params.timeoutPolicy = {mode: Element('timeout-auto').checked ? 'auto' : 'manual', maximumSeconds: maximum};
+            if (params.timeoutPolicy.mode === 'auto') {
+                params.timeoutSeconds = EstimatedTimeout(params, params.routes, maximum).seconds;
+            } else if (params.timeoutSeconds > maximum) {
+                Status('The manual timeout exceeds the operational ceiling (TIMEOUT_CEILING_EXCEEDED). Increase the ceiling or reduce the timeout.', 'failed');
+                Element('timeoutSeconds').focus();
                 return;
             }
             const requestID = Config.instance + '-' + (++State.sequence);
@@ -829,12 +938,25 @@ document.addEventListener("DOMContentLoaded", ()=>{
         });
 
         RouteControls();
-        Object.keys(Fields).forEach(name => { Element(name).value = String(Config[name]); });
+        Object.keys(Fields).forEach(name => {
+            Element(name).value = String(Config[name]);
+            Element(name).addEventListener('input', () => {
+                if (name === 'timeoutSeconds') Element('timeout-auto').checked = false;
+                UpdateTimeout();
+            });
+        });
+        Element('timeout-maximum').value = String(Number.isSafeInteger(Config.timeoutMaximumSeconds) &&
+            Config.timeoutMaximumSeconds >= 1 && Config.timeoutMaximumSeconds <= 2147483 ? Config.timeoutMaximumSeconds : 900);
+        Element('timeout-maximum').addEventListener('input', UpdateTimeout);
+        Element('timeout-auto').addEventListener('change', UpdateTimeout);
+        UpdateTimeout();
         Heading(Config.protheusComparison === true, Config.addonComparison === true);
         Text('profile', typeof Config.profile === 'string' ? Config.profile : 'Unavailable');
         if (!Bridge || typeof Bridge.send !== 'function' || typeof Bridge.onAdvplToJs !== 'function') {
             Status('Open this example in Protheus with FWWebEx to run a benchmark. This standalone page has no execution channel.');
             Object.keys(Fields).forEach(name => { Element(name).disabled = true; });
+            Element('timeout-auto').disabled = true;
+            Element('timeout-maximum').disabled = true;
             Element('route-options').querySelectorAll('input').forEach(node => { node.disabled = true; });
             Element('presets').querySelectorAll('button').forEach(node => { node.disabled = true; });
         } else {
@@ -855,7 +977,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
             Busy(false);
         }, {once: true});
         if (typeof globalThis.__HBBridgeBenchmarkTestHook === 'function') {
-            globalThis.__HBBridgeBenchmarkTestHook({Receive, RenderReport, State, SampleKeys, UpdateElapsed, Metrics, Selection});
+            globalThis.__HBBridgeBenchmarkTestHook({Receive, RenderReport, State, SampleKeys, UpdateElapsed, Metrics, Selection, EstimatedTimeout});
         }
     })();
 });

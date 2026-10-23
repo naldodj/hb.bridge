@@ -13,19 +13,19 @@ FUNCTION Main( cJSON, hContext )
     LOCAL nIteration, nRows, nSize, nIterations, nWarmup, nStarted, nTotal := 0, nMin := 0, nMax := 0
     LOCAL nCompleted := 0
 
-    IF ! HB_ISSTRING( cJSON ) .OR. hb_jsonDecode( cJSON, @hParams ) == 0 .OR. ;
+    IF ! HB_ISSTRING( cJSON ) .OR. ! HBBridgeJSONComplete( cJSON, HBBridgeJSONDecode( cJSON, @hParams ) ) .OR. ;
         ! HB_ISHASH( hParams ) .OR. ! HB_ISHASH( hContext )
-        RETURN hb_jsonEncode( AddonFailure( "INVALID_PARAMS" ) )
+        RETURN HBBridgeJSONEncode( AddonFailure( "INVALID_PARAMS" ) )
     ENDIF
     IF ! hb_HHasKey( hContext, "registry" )
-        RETURN hb_jsonEncode( AddonFailure( "INVALID_CONTEXT" ) )
+        RETURN HBBridgeJSONEncode( AddonFailure( "INVALID_CONTEXT" ) )
     ENDIF
     IF Len( hParams ) != 5
-        RETURN hb_jsonEncode( AddonFailure( "INVALID_PARAMS" ) )
+        RETURN HBBridgeJSONEncode( AddonFailure( "INVALID_PARAMS" ) )
     ENDIF
     FOR EACH cKey IN { "profile", "rows", "pageSize", "iterations", "warmup" }
         IF ! hb_HHasKey( hParams, cKey )
-            RETURN hb_jsonEncode( AddonFailure( "INVALID_PARAMS" ) )
+            RETURN HBBridgeJSONEncode( AddonFailure( "INVALID_PARAMS" ) )
         ENDIF
     NEXT
     cProfile := hParams[ "profile" ]
@@ -34,12 +34,12 @@ FUNCTION Main( cJSON, hContext )
     nIterations := hParams[ "iterations" ]
     nWarmup := hParams[ "warmup" ]
     IF ! HB_ISSTRING( cProfile )
-        RETURN hb_jsonEncode( AddonFailure( "INVALID_PARAMS" ) )
+        RETURN HBBridgeJSONEncode( AddonFailure( "INVALID_PARAMS" ) )
     ENDIF
     IF Empty( AllTrim( cProfile ) ) .OR. Chr( 0 ) $ cProfile .OR. ;
         ! AddonInteger( nRows, 1, 100000 ) .OR. ! AddonInteger( nSize, 1, 100000 ) .OR. ;
         ! AddonInteger( nIterations, 1, 1000000 ) .OR. ! AddonInteger( nWarmup, 0, 1000000 )
-        RETURN hb_jsonEncode( AddonFailure( "INVALID_PARAMS" ) )
+        RETURN HBBridgeJSONEncode( AddonFailure( "INVALID_PARAMS" ) )
     ENDIF
     cSQL := AddonSQL( nRows )
     hSeries := { "success" => .F., "completedIterations" => 0, "warmupCompleted" => 0, ;
@@ -89,8 +89,8 @@ FUNCTION Main( cJSON, hContext )
         "fixture" => "m08.constant.v1", "profile" => cProfile, "rowsPerIteration" => nRows, ;
         "pageSize" => nSize, "iterations" => nIterations, "warmupIterations" => nWarmup, ;
         "series" => hSeries }
-
-RETURN hb_jsonEncode( hReport )
+/* Preserve double precision independently of SET DECIMALS at the JSON ABI. */
+RETURN HBBridgeJSONEncode( hReport )
 
 STATIC FUNCTION AddonIteration( hContext, cProfile, cSQL, nRows, nSize )
 

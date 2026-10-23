@@ -21,7 +21,7 @@ HTTPS ou BLOB JSON. Veja [encerramento, artefatos e limites](docs/acceptance.pt-
 | Item | Valor atual |
 | --- | --- |
 | ID | `002-typed-sql-presentation` |
-| Abertura / atualização | 2026-10-21 / 2026-10-22 |
+| Abertura / atualização | 2026-10-21 / 2026-10-23 |
 | Situação | Planejado; implementação não iniciada. |
 | Objetivo | Definir valores SQL/metadados tipados explícitos e adapter de apresentação nativa pertencente ao chamador Protheus sobre Query/dataset homologados. |
 | Referência | Base `8db2823`; artefatos da árvore de trabalho validados no pacote 001 identificados no manifesto de encerramento. Não é nova tag de release. |
@@ -45,15 +45,41 @@ HTTPS ou BLOB JSON. Veja [encerramento, artefatos e limites](docs/acceptance.pt-
   Registrar convenção mínima de includes TLPP e preservar
   fontes de benchmark revisados. Manter T01 planejado.
 
-- [ ] 2026-10-22: implementar manutenção de confiabilidade/controle do benchmark
+- [x] 2026-10-22/23: implementar e validar automaticamente manutenção de confiabilidade/controle do benchmark
   explicitamente solicitada antes de retomar T01: execução real de rotas
   isoladas por seleção CLI/TLPP/visual compatível, dependências somente das
   rotas escolhidas, estados ignorado/falha explícitos e estatísticas das
   amostras medidas. Manter configuração de destino/perfil/módulo/autenticação
-  confiável; separar varreduras cliente dos tempos internos/RPC do addon.
+  confiável; separar varreduras cliente dos tempos internos/RPC do addon e
+  internos/job completo do Protheus. Adicionar `protheusServer` opcional
+  (um StartJob para todas as varreduras), normalizar mapas antigos de cinco
+  rotas e preservar requisições anteriores com cinco/seis campos. Estimar
+  timeout automático pela carga/páginas, com teto editável de 900s, modo manual
+  explícito e política efetiva própria do relatório.
   Compilar e verificar cenários determinísticos, de navegador e AppServer
   real antes de registrar aceite. Essa repriorização não implementa contratos
   SQL/apresentação de T01. Veja o [guia do benchmark](docs/benchmarking.pt-BR.md#seleção-de-rotas-e-estatísticas-medidas).
+  Evidência atual: compilação isolada de 54 fontes TLPP aprovada, zero erros/
+  saída 0; AppServer isolado aprovou controle/visual/contrato REST com 82/81/43. Teste
+  MSSQL de correção em um job aprovado (10 linhas, página 5, duas medidas +
+  um aquecimento). Suítes nativas completa/addon pós-codec: 752/74, com
+  precisão/ABI e TCP 254/255/256/500 exatos com SQL simulado/sem pausas.
+  Compilação TLPP final: 54 fontes, zero erros/saída 0.
+  Chromium: 3 suítes, 68 observações principais +
+  25 de servidor/timeout. Em 2026-10-23, diagnosticar falha fornecida de 255
+  iterações e reprodução TLPP/SQL simulado com 500 como arredondamento da média
+  JSON na ABI addon/host sob SET DECIMALS 2, sem limite de iterações. Checks de
+  amostras retornadas passam; falha somente a precisão dos agregados. Chamada
+  fornecida: 87.9255s frente ao prazo de 900s. Usar HBBridgeJSONEncode/Decode
+  existentes na ABI, manter validação estrita e remover pausas de 1.5s que
+  alteravam apenas ritmo. Host/HRB recompilados e cliente TLPP real passaram
+  255 medidas mais dois aquecimentos e 500 mais zero contra host/HRB TCP reais
+  e Query simulado, preservando agregados estritos. Separar fixture Windows de
+  outras plataformas. MSSQL255 real também passou com TLPP/TCP/HRB,
+  1000 linhas/página100, dois aquecimentos, agregados estritos, pooling off/
+  sem pausas. MSSQL500 real continua pendente. Manter acompanhamento manual
+  da implantação equivalente/FWWebEx após recompilar hbBridge, HRB e TLPP.
+  Comprova correção, sem aceite de produção/desempenho. T01 permanece planejada.
 
 ### Decisões preservadas
 

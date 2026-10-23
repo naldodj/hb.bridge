@@ -192,7 +192,7 @@ FUNCTION HBBridgeParseFrame( cFrame, cPayload, nMaximum )
 
 RETURN .T.
 
-FUNCTION SendResponse( hSocket, cPayload as character, hOptions )
+FUNCTION SendResponse( hSocket, cPayload as character, hOptions, hDiagnostics )
 
     LOCAL aEncoded, aDeadline
 
@@ -202,7 +202,7 @@ FUNCTION SendResponse( hSocket, cPayload as character, hOptions )
 
     LOCAL lSent
 
-    LOCAL nOffset, nBytes, nWireBytes, nPayloadBytes, nReadChunkBytes
+    LOCAL nOffset, nBytes, nWireBytes, nPayloadBytes, nReadChunkBytes, nStarted
 
     LOCAL pEncoder
 
@@ -210,11 +210,20 @@ FUNCTION SendResponse( hSocket, cPayload as character, hOptions )
     nOffset := 1
     nWireBytes := 0
     lSent := .F.
+    nStarted := HBBridgeMonotonicMs()
+    hb_default( @hDiagnostics, {=>} )
+    hDiagnostics[ "failureCategory" ] := "INVALID_RESPONSE"
+    hDiagnostics[ "socketError" ] := 0
+    hDiagnostics[ "wireBytes" ] := 0
+    hDiagnostics[ "payloadBytes" ] := 0
 
     IF hPolicy == NIL .OR. ! HB_ISSTRING( cPayload )
         RETURN .F.
     ENDIF
     nPayloadBytes := hb_BLen( cPayload )
+    hDiagnostics[ "payloadBytes" ] := nPayloadBytes
+    hDiagnostics[ "ioTimeoutMs" ] := hPolicy[ "protheusTimeoutMs" ]
+    hDiagnostics[ "failureCategory" ] := "PAYLOAD_BUDGET_EXCEEDED"
     nReadChunkBytes := hPolicy[ "protheusReadChunkBytes" ]
     IF nPayloadBytes == 0 .OR. OverBudget( nPayloadBytes, hPolicy[ "protheusMaxPayloadBytes" ] )
         RETURN .F.
@@ -225,13 +234,14 @@ FUNCTION SendResponse( hSocket, cPayload as character, hOptions )
         RETURN .F.
     ENDIF
     pEncoder := HBBridgeDeflateOpen()
+    hDiagnostics[ "failureCategory" ] := "COMPRESSION_FAILED"
     IF Empty( pEncoder )
         RETURN .F.
     ENDIF
     BEGIN SEQUENCE WITH {| oError | Break( oError ) }
         aEncoded := HBBridgeDeflateFeed( pEncoder, cHeader, .F. )
         IF aEncoded[ 1 ] == 0 .AND. aEncoded[ 3 ] == hb_BLen( cHeader ) .AND. ;
-            SendChunks( hSocket, aEncoded[ 2 ], hPolicy, aDeadline, @nWireBytes )
+            SendChunks( hSocket, aEncoded[ 2 ], hPolicy, aDeadline, @nWireBytes, hDiagnostics )
             DO WHILE nOffset <= nPayloadBytes .AND. IORemaining( aDeadline ) != 0
                 nBytes := Min( nReadChunkBytes, nPayloadBytes - nOffset + 1 )
                 aEncoded := HBBridgeDeflateFeed( pEncoder, hb_BSubStr( cPayload, nOffset, nBytes ), ;
@@ -239,7 +249,7 @@ FUNCTION SendResponse( hSocket, cPayload as character, hOptions )
                 IF aEncoded[ 1 ] < 0 .OR. aEncoded[ 3 ] != nBytes
                     EXIT
                 ENDIF
-                IF ! SendChunks( hSocket, aEncoded[ 2 ], hPolicy, aDeadline, @nWireBytes )
+                IF ! SendChunks( hSocket, aEncoded[ 2 ], hPolicy, aDeadline, @nWireBytes, hDiagnostics )
                     EXIT
                 ENDIF
                 nOffset += nBytes
@@ -251,10 +261,17 @@ FUNCTION SendResponse( hSocket, cPayload as character, hOptions )
     ALWAYS
         HBBridgeDeflateClose( pEncoder )
     END SEQUENCE
+    hDiagnostics[ "wireBytes" ] := nWireBytes
+    hDiagnostics[ "elapsedMs" ] := HBBridgeMonotonicMs() - nStarted
+    IF IORemaining( aDeadline ) == 0
+        hDiagnostics[ "failureCategory" ] := "SEND_TIMEOUT"
+    ELSEIF lSent
+        hDiagnostics[ "failureCategory" ] := ""
+    ENDIF
 
 RETURN lSent .AND. IORemaining( aDeadline ) != 0
 
-STATIC FUNCTION SendChunks( hSocket, aChunks, hPolicy, aDeadline, nWireBytes )
+STATIC FUNCTION SendChunks( hSocket, aChunks, hPolicy, aDeadline, nWireBytes, hDiagnostics )
 
     LOCAL cChunk
 
@@ -268,15 +285,19 @@ STATIC FUNCTION SendChunks( hSocket, aChunks, hPolicy, aDeadline, nWireBytes )
         DO WHILE nOffset <= nChunkBytes
             nWait := IORemaining( aDeadline )
             IF nWait == 0
+                hDiagnostics[ "failureCategory" ] := "SEND_TIMEOUT"
                 RETURN .F.
             ENDIF
             nChunkSize := Min( nReadChunkBytes, nChunkBytes - nOffset + 1 )
             IF nChunkSize > nStringBytesMax - nWireBytes .OR. ;
                 OverBudget( nWireBytes + nChunkSize, hPolicy[ "protheusMaxWireBytes" ] )
+                hDiagnostics[ "failureCategory" ] := "WIRE_BUDGET_EXCEEDED"
                 RETURN .F.
             ENDIF
             nBytes := hb_socketSend( hSocket, hb_BSubStr( cChunk, nOffset, nChunkSize ), NIL, 0, nWait )
             IF nBytes <= 0 .OR. nBytes > nChunkSize
+                hDiagnostics[ "failureCategory" ] := "SOCKET_SEND_FAILED"
+                hDiagnostics[ "socketError" ] := hb_socketGetError()
                 RETURN .F.
             ENDIF
             nOffset += nBytes

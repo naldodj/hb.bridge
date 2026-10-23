@@ -104,6 +104,11 @@ Helpers de validação mantidos: `check-doc-links.ps1`,
 `test-harbour-thread-state.ps1` e `run-protheus-cli.ps1`. O último exige
 SDK/INI/programa explícitos e informa resultados do processo, sem deduzir
 aprovação das asserções. Veja os [roteiros por fontes](../docs/validation/README.pt-BR.md).
+O INI fornecido precisa ficar junto ao executável do SDK isolado fornecido;
+o AppServer testado rejeita diretório em `-ini`. O executor omite essa opção
+para `appserver.ini` padrão, ou passa outro INI pelo nome base como argumento
+separado. Não copia INI para instalação ativa nem a modifica. Veja a
+[referência TOTVS de linha de comando](https://tdn.totvs.com/display/tec/Application%2BServer%2B-%2BCommand%2BLine).
 
 ## Validação de commits
 
@@ -246,8 +251,9 @@ e o host opcional `-Route http -ServeSeconds 600` destinado ao
 ## Comparação Protheus e addon de benchmark opcionais
 
 O [benchmark visual](../src/tlpp/tests/protheus/hbbridge.benchmark.test/README.pt-BR.md)
-compara hbBridge TCP/HTTP com Protheus StartJob/REST e um addon Harbour adicional.
-Todos usam a fixture paginada fixa. StartJob inclui preparação do worker/ambiente
+compara hbBridge TCP/HTTP com Protheus StartJob/REST e escopos separados de
+addon Harbour/Protheus em um job único. Todos usam a fixture paginada fixa.
+StartJob por página inclui preparação do worker/ambiente
 por página; não simula tráfego TCP pela rede. O addon executa varreduras completas
 dentro do hbBridge e retorna apenas estatísticas. Suas medidas internas excluem
 transporte e carga do HRB; a chamada `ADDON.Execute` única possui tempo decorrido
@@ -267,6 +273,28 @@ O log fica em `tmp/benchmark-addon-tests-<id>/results.log`. Exige dependências
 gerenciadas de build ODBC/Zig, mas não credenciais MSSQL reais. Esses checks
 não homologam AppServer nem MSSQL real.
 
+Para manter fixture isolada do addon recém-compilada disponível ao cliente
+TLPP real, executar em outro terminal:
+
+```powershell
+./scripts/test-hbbridge-benchmark-addon.ps1 -Serve -ServeSeconds 1800 `
+    -Config C:/tmp/hbbridge.ini -Profile MSSQL/pData
+```
+
+`-Config` e `-Profile` são opcionais juntos e exigem `-Serve`. Com eles, o host
+carrega somente o perfil MSSQL explicitamente escolhido no registro nativo.
+Imprime porta TCP dinâmica de loopback, perfil/backend e módulo
+`hbbridgebenchmarkaddon.hrb`; não altera INI privado nem serviço existente.
+Sem o par, serve mode usa SQL simulado. O servidor próprio termina em
+`-ServeSeconds` (1..3600) ou ao encontrar `stop.request` na pasta da execução
+impressa. Preparação/compilação ficam fora do tempo servido e das amostras.
+
+Essa fixture mínima mantém pooling físico ODBC **off**; não aplica demais
+configurações runtime do INI privado nem reproduz política de pooling do
+servidor ativo. É host de correção/reprodução, sem constituir implantação
+equivalente de desempenho. Veja o
+[roteiro do cliente/módulo e rodadas 255/500](../src/tlpp/tests/protheus/hbbridge.benchmark.test/README.pt-BR.md#reproduzir-o-host-do-addon-com-perfil-mssql-explícito).
+
 Mesclar o [fragmento REST](../config/hbbridge.benchmark.rest.pt-BR.md) à instalação
 existente: reutilizar um listener REST 2.0 com `Security=1`, sua configuração TLS
 e preparação de empresa/filial definida na implantação. `BenchmarkProtheusURL`
@@ -276,6 +304,7 @@ antes do endpoint. Não exige listener adicional nem bearer próprio do benchmar
 A entrada do navegador não fornece SQL, contexto ERP ou credenciais; o contexto
 e a configuração confiáveis do AppServer fornecem esses dados.
 `BenchmarkAddonModule` seleciona o HRB instalado e `BenchmarkAddonTimeoutSeconds`
-define o orçamento da chamada completa.
-A validação runtime ampliada continua pendente no [WIP](../WIP.pt-BR.md),
-separadamente da referência M08 homologada.
+define o prazo de chamadas antigas. A nova política explícita fornece o prazo
+efetivo da chamada completa em seu lugar. Checks automáticos atuais e aceite
+manual pendente estão no [WIP](../WIP.pt-BR.md), separadamente da referência
+M08 histórica homologada.

@@ -122,14 +122,16 @@ not become zero-latency points or successful iterations.
 ## Route selection and measured statistics
 
 The AppServer benchmark can execute any nonempty subset of `tcp`, `http`,
-`protheusStartJob`, `protheusRest` and `hbbridgeAddon`. Selection controls actual
+`protheusStartJob`, `protheusRest`, `hbbridgeAddon` and `protheusServer`. Selection controls actual
 execution, client construction and dependency validation; it is not a chart
 filter. Selected routes retain that fixed order, with concurrency one. A
 skipped route has no successful measurement and must not be counted as passed.
 The additive `routeSelectionVersion=1`, `selectedRoutes` boolean map and
 `routeStates` fields record selection and `skipped`, `notStarted`, `completed`
-or `failed` outcomes. Existing calls without route selection retain their
-TCP/HTTP baseline and optional comparison/addon behavior.
+or `failed` outcomes. New maps have all six boolean keys. A legacy five-key
+map is accepted with missing `protheusServer` normalized to `false`. Existing
+calls without selection retain TCP/HTTP and the previous optional comparison/
+addon behavior; they do not silently enable the new server-only route.
 
 CLI accepts `--routes=http` or a comma-separated list such as
 `--routes=tcp,http`. Use the exact route names above. Empty selections, unknown
@@ -147,6 +149,57 @@ to the profile, destinations, module, ERP context or credentials. Disabled
 capabilities cannot be enabled by editing a browser request. The console,
 rendered results and JSON retain the selection so an isolated test cannot be
 mistaken for a successful full comparison.
+
+The four client routes retain their complete per-iteration dataset traversal
+scope. `protheusStartJob` launches one synchronous job per page.
+`protheusServer` launches one synchronous job for the complete set of warmup
+and measured traversals, prepares/clears only its own Protheus environment,
+and executes the same paged SELECT plus COUNT through DBAccess. Its
+`samples.*.elapsedMs` covers internal SQL/traversal/value checks;
+`callElapsedMs` includes job/environment preparation, all traversals and the
+metrics response. The page displays it beside the addon in a separate server
+panel. Compare like internal scopes or like complete calls; neither internal
+server average participates in the four-client fastest-route ranking.
+
+The controller accepts the original five numeric parameters, the previous six
+parameters including `routes`, and the new seven including `timeoutPolicy`.
+The current page submits a six-key route map and an explicit timeout policy.
+It does not expose profile, SQL, destinations, ERP context or credentials.
+
+### Automatic and manual call timeouts
+
+The visual default is automatic estimation with an editable operational ceiling
+of **900 seconds**. Trusted page defaults may supply `timeoutMaximumSeconds`.
+CLI enables the same explicit policy with `--timeout=auto --timeout-max=900`.
+For an explicit manual policy use, for example, `--timeout=120 --timeout-max=900`.
+Both modes enforce an integer ceiling from 1 to 2147483 seconds; manual values
+above it are rejected without silently changing them. Editing Call timeout in
+the page selects manual mode. Ceilings below 30 seconds remain respected.
+
+For valid integer fixture counts, let `pages = Max(1, Ceiling(rows/pageSize))`.
+If `hbbridgeAddon` or `protheusServer` is selected, the uncapped heuristic is
+`30 + Ceiling((iterations + warmup) * pages)` seconds; otherwise it is 30.
+The effective automatic timeout is `Min(maximumSeconds, estimate)`. This is a
+30-second base plus an estimated second per server page, not a measured
+throughput prediction or completion guarantee. The page identifies a reached
+ceiling and the uncapped estimate; the controller derives the value again from
+validated inputs. There is no 254/255 iteration boundary in this policy.
+
+`timeoutPolicy` input is exactly `{mode: "auto"|"manual", maximumSeconds: N}`.
+The report records effective top-level `timeoutSeconds` and resolved
+`timeoutPolicy` fields `success`, `mode`, `maximumSeconds`, `timeoutSeconds`,
+`estimatedSeconds`, `ceilingReached`, `method` and `scope`. The completed HTML
+and exports read that report-owned policy, never the next run's controls.
+Legacy reports without policy identify it as unavailable. Client routes apply
+the effective timeout per page; server-only routes apply it to their complete
+single call. An explicit policy also supplies the complete addon RPC budget;
+it is not silently replaced by the previous separate 600-second default.
+Legacy calls without a policy preserve `BenchmarkAddonTimeoutSeconds`.
+
+A synchronous StartJob can check elapsed time only after its blocking call
+returns. A client timeout, browser wait notice or closed page does not prove
+that SQL or a worker was cancelled. The launcher process timeout is another
+separate scope and must allow the selected workload and setup to finish.
 
 Per-route derived statistics use successful measured traversal samples only:
 `sampleCount`, `medianMs`, nearest-rank `p95Ms`, population `stdDevMs`, `cvPct`,
@@ -170,8 +223,8 @@ Five measured samples provide only a small observation: nearest-rank P95 then
 equals the observed maximum and is not a production tail-latency estimate.
 Partial successful-sample statistics do not make a failed route comparable.
 Compare successful complete client routes with the same workload and timing
-scope. Addon server traversal statistics remain separate from complete addon
-RPC duration and from client traversal bars. Browser rendering time and payload
+scope. Internal Protheus-server and addon traversal statistics remain separate
+from their complete StartJob/RPC durations and from client traversal bars. Browser rendering time and payload
 size are not collected by this harness and are not inferred from elapsed time.
 
 New reports include the failed phase/iteration and per-sample `serviceCode`,
@@ -235,11 +288,91 @@ environment with `RpcSetEnv()`/`RpcClearEnv()`. `FWGetTopInfo()` supplies any
 needed DBAccess configuration. REST keeps its framework-prepared session;
 ERP context is never sent to the Harbour addon or inferred by hbBridge.
 
-The addon timeout bounds its complete RPC rather than an individual SQL page;
-set it for the requested total workload. StartJob checks elapsed time after
+Server-only timeouts cover the complete RPC or StartJob rather than one SQL
+page; size their explicit policy for the requested total workload. StartJob checks elapsed time after
 return and cannot be interrupted by this harness. A client timeout does not
 prove the worker stopped. The browser spinner and elapsed indicator show that
 a request is pending; they are not a server progress percentage or cancellation.
+
+## Current maintenance validation and iteration-boundary follow-up
+
+The current route/statistics changes require their own acceptance; the dated
+2026-10-19 five-route results below retain their original source/workload scope.
+Full isolated compilation passed for 54 TLPP sources: zero errors, exit 0.
+Actual isolated-RPO AppServer CLI runs passed 82 control, 81 visual/controller
+and 43 REST contract checks after the final compile. The real `protheusServer` MSSQL correctness smoke passed with explicit
+`MSSQL/pData`, company/branch 99/01, 10 rows, page size 5, two measured
+traversals and one warmup: 20 measured rows, four page calls and two samples.
+The internal mean was 78.94645 ms; complete StartJob elapsed was 8329.1636 ms.
+These distinct scopes are intentional; two tiny samples are correctness
+evidence, not a performance baseline. After the precision repair, all 54 TLPP
+sources compiled again successfully with zero errors/exit 0; only artifacts
+from the matching source revision establish that check.
+
+After the codec repair, the full native suite passed 752 checks and the addon
+suite passed 74 checks: rational/tiny/large values in params
+and returns under SET DECIMALS 2, accepted JSON whitespace, rejected trailing
+garbage, framed-TCP `1/3` round trip and exact aggregate validation at
+254/255/256/500 iterations without sleeps against a SQL mock. That mock proves
+its transport/fixture scope, not MSSQL workload acceptance. The actual TLPP
+client also passed the post-repair 255/500 checks below.
+The latest actual Chromium run passed three suites: 68 main DOM assertions,
+25 optional-route/server/timeout assertions and the no-channel guard. It covers
+254/255/500 estimate boundaries, explicit caps/manual overrides, legacy maps,
+report-owned provenance, failed-route visibility, exports and large graphs.
+Browser fixtures do not establish real SQL/StartJob acceptance.
+
+### Addon JSON precision diagnosis on 2026-10-23
+
+In supplied run `D24377B51C174447AA3C185DF76A876F`, the addon result validator
+records 255 completed measured samples and two warmups, with both sample
+sets valid and all fixture/profile/workload checks passing. Only
+`statisticsValid` is false. The complete call returned after 87925.5106 ms
+(87.9255 seconds), below its explicit 900-second timeout. This supplied failure
+is an aggregate-integrity rejection, not evidence of a 255-iteration limit or
+an expired whole-call budget. The later actual-TLPP-client 500-iteration
+SQL-mock reproduction likewise completed its samples and failed aggregate
+validation.
+
+A deterministic native reproduction identifies an internal JSON precision
+loss: with `SET DECIMALS TO 2`, `hb_jsonEncode()` serializes an average of
+`1 / 3` as `0.33`. The addon/native-host ABI used this encoder before the
+outer D03 wire codec, so the outer codec could not restore the original mean.
+Strict sample/total/mean validation correctly rejects that rounded aggregate.
+The repair uses the existing `HBBridgeJSONEncode()`/`HBBridgeJSONDecode()` at
+the benchmark addon and common native addon handoff, preserving the JSON ABI
+and strict validation rather than increasing tolerances. Rebuild the host and
+HRB together so both sides contain the precision-preserving codec.
+
+The local `hb_idleSleep(1.5)` workaround is removed: it adds 1.5 seconds per
+executed traversal outside sample timing and changes complete-call duration
+and pacing, without correcting JSON arithmetic. Earlier sleep-bearing runs
+retain that limitation. Windows native TCP 254/255/256/500 tests with SQL mock
+and no sleeps passed with exact aggregates after the codec repair; the 74-check
+precision/ABI suite passed. The actual Protheus TLPP client then passed 255
+measured traversals plus two warmups, and 500 plus zero warmups, through the
+real Harbour TCP host/HRB with a mock Query service. Strict aggregate validation
+passed in both. Means retained `15/255 = 0.0588235294117647` and
+`94/500 = 0.188`, instead of native two-decimal rounding to `0.06` and `0.19`.
+Complete fixture calls were approximately 56.95 and 209.58 ms; these timings
+are correctness evidence for the mock/clock resolution, not SQL throughput
+or a performance claim. Full native 752 and final 54-source TLPP compilation
+also passed after the repair.
+
+Real MSSQL validation on 2026-10-23 also passed: actual Protheus TLPP client
+through the isolated TCP host/HRB, profile `MSSQL/pData`, 1000 rows, page size
+100, 255 measured traversals plus two warmups, strict aggregate checks true
+and exit 0. The exact mean was `240937/255 = 944.850980392157` ms;
+complete call 243648.6517 ms remained below 900 seconds. This run used ODBC
+physical pooling **off**, no artificial sleeps and the explicit private profile.
+Its timing is correctness evidence, not a comparison with the original user's
+pooling/cache/load configuration or a performance-improvement claim.
+The corresponding real 500-iteration case is still running/pending acceptance.
+
+No Linux/platform-wide acceptance is inferred. Rebuild hbBridge, the benchmark
+HRB and current TLPP together before repeating the supplied case in the normal
+deployment. Keep manual FWWebEx and matched deployment/performance validation
+separate. T01 of package 002 remains planned.
 
 ## Accepted visual comparison and whole packages on 2026-10-19
 

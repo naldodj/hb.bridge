@@ -2,7 +2,7 @@
 #include "totvs.ch"
 
 // StartJob receives and returns strings; the fixture never accepts caller SQL.
-function U_HBBridgeBenchmarkJob(cRequestJSON, cCompany, cBranch, cCredentialSection)
+function U_HBBridgeBenchmarkJob(cRequestJSON, cCompany, cBranch, cCredentialSection, cOperation)
 
     local aFWGetTopInfo as array
 
@@ -87,7 +87,15 @@ function U_HBBridgeBenchmarkJob(cRequestJSON, cCompany, cBranch, cCredentialSect
             throw "The prepared worker has no DBAccess connection."
         endif
         cCode := "QUERY_FAILED"
-        cResult := HBBridge.Test.HBBridgeBenchmarkProtheus():Page(cRequestJSON)
+        if ValType(cOperation) == "C"
+            if cOperation != "series"
+                cCode := "INVALID_REQUEST"
+                throw "Unknown benchmark operation."
+            endif
+            cResult := HBBridge.Test.HBBridgeBenchmarkTest():ServerMeasure(cRequestJSON)
+        else
+            cResult := HBBridge.Test.HBBridgeBenchmarkProtheus():Page(cRequestJSON)
+        endif
     catch xError
         lFailed := .T.
         cResult := BenchmarkJobFailure(cCode)

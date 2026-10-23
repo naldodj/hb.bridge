@@ -20,6 +20,7 @@ Os resumos JSON mantêm identidades/contagens sanitizadas do momento da mediçã
 
 - [Encerramento do pacote 001](package001.windows.mssql.json).
 - [Revisão das convenções de fonte](source.standards.windows.json).
+- [Controles do benchmark e regressão numérica JSON dos addons](benchmark.controls.windows.json).
 
 Essas identidades descrevem o snapshot datado, não o checkout atual. Menções
 históricas a `tmp/...` registram onde a saída foi gravada, sem garantir sua
@@ -55,6 +56,7 @@ de teste anterior é entrada:
 ./scripts/test-hbbridge-mssql.ps1 -Config '<ini-privado>' -Profile '<alias>' -Concurrency
 ./scripts/test-hbbridge-mssql.ps1 -Config '<ini-privado>' -Profile '<alias>' -Pooling -ODBCPooling driver
 ./scripts/test-hbbridge-benchmark-addon.ps1
+node --test ./tests/unit/browser/hbbridge.benchmark.page.test.mjs
 ```
 
 AppServer exige SDK/RPO licenciados e ambiente de testes configurado
@@ -69,7 +71,9 @@ e o RPO compilado, e execute o launcher versionado:
 
 Outras suítes fechadas: `U_HBBridgeDataSetTest`, `U_HBBridgeHelperTest`,
 `U_HBBridgeHTTPTableTest`, `U_HBBridgeBenchmarkVisualTest` e
-`U_HBBridgeBenchmarkRESTTest`. O launcher informa saída real e caminho do log,
+`U_HBBridgeBenchmarkRESTTest`; `U_HBBridgeBenchmarkControlTest` cobre seleção de
+rotas, estatísticas e timeout sem serviço SQL ativo. O launcher informa saída
+real e caminho do log,
 sem deduzir aprovação de asserções. Algumas procedures retornam -4 ao processo
 sem retorno CLI numérico; examine seus resumos completos. Ele não substitui
 INI/RPO nem encerra serviço existente. Seu timeout afeta somente o filho
@@ -81,3 +85,13 @@ Para integridade TCP/HTTP real, inicie o runner MSSQL mantido com `-Integrity
 `U_HBBridgeIntegrityCLI` pelo array `-Argument` do launcher. Portas/tokens de
 rodadas antigas não são pré-requisitos reutilizáveis. Veja [D03](../dataset.pt-BR.md)
 e os READMEs dos testes para contratos completos e cenários manuais de interface.
+
+Para a regressão real do cliente TLPP ao HRB sem credenciais SQL, inicie
+`scripts/test-hbbridge-benchmark-addon.ps1 -Serve -ServeSeconds 600` em outro
+terminal. A fixture gerada informa porta TCP, perfil e módulo da rodada atual.
+Configure esse módulo no INI dedicado de testes do AppServer e execute
+`U_HBBridgeBenchmarkCLI` com `--routes=hbbridgeAddon`, endpoint/perfil informados,
+`--rows=1 --page-size=1` e as quantidades desejadas de iterações e aquecimento.
+Isso valida o transporte e o addon reais com um handler de consulta simulado;
+não homologa MSSQL. O benchmark SQL real exige a configuração privada descrita
+em [benchmarking](../benchmarking.pt-BR.md).

@@ -47,6 +47,9 @@ method CallService(cService, jParams) class HBBridgeBenchmarkMockClient
     if cService == "ADDON.Execute"
         return BenchmarkMockAddon(self:jState, jParams["params"])
     endif
+    if cService == "BENCHMARK.Run"
+        return BenchmarkMockAddon(self:jState, jParams)
+    endif
     jResponse := JSONObject():New()
     if cService != "RPCRDD.Query" .or. self:jState["mode"] == "queryFailure"
         jResponse["success"] := .F.

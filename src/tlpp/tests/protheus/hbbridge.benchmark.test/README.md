@@ -1,4 +1,4 @@
-# Protheus TCP and HTTP performance baseline
+# Protheus client and server performance benchmark
 
 [Português](README.pt-BR.md) · [Active package](../../../../../WIP.md) · [Test catalog](../../../../../tests/README.md)
 
@@ -24,8 +24,9 @@ measurement core as the command-line benchmark. It does not require a chart
 library: the average and iteration charts use SVG, with exact values in tables.
 FWWebEx is an optional dependency of the visual consumer, not of the core.
 
-The form has five numeric fields: rows per iteration, rows per page, measured
-iterations, warmup iterations and timeout per request in seconds. Route controls
+The form has five numeric fixture/call fields: rows per iteration, rows per
+page, measured iterations, warmups and call timeout. An additional operational
+timeout ceiling and automatic/manual selection control the effective budget. Route controls
 select actual execution; presets only select server-enabled capabilities. Profile,
 TCP destination, HTTP URL and HTTP token are selected on the AppServer; the
 browser cannot supply SQL, credentials or a different destination/profile.
@@ -92,7 +93,7 @@ For a licensed AppServer command-line environment, use the existing private
 CLI INI described in the [failure guide](../hbbridge.failure.test/README.md):
 
 ```bat
-appserver.exe -ini="private-benchmark.ini" -run=U_HBBridgeBenchmarkCLI -env=PROTHEUS --profile=MSSQL/pData --rows=1000 --page-size=100 --iterations=5 --warmup=2 --timeout=30
+appserver.exe -ini private-benchmark.ini -run=U_HBBridgeBenchmarkCLI -env=PROTHEUS --profile=MSSQL/pData --rows=1000 --page-size=100 --iterations=5 --warmup=2 --timeout=30
 ```
 
 Optional flags `--host`, `--port`, `--url` and `--token` override the same
@@ -143,8 +144,13 @@ execution passed both routes with exit 0: five measured traversals/50 calls/
 ODBC policy driver. External memory covers the combined process lifecycle,
 not each transport separately. [Evidence and limits](../../../../../docs/acceptance.md#m08-performance-baseline-on-2026-10-16).
 
-The tested AppServer parser requires the private CLI INI beside its executable
-and a basename in the quoted `-ini` argument; it rejects directory information.
+The tested AppServer parser rejects directory information in `-ini`.
+`run-protheus-cli.ps1` therefore requires the explicitly supplied private INI
+beside the explicitly supplied isolated SDK executable. It passes another INI
+as a basename argument and omits `-ini` for the default `appserver.ini`.
+It never copies a private INI into or changes a running installation. See the
+[TOTVS command-line reference](https://tdn.totvs.com/display/tec/Application%2BServer%2B-%2BCommand%2BLine)
+and [launcher guide](../../../../../scripts/README.md).
 An isolated destination is available through the native runner's
 `-Route http -ServeSeconds 600`; use its `http/endpoints.json` ports/profile
 and public fixture-only token. See [methodology](../../../../../docs/benchmarking.md).
@@ -159,7 +165,7 @@ separately from the automated run.
 ## Isolated routes and statistical controls
 
 `Run`, `Measure` and `U_HBBridgeBenchmarkTest` accept an optional `jRoutes`
-after `jComparison`. Pass a `JSONObject` with all five boolean fields:
+after `jComparison`. Pass a `JSONObject` with all six boolean fields:
 
 ```tlpp
 jRoutes := JSONObject():New()
@@ -168,6 +174,7 @@ jRoutes["http"] := .T.
 jRoutes["protheusStartJob"] := .F.
 jRoutes["protheusRest"] := .F.
 jRoutes["hbbridgeAddon"] := .F.
+jRoutes["protheusServer"] := .F.
 jReport := HBBridge.Test.HBBridgeBenchmarkTest():Measure("MSSQL/pData", ;
     Nil, Nil, "http://127.0.0.1:8080", cToken, 30, 1000, 100, 5, 2, ;
     Nil, jRoutes)
@@ -179,21 +186,25 @@ FreeObj(@jRoutes)
 Only selected routes are constructed/executed. A malformed TCP destination
 does not invalidate an HTTP-only run; missing Protheus REST credentials do
 not invalidate a StartJob-only run. No selection means the existing default:
-TCP/HTTP, with optional Protheus/addon settings. A supplied map must be complete,
-boolean, contain no unknown keys and select at least one route.
+TCP/HTTP, with the previous optional Protheus/addon settings; the new server-only
+route is opt-in. A supplied map must be boolean, contain no unknown keys and
+select at least one route. The previous five-key map remains valid, normalizing
+missing `protheusServer` to `false`; current reports/maps contain all six keys.
 
 CLI supports explicit isolation without combining legacy comparison flags:
 
 ```text
 --profile=MSSQL/pData --routes=http --rows=1000 --page-size=100 --iterations=5 --warmup=2 --timeout=30
 --profile=MSSQL/pData --routes=protheusStartJob --company=99 --branch=01 --rows=1000 --page-size=100 --iterations=5 --warmup=2 --timeout=60
---profile=MSSQL/pData --routes=hbbridgeAddon --rows=1000 --page-size=100 --iterations=5 --warmup=2 --timeout=30
+--profile=MSSQL/pData --routes=hbbridgeAddon --rows=1000 --page-size=100 --iterations=500 --warmup=2 --timeout=auto --timeout-max=900
+--profile=MSSQL/pData --routes=protheusServer --company=99 --branch=01 --rows=1000 --page-size=100 --iterations=5 --warmup=2 --timeout=auto --timeout-max=900
 ```
 
 Append these arguments to the existing licensed AppServer CLI entry. Destinations,
-REST credentials, addon module and complete addon RPC timeout remain private
-server/TLPP settings. `--routes` uses the exact names `tcp`, `http`,
-`protheusStartJob`, `protheusRest`, `hbbridgeAddon`; unknown, duplicate or empty
+REST credentials and addon module remain private server/TLPP settings. The
+explicit timeout policy supplies the effective complete server-call budget;
+legacy calls without a policy preserve the private addon timeout setting. `--routes` uses the exact names `tcp`, `http`,
+`protheusStartJob`, `protheusRest`, `hbbridgeAddon`, `protheusServer`; unknown, duplicate or empty
 selections fail before execution. Selected routes run in that fixed order.
 An addon-only run still needs its TCP transport. The visual route controls
 can select only capabilities enabled by the trusted example/controller.
@@ -210,12 +221,28 @@ based, and warmups/failures are excluded. Throughput covers complete validated
 traversals, not raw SQL/network transfer. Five samples make P95 the observed
 maximum; this is insufficient to infer a production tail. Missing/zero
 denominators remain unavailable. Relative client comparisons require matching
-complete successful workloads; addon internal timing remains in its own panel.
+complete successful workloads; addon and Protheus-server internal timing remain
+in separate panels, outside client charts and fastest-route rankings.
 See the [statistical method and timing scopes](../../../../../docs/benchmarking.md#route-selection-and-measured-statistics).
 
-This maintenance requires fresh compilation and focused regression/real
-AppServer checks. The 2026-10-19 acceptance below identifies the earlier version;
-it does not automatically accept the new route/statistics controls.
+This maintenance requires its own focused regression/real AppServer checks.
+Current isolated compilation passed for 54 TLPP sources, zero errors/exit 0;
+actual isolated AppServer CLI passed 82 control, 81 visual/controller and 43
+REST contract checks.
+A real MSSQL single-StartJob correctness smoke passed (10 rows, page size 5,
+two measured traversals, one warmup); it is not a performance baseline.
+Post-codec full native/addon suites passed 752/74 checks, including exact
+SQL-mock TCP iteration boundaries. Final 54-source TLPP compilation passed
+with zero errors/exit 0.
+Latest actual Chromium checks passed three suites: 68 main DOM assertions,
+25 optional-route/server/timeout assertions and the no-channel guard. A later
+actual-TLPP-client 500-iteration SQL-mock reproduction isolated an aggregate
+precision failure at the addon JSON ABI. Actual TLPP-client 255/500 SQL-mock checks passed after the codec repair;
+real MSSQL 255 measured + two warmups also passed with 1000 rows/page100,
+ODBC pooling off and no artificial sleeps. Real MSSQL500 and manual FWWebEx/
+matched-deployment validation remain pending. Any subsequent source
+changes require targeted recompilation. The 2026-10-19 acceptance below
+identifies the earlier version.
 
 Compile the complete benchmark directory and library tree, then run
 `U_HBBridgeBenchmarkControlTest()` and `U_HBBridgeBenchmarkVisualTest()` in the
@@ -234,6 +261,113 @@ executable. Browser fixtures run without production endpoints. Follow these
 checks with real CLI/visual isolated routes and a matched multi-route workload
 against the explicitly configured MSSQL deployment. Preserve safe summaries
 and source/RPO identities for that new execution scope.
+
+## Timeout policy and server-only Protheus
+
+The current visual default is automatic timeout with a user-editable ceiling
+of 900 seconds. Editing Call timeout selects manual mode. The server derives
+an automatic budget of `Min(maximum, 30 + (iterations + warmup) * pages)` when
+addon or `protheusServer` is selected; `pages = Max(1, Ceiling(rows/pageSize))`.
+Client-only routes use `Min(maximum,30)` per page. This one-second-per-page
+heuristic is not a measured prediction or completion guarantee. Both modes
+accept ceilings 1..2147483 seconds; a manual request above the ceiling is
+rejected without clamping. Smaller ceilings are not increased silently.
+
+CLI uses `--timeout=auto --timeout-max=900` for automatic policy, or
+`--timeout=120 --timeout-max=900` for an explicit manual budget. A numeric
+`--timeout` without `--timeout-max` preserves the former no-policy behavior.
+For TLPP, pass `{mode:"auto",maximumSeconds:900}` as `jTimeoutPolicy` after
+`jRoutes` in `Run`/`U_HBBridgeBenchmarkTest`; `Measure` reserves the intervening
+`bClientFactory` test seam, so pass `...,jComparison,jRoutes,Nil,jTimeoutPolicy`.
+The caller owns and frees its input JSON and returned report.
+
+The controller accepts the original five numeric parameters, six with
+`routes`, and seven with `routes` plus `timeoutPolicy`. Current page maps have
+six route keys. The report records the effective `timeoutSeconds` and resolved
+policy (`mode`, `maximumSeconds`, `timeoutSeconds`, `estimatedSeconds`,
+`ceilingReached`, `method`, `scope`, `success`). Completed HTML/exports retain
+that report-owned policy; old reports without it say unavailable. Explicit
+policy applies to the complete addon RPC and is not replaced by the legacy
+separate addon timeout. [Detailed policy and limits](../../../../../docs/benchmarking.md#automatic-and-manual-call-timeouts).
+
+`protheusStartJob` keeps its per-page jobs. `protheusServer` prepares one job
+and executes all warmup/measured paged traversals inside Protheus/DBAccess,
+returning only metrics. Its internal `samples.*.elapsedMs` excludes job setup;
+`callElapsedMs` includes the complete StartJob, environment preparation, all
+iterations and result. Its panel sits beside the addon; compare matching
+internal scopes or matching whole calls. StartJob remains synchronous and its
+deadline can only be checked after blocking work returns. Page closure or a
+client timeout does not prove cancellation.
+
+The supplied 255-iteration failure completed valid measured/warmup samples;
+only aggregate validation failed. Its 87.9255-second complete call was below
+the 900-second timeout. Native `hb_jsonEncode()` under `SET DECIMALS TO 2`
+rounded `1/3` to `0.33` at the internal addon ABI before the wire codec.
+The repair uses existing `HBBridgeJSONEncode()`/`HBBridgeJSONDecode()` for addon
+input/output and native host handoff, retaining strict statistics validation.
+Rebuild host and HRB together. This is not a diagnosed iteration limit or
+whole-call timeout. [Diagnosis and exact scope](../../../../../docs/benchmarking.md#addon-json-precision-diagnosis-on-2026-10-23).
+
+The `hb_idleSleep(1.5)` workaround is removed: it changed pacing and added
+1.5 seconds per traversal outside measured samples without repairing JSON
+precision. Preserve that limitation for prior reports. Post-codec ABI suite:
+74 checks passed. Actual TLPP clients passed 255 measured + two warmups and
+500 + zero through the real Harbour TCP host/HRB and mock Query service,
+with strict aggregate validation. The full native suite and 54-source TLPP
+compilation also passed after repair. Actual TLPP→TCP→HRB→MSSQL also passed
+255 measured + two warmups, 1000 rows/page100, with strict aggregate checks,
+ODBC pooling off and no artificial sleeps. Real MSSQL500 and manual FWWebEx/
+matched-deployment checks remain pending. These correctness fixtures do not
+establish performance gains or all-platform acceptance. Rebuild hbBridge,
+HRB and TLPP together before repeating the supplied case.
+
+## Reproduce the addon host with an explicit MSSQL profile
+
+In a separate terminal, build and serve a fresh isolated host/HRB:
+
+```powershell
+./scripts/test-hbbridge-benchmark-addon.ps1 -Serve -ServeSeconds 1800 `
+    -Config C:/tmp/hbbridge.ini -Profile MSSQL/pData
+```
+
+The ready line prints the ephemeral loopback port and module
+`hbbridgebenchmarkaddon.hrb`. Only that configured MSSQL profile is loaded;
+private INI content is not printed or changed. No existing listener/service is
+restarted. The fixture is temporary and expires after the requested serving
+seconds, or when `stop.request` is created in its printed run directory.
+Without `-Config`/`-Profile`, serve mode uses a SQL mock with profile
+`opaque/profile`, one row and one row per page.
+
+In the dedicated, licensed test AppServer INI beside its isolated SDK, set the
+trusted fixture module (the fixture uses a basename, whereas an installed
+production addon may use `examples/hbbridgebenchmarkaddon.hrb`):
+
+```ini
+[hbBridge]
+BenchmarkAddonModule=hbbridgebenchmarkaddon.hrb
+```
+
+Use the printed port and current compiled test RPO. For example:
+
+```powershell
+$fixturePort = 12345 # Replace with the ready line's port.
+$arguments = @('--profile=MSSQL/pData', '--host=127.0.0.1', "--port=$fixturePort",
+    '--routes=hbbridgeAddon', '--rows=1000', '--page-size=100',
+    '--iterations=255', '--warmup=2', '--timeout=auto', '--timeout-max=900')
+./scripts/run-protheus-cli.ps1 -AppServerDirectory C:/private/appserver-benchmark `
+    -IniFile C:/private/appserver-benchmark/appserver.ini `
+    -Program U_HBBridgeBenchmarkCLI -Argument $arguments -TimeoutSeconds 1800
+```
+
+Repeat with `--iterations=500`; retain the same selected workload and explicit
+policy. Increase the user ceiling deliberately when the reported estimate is
+capped or the deployment requires it; do not treat a chosen estimate as a
+completion guarantee. This fixture leaves ODBC physical pooling **off** and
+loads only the selected profile, not other runtime settings from the INI.
+Its correctness measurements do not assume the user's running server has the
+same pooling/cache/load or prove a performance improvement. For matched
+performance comparisons use the rebuilt product with explicitly recorded
+runtime settings, keeping server-internal and whole-call scopes separate.
 
 ## Large manual run and client-component lifetime
 
@@ -264,7 +398,7 @@ Its runtime acceptance is separate; component reuse does not establish native
 allocator/terminal-registry leak freedom. New reports retain safe failure
 phase/iteration/page, HTTP status and service-code diagnostics where available.
 
-## Four client routes and a server-only addon
+## Four client routes and two server-only scopes
 
 The visual form can select Protheus StartJob/REST 2.0 and hbBridge TCP/HTTP,
 using the same fixture, dataset checks and SELECT plus COUNT per page.

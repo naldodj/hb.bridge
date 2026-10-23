@@ -60,6 +60,8 @@ FUNCTION HBBridgeServiceAddon( hParams, hContext )
 
     LOCAL hResult
 
+    LOCAL nConsumed
+
     IF ! hb_HHasKey( hParams, "module" ) .OR. ! hb_HHasKey( hParams, "params" )
         RETURN HBBridgeError( "INVALID_PARAMS", "Module and parameters are required" )
     ENDIF
@@ -84,7 +86,8 @@ FUNCTION HBBridgeServiceAddon( hParams, hContext )
     IF ! HB_ISSTRING( cJson ) .OR. Empty( cJson )
         RETURN HBBridgeError( "ADDON_RESULT", "Addon is missing or returned no response" )
     ENDIF
-    IF hb_jsonDecode( cJson, @hResult ) == 0 .OR. ! HB_ISHASH( hResult )
+    nConsumed := HBBridgeJSONDecode( cJson, @hResult )
+    IF ! HBBridgeJSONComplete( cJson, nConsumed ) .OR. ! HB_ISHASH( hResult )
         RETURN HBBridgeError( "ADDON_RESULT", "Invalid addon JSON response" )
     ENDIF
 RETURN hResult

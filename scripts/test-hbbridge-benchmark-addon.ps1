@@ -2,11 +2,22 @@
 [CmdletBinding()]
 param(
     [string] $HbCompileRoot,
-    [string] $ZigPath
+    [string] $ZigPath,
+    [switch] $Serve,
+    [ValidateRange(1, 3600)][int] $ServeSeconds = 120,
+    [string] $Config,
+    [string] $Profile
 )
 
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
+if ($Config -or $Profile) {
+    if (-not $Serve -or -not $Config -or -not $Profile) {
+        throw '-Config and -Profile must be supplied together with -Serve.'
+    }
+    $Config = [IO.Path]::GetFullPath($Config)
+    if (-not (Test-Path -LiteralPath $Config -PathType Leaf)) { throw 'Private SQL configuration not found.' }
+}
 
 function Get-BenchmarkFixtureSQL {
     param([string] $Path, [string] $FunctionName, [int] $Rows)
@@ -72,6 +83,10 @@ try {
         & $toolchain.Hbmk2 -gh -n2 -w3 -es2 $source "-o$target"
         if ($LASTEXITCODE -ne 0) { throw "Could not compile addon fixture $addon." }
     }
+    & $toolchain.Hbmk2 -gh -n2 -w3 -es2 `
+        (Join-Path $projectRoot 'tests/integration/harbour/hbbridge.numeric.addon.hb') `
+        "-o$(Join-Path $addonRoot 'hbbridge.numeric.addon.hrb')"
+    if ($LASTEXITCODE -ne 0) { throw 'Could not compile numeric addon ABI fixture.' }
 
     $testTarget = Join-Path $runRoot 'hbbridge.benchmark.addon.test'
     $testExecutable = $testTarget + $toolchain.ExecutableExtension
@@ -79,7 +94,8 @@ try {
         "-o$testExecutable" "-workdir=$buildRoot"
     if ($LASTEXITCODE -ne 0) { throw 'The benchmark addon test executable build failed.' }
     Set-Location -LiteralPath $runRoot
-    & $testExecutable $addonRoot 2>&1 | Tee-Object -FilePath (Join-Path $runRoot 'results.log')
+    if ($Serve) { Write-Host "Benchmark addon fixture working directory: $runRoot" }
+    & $testExecutable $addonRoot $(if ($Serve) { 'serve' } else { 'test' }) $ServeSeconds $Config $Profile 2>&1 | Tee-Object -FilePath (Join-Path $runRoot 'results.log')
     $testExit = $LASTEXITCODE
     Write-Host "Benchmark addon test artifacts and log: $runRoot"
 }

@@ -293,7 +293,7 @@ static function BenchmarkVisualSelectionChecks(jChecks as json)
 
     jState["calls"] := 0
     bMeasure := {|cProfile, cHost, nPort, cURL, cToken, nTimeout, nRows, nPageSize, nIterations, nWarmup, jSelected| ;
-        BenchmarkVisualSelectionMock(jState, jSelected)}
+        BenchmarkVisualSelectionMock(jState, jSelected, nTimeout)}
     oController := HBBridge.Examples.HBBridgeBenchmarkController():New("visual-instance", ;
         "trusted/profile", "trusted-host", 1512, "https://trusted-host:8080", "private-token", bMeasure)
 
@@ -346,6 +346,9 @@ static function BenchmarkVisualSelectionChecks(jChecks as json)
     jRequest["requestID"] := "unavailable-addon"
     jRequest["params"]["routes"] := BenchmarkVisualRoutes("hbbridgeAddon")
     jChecks["rejectUnavailableAddon"] := BenchmarkVisualRejected(oController, jState, jRequest)
+    jRequest["requestID"] := "unavailable-protheus-server"
+    jRequest["params"]["routes"] := BenchmarkVisualRoutes("protheusServer")
+    jChecks["rejectUnavailableProtheusServer"] := BenchmarkVisualRejected(oController, jState, jRequest)
     FreeObj(@jRequest)
     oController:Close()
     FreeObj(@oController)
@@ -368,6 +371,31 @@ static function BenchmarkVisualSelectionChecks(jChecks as json)
     jChecks["selectionDoesNotExposeConnection"] := !("private-token" $ jResponse:ToJSON()) .and. ;
         !("trusted-host" $ jResponse:ToJSON()) .and. !("trusted/profile" $ jResponse:ToJSON())
     FreeObj(@jResponse)
+    jRequest["requestID"] := "only-protheus-server"
+    jRequest["params"]["routes"] := BenchmarkVisualRoutes("protheusServer")
+    jResponse := oController:Handle(jRequest:ToJSON())
+    jChecks["allowProtheusServerOnly"] := jResponse["report"]["selectedRoutes"]["protheusServer"] .and. ;
+        !jResponse["report"]:HasProperty("protheusStartJob") .and. !jResponse["report"]:HasProperty("tcp")
+    FreeObj(@jResponse)
+    jRequest["requestID"] := "auto-timeout-authoritative"
+    jRequest["params"]["iterations"] := 500
+    jRequest["params"]["rows"] := 1
+    jRequest["params"]["pageSize"] := 1
+    jRequest["params"]["timeoutSeconds"] := 1
+    jRequest["params"]["timeoutPolicy"] := JSONObject():New()
+    jRequest["params"]["timeoutPolicy"]["mode"] := "auto"
+    jRequest["params"]["timeoutPolicy"]["maximumSeconds"] := 900
+    jResponse := oController:Handle(jRequest:ToJSON())
+    jChecks["serverRecomputesAutoTimeout"] := jState["timeout"] == 532 .and. jResponse["report"]["success"]
+    FreeObj(@jResponse)
+    jRequest["requestID"] := "manual-timeout-over-ceiling"
+    jRequest["params"]["timeoutPolicy"]["mode"] := "manual"
+    jRequest["params"]["timeoutPolicy"]["maximumSeconds"] := 20
+    jRequest["params"]["timeoutSeconds"] := 21
+    jChecks["serverRejectsManualTimeoutAboveCeiling"] := BenchmarkVisualRejected(oController, jState, jRequest)
+    FreeObj(@jRequest)
+    jRequest := BenchmarkVisualRequest("failed-addon-only")
+    jRequest["params"]["routes"] := BenchmarkVisualRoutes("hbbridgeAddon")
     jState["fail"] := .T.
     jRequest["requestID"] := "failed-addon-only"
     jResponse := oController:Handle(jRequest:ToJSON())
@@ -392,10 +420,11 @@ static function BenchmarkVisualRoutes(cOnly as character) as json
     jRoutes["protheusStartJob"] := cOnly == "protheusStartJob"
     jRoutes["protheusRest"] := cOnly == "protheusRest"
     jRoutes["hbbridgeAddon"] := cOnly == "hbbridgeAddon"
+    jRoutes["protheusServer"] := cOnly == "protheusServer"
 
 return(jRoutes)
 
-static function BenchmarkVisualSelectionMock(jState as json, jRoutes as json) as json
+static function BenchmarkVisualSelectionMock(jState as json, jRoutes as json, nTimeout as numeric) as json
 
     // JSONObject enumeration uses the native borrowed array.
     local aNames as array
@@ -413,6 +442,7 @@ static function BenchmarkVisualSelectionMock(jState as json, jRoutes as json) as
     local nNames as numeric
 
     jState["calls"]++
+    jState["timeout"] := nTimeout
     if jState:HasProperty("fail")
         lSuccess := !jState["fail"]
     endif

@@ -21,7 +21,7 @@ is inferred. See [closure, exact artifacts and limitations](docs/acceptance.md#p
 | Item | Current value |
 | --- | --- |
 | ID | `002-typed-sql-presentation` |
-| Opened / updated | 2026-10-21 / 2026-10-22 |
+| Opened / updated | 2026-10-21 / 2026-10-23 |
 | Status | Planned; implementation has not started. |
 | Goal | Define explicit typed SQL values/result metadata and a caller-owned native Protheus presentation adapter using the accepted Query/dataset. |
 | Reference | Base `8db2823`; package 001 validated working-tree artifacts are identified in its closure manifest. This is not a new release tag. |
@@ -45,15 +45,42 @@ is inferred. See [closure, exact artifacts and limitations](docs/acceptance.md#p
   Register the minimal TLPP include convention;
   preserve the revised benchmark sources. Keep T01 planned.
 
-- [ ] 2026-10-22: implement the explicitly requested benchmark reliability/control
+- [x] 2026-10-22/23: implement and automatically validate the requested benchmark reliability/control
   maintenance before resuming T01: actual isolated route execution through
   compatible CLI/TLPP/visual selection, selected-only dependencies, explicit
   skipped/failed outcomes and measured-sample statistics. Keep endpoint/profile/
   module/authentication configuration trusted; distinguish client traversals
-  from addon internal/RPC timings. Compile and verify focused deterministic,
+  from addon internal/RPC timings and Protheus internal/whole-job timings.
+  Add opt-in `protheusServer` (one StartJob for all traversals), normalize old
+  five-route maps and preserve old five/six-field request payloads. Estimate
+  automatic whole-server timeouts from iterations/pages, with editable 900s
+  ceiling, explicit manual overrides and report-owned effective policy.
+  Compile and verify focused deterministic,
   browser and real AppServer scenarios before recording acceptance. This
   reprioritization does not implement the SQL/presentation contracts of T01.
   See the [benchmark guide](docs/benchmarking.md#route-selection-and-measured-statistics).
+  Current evidence: isolated 54-source TLPP compile passed, zero errors/exit 0;
+  actual isolated AppServer control/visual/REST contract checks passed 82/81/43. Real single-job
+  MSSQL correctness smoke passed (10 rows, page 5, two measured + one warmup).
+  Post-codec native full/addon: 752/74, including precision/ABI and exact
+  TCP 254/255/256/500 with SQL mock/no sleeps. Final 54-source TLPP compile
+  passed with zero errors/exit 0.
+  Chromium: 3 suites passed, 68 main DOM + 25 server/timeout observations.
+  2026-10-23: diagnose the supplied 255-iteration failure and actual TLPP-client
+  500-iteration SQL-mock reproduction as addon-ABI JSON mean rounding under
+  SET DECIMALS 2, not an iteration limit. All returned sample checks pass;
+  only aggregate precision fails. The supplied complete call took 87.9255s
+  against a 900s budget. Use existing HBBridgeJSONEncode/Decode at the addon/
+  host ABI, retain strict validation and remove the pacing-only 1.5s sleeps.
+  Rebuilt host/HRB precision checks and actual TLPP client passed 255 measured
+  plus two warmups and 500 plus zero against the real TCP host/HRB with mock
+  Query, preserving strict aggregates. Keep Windows fixture scope distinct
+  from other platforms and real-backend acceptance.
+  Real MSSQL255 also passed: actual TLPP/TCP/HRB, 1000 rows/page100, two
+  warmups, strict aggregates, pooling off/no sleeps. Real MSSQL500 is pending.
+  Manual matched-deployment/FWWebEx follow-up remains pending after rebuilding
+  hbBridge, HRB and TLPP together. This is correctness evidence rather than
+  production/performance acceptance. T01 remains planned.
 
 ### Decisions retained
 
