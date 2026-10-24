@@ -51,12 +51,14 @@ static const HB_GC_FUNCS bridge_deflate_gc =
 
 HB_FUNC( HBBRIDGEDEFLATEOPEN )
 {
+    int level = HB_ISNUM( 1 ) ? hb_parni( 1 ) : Z_DEFAULT_COMPRESSION;
+
     HBBRIDGE_DEFLATER * state = ( HBBRIDGE_DEFLATER * ) hb_gcAllocate( sizeof( *state ), &bridge_deflate_gc );
 
     memset( state, 0, sizeof( *state ) );
     state->stream.zalloc = BridgeDeflateZAlloc;
     state->stream.zfree = BridgeDeflateZFree;
-    state->initialized = deflateInit2( &state->stream, Z_DEFAULT_COMPRESSION,
+    state->initialized = deflateInit2( &state->stream, level,
         Z_DEFLATED, 15 + 16, 8, Z_DEFAULT_STRATEGY ) == Z_OK;
     state->failed = ! state->initialized;
     hb_retptrGC( state );

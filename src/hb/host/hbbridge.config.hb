@@ -42,6 +42,10 @@ FUNCTION HBBridgeConfig( aArgs, cError )
             ,"httpHost" => "127.0.0.1";
             ,"httpPort" => 8080;
             ,"httpListenBacklog" => HBBridgeRuntimeLimits()[ "socketListenBacklogDefault" ];
+            ,"httpSendTimeoutMs" => HBBRIDGE_IO_TIMEOUT_DEFAULT_MS;
+            ,"httpCompression" => "auto";
+            ,"httpCompressionMinBytes" => 1024;
+            ,"httpCompressionLevel" => 1;
             ,"httpPassword" => "";
             ,"httpTLS" => .F.;
             ,"httpCertificate" => "";
@@ -67,6 +71,10 @@ FUNCTION HBBridgeConfig( aArgs, cError )
             ,"httphost" => "httpHost";
             ,"httpport" => "httpPort";
             ,"httplistenbacklog" => "httpListenBacklog";
+            ,"httpsendtimeoutms" => "httpSendTimeoutMs";
+            ,"httpcompression" => "httpCompression";
+            ,"httpcompressionminbytes" => "httpCompressionMinBytes";
+            ,"httpcompressionlevel" => "httpCompressionLevel";
             ,"addonroot" => "addonRoot";
             ,"maxworkers" => "maxWorkers";
             ,"netiotimeout" => "netioTimeout";
@@ -209,6 +217,10 @@ RETURN { "configVersion" => 1, "protheusHost" => hConfig[ "protheusHost" ], ;
     "protheusPort" => hConfig[ "protheusPort" ], "maxWorkers" => hConfig[ "maxWorkers" ], ;
     "httpEnabled" => hConfig[ "httpEnabled" ], "httpHost" => hConfig[ "httpHost" ], ;
     "httpPort" => hConfig[ "httpPort" ], "httpListenBacklog" => hConfig[ "httpListenBacklog" ], ;
+    "httpSendTimeoutMs" => hConfig[ "httpSendTimeoutMs" ], ;
+    "httpCompression" => hConfig[ "httpCompression" ], ;
+    "httpCompressionMinBytes" => hConfig[ "httpCompressionMinBytes" ], ;
+    "httpCompressionLevel" => hConfig[ "httpCompressionLevel" ], ;
     "httpTLS" => hConfig[ "httpTLS" ], ;
     "sqlODBCPooling" => hConfig[ "sqlODBCPooling" ], "sqlProfiles" => hProfiles }
 
@@ -246,6 +258,10 @@ FUNCTION HBBridgeConfigValid( hConfig, cError )
         ,"httpHost";
         ,"httpPort";
         ,"httpListenBacklog";
+        ,"httpSendTimeoutMs";
+        ,"httpCompression";
+        ,"httpCompressionMinBytes";
+        ,"httpCompressionLevel";
         ,"httpPassword";
         ,"httpTLS";
         ,"httpCertificate";
@@ -272,6 +288,35 @@ FUNCTION HBBridgeConfigValid( hConfig, cError )
         RETURN .F.
     ENDIF
     hRuntimeLimits := HBBridgeRuntimeLimits()
+    IF ! HB_ISSTRING( hConfig[ "httpCompression" ] )
+        cError := "HTTP compression must be auto or off"
+        RETURN .F.
+    ENDIF
+    IF ! ( hConfig[ "httpCompression" ] == "auto" .OR. hConfig[ "httpCompression" ] == "off" )
+        cError := "HTTP compression must be auto or off"
+        RETURN .F.
+    ENDIF
+    IF ! HB_ISNUMERIC( hConfig[ "httpCompressionLevel" ] )
+        cError := "Invalid HTTP compression level"
+        RETURN .F.
+    ENDIF
+    nValue := hConfig[ "httpCompressionLevel" ]
+    IF nValue != Int( nValue ) .OR. nValue < 1 .OR. nValue > 9
+        cError := "HTTP compression level must be between 1 and 9"
+        RETURN .F.
+    ENDIF
+    FOR EACH cKey IN { "httpSendTimeoutMs", "httpCompressionMinBytes" }
+        nValue := hConfig[ cKey ]
+        IF ! HB_ISNUMERIC( nValue )
+            cError := "Invalid number: " + cKey
+            RETURN .F.
+        ENDIF
+        IF ! HBBridgeIntegerValid( nValue, iif( cKey == "httpSendTimeoutMs", ;
+            2147483647, hRuntimeLimits[ "stringBytesMax" ] ) )
+            cError := "Value outside the runtime range: " + cKey
+            RETURN .F.
+        ENDIF
+    NEXT
     FOR EACH cKey IN { "protheusMaxPayloadBytes", "protheusMaxWireBytes", "protheusTimeoutMs" }
         nValue := hConfig[ cKey ]
         IF ! HB_ISNUMERIC( nValue )

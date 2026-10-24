@@ -116,7 +116,12 @@ mesmo os bancos nomeados com shared-cache exigem conexões no mesmo processo.
 | SQLite `:memory:` | Não é armazenamento compartilhado com AppServer; a conexão atual fecha a cada chamada. |
 | Arquivo SQLite | Exige local compartilhado explícito, acesso cliente compatível, schema, locks/journaling e limpeza. `LOCALFILES=SQLITE` não entrega essa integração sozinho. |
 
-Um primeiro adaptador de apresentação pode criar `FWTemporaryTable` no TLPP
+`HBBridgeBrowseData` já apresenta a página atual em arrays FWBrowse, com
+títulos/máscaras resolvidos no Protheus e temporária usada pela interface de
+filtros. Não popula tabela nativa de resultados. O
+[rascunho SQL tipado/apresentação](typed-sql.pt-BR.md) do pacote 002 inventaria
+essa implementação; T01 aguarda revisão enquanto o desempenho HTTP tem
+prioridade. Um adapter de tabela de resultados pode criar `FWTemporaryTable` no TLPP
 a partir de schema explícito, copiar páginas e retornar objeto proprietário e
 alias para `FWMBrowse`, preservando o transporte atual. Os contratos TOTVS de
 [tabela temporária](https://tdn.totvs.com/display/framework/FWTemporaryTable)
@@ -140,5 +145,74 @@ Empresa/filial/tenant, metadados de dicionário, títulos, máscaras e ações
 permanecem no chamador. Medir gravação/leitura de staging contra JSON paginado
 antes de escolher o caminho padrão.
 
-Esses serviços de apresentação/materialização são propostas de desenho e
-não estão implementados no serviço de query atual.
+O adapter de tabela nativa populada e o serviço de materialização no servidor
+são propostas, sem implementação no serviço de query atual.
+
+<a id="resultados-em-memoria-entre-requisicoes"></a>
+
+## Resultados em memória entre requisições
+
+Ideia futura registrada em 2026-10-23, fora da implementação do pacote 002:
+materializar um resultado SQL uma vez e reutilizá-lo entre requisições sem
+repetir o SELECT de origem. **MEMIO do Harbour (`hbmemio`, `mem:`)** é um sistema
+de arquivos virtual em memória, distinto de `MemoRead()`/`MemoWrit()`. Um RDD
+DBF pode armazenar tabela, memo e índices nele. O contrib integra o catálogo
+gerenciado; o produto atual não vincula/expõe serviço de cache MEMIO de resultados.
+
+A [implementação MEMIO fixada](https://github.com/harbour/core/blob/6deac9cf3ad977ae829e5bca543d553b92dd4b6d/contrib/hbmemio/memio.c)
+mantém arquivos nomeados depois de fechar o último handle, em armazenamento
+compartilhado do processo. Fechar conexão SQL ou área RDD não exige removê-los.
+Essa observação se refere a arquivos DBF/memo/índice nomeados comuns. Uma
+tabela temporária/com exclusão automática do RDD pode apagar seus arquivos ao
+fechar a área proprietária (por exemplo via `DBI_ISTEMPORARY`); MEMIO não
+substitui essa política.
+Outra thread pode reabrir arquivos preservados com área/cursor próprios. Exclusão explícita ou
+encerramento do processo termina essa vida útil; outro processo/host não acessa
+o mesmo armazenamento MEMIO. Há reuso no host ativo, sem durabilidade entre
+reinícios do serviço. As operações de locks de bytes são stubs; a seção crítica
+interna não comprova gravação/locks de registros DBF concorrentes. Começar a
+avaliação futura com resultados publicados imutáveis e áreas independentes de
+leitura, sem escritores concorrentes.
+
+O [probe nativo reutilizável](../tests/probes/hbbridge.memio.snapshot.test.hb)
+e o [runner](../scripts/test-harbour-memio.ps1) passaram em 2026-10-23 com
+Harbour/Zig gerenciados no Windows: **22 verificações em um processo mais uma
+em processo novo**, zero falhas/saída 0. Cobrem fechamento/término da thread
+produtora, reabertura DBF/FPT/CDX, duas threads leitoras com cursores próprios,
+NUL no memo, exclusão explícita dos três arquivos e perda no encerramento.
+Não homologam SQL, endpoint do produto, serviço de cache, locks de gravação
+ou Linux.
+
+Fluxo futuro proposto, sem definir novos nomes de serviços/APIs neste momento:
+
+1. Chamador autorizado solicita resultado materializado com perfil, SQL,
+   valores e escopo de acesso resolvido pelo chamador explícitos.
+2. Host lê uma vez, constrói resultado privado, valida esquema/valores e só
+   publica para leitura depois de concluir cópia/índices.
+3. Retorna handle opaco autorizado. Requisições seguintes leem páginas/buscam
+   em áreas independentes através desse handle, sem repetir o SELECT.
+4. Liberação explícita, expiração ou descarte por memória retiram o resultado.
+   Aguardar leitores ativos antes de excluir todos os arquivos associados.
+   Atualização cria/publica novo resultado, sem reescrever o snapshot publicado.
+
+O conteúdo representa uma observação no momento da materialização. Não cria
+garantia transacional/snapshot do banco durante a leitura original nem detecta
+gravações posteriores via DBAccess/outras aplicações. O chamador escolhe
+atualidade/renovação; Protheus resolve tenant/empresa/filial, e o host aplica o
+escopo autorizado fornecido. Não reutilizar transparentemente resultado/texto
+SQL de outro usuário nem inferir contexto ERP. Nome físico não autoriza acesso.
+
+Antes de implementar, definir posse, isolamento por escopo, expiração/último
+uso, referências ativas, cancelamento/limpeza parcial, orçamento configurável
+de memória e comportamento em falta de memória/descarte. Comprovar UTF-8,
+NULL, texto longo, representação numérica exata e índices; copiar para DBF não
+pode alterar tipos SQL silenciosamente. Comparar MEMIO/RDD com hashes ou outro
+armazenamento explícito, medindo criação/cópia/índices, leituras repetidas,
+memória e atualidade da origem. O banco pode manter seu próprio cache de
+consultas; guardar em RAM isoladamente não comprova vantagem de desempenho.
+
+Preservar a semântica atual de query/página nova em `RPCRDD.Query`. Reuso de
+resultados é separado de pooling físico ODBC, FWTemporaryTable do Protheus e
+staging MSSQL. O resultado reutilizável pode reduzir trabalho na origem e
+estabilizar páginas subsequentes, com custo de memória e dados deliberadamente
+mais antigos.

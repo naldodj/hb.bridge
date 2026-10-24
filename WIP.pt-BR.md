@@ -21,11 +21,11 @@ HTTPS ou BLOB JSON. Veja [encerramento, artefatos e limites](docs/acceptance.pt-
 | Item | Valor atual |
 | --- | --- |
 | ID | `002-typed-sql-presentation` |
-| Abertura / atualização | 2026-10-21 / 2026-10-23 |
-| Situação | Planejado; implementação não iniciada. |
+| Abertura / atualização | 2026-10-21 / 2026-10-24 |
+| Situação | Inventário/rascunho T01 em andamento; manutenção HTTP priorizada homologada no escopo Windows em 2026-10-24. |
 | Objetivo | Definir valores SQL/metadados tipados explícitos e adapter de apresentação nativa pertencente ao chamador Protheus sobre Query/dataset homologados. |
 | Referência | Base `8db2823`; artefatos da árvore de trabalho validados no pacote 001 identificados no manifesto de encerramento. Não é nova tag de release. |
-| Próxima tarefa | T01: inventariar APIs existentes dos conectores/clientes e especificar contratos compatíveis de parâmetros/metadados de origem/lógicos/transporte antes da implementação. |
+| Próxima tarefa | Retomar revisão/decisões restantes do rascunho T01; depois prova nativa de bindings T02. |
 
 ### Manutenção preparatória
 
@@ -96,6 +96,51 @@ HTTPS ou BLOB JSON. Veja [encerramento, artefatos e limites](docs/acceptance.pt-
   identificados. Confirmar o layout FWWebEx ativo após recompilar; não deduzir
   ganho comparativo nem aceite de todas as plataformas. Pacote 002 T01 planejado.
 
+### Manutenção HTTP priorizada em 2026-10-23
+
+Novos relatórios de benchmark exigem revisão delimitada do hbhttpd antes da
+integração SQL. O [rascunho T01](docs/typed-sql.pt-BR.md) registra o inventário
+dos conectores, sem declarar API implementada ou T01 concluído. A ideia MEMIO
+permanece no [trabalho futuro](docs/evolution.pt-BR.md#resultados-em-memoria-entre-requisicoes).
+
+- [x] H01: analisar relatórios fornecidos e envio nativo; comparar cargas
+  equivalentes e distinguir orçamento de espera do socket de atraso medido.
+- [x] H02: corrigir envio de respostas e adicionar negociação HTTP de compressão
+  comprovada onde suportada, usando hbhttpd gerenciado e núcleo compartilhado.
+  Preservar UTF-8/NUL, envios parciais, posse do payload e semântica de falha.
+- [x] H03: validar HTTP nativo identity/gzip e suporte TLPP/FWRest real, incluindo
+  erros, respostas grandes e timeouts. Registrar escopo e documentos EN/PT;
+  redução de bytes isolada não comprova ganho de desempenho.
+
+Evidências em 2026-10-24: suíte nativa 777/0; probe de envio 18/0; AppServer
+isolado compilou 55 fontes/zero erros e passou nos 14 checks FWRest/cliente,
+saída 0. Comparação MSSQL/AppServer alternou identity/gzip duas vezes, cinco
+medidas + dois aquecimentos por rodada, 10000 linhas em uma página, pooling off.
+Passaram as 20 varreduras medidas e oito aquecimentos. Médias combinadas:
+identity 1869,279 ms, gzip 910,453 ms. Verificação independente no fio:
+582624 versus 107099 bytes, SHA-256 descompactado idêntico. Esta comparação
+curta no mesmo build mede a política de encoding, sem isolar cada outra
+alteração HTTP nem prometer aceleração geral em produção. Veja
+[evidências HTTP](docs/http.pt-BR.md#http-review-on-2026-10-24) e
+[manifesto sanitizado](docs/validation/http.response.windows.json).
+
+O benchmark AppServer atual exige gzip na rota HTTP, independentemente de
+`HTTPAcceptEncoding` no INI, e registra a política efetiva da requisição.
+Fallback para identity falha explicitamente. A comparação acima utilizou a
+política opcional anterior no mesmo build do servidor, antes desta exigência.
+Checks MSSQL/AppServer reais confirmaram os dois resultados mesmo com INI
+identity: gzip ativo passou duas medidas e um aquecimento (10000/página10000,
+saída 0); compressão off produziu a rejeição esperada
+`HTTP_COMPRESSION_REQUIRED` / HTTP 406 (saída 1), sem fallback identity.
+
+O ajuste final resolve `CR_LF + CR_LF` uma vez por worker e passa o valor ao
+parser; campos Accept-Encoding separados preservam todas as exclusões.
+Regressão/envio finais: 777/18, zero falhas. Uma compilação posterior com 56
+fontes e 14 checks FWRest passou, seguida de 12 probes diretos por etapa.
+Expansão gzip: média 1,511 ms; parsing JSON: 43,158 ms; requisição nativa:
+179,851 ms (inclui servidor/rede). Microbenchmarks separados do cache de
+codepage preservaram bytes e SETs, sem comprovar aceleração estável.
+
 ### Decisões preservadas
 
 - Manter implementação única e comportamento homologado de `RPCRDD.Query`,
@@ -158,6 +203,9 @@ nativa](docs/evolution.pt-BR.md) e [contrato SQL](docs/milestone3-sql.pt-BR.md) 
 
 `RPCRDD.Materialize`/Release no MSSQL exige desenho/aceite próprios; tabela
 temporária pertencente ao cliente não o implica. Pacotes seguintes mantêm
+reuso MEMIO explícito e imutável, com handles autorizados, atualidade,
+memória/expiração e posse dos leitores; veja [a viabilidade](docs/evolution.pt-BR.md#resultados-em-memoria-entre-requisicoes).
+Também mantêm
 credenciais cifradas portáveis/OpenBao/TLS, blocos/streams/leitores LOB,
 DBF/NETIO/VF, serviços/Linux/administração e depuração. Benchmarks de addons
 C/Zig e PostgreSQL/Protheus 12.1.2610 seguem como [trabalho futuro registrado](docs/benchmark-evolution.pt-BR.md).

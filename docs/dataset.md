@@ -381,10 +381,12 @@ The next versioned result contract must distinguish:
 | `logical` | Type, display length, precision and scale supplied explicitly by the consumer. |
 | `wire` | Text encoding and representation: JSON number, exact decimal string or binary encoding. |
 
-These groups and `targetEncoding` are a design, **not additional parameters
-accepted by the current strict service**. A future extension still needs its
-own large-field/logical metadata and exact-number acceptance beyond the
-representations exercised by D03.
+These groups and `targetEncoding` are a design, **not implemented options of
+the current service**. Current Query can ignore unknown top-level keys;
+sending a design field does not enable it. The [typed SQL draft](typed-sql.md)
+remains pending T01 review while HTTP performance has priority. A future
+extension still needs its own large-field/logical metadata and exact-number
+acceptance beyond the representations exercised by D03.
 
 ### Deferred metadata addon and SQL rewriting
 

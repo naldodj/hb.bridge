@@ -1952,3 +1952,56 @@ Preserved the revised benchmark TLPP includes and registered `totvs.ch` as the
 default; specialized headers require actual symbols/macros. The licensed RPO
 was not rebuilt here. No previous SQL/runtime acceptance is extended to current
 source changes by these maintenance checks. Package 002 T01 remains planned.
+
+<a id="http-response-validation-on-2026-10-24"></a>
+
+## HTTP response validation on 2026-10-24
+
+Prioritized HTTP maintenance strengthens partial sends, the complete-response
+send deadline, incomplete-response closure and keep-alive state restoration in
+the managed hbhttpd patch. The adapter negotiates response gzip and serializes
+the native RPC result once. UTF-8/NUL and numeric codec ownership are preserved;
+request gzip and streaming SQL are not implemented by this maintenance.
+
+Fresh Windows plain-HTTP evidence is separate from previous benchmark reports:
+the complete native suite passed **777 checks/zero failures**; the native
+send-fault probe passed **18/zero**; isolated AppServer compilation accepted
+**55 TLPP sources, zero errors**; installed FWRest/real HTTP client passed
+**14/zero**, including damaged gzip/recovery and mandatory-gzip behavior.
+All reported processes exited 0. Installed INI/RPO and services were not replaced.
+
+The AppServer benchmark now requests `gzip, identity;q=0` regardless of the
+general client's INI preference, records its mandatory policy and rejects
+identity fallback with `HTTP_COMPRESSION_REQUIRED`. Ordinary clients retain
+optional gzip unless explicitly configured otherwise.
+
+The actual MSSQL benchmark confirmed the policy with INI preference
+deliberately set to identity: compression enabled passed two measured
+traversals plus one warmup of 10000 rows/page10000, exit 0; compression off
+failed warmup with `HTTP_COMPRESSION_REQUIRED`/HTTP 406, expected exit 1.
+Both expected outcomes passed; no identity fallback was accepted. Their
+timings are not a matched performance comparison.
+
+A same-build real-MSSQL comparison alternated identity/gzip twice, with 10000
+rows in one page, concurrency one, physical ODBC pooling off, five measured
+and two warmup traversals per run. All **20 measured/eight warmup traversals**
+passed. Combined means were **1869.279 ms identity / 910.453 ms gzip**.
+Independent byte verification found **582624 / 107099 bytes** with identical
+decoded bodies and SHA-256. This comparison preceded mandatory gzip in the
+benchmark and measures encoding policy, not each HTTP change independently.
+
+The [HTTP review](http.md#http-review-on-2026-10-24) records the workload,
+including a later 56-source compile/14 FWRest checks and 12 successful direct
+phase observations. Final native 777/18 checks include repeated-header
+exclusions and the worker-local header delimiter passed to the parser.
+The byte-identical serializer cache comparison preserves the numeric codec;
+variable timings do not establish a reliable additional speedup.
+
+The same review records
+measurement boundaries, raw-log reconstruction and limitations. The
+[sanitized manifest](validation/http.response.windows.json) separates source,
+binary and RPO identities by verification phase. Reusable runners/probes are
+versioned; scratch logs and copied SDK/RPO remain disposable. Direct TLS/Linux,
+per-stage CPU/memory and production capacity are not accepted by these checks.
+The [T01 SQL contract](typed-sql.md) remains a draft, and MEMIO persistence is
+recorded only as [future work](evolution.md#in-memory-results-between-requests).

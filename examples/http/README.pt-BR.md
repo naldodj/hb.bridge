@@ -49,6 +49,7 @@ ativo, ou crie a seção se estiver ausente. Não duplique a seção.
 HTTPURL=http://127.0.0.1:8080
 HTTPToken=<service-secret>
 HTTPTimeoutSeconds=30
+HTTPAcceptEncoding=gzip
 SQLProfile=sqlite_demo
 ```
 

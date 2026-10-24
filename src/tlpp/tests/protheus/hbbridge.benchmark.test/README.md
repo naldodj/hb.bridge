@@ -15,6 +15,14 @@ tree. Selected hbBridge routes require an existing process with the selected
 MSSQL profile and their required listeners. No service restart or configuration edit is
 performed by the benchmark.
 
+The selected `http` route requires gzip and sends
+`Accept-Encoding: gzip, identity;q=0`, regardless of `HTTPAcceptEncoding` in
+the AppServer INI. Reports record `httpRequireGzip=true` and the effective
+`httpAcceptEncoding`; identity fallback fails with `HTTP_COMPRESSION_REQUIRED`.
+Keep server `[HTTP] Compression=auto`. `Compression=off` yields 406 for this
+request. Recompile the full TLPP client and benchmark together to enable this
+contract; see [HTTP validation](../../../../../docs/http.md#http-review-on-2026-10-24).
+
 ## Visual benchmark
 
 Run `U_HBBridgeBenchmark()` in the Protheus UI with FWWebEx and

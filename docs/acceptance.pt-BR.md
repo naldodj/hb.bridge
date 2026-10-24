@@ -2043,3 +2043,56 @@ Preservadas as revisões de includes TLPP do benchmark e registrado `totvs.ch`
 como padrão; headers específicos exigem símbolos/macros utilizados. O RPO
 licenciado não foi recompilado aqui. Esses checks de manutenção não estendem
 aceites SQL/runtime anteriores às mudanças atuais. T01 do pacote 002 segue planejado.
+
+<a id="http-response-validation-on-2026-10-24"></a>
+
+## Validação das respostas HTTP em 2026-10-24
+
+A manutenção HTTP priorizada reforça envios parciais, prazo da resposta completa,
+fechamento de resposta incompleta e restauração de estado keep-alive no patch
+hbhttpd gerenciado. O adaptador negocia gzip da resposta e serializa uma vez o
+resultado RPC nativo. Preservados os responsáveis por UTF-8/NUL e codec numérico;
+esta manutenção não implementa gzip de requisição nem SQL em streaming.
+
+A evidência Windows HTTP aberto nova é distinta dos relatórios anteriores:
+suíte nativa completa **777 checks/zero falhas**; probe de falhas de envio
+**18/zero**; compilação AppServer isolada **55 fontes TLPP, zero erros**;
+FWRest instalado/cliente HTTP real **14/zero**, incluindo gzip corrompido,
+recuperação e gzip obrigatório. Todos os processos informados tiveram saída 0.
+INI/RPO e serviços instalados não foram substituídos.
+
+O benchmark AppServer passa a solicitar `gzip, identity;q=0`, independentemente
+da preferência INI do cliente comum, registra a política obrigatória e rejeita
+fallback identity com `HTTP_COMPRESSION_REQUIRED`. Clientes comuns mantêm gzip
+opcional quando não configurados explicitamente de outra forma.
+
+O benchmark MSSQL real confirmou a política com preferência INI definida
+deliberadamente como identity: compressão ativa passou duas medidas e um
+aquecimento de 10000 linhas/página10000, saída 0; compressão off rejeitou o
+aquecimento com `HTTP_COMPRESSION_REQUIRED`/HTTP 406, saída 1 esperada.
+Os dois resultados esperados passaram; nenhum fallback identity foi aceito.
+Seus tempos não representam comparação equivalente de desempenho.
+
+A comparação MSSQL real no mesmo build alternou identity/gzip duas vezes,
+com 10000 linhas em uma página, concorrência um, pooling físico ODBC off,
+cinco varreduras medidas e dois aquecimentos por rodada. Passaram as **20
+medidas/oito aquecimentos**. Médias combinadas: **1869,279 ms identity /
+910,453 ms gzip**. Verificação independente encontrou **582624 / 107099 bytes**,
+com corpos descompactados e SHA-256 idênticos. A comparação antecedeu gzip
+obrigatório no benchmark e mede a política de encoding, sem isolar cada
+alteração HTTP.
+
+A [revisão HTTP](http.pt-BR.md#http-review-on-2026-10-24) inclui a compilação
+posterior de 56 fontes/14 checks FWRest e 12 observações diretas por etapa.
+Os checks nativos finais 777/18 cobrem exclusões em cabeçalhos repetidos e
+o delimitador local por worker passado ao parser. O cache de codepage
+preservou bytes/codec numérico; tempos variáveis não comprovam ganho estável.
+
+A mesma revisão registra carga,
+fronteiras das medidas, reconstrução dos logs brutos e limitações. O
+[manifesto sanitizado](validation/http.response.windows.json) separa identidades
+de fontes, binários e RPO por fase de verificação. Runners/probes reutilizáveis
+são versionados; logs e cópias SDK/RPO continuam descartáveis. Estes checks
+não homologam TLS direto/Linux, CPU/memória por etapa nem capacidade de produção.
+O [contrato SQL T01](typed-sql.pt-BR.md) permanece rascunho, e persistência MEMIO
+fica registrada apenas como [trabalho futuro](evolution.pt-BR.md#resultados-em-memoria-entre-requisicoes).

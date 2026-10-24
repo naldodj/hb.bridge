@@ -387,10 +387,12 @@ O próximo contrato versionado de resultado deve distinguir:
 | `logical` | Tipo, tamanho de exibição, precisão e escala fornecidos explicitamente pelo consumidor. |
 | `wire` | Encoding textual e representação: número JSON, string decimal exata ou codificação binária. |
 
-Esses grupos e `targetEncoding` são desenho, **não parâmetros adicionais
-aceitos pelo serviço estrito atual**. Uma extensão futura ainda exige aceite
-próprio de metadados lógicos/campos grandes e números exatos além das
-representações exercitadas pela D03.
+Esses grupos e `targetEncoding` são desenho, **não opções implementadas pelo
+serviço atual**. Query pode ignorar chaves superiores desconhecidas; enviar um
+campo de desenho não o habilita. O [rascunho SQL tipado](typed-sql.pt-BR.md)
+aguarda revisão T01 enquanto o desempenho HTTP tem prioridade. Uma extensão
+futura ainda exige aceite próprio de metadados lógicos/campos grandes e
+números exatos além das representações exercitadas pela D03.
 
 ### Addon de metadados e reescrita SQL adiados
 

@@ -21,6 +21,7 @@ Os resumos JSON mantêm identidades/contagens sanitizadas do momento da mediçã
 - [Encerramento do pacote 001](package001.windows.mssql.json).
 - [Revisão das convenções de fonte](source.standards.windows.json).
 - [Controles do benchmark e regressão numérica JSON dos addons](benchmark.controls.windows.json).
+- [Envio de respostas HTTP, gzip e validação do cliente Windows](http.response.windows.json).
 
 Essas identidades descrevem o snapshot datado, não o checkout atual. Menções
 históricas a `tmp/...` registram onde a saída foi gravada, sem garantir sua

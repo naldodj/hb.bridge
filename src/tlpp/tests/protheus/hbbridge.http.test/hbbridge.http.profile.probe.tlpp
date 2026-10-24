@@ -1,0 +1,180 @@
+/* Released to Public Domain. */
+#include "totvs.ch"
+
+// Diagnostic only: identity is an explicit comparison, never the M08 policy.
+function U_HBBridgeHTTPProfileProbe()
+
+    local cIni := GetSrvIniName() as character
+    local cURL := GetPvProfString("HBHTTPProfile", "URL", "", cIni) as character
+    local cToken := GetPvProfString("HBHTTPProfile", "Token", "", cIni) as character
+    local cProfile := GetPvProfString("HBHTTPProfile", "Profile", "", cIni) as character
+    local cDigits := "(VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9))" as character
+    local cSQL, cRequest, cEncoding as character
+
+    local jRequest := JSONObject():New() as json
+    local jParams := JSONObject():New() as json
+    local jPage := JSONObject():New() as json
+    local jObservation as json
+
+    local nIterations := Val(GetPvProfString("HBHTTPProfile", "Iterations", "5", cIni)) as numeric
+    local nWarmup := Val(GetPvProfString("HBHTTPProfile", "Warmup", "1", cIni)) as numeric
+    local nIteration, nEncoding, nTotalIterations as numeric
+    local nFailures := 0 as numeric
+
+    if Empty(cURL) .or. Empty(cToken) .or. Empty(cProfile) .or. ;
+        nIterations < 1 .or. nIterations != Int(nIterations) .or. ;
+        nWarmup < 0 .or. nWarmup != Int(nWarmup)
+        ConOut('HBBRIDGE_HTTP_PROFILE {"configurationMissing":true,"failures":1}')
+        return(1)
+    endif
+    cSQL := "SELECT ID, CAST('hbbridge-' + CAST(ID AS VARCHAR(10)) AS VARCHAR(32)) AS NAME, " + ;
+        "CAST(ID * 0.25 AS DECIMAL(15,2)) AS AMOUNT FROM (SELECT 1 + A.N + 10 * B.N + " + ;
+        "100 * C.N + 1000 * D.N + 10000 * E.N AS ID FROM " + cDigits + " A(N) CROSS JOIN " + ;
+        cDigits + " B(N) CROSS JOIN " + cDigits + " C(N) CROSS JOIN " + cDigits + ;
+        " D(N) CROSS JOIN " + cDigits + " E(N)) F WHERE ID <= 10000"
+    jPage["number"] := 1
+    jPage["size"] := 10000
+    jPage["orderBy"] := "ID ASC"
+    jParams["alias"] := cProfile
+    jParams["sql"] := cSQL
+    jParams["page"] := jPage
+    jRequest["service"] := "RPCRDD.Query"
+    jRequest["params"] := jParams
+    cRequest := EncodeUTF8(HBBridge.Client.HBBridgeJSON():Encode(jRequest))
+    FreeObj(@jRequest)
+    nTotalIterations := nWarmup + nIterations
+    for nIteration := 1 to nTotalIterations
+        for nEncoding := 1 to 2
+            // Alternate which coding runs first to reduce fixed ordering bias.
+            cEncoding := IIf((nIteration + nEncoding) % 2 == 0, "identity", "gzip")
+            jObservation := HTTPProfileObservation(cURL, cToken, cRequest, cEncoding)
+            jObservation["iteration"] := nIteration - nWarmup
+            jObservation["warmup"] := nIteration <= nWarmup
+            if !jObservation["success"]
+                nFailures++
+            endif
+            ConOut("HBBRIDGE_HTTP_PROFILE " + jObservation:ToJSON())
+            FreeObj(@jObservation)
+        next nEncoding
+    next nIteration
+    ConOut('HBBRIDGE_HTTP_PROFILE {"completed":true,"failures":' + tlpp.ToStr(nFailures) + '}')
+
+return(nFailures)
+
+static function HTTPProfileObservation(cURL as character, cToken as character, ;
+    cRequest as character, cEncoding as character) as json
+
+    // FWRest requires an array of native header strings.
+    local aHeaders := {"Content-Type: application/json; charset=utf-8", ;
+        "Accept: application/json", "Accept-Encoding: " + cEncoding, ;
+        "Authorization: Bearer " + cToken, "Connection: close"} as array
+
+    local cBody := "" as character
+    local cExpanded := "" as character
+    local cResponseEncoding := "" as character
+    local cRowKey as character
+
+    local jObservation := JSONObject():New() as json
+    local jResponse := JSONObject():New() as json
+    local jRow as json
+
+    local lConnected := .F. as logical
+    local lValid := .F. as logical
+    local lParsed := .F. as logical
+    local lExpanded := .T. as logical
+    local lRawGzip as logical
+
+    local nStarted := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs() as numeric
+    local nPhase, nRequest, nDecode, nParse, nValidate, nStatus, nRow as numeric
+
+    local oREST as object
+    local oError as object
+
+    nRequest := 0
+    nDecode := 0
+    nParse := 0
+    nValidate := 0
+    nStatus := 0
+    try
+        oREST := FWRest():New(cURL)
+        oREST:SetPath("/api/v1/rpc")
+        oREST:SetTimeOut(30)
+        oREST:SetChkStatus(.F.)
+        oREST:SetPostParams(cRequest)
+        nPhase := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs()
+        lConnected := oREST:Post(aHeaders)
+        nStatus := Val(oREST:GetHTTPCode())
+        cBody := oREST:GetResult()
+        cResponseEncoding := HTTPProfileEncoding(oREST:oResponseH:aHeaderFields)
+        nRequest := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs() - nPhase
+        FreeObj(@oREST)
+        lRawGzip := Left(cBody, 2) == Chr(31) + Chr(139)
+        lValid := lConnected .and. nStatus == 200 .and. ;
+            ((cEncoding == "gzip" .and. cResponseEncoding == "gzip") .or. ;
+            (cEncoding == "identity" .and. Empty(cResponseEncoding)))
+        jObservation["wireBytes"] := Len(cBody)
+        jObservation["rawGzip"] := lRawGzip
+        nPhase := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs()
+        if lRawGzip
+            lExpanded := GzStrDecomp(cBody, Len(cBody), @cExpanded)
+            cBody := cExpanded
+        endif
+        nDecode := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs() - nPhase
+        jObservation["decodedBytes"] := Len(cBody)
+        nPhase := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs()
+        lParsed := HBBridge.Client.HBBridgeJSON():Parse(cBody, jResponse)
+        nParse := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs() - nPhase
+        nPhase := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs()
+        lValid := lValid .and. lExpanded .and. lParsed
+        if lValid
+            lValid := jResponse["success"] .and. jResponse["rowCount"] == 10000
+        endif
+        if lValid
+            for nRow := 1 to 10000
+                cRowKey := tlpp.ToStr(nRow)
+                jRow := jResponse["rows"][cRowKey]
+                if jRow["ID"] != nRow .or. jRow["NAME"] != "hbbridge-" + cRowKey .or. ;
+                    Abs(jRow["AMOUNT"] - nRow * 0.25) > 0.000001
+                    lValid := .F.
+                    exit
+                endif
+            next nRow
+        endif
+        nValidate := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs() - nPhase
+    catch oError
+        lValid := .F.
+        if ValType(oError) == "O"
+            FreeObj(@oError)
+        endif
+    endtry
+    if ValType(oREST) == "O"
+        FreeObj(@oREST)
+    endif
+    FreeObj(@jResponse)
+    jObservation["encoding"] := cEncoding
+    jObservation["contentEncoding"] := cResponseEncoding
+    jObservation["success"] := lValid
+    jObservation["httpStatus"] := nStatus
+    jObservation["fwRestMs"] := nRequest
+    jObservation["decompressMs"] := nDecode
+    jObservation["jsonParseMs"] := nParse
+    jObservation["validateMs"] := nValidate
+    jObservation["totalMs"] := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs() - nStarted
+
+return(jObservation)
+
+static function HTTPProfileEncoding(aHeaders as array) as character
+
+    local cCR := Chr(13) as character
+    local cLF := Chr(10) as character
+
+    local nHeader as numeric
+    local nHeaders := Len(aHeaders) as numeric
+
+    for nHeader := 1 to nHeaders
+        if Lower(AllTrim(aHeaders[nHeader][1])) == "content-encoding"
+            return(Lower(AllTrim(StrTran(StrTran(aHeaders[nHeader][2], cCR, ""), cLF, ""))))
+        endif
+    next nHeader
+
+return("")

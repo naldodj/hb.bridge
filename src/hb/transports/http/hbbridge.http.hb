@@ -50,6 +50,7 @@ STATIC PROCEDURE HBBridgeHTTPRun( hHTTP )
         "MaxWorkers" => hConfig[ "maxWorkers" ], ;
         "ListenBacklog" => hb_HGetDef( hConfig, "httpListenBacklog", ;
             HBBridgeRuntimeLimits()[ "socketListenBacklogDefault" ] ), ;
+        "SendTimeout" => hConfig[ "httpSendTimeoutMs" ], ;
         "SSL" => hConfig[ "httpTLS" ], "PrivateKeyFilename" => hConfig[ "httpPrivateKey" ], ;
         "CertificateFilename" => hConfig[ "httpCertificate" ], ;
         "Ready" => {| oServer | HBBridgeHTTPReady( hHTTP, oServer ) }, ;
@@ -115,7 +116,7 @@ STATIC FUNCTION HBBridgeHTTPHandle( hHTTP, cPath )
         hb_cdpSelect( cPreviousCodepage )
     END SEQUENCE
 
-RETURN cResult
+RETURN HBBridgeHTTPContent( cResult, hb_HGetDef( server, "HTTP_ACCEPT_ENCODING", "" ), hHTTP[ "config" ] )
 
 STATIC FUNCTION HBBridgeHTTPRequest( hHTTP, cPath )
 
@@ -174,14 +175,14 @@ STATIC FUNCTION HBBridgeHTTPRequest( hHTTP, cPath )
                 ELSE
                     /* REQUEST_BODY is exposed by the documented managed hbhttpd patch. */
                     cBody := hb_HGetDef( server, "REQUEST_BODY", "" )
-                    IF ! HBBridgeUTF8Valid( cBody )
+                    IF cPath == "api/v1/rpc"
+                        /* Shared validation/dispatch; no JSON encode/decode/encode round trip. */
+                        hResult := HBBridgeJSONRequestResult( cBody, hHTTP[ "registry" ], hHTTP[ "context" ] )
+                        cResult := HBBridgeHTTPJSON( hResult )
+                    ELSEIF ! HBBridgeUTF8Valid( cBody )
                         cResult := HBBridgeHTTPJSON( HBBridgeError( "INVALID_UTF8", "JSON must use valid UTF-8" ), 400 )
                     ELSEIF ( cBody := HBBridgeJSONNormalize( cBody ) ) == NIL
                         cResult := HBBridgeHTTPJSON( HBBridgeError( "INVALID_JSON", "Invalid Unicode escape in JSON" ), 400 )
-                    ELSEIF cPath == "api/v1/rpc"
-                        cResult := DispatcherRequest( cBody, hHTTP[ "registry" ], hHTTP[ "context" ] )
-                        HBBridgeJSONDecode( cResult, @hResult )
-                        cResult := HBBridgeHTTPJSON( hResult )
                     ELSE
                         nConsumed := HBBridgeJSONDecode( cBody, @xParams )
                         IF ! HBBridgeJSONComplete( cBody, nConsumed )

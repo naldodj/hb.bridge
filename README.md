@@ -261,6 +261,10 @@ another deployment option. See [HTTP setup and contracts](docs/http.md).
 The [TLPP HTTP example](examples/http/README.md) uses
 `HBBridge.Client.HBBridgeHTTPClient`, configured by `HTTPURL`, `HTTPToken`
 and `HTTPTimeoutSeconds` in the active AppServer `[hbBridge]` section.
+`HTTPAcceptEncoding=gzip|identity` selects response negotiation (default gzip).
+The client validates/decompresses raw gzip before JSON parsing. The server's
+HTTP response policy also configures the threshold/level and total send budget;
+see [compression and bounded sending](docs/http.md#response-compression).
 `U_HBBridgeHTTPTest()` covers GET Health/discovery, POST Health/Echo/addon,
 401/403/404 errors, recovery and optional SQL pages through the existing
 dataset. The earlier 2026-10-07 report used thread 25672. Later runs passed

@@ -10,7 +10,7 @@
         "contribs": "hbnetio hbmzip hbsqlit3 rddsql sddsqlt3 sddodbc hbodbc hbct hbexpat hbmemio hbunix hbwin hbrun hbhttpd hbtcpio hbssl",
         "httpPatch": {
             "path": "config/patches/hbhttpd.patch",
-            "sha256": "b91fcf5318c418a808b3b902deaf5ef0d9e54695b0a7af5076ad05dcac7f1764"
+            "sha256": "8734b9860e809f4dbc598304c011b607fdcfa53c58d1dcd72569df4317ce81a9"
         },
         "odbcPatch": {
             "path": "config/patches/sddodbc.patch",

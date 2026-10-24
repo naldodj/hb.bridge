@@ -82,9 +82,22 @@ finally { Pop-Location }
 $patchedCore = Get-Content -LiteralPath (Join-Path $stageRoot 'hbhttpd/core.prg') -Raw
 if (-not $patchedCore.Contains('hb_socketListen( ::hListen, ::hConfig[ "ListenBacklog" ] )') -or
     -not $patchedCore.Contains('server[ "REQUEST_BODY" ] := cRequest') -or
+    -not $patchedCore.Contains('iif( Empty( server[ "HTTP_ACCEPT_ENCODING" ] ), "", "," ) + cI') -or
     -not $patchedCore.Contains('Len( aThreads ) < ::hConfig[ "MaxWorkers" ]') -or
     -not $patchedCore.Contains('Eval( ::hConfig[ "Ready" ], Self )') -or
-    -not $patchedCore.Contains('DO WHILE hb_BAt( CR_LF + CR_LF, cRequest ) == 0 .AND. ! oServer:lStop') -or
+    -not $patchedCore.Contains('LOCAL cHeaderEnd := CR_LF + CR_LF') -or
+    -not $patchedCore.Contains('DO WHILE hb_BAt( cHeaderEnd, cRequest ) == 0 .AND. ! oServer:lStop') -or
+    -not $patchedCore.Contains('hb_BLeft( cRequest, hb_BAt( cHeaderEnd, cRequest ) + 1 )') -or
+    -not $patchedCore.Contains('ParseRequestHeader( @cRequest, cHeaderEnd )') -or
+    -not $patchedCore.Contains('STATIC FUNCTION ParseRequestHeader( cRequest, cHeaderEnd )') -or
+    -not $patchedCore.Contains('nI := hb_BAt( cHeaderEnd, cRequest )') -or
+    -not $patchedCore.Contains('"SendTimeout"          => 30000') -or
+    -not $patchedCore.Contains('"SendChunkSize"        => 65536') -or
+    -not $patchedCore.Contains('IF ! SendResponse( oServer, hSSL, hSocket, cBuf )') -or
+    -not $patchedCore.Contains('cChunk := hb_BSubStr( cResponse, nOffset, nChunkSize )') -or
+    -not $patchedCore.Contains('hb_socketSetBlockingIO( hSocket, .F. ) < 0') -or
+    -not $patchedCore.Contains('nTimeout - ( UHttpdSendClock() - nTime )') -or
+    -not $patchedCore.Contains('hb_retnint( ( HB_MAXINT ) hb_timerGet() );') -or
     -not $patchedCore.Contains('UAddHeader( "Content-Length", hb_ntos( hb_BLen( t_cResult ) ) )')) {
     throw 'The hbhttpd patch was not applied completely.'
 }

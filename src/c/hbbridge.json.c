@@ -17,6 +17,7 @@ typedef struct
     void ** ancestors;
     HB_SIZE depth;
     HB_SIZE ancestorCapacity;
+    PHB_CODEPAGE utf8;
 } HBBridgeJSONBuffer;
 
 static void HBBridgeJSONAppend( HBBridgeJSONBuffer * buffer, const char * data, HB_SIZE size )
@@ -133,7 +134,7 @@ static HB_BOOL HBBridgeJSONWrite( PHB_ITEM value, HBBridgeJSONBuffer * buffer )
 
         HB_SIZE size;
 
-        scalar = hb_jsonEncodeCP( value, &size, 0, hb_cdpFindExt( "UTF8" ) );
+        scalar = hb_jsonEncodeCP( value, &size, 0, buffer->utf8 );
         HBBridgeJSONAppend( buffer, scalar, size );
         hb_xfree( scalar );
     }
@@ -149,8 +150,10 @@ HB_FUNC( HBBRIDGEJSONENCODE )
 
     value = hb_param( 1, HB_IT_ANY );
     previous = hb_vmCDP();
-    hb_vmSetCDP( hb_cdpFindExt( "UTF8" ) );
     memset( &buffer, 0, sizeof( buffer ) );
+    /* One request-local lookup also serves every scalar in this document. */
+    buffer.utf8 = hb_cdpFindExt( "UTF8" );
+    hb_vmSetCDP( buffer.utf8 );
     buffer.capacity = 256;
     buffer.data = ( char * ) hb_xgrab( buffer.capacity );
     buffer.ancestorCapacity = 16;

@@ -6,6 +6,38 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Adicionar cobertura de integridade para JSON UTF-8 e MSSQL)"
  */
 
+2026-10-24 09:35 UTC naldodj (Melhorar envio HTTP e exigir gzip no benchmark)
+  % Resolver delimitador de cabeçalho uma vez por worker e passá-lo ao parser;
+    manter buscas por bytes no loop de leitura, trace e parser. Combinar
+    campos Accept-Encoding repetidos antes de avaliar as exclusões.
+    Resolver UTF-8 uma vez por documento JSON, preservando o codec numérico.
+  ! Reforçar envios parciais hbhttpd, prazo da resposta completa, restauração
+    keep-alive e fechamento de pipeline incompleto no patch gerenciado.
+    Limitar blocos de envio e usar relógio nativo; espera de socket não é pausa.
+  + Negociar gzip de resposta com pesos/exclusões, framing correto por bytes,
+    limiar/nível de compressão e 406 explícito sem coding aceitável.
+    Gzip de requisição, streaming e aceite amplo TLS/Linux seguem pendentes.
+  % Serializar resultado RPC nativo compartilhado uma vez no HTTP, retirando
+    encode/decode/encode completo; preservar UTF-8/NUL e codec numérico.
+  + Descomprimir gzip bruto FWRest antes do parsing JSON, rejeitar corrupção
+    e expor política opcional/obrigatória. HTTP do benchmark exige gzip,
+    sobrepõe identity no INI e registra a política efetiva, sem fallback.
+  ; Windows: regressão nativa 777/0, probe de envio 18/0; compilação isolada
+    dos 55 fontes TLPP zero erros; probe FWRest/cliente 14/0, todos com saída 0.
+    Diagnóstico posterior com 56 fontes também passou. O microbenchmark
+    apenas de serialização/codepage não comprova ganho estável de latência.
+    Benchmark MSSQL real passou gzip apesar de INI identity e rejeitou
+    compressão off com HTTP_COMPRESSION_REQUIRED/406, saída 1 esperada.
+  ; Comparação MSSQL curta no mesmo build: identity/gzip duas vezes, 10000
+    linhas/página10000, cinco medidas e dois aquecimentos cada, pooling off;
+    todas as varreduras passaram. Médias 1869,279/910,453 ms; fio 582624/107099
+    bytes, SHA-256 descompactado idêntico. Não isola cada alteração HTTP nem
+    estabelece aceleração geral em produção; manter identidades RPO separadas.
+  * Registrar inventário de conectores e contrato SQL tipado sem implementar
+    T01; manter snapshots MEMIO como futuro com probe nativo reproduzível.
+    Versionar probes de envio/FWRest/fio e evidência EN/PT sanitizada;
+    temporários históricos continuam descartáveis, sem pré-requisito de build.
+
 2026-10-23 14:52 UTC naldodj (Alinhar escopos visuais do benchmark e convenções runtime)
   * Reunir métricas internas por iteração do addon e Protheus em StartJob único
     em cards alinhados, gráficos compartilhados e tabela estatística única.

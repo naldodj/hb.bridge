@@ -69,7 +69,9 @@ de uma cópia isolada. O manifesto fixa o checksum de
 workers configuráveis, prontidão/parada coordenada do listener e rejeição
 de Transfer-Encoding não suportado e Content-Length duplicado/não decimal,
 além da preservação dos corpos de erro estruturados dos handlers e
-enquadramento/Content-Length HTTP por bytes. O
+enquadramento/Content-Length HTTP por bytes e prazo de envio configurável com
+blocos limitados e tratamento de envios parciais/não bloqueantes. Respostas
+incompletas encerram antes de registrar acesso ou reutilizar keep-alive. O
 checkout Harbour fixado permanece íntegro. `-hblib` é o modo de compilação
 de biblioteca do hbmk2, não uma dependência contrib separada.
 Os [atributos Git](../.gitattributes) impõem LF em `config/patches/*.patch`,

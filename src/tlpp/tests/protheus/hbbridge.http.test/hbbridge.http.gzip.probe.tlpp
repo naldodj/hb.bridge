@@ -1,0 +1,246 @@
+/* Released to Public Domain. */
+#include "totvs.ch"
+
+function U_HBBridgeHTTPGzipProbe()
+
+    // The native FWRest API requires an array of header strings.
+    local aCases := {"identity", "gzip", "chunked-gzip", "corrupt-gzip", "identity"} as array
+
+    local cExpected as character
+    local cIniFile := GetSrvIniName() as character
+    local cRoute as character
+    local cURL as character
+    local cToken as character
+
+    local jObservation as json
+    local jResponse as json
+
+    local nCase, nCases as numeric
+    local nFailures := 0 as numeric
+
+    local oClient as object
+
+    cURL := GetPvProfString("HBGzipProbe", "URL", "", cIniFile)
+    cToken := GetPvProfString("HBGzipProbe", "Token", "", cIniFile)
+    cExpected := '{"success":true,"payload":"' + Replicate("X", 200000) + ;
+        '","accent":"a' + Chr(195) + Chr(167) + Chr(195) + Chr(163) + ;
+        'o","nul":"x' + Chr(92) + 'u0000y"}'
+    if Empty(cURL) .or. Empty(cExpected)
+        ConOut('HBBRIDGE_HTTP_GZIP {"configurationMissing":true,"failures":1}')
+        return(1)
+    endif
+    nCases := Len(aCases)
+    for nCase := 1 to nCases
+        cRoute := aCases[nCase]
+        jObservation := GzipObservation(cURL,cToken, cRoute, cExpected)
+        if !jObservation["passed"]
+            nFailures++
+        endif
+        ConOut("HBBRIDGE_HTTP_GZIP " + jObservation:ToJSON())
+        FreeObj(@jObservation)
+    next nCase
+    oClient := HBBridge.Client.HBBridgeHTTPClient():New(cURL + "/client-gzip", "fixture", 10, "gzip")
+    jResponse := oClient:Health()
+    if !jResponse["success"] .or. jResponse["payload"] != Replicate("X", 200000) .or. ;
+        jResponse["nul"] != "x" + Chr(0) + "y"
+        nFailures++
+    endif
+    FreeObj(@jResponse)
+    FreeObj(@oClient)
+    oClient := HBBridge.Client.HBBridgeHTTPClient():New(cURL + "/client-identity", "fixture", 10, "identity")
+    jResponse := oClient:Health()
+    if !jResponse["success"] .or. oClient:StatusCode() != 200
+        nFailures++
+    endif
+    FreeObj(@jResponse)
+    FreeObj(@oClient)
+    oClient := HBBridge.Client.HBBridgeHTTPClient():New(cURL + "/client-flaky", "fixture", 10, "gzip")
+    jResponse := oClient:Health()
+    if jResponse["success"] .or. jResponse["code"] != "HTTP_DECOMPRESSION_FAILED"
+        nFailures++
+    endif
+    FreeObj(@jResponse)
+    jResponse := oClient:Health()
+    if !jResponse["success"] .or. jResponse["payload"] != Replicate("X", 200000)
+        nFailures++
+    endif
+    FreeObj(@jResponse)
+    FreeObj(@oClient)
+    oClient := HBBridge.Client.HBBridgeHTTPClient():New(cURL, "fixture", 10, "invalid")
+    jResponse := oClient:Health()
+    if jResponse["success"] .or. jResponse["code"] != "INVALID_CONFIGURATION"
+        nFailures++
+    endif
+    FreeObj(@jResponse)
+    FreeObj(@oClient)
+    oClient := HBBridge.Client.HBBridgeHTTPClient():New(cURL + "/client-required", "fixture", 10, "gzip", .T.)
+    jResponse := oClient:Health()
+    if !jResponse["success"] .or. oClient:AcceptEncoding() != "gzip, identity;q=0"
+        nFailures++
+    endif
+    FreeObj(@jResponse)
+    FreeObj(@oClient)
+    oClient := HBBridge.Client.HBBridgeHTTPClient():New(cURL + "/client-required-plain", "fixture", 10, "gzip", .T.)
+    jResponse := oClient:Health()
+    if jResponse["success"] .or. jResponse["code"] != "HTTP_COMPRESSION_REQUIRED"
+        nFailures++
+    endif
+    FreeObj(@jResponse)
+    FreeObj(@oClient)
+    oClient := HBBridge.Client.HBBridgeHTTPClient():New(cURL + "/client-required-empty", "fixture", 10, "gzip", .T.)
+    jResponse := oClient:Health()
+    if jResponse["success"] .or. jResponse["code"] != "HTTP_COMPRESSION_REQUIRED" .or. oClient:StatusCode() != 406
+        nFailures++
+    endif
+    FreeObj(@jResponse)
+    FreeObj(@oClient)
+    oClient := HBBridge.Client.HBBridgeHTTPClient():New(cURL, "fixture", 10, "identity", .T.)
+    jResponse := oClient:Health()
+    if jResponse["success"] .or. jResponse["code"] != "INVALID_CONFIGURATION"
+        nFailures++
+    endif
+    FreeObj(@jResponse)
+    FreeObj(@oClient)
+    ConOut('HBBRIDGE_HTTP_GZIP {"checks":14,"failures":' + tlpp.ToStr(nFailures) + '}')
+
+return(nFailures)
+
+static function GzipObservation(cURL as character,cToken as character, cRoute as character, cExpected as character) as json
+
+    local aHeaders := {"Accept: application/json", "Accept-Encoding: gzip", "Connection: close","Authorization: Bearer " + cToken} as array
+
+    local cBody := "" as character
+    local cExpanded := "" as character
+    local cEncoding := "" as character
+
+    local jObservation := JSONObject():New() as json
+    local jParsed := JSONObject():New() as json
+
+    local lConnected := .F. as logical
+    local lRawGzip := .F. as logical
+    local lJSON := .F. as logical
+    local lManualExact := .F. as logical
+    local lExpanded := .F. as logical
+
+    local nStatus := 0 as numeric
+
+    local oREST as object
+    local oError as object
+
+    if cRoute == "identity"
+        aHeaders[2] := "Accept-Encoding: identity"
+    endif
+
+    oREST := FWRest():New(cURL)
+    oREST:SetPath("/" + cRoute)
+    oREST:SetTimeOut(10)
+    oREST:SetChkStatus(.F.)
+    try
+        lConnected := oREST:Get(aHeaders)
+        nStatus := Val(oREST:GetHTTPCode())
+        if ValType(oREST:GetResult()) == "C"
+            cBody := oREST:GetResult()
+        endif
+        // This is an observation of the installed LIB, not a public API promise.
+        try
+            cEncoding := GzipEncodingHeader(oREST:aCabecRet)
+        catch oError
+            cEncoding := "unavailable"
+            if (ValType(oError)=="O")
+                FreeObj(@oError)
+            endif
+        endtry
+        try
+            jObservation["responseHeaderObject"] := ValType(oREST:oResponseH) == "O"
+            jObservation["responseFieldEncoding"] := GzipEncodingHeader(oREST:oResponseH:aHeaderFields)
+        catch oError
+            jObservation["responseHeaderObject"] := .F.
+            if (ValType(oError)=="O")
+                FreeObj(@oError)
+            endif
+        endtry
+    catch oError
+        lConnected := .F.
+        if (ValType(oError)=="O")
+            FreeObj(@oError)
+        endif
+    endtry
+    FreeObj(@oREST)
+
+    lRawGzip := Left(cBody, 2) == Chr(31) + Chr(139)
+    try
+        lJSON := ValType(jParsed:FromJSON(cBody)) == "U"
+    catch oError
+        lJSON := .F.
+        if (ValType(oError)=="O")
+            FreeObj(@oError)
+        endif
+    endtry
+    if lRawGzip
+        // Decode only for diagnosis after measuring the untouched GetResult.
+        try
+            lExpanded := GzStrDecomp(cBody, Len(cBody), @cExpanded)
+            lManualExact := lExpanded .and. cExpanded == cExpected
+        catch oError
+            lManualExact := .F.
+            if (ValType(oError)=="O")
+                FreeObj(@oError)
+            endif
+        endtry
+    endif
+    jObservation["route"] := cRoute
+    jObservation["connected"] := lConnected
+    jObservation["httpStatus"] := nStatus
+    jObservation["bodyLength"] := Len(cBody)
+    jObservation["expectedLength"] := Len(cExpected)
+    jObservation["expandedLength"] := Len(cExpanded)
+    jObservation["expanded"] := lExpanded
+    jObservation["rawGzip"] := lRawGzip
+    jObservation["bodyExact"] := cBody == cExpected
+    jObservation["jsonParse"] := lJSON
+    jObservation["manualGzipExact"] := lManualExact
+    jObservation["responseEncoding"] := cEncoding
+    if cRoute == "corrupt-gzip"
+        jObservation["passed"] := cBody != cExpected .and. !lManualExact
+    else
+        jObservation["passed"] := lConnected .and. nStatus == 200 .and. ;
+            ((cBody == cExpected .and. lJSON) .or. (lRawGzip .and. lManualExact))
+    endif
+    FreeObj(@jParsed)
+
+return(jObservation)
+
+static function GzipEncodingHeader(aHeaders as array) as character
+
+    local cHeader as character
+    local cName as character
+    local cValue as character
+
+    local nHeader, nHeaders as numeric
+    local nColon as numeric
+
+    nHeaders := Len(aHeaders)
+    for nHeader := 1 to nHeaders
+        cHeader := ""
+        if ValType(aHeaders[nHeader]) == "C"
+            cHeader := aHeaders[nHeader]
+        elseif ValType(aHeaders[nHeader]) == "A"
+            if Len(aHeaders[nHeader]) >= 2 .and. ValType(aHeaders[nHeader][1]) == "C" .and. ;
+                ValType(aHeaders[nHeader][2]) == "C"
+                cHeader := aHeaders[nHeader][1] + ":" + aHeaders[nHeader][2]
+            endif
+        endif
+        nColon := At(":", cHeader)
+        if nColon > 0
+            cName := Lower(AllTrim(Left(cHeader, nColon - 1)))
+            if cName == "content-encoding"
+                cValue := Lower(AllTrim(StrTran(StrTran(SubStr(cHeader, nColon + 1), Chr(13), ""), Chr(10), "")))
+                if cValue == "gzip" .or. cValue == "identity"
+                    return(cValue)
+                endif
+                return("other")
+            endif
+        endif
+    next nHeader
+
+return("")

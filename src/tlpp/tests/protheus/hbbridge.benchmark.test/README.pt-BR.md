@@ -15,6 +15,15 @@ Compile todos os fontes deste diretório com toda a árvore `src/tlpp`.
 Rotas hbBridge selecionadas exigem processo existente com o perfil MSSQL
 e os listeners necessários. O benchmark não reinicia serviços nem altera configurações.
 
+A rota `http` selecionada exige gzip e envia
+`Accept-Encoding: gzip, identity;q=0`, independentemente de `HTTPAcceptEncoding`
+no INI AppServer. O relatório registra `httpRequireGzip=true` e
+`httpAcceptEncoding` efetivo; fallback identity falha com
+`HTTP_COMPRESSION_REQUIRED`. Manter `[HTTP] Compression=auto` no servidor.
+`Compression=off` produz 406 para essa requisição. Recompilar cliente e
+benchmark TLPP completos juntos para habilitar este contrato; veja
+[validação HTTP](../../../../../docs/http.pt-BR.md#http-review-on-2026-10-24).
+
 ## Benchmark visual
 
 Execute `U_HBBridgeBenchmark()` na interface Protheus com FWWebEx e

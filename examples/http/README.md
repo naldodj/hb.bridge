@@ -49,6 +49,7 @@ or create that section if absent. Do not create a duplicate section.
 HTTPURL=http://127.0.0.1:8080
 HTTPToken=<service-secret>
 HTTPTimeoutSeconds=30
+HTTPAcceptEncoding=gzip
 SQLProfile=sqlite_demo
 ```
 

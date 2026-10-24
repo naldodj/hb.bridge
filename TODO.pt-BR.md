@@ -6,6 +6,10 @@
 decisões, pré-requisitos e evidências. Continue por ele, sem reanalisar todo
 este roadmap. Concilie itens concluídos aqui ao encerrar o pacote;
 commits/publicações intermediários preservam seu progresso. Pacote 001: MSSQL real.
+Prioridade atual do usuário: investigar/melhorar o desempenho HTTP do hbBridge
+com tempos e homologação atribuíveis. T01 permanece inacabada; o
+[rascunho SQL tipado](docs/typed-sql.pt-BR.md) aguarda revisão, e T02–T05 não
+foram iniciadas.
 A [análise de extensões de 2026-10-12](docs/extensions-review.pt-BR.md) avalia
 SQLRDD, Duktape e CCHarbour para pacotes futuros, sem novas dependências runtime.
 
@@ -761,6 +765,11 @@ locais/remotos em blocos, com integridade binária, erros e liberação verifica
 
 ### Apresentação nativa e resultados compartilhados
 
+- [ ] Reuso futuro de resultados MEMIO: materializar uma vez, publicar resultados
+  imutáveis por handles opacos autorizados e ler por áreas independentes, com
+  vida útil/memória/limpeza explícitas e aceite de integridade dos tipos. O probe
+  nativo de 22+1 checks não é serviço de cache do produto. Preservar páginas
+  novas da Query; [desenho e evidências](docs/evolution.pt-BR.md#resultados-em-memoria-entre-requisicoes).
 - [ ] Adaptador TLPP de schema explícito/dataset paginado para FWTemporaryTable
   do cliente e browse nativo, preservando tipos/nulos e liberando recursos.
 - [ ] Contrato separado RPCRDD.Materialize/Release para staging MSSQL confirmado:
@@ -853,6 +862,10 @@ disponibilidade consultável, sem alterar os transportes para cada extensão.
 - [ ] HTTPS direto com `hbssl`/OpenSSL: resolução reproduzível de SDK/runtime,
   certificados/nome/cadeia/renovação e política TLS em Windows/Linux.
   HTTP atrás de proxy TLS é configuração de implantação distinta.
+- [x] Negociação gzip/identity de resposta HTTP e envio parcial com prazo total
+  configurável, limiar/nível e descompressão explícita no cliente TLPP.
+  Evidências Windows nativo/AppServer isolado no [guia HTTP](docs/http.pt-BR.md).
+  Compressão de requisição, TLS direto e negociação mais ampla seguem separados.
 - [ ] Ampliar verbos/rotas REST, contrato OpenAPI, negociação de conteúdo/
   compressão e interoperabilidade; serviços genéricos recebem contexto explícito.
 - [ ] Avaliar adaptador HTTP compatível com Zig 0.16 contra lacunas medidas do

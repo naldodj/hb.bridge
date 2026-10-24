@@ -70,7 +70,9 @@ an isolated source copy. The manifest pins the checksum of
 configurable workers, listener readiness/coordinated stop and rejection
 of unsupported Transfer-Encoding and duplicate/nondecimal Content-Length,
 plus preservation of structured handler error bodies and byte-oriented
-HTTP framing/Content-Length. The
+HTTP framing/Content-Length, configurable response send deadlines and bounded
+partial/nonblocking sends. Incomplete responses close before access logging
+or keep-alive reuse. The
 pinned Harbour checkout remains intact. `-hblib` is hbmk2's library build
 mode, rather than a separate contrib dependency.
 [Git attributes](../.gitattributes) force LF for `config/patches/*.patch`,

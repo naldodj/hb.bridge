@@ -37,7 +37,7 @@ hbBridge's own settings.
 | `[Protheus]` | `Host`, `Port`, `MaxPayloadBytes`, `MaxWireBytes`, `ReadChunkBytes`, `TimeoutMs`. |
 | `[NETIO]` | `Host`, `Port`, `Root`, `Password`, `TimeoutMs`. |
 | `[Admin]` | `Host`, `Port`, `Password`. |
-| `[HTTP]` | `Enabled`, `Host`, `Port`, `ListenBacklog`, `Password`, `TLS`, `Certificate`, `PrivateKey`. |
+| `[HTTP]` | `Enabled`, `Host`, `Port`, `ListenBacklog`, `SendTimeoutMs`, `Compression`, `CompressionMinBytes`, `CompressionLevel`, `Password`, `TLS`, `Certificate`, `PrivateKey`. |
 | `[SQL]` | `ODBCPooling` (`off` or `driver`), a process-wide physical connection policy. |
 | `[SQL/profile_name]` | SQLite: `Driver`/`Database`; MSSQL: structured fields below or `Driver`/`ConnectionString`. |
 
@@ -353,6 +353,7 @@ SQLProfile=
 HTTPURL=http://127.0.0.1:8080
 HTTPToken=
 HTTPTimeoutSeconds=30
+HTTPAcceptEncoding=gzip
 ~~~
 
 Host/Port select the Protheus endpoint, using a real IP/DNS; `0.0.0.0` is a
@@ -364,7 +365,12 @@ negotiation and blocks are pending, and no setting is automatically derived
 from MAXSTRINGSIZE.
 
 `HBBridgeHTTPClient` independently reads `HTTPURL`, the required `HTTPToken`
-and `HTTPTimeoutSeconds` (positive integer, default 30 seconds). The token
+and `HTTPTimeoutSeconds` (positive integer, default 30 seconds).
+`HTTPAcceptEncoding` defaults to `gzip`; `identity` disables requesting
+compression. An explicit fourth constructor argument overrides it. The client
+expands raw gzip with native validation before parsing JSON; already expanded
+JSON is not decompressed twice. See [HTTP response policy](http.md#response-compression).
+The token
 matches the server's `[HTTP] Password`; it is not a database/admin credential.
 Omitted constructor arguments read the active INI; explicit arguments win.
 Native HTTP timeout semantics differ from TCP `TimeoutMs`; no TCP framing,

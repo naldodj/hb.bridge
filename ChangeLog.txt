@@ -5,6 +5,38 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Add UTF-8 JSON and MSSQL integrity coverage)"
  */
 
+2026-10-24 09:35 UTC naldodj (Improve HTTP response delivery and require benchmark gzip)
+  % Resolve the HTTP header delimiter once per worker and pass it to the
+    parser; retain byte-based matching in the read loop, trace and parser.
+    Combine repeated Accept-Encoding fields before evaluating exclusions.
+    Cache UTF-8 once per JSON document; preserve numeric behavior.
+  ! Strengthen managed hbhttpd partial sends, complete-response deadline,
+    keep-alive state restoration and incomplete pipeline closure. Bound send
+    chunks and use the native elapsed clock; a socket wait is not a sleep.
+  + Negotiate response gzip with quality/exclusion rules, byte-correct framing,
+    compression threshold/level and explicit 406 when no coding is acceptable.
+    Keep request gzip, streaming and broader TLS/Linux acceptance deferred.
+  % Serialize shared native RPC results once for HTTP instead of a complete
+    encode/decode/encode cycle; preserve UTF-8/NUL and numeric codec semantics.
+  + Decode raw FWRest gzip before JSON parsing, reject damaged gzip and expose
+    optional/mandatory encoding policy. Benchmark HTTP explicitly requires
+    gzip, overrides INI identity and records its effective policy; no fallback.
+  ; Windows native regression 777/0, send-fault probe 18/0; isolated 55-source
+    TLPP compilation zero errors; FWRest/client probe 14/0, all exit 0.
+    Later 56-source phase diagnostics also passed. The serializer-only
+    codepage microbenchmark does not establish a robust latency gain.
+    Actual MSSQL benchmark passed gzip despite INI identity and rejected
+    compression off with HTTP_COMPRESSION_REQUIRED/406, expected exit 1.
+  ; Short same-build MSSQL encoding comparison: identity/gzip twice, 10000
+    rows/page10000, five measures plus two warmups each, pooling off; all
+    traversals passed. Means 1869.279/910.453 ms; wire 582624/107099 bytes,
+    identical decoded SHA-256. This does not isolate every HTTP change or
+    establish a general production speedup; retain separate RPO identities.
+  * Record connector inventory and typed-SQL draft without implementing T01;
+    retain MEMIO snapshots as future work with a reproducible native probe.
+    Version reusable send/FWRest/wire probes and sanitized EN/PT evidence;
+    historical tmp outputs remain disposable, never build prerequisites.
+
 2026-10-23 14:52 UTC naldodj (Align benchmark comparison scopes and runtime conventions)
   * Group addon and single-StartJob Protheus internal per-iteration metrics
     in aligned cards, shared charts and one statistics table. Put whole RPC,

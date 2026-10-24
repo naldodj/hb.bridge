@@ -77,7 +77,10 @@ Unknown profiles, malformed inputs, missing connections and invalid SQL have
 identified errors. Harbour hashes/TLPP JSONObject implement the contract;
 arrays appear only at native RDD API boundaries.
 
-Only alias/sql/optional page are allowed; extra keys return INVALID_PARAMS.
+The current service reads alias/sql/optional page. Unknown top-level keys are
+not consistently rejected and may be ignored; they do not enable bindings or
+metadata options. The [typed SQL draft](typed-sql.md) records this compatibility
+gap; T01 remains pending review while HTTP performance has priority.
 SQL is passed to the native connector. This delivery has no SQL parser,
 table authorization or bound parameters; database permissions are those of the
 configured connection.

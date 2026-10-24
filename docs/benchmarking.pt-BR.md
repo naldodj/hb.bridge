@@ -30,6 +30,15 @@ Protheus. Identificar a implementação/linguagem do cliente ao comparar os
 resultados. Um cliente nativo no mesmo processo e um cliente AppServer têm
 fronteiras de processo diferentes e devem manter suas próprias medições.
 
+A rota AppServer `http` atual exige respostas gzip explicitamente com
+`Accept-Encoding: gzip, identity;q=0`. Sobrepõe a preferência do INI do cliente
+geral e registra `httpRequireGzip=true` e `httpAcceptEncoding` no relatório.
+Gzip ausente falha com `HTTP_COMPRESSION_REQUIRED`; desativar compressão no
+servidor produz 406 em vez de uma medição silenciosamente descompactada.
+Relatórios históricos identity mantêm seu escopo original. Clientes comuns
+continuam aceitando identity negociado quando gzip obrigatório não é pedido.
+Veja o [contrato HTTP e comparação datada](http.pt-BR.md#http-review-on-2026-10-24).
+
 Executar as políticas ODBC `off` e `driver` em processos novos ao comparar
 pooling físico. Registrar a política efetiva. A política Windows opcional e
 seu aceite de isolamento estão em [conexões SQL](sql-connections.pt-BR.md).
@@ -349,6 +358,14 @@ o codec que preserva precisão dos dois lados.
 Defaults de apresentação continuam `DECIMALS 2` / `FIXED OFF`; a precisão JSON
 independe dessas opções. Veja a [política SET runtime](standards.pt-BR.md)
 para alterações temporárias do addon e restauração.
+
+É um caso distinto do FLOAT original de D03: SDDODBC preservava `123.4567`,
+mas associava metadado de formatação com zero decimais, e o encoder JSON
+nativo emitia `123`. O codec C/Zig compartilhado preserva o valor numérico
+recebido apesar dessas opções de formatação. A correção posterior do addon
+reutiliza esse codec numa fronteira interna que ainda usava o encoder nativo;
+não introduz regra de escala de negócio do Protheus. Veja
+[FLOAT e escala de negócio explícita](dataset.pt-BR.md).
 
 O contorno local `hb_idleSleep(1.5)` é removido: acrescenta 1.5 segundo por
 varredura executada fora da amostra e altera ritmo/duração completos, sem

@@ -2,9 +2,33 @@
 
 [English](README.md)
 
+Manutenção de respostas HTTP: `test-harbour-http-send.ps1` reproduz envios
+parciais/prazo/parada nativos, sem credenciais do banco.
+`test-protheus-http-gzip.ps1` recebe SDK/INI/includes externos explícitos e cria
+SDK/RPO privados novos para verificar FWRest/cliente TLPP; `-CompileAll`
+compila todo o TLPP do projeto. Python 3 é necessário apenas na fixture própria
+em loopback. Veja o [guia do probe](../src/tlpp/tests/protheus/hbbridge.http.test/README.pt-BR.md).
+
+`profile-protheus-http.ps1` usa o mesmo SDK isolado e `-EndpointsFile`
+explícito de uma fixture MSSQL M08 nova para medir FWRest, expansão gzip,
+parsing JSON e validação direta das linhas. Identity é diagnóstico; o
+benchmark HTTP exige gzip. `benchmark-harbour-json.ps1` compara a busca de
+codepage por escalar com uma por documento: por padrão, oito lotes alternados
+de 50 codificações e três aquecimentos. Verifica bytes idênticos em quatro
+configurações SET; esses tempos de serialização não comprovam ganho HTTP.
+
+Os checks Windows de 2026-10-24 passaram envio nativo 18/0 e FWRest/cliente
+14/0; a rodada isolada `-CompileAll` compilou 55 fontes com zero erros. Veja
+[escopo e identidades](../docs/validation/http.response.windows.json).
+
 São necessários PowerShell 7 e Git. O bootstrap gerenciado resolve cópias
 fixadas de hb_compile, Harbour e Zig; veja [dependências](../docs/dependencies.pt-BR.md).
 Não depende de um checkout pessoal nem de Zig instalado globalmente.
+
+`./scripts/test-harbour-memio.ps1` compila/executa o probe MEMIO independente
+com toolchain gerenciado e diretório descartável novo. A rodada Windows de
+2026-10-23 passou em 22 verificações mais uma em processo novo; não homologa
+serviço SQL/cache do produto nem Linux. Veja [vida útil, escopo e trabalho futuro](../docs/evolution.pt-BR.md#resultados-em-memoria-entre-requisicoes).
 
 ```powershell
 ./scripts/bootstrap.ps1

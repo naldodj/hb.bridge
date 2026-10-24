@@ -8,6 +8,11 @@ See [reproduction and durable summaries](../docs/validation/README.md).
 The standalone native thread-state probe is reproduced by
 `./scripts/test-harbour-thread-state.ps1` from `tests/probes/`.
 
+Run `./scripts/test-harbour-memio.ps1` for the standalone MEMIO snapshot probe.
+Its 2026-10-23 Windows run passed 22 assertions plus one fresh-process check,
+covering named DBF/memo/index reuse and cleanup, not SQL/product cache or Linux
+acceptance. See [scope and future design](../docs/evolution.md#in-memory-results-between-requests).
+
 ```powershell
 ./scripts/bootstrap.ps1
 ./scripts/test-hbbridge.ps1
@@ -21,6 +26,28 @@ available; a standalone test target without fixtures may report SKIP, while
 the runner prepares both. See [dependencies](../docs/dependencies.md).
 
 ## Automated Harbour coverage
+
+The response-send fault probe runs with `./scripts/test-harbour-http-send.ps1`:
+seven-byte UTF-8/NUL sends, keep-alive restoration, stalled readers, deadline,
+pipeline rejection and coordinated stop. It uses the managed native hbhttpd
+without SQL/AppServer credentials. The separate
+[FWRest gzip probe](../src/tlpp/tests/protheus/hbbridge.http.test/README.md)
+requires the licensed SDK and verifies the actual TLPP HTTP client.
+
+`./scripts/benchmark-harbour-json.ps1` builds the reusable
+`tests/probes/hbbridge.json.benchmark.hb` to compare the codepage lookup paths
+with byte equality and SET independence. The diagnostic HTTP phase probe is
+run by `./scripts/profile-protheus-http.ps1` with explicit SDK/INI/includes
+and a newly served M08 MSSQL endpoint; see the FWRest probe guide above.
+
+`python ./tests/probes/hbbridge.benchmark.report.test.py --directory <exports>`
+independently recomputes exported benchmark statistics without opening HTML.
+The 2026-10-24 six-report review passed; an altered mean was rejected.
+
+Windows validation on 2026-10-24 passed 775 native regression checks, 18
+send-fault assertions and 14 FWRest/client checks; all exited 0. Isolated
+final compilation accepted all 56 TLPP sources, zero errors. These are distinct from
+the [dated real-MSSQL encoding comparison](../docs/http.md#http-review-on-2026-10-24).
 
 - [Configuration](unit/hbbridge.config.test.hb): defaults, precedence, paths,
   invalid values and endpoint conflicts.

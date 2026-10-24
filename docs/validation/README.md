@@ -21,6 +21,7 @@ The JSON summaries retain sanitized identities/counts at measurement time:
 - [Package 001 closure](package001.windows.mssql.json).
 - [Source conventions review](source.standards.windows.json).
 - [Benchmark controls and addon numeric JSON regression](benchmark.controls.windows.json).
+- [HTTP response sending, gzip and Windows client validation](http.response.windows.json).
 
 These identities describe the dated source snapshot, not today's checkout.
 Historical `tmp/...` mentions in older records identify where output was written;

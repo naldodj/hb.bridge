@@ -336,7 +336,9 @@ static method Measure(cProfile, cHost, nPort, cURL, cToken, nTimeoutSeconds, ;
     jReport["timingScope"] := "full paged traversal including client calls, value checks and dataset close"
     jReport["clientConstructionTimed"] := .F.
     jReport["warmupExcludedFromMeasuredStatistics"] := .T.
-    jReport["clientPolicy"] := "production TCP and HTTP client defaults; no benchmark-specific compression policy"
+    jReport["clientPolicy"] := "production TCP framing; benchmark HTTP requires gzip responses, with no identity fallback"
+    jReport["httpAcceptEncoding"] := Nil
+    jReport["httpRequireGzip"] := Nil
     jReport["physicalPooling"] := "not inferred; record the hbBridge process configuration separately"
     jMemory := JSONObject():New()
     jMemory["status"] := "UNAVAILABLE"
@@ -368,7 +370,12 @@ static method Measure(cProfile, cHost, nPort, cURL, cToken, nTimeoutSeconds, ;
             elseif cRoute == "tcp" .or. cRoute == "hbbridgeAddon"
                 oClient := HBBridge.Client.HBBridgeClient():New(cHost, nPort, nRouteTimeout * 1000)
             elseif cRoute == "http"
-                oClient := HBBridge.Client.HBBridgeHTTPClient():New(cURL, cToken, nRouteTimeout)
+                oClient := HBBridge.Client.HBBridgeHTTPClient():New(cURL, cToken, nRouteTimeout, "gzip", .T.)
+                jReport["httpAcceptEncoding"] := oClient:AcceptEncoding()
+                if jReport["httpAcceptEncoding"] != "gzip, identity;q=0"
+                    throw "The HTTP benchmark requires a client with mandatory gzip support."
+                endif
+                jReport["httpRequireGzip"] := .T.
             elseif cRoute == "protheusStartJob"
                 oClient := HBBridge.Test.HBBridgeBenchmarkNativeClient():New("startjob", nRows, nRouteTimeout, "", "", jComparison)
             elseif cRoute == "protheusServer"

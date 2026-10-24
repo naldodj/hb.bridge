@@ -73,8 +73,11 @@ Nomes duplicados após normalização resultam em `AMBIGUOUS_COLUMN`; use aliase
 SQL distintos. Perfis desconhecidos, parâmetros inválidos, conexão ausente e
 SQL inválido têm códigos próprios. O novo contrato usa hashes Harbour e
 `JSONObject` TLPP; arrays aparecem apenas nas interfaces que o RDD nativo exige.
-As únicas chaves aceitas em `params` são `alias`, `sql` e `page` opcional;
-chaves adicionais retornam `INVALID_PARAMS`.
+O serviço atual lê `alias`, `sql` e `page` opcional. Chaves superiores
+desconhecidas não são rejeitadas consistentemente e podem ser ignoradas; não
+habilitam bindings nem opções de metadados. O [rascunho SQL tipado](typed-sql.pt-BR.md)
+registra essa lacuna de compatibilidade; T01 aguarda revisão enquanto o
+desempenho HTTP tem prioridade.
 
 `sql` é entregue ao conector nativo. O serviço não implementa um analisador SQL,
 controle de permissões de tabelas nem parâmetros vinculados nesta entrega.

@@ -21,11 +21,11 @@ is inferred. See [closure, exact artifacts and limitations](docs/acceptance.md#p
 | Item | Current value |
 | --- | --- |
 | ID | `002-typed-sql-presentation` |
-| Opened / updated | 2026-10-21 / 2026-10-23 |
-| Status | Planned; implementation has not started. |
+| Opened / updated | 2026-10-21 / 2026-10-24 |
+| Status | T01 inventory/draft in progress; prioritized HTTP maintenance accepted in its Windows scope on 2026-10-24. |
 | Goal | Define explicit typed SQL values/result metadata and a caller-owned native Protheus presentation adapter using the accepted Query/dataset. |
 | Reference | Base `8db2823`; package 001 validated working-tree artifacts are identified in its closure manifest. This is not a new release tag. |
-| Next task | T01: inventory existing connector/client APIs and specify compatible parameter/source/logical/wire metadata contracts before implementation. |
+| Next task | Resume T01 draft review/remaining contract decisions; then T02 native binding proof. |
 
 ### Preparatory maintenance
 
@@ -99,6 +99,50 @@ is inferred. See [closure, exact artifacts and limitations](docs/acceptance.md#p
   FWWebEx layout after recompiling; do not infer comparative performance or
   all-platform acceptance. Package 002 T01 remains planned.
 
+### Prioritized HTTP maintenance on 2026-10-23
+
+New benchmark reports require a focused hbhttpd review before SQL integration.
+The [T01 contract draft](docs/typed-sql.md) records the connector inventory;
+it is not an implemented API or a completed T01. Keep the MEMIO idea in
+[future work](docs/evolution.md#in-memory-results-between-requests).
+
+- [x] H01: inspect the supplied benchmark reports and native send path; compare
+  like workloads and distinguish socket wait budgets from elapsed delays.
+- [x] H02: correct response sending and add tested HTTP compression negotiation
+  where supported, using the existing managed hbhttpd/shared service core.
+  Preserve UTF-8/NUL, partial-send handling, payload ownership and failure semantics.
+- [x] H03: validate native HTTP identity/gzip and actual TLPP/FWRest support,
+  including errors, large responses and timeouts. Record scope and EN/PT docs;
+  do not infer a performance win from compressed size alone.
+
+2026-10-24 evidence: native suite 777/0; send-fault probe 18/0; isolated
+AppServer compiled 55 sources/zero errors and passed 14 FWRest/client checks,
+exit 0. Actual MSSQL/AppServer encoding comparison alternated identity/gzip
+twice, five measured + two warmups each, 10000 rows in one page, pooling off.
+All 20 measured and eight warmup traversals passed. Combined means:
+identity 1869.279 ms, gzip 910.453 ms. Independent wire check: 582624 versus
+107099 bytes, identical decoded SHA-256. This short same-build comparison
+measures encoding policy, not the isolated effect of every HTTP change or a
+general production speedup. See [HTTP evidence](docs/http.md#http-review-on-2026-10-24)
+and the [sanitized manifest](docs/validation/http.response.windows.json).
+
+Final header maintenance caches `CR_LF + CR_LF` once per worker and passes
+it to the parser; split Accept-Encoding fields retain all exclusions. Final
+native regression/send: 777/18, zero failures. A later 56-source compile and
+14 FWRest checks passed, followed by 12 successful direct phase probes.
+Gzip expansion averaged 1.511 ms, JSON parsing 43.158 ms, native request
+179.851 ms (including server/network). Separate codepage-cache microbenchmarks
+preserved bytes and SET behavior but did not prove a stable speedup.
+
+The current AppServer benchmark requires gzip on its HTTP route, independently
+of `HTTPAcceptEncoding` in the INI, and records the effective request policy.
+An identity fallback fails explicitly. The comparison above used the earlier
+optional policy on the same server build, before this benchmark requirement.
+Actual MSSQL/AppServer checks confirmed both outcomes despite INI identity:
+gzip enabled passed two measured traversals plus one warmup (10000/page10000,
+exit 0); compression off produced the expected `HTTP_COMPRESSION_REQUIRED` /
+HTTP 406 rejection (exit 1), with no identity fallback.
+
 ### Decisions retained
 
 - Keep one implementation and the accepted `RPCRDD.Query`/page/dataset behavior.
@@ -157,6 +201,9 @@ review](docs/evolution.md) and [SQL contract](docs/milestone3-sql.md) for T01.
 
 MSSQL server-side `RPCRDD.Materialize`/Release needs its own design/acceptance;
 it is not implied by a client-owned temporary table. Later packages retain
+explicit immutable MEMIO result reuse with authorized handles, freshness,
+memory/expiry and reader ownership; see [the feasibility review](docs/evolution.md#in-memory-results-between-requests).
+They also retain
 portable encrypted credentials/OpenBao/TLS, negotiated blocks/streams and LOB
 readers, DBF/NETIO/VF, services/Linux/administration and debugging integration.
 C/Zig addon benchmark processors and PostgreSQL/Protheus 12.1.2610 remain

@@ -344,6 +344,11 @@ Esses modos ainda não estão implementados no produto.
 
 ### HTTP/REST e administração web
 
+Respostas negociam gzip/identity, com limiar/nível e prazo total de envio
+configuráveis. O cliente TLPP solicita gzip por padrão e valida/descompacta
+antes do parsing JSON; `[hbBridge] HTTPAcceptEncoding=identity` permite comparar
+sem compressão. Veja [compressão e envio limitado](docs/http.pt-BR.md#compressão-de-respostas).
+
 O listener opcional `hbhttpd` usa o mesmo registro que NETIO e Protheus.
 GET `/api/v1/health` e `/api/v1/services` oferecem saúde/descoberta; POST
 `/api/v1/rpc` ou `/api/v1/services/<serviço>` executa serviços registrados

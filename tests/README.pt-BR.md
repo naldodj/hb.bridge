@@ -2,11 +2,37 @@
 
 [English](README.md)
 
+O probe de falhas de envio executa com `./scripts/test-harbour-http-send.ps1`:
+blocos UTF-8/NUL de sete bytes, restauração keep-alive, leitor parado, prazo,
+rejeição de pipeline incompleto e parada coordenada. Usa hbhttpd nativo
+gerenciado, sem SQL/AppServer. O [probe FWRest gzip](../src/tlpp/tests/protheus/hbbridge.http.test/README.pt-BR.md)
+exige SDK licenciado e verifica o cliente HTTP TLPP real.
+
+`./scripts/benchmark-harbour-json.ps1` compila o probe reutilizável
+`tests/probes/hbbridge.json.benchmark.hb` para comparar as buscas de codepage,
+com igualdade de bytes e independência dos SETs. O diagnóstico por etapa HTTP
+executa por `./scripts/profile-protheus-http.ps1`, com SDK/INI/includes
+explícitos e endpoint MSSQL M08 recém-iniciado; veja o guia FWRest acima.
+
+`python ./tests/probes/hbbridge.benchmark.report.test.py --directory <exportacoes>`
+recalcula as estatísticas exportadas sem abrir HTML. A revisão dos seis
+relatórios de 2026-10-24 passou; uma média alterada foi rejeitada.
+
+A validação Windows de 2026-10-24 passou em 777 checks de regressão nativa,
+18 asserções de falhas de envio e 14 checks FWRest/cliente, todos com saída 0.
+A compilação isolada final aceitou os 56 fontes TLPP, zero erros. São escopos
+distintos da [comparação MSSQL real datada](../docs/http.pt-BR.md#http-review-on-2026-10-24).
+
 Entradas reutilizáveis pertencem aos fontes/fixtures versionados. `tmp/` pode
 não existir: cada runner gera suas saídas, sem exigir logs ou RPOs anteriores.
 Veja [reprodução e resumos permanentes](../docs/validation/README.pt-BR.md).
 O probe nativo de estado por thread é reproduzido por
 `./scripts/test-harbour-thread-state.ps1`, com fontes em `tests/probes/`.
+
+Executar `./scripts/test-harbour-memio.ps1` para o probe MEMIO independente. A
+rodada Windows de 2026-10-23 passou em 22 verificações mais uma em processo
+novo, cobrindo reuso/limpeza de DBF/memo/índice nomeados, sem homologar SQL,
+cache do produto ou Linux. Veja [escopo e desenho futuro](../docs/evolution.pt-BR.md#resultados-em-memoria-entre-requisicoes).
 
 Os fontes Protheus permanecem sob `src/tlpp`; agora os testes estão agrupados
 em subpastas de [tests/protheus](../src/tlpp/tests/protheus):

@@ -29,6 +29,15 @@ Identify the implementation/language of the client when comparing results.
 An in-process native client and an AppServer client have different process
 boundaries and must retain their own measurements.
 
+The current AppServer `http` route requires gzip responses explicitly with
+`Accept-Encoding: gzip, identity;q=0`. It overrides the general client's INI
+preference and records `httpRequireGzip=true` and `httpAcceptEncoding` in the
+report. Missing gzip fails with `HTTP_COMPRESSION_REQUIRED`; disabling server
+compression yields 406 rather than a silently uncompressed measurement.
+Historical identity reports keep their original scope. Ordinary application
+clients still allow negotiated identity unless mandatory gzip is requested.
+See the [HTTP contract and dated comparison](http.md#http-review-on-2026-10-24).
+
 Run `off` and `driver` ODBC policies in fresh processes when comparing physical
 pooling. Record the effective policy. The optional Windows driver policy
 and its isolation acceptance remain documented in [SQL connections](sql-connections.md).
@@ -346,6 +355,14 @@ HRB together so both sides contain the precision-preserving codec.
 Native presentation defaults remain `DECIMALS 2` / `FIXED OFF`; JSON precision
 is independent of those settings. See the [runtime SET policy](standards.md#runtime-sets-and-numeric-contracts)
 for temporary addon state and restoration.
+
+This is separate from D03's original raw-FLOAT case: SDDODBC retained
+`123.4567` but attached zero decimal-format metadata, and the native JSON
+formatter emitted `123`. The shared C/Zig codec preserves the received
+numeric value across those formatting choices. The later addon repair reuses
+that codec at an internal boundary that still used the native encoder; it
+does not introduce a Protheus business-scale rule. See
+[raw FLOAT and explicit business scale](dataset.md#business-scale-and-raw-float-analysis-on-2026-10-13).
 
 The local `hb_idleSleep(1.5)` workaround is removed: it adds 1.5 seconds per
 executed traversal outside sample timing and changes complete-call duration

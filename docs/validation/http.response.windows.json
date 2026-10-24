@@ -1,0 +1,2209 @@
+{
+  "kind": "hbbridge.validation-summary",
+  "schemaVersion": 1,
+  "observedOn": "2026-10-24",
+  "scope": "Windows plain HTTP: bounded native sends, response gzip, real FWRest/MSSQL, mandatory benchmark compression, invariant caching",
+  "historicalSnapshot": {
+    "baseRevision": "cbe4ccf48b5380a9bb97e0098a8a9988c4a93ab5",
+    "includesWorkingTreeChanges": true,
+    "sourceFingerprintSHA256": "5635E5FE1CF330DA1A90676CEAE72D674F9D2E5DC40580075885A4812F66D742",
+    "fingerprintMethod": "SHA256 over UTF-8 lines: relative path, TAB, uppercase file SHA256, LF; paths sorted ascending",
+    "fileSHA256": {
+      "config/dependencies.json": "34B0F1C36306EACB3BA4F79D5B7959F5D48768CED77851A00E0263D6096F6F74",
+      "config/patches/hbhttpd.patch": "8734B9860E809F4DBC598304C011B607FDCFA53C58D1DCD72569DF4317CE81A9",
+      "hbbridge.hbm": "ED12BB441AD731674DEEEBA1DCDBDE118B8EDE29E0B4B66E0D78DE2044047A03",
+      "scripts/benchmark-harbour-json.ps1": "BE18042C93BEED7125FE1EC341FD6B88D04B276DDF495FE9BB3C7ACD024DB371",
+      "scripts/benchmark-hbbridge-mssql.ps1": "7BC7D12396D9AE1D7F4CC0D2F5314DD6C8AB6F3A758015EB8F250ECDE7CC19D1",
+      "scripts/build-hbbridge.ps1": "E41383FA6089A51C3434BDAFC46D68E1611174C114D5F0F5675DE1F3AB747AE8",
+      "scripts/prepare-http.ps1": "8F909B70232E37054A77624E83787A858E4B58E32C0A836B2132346B5D5488EC",
+      "scripts/profile-protheus-http.ps1": "10FBE76D1019D7281C7FD59AD8B1DD46B4BB5D64473B156208830BEB999AE135",
+      "scripts/run-protheus-cli.ps1": "026B9521801A1EAB9D26FF08ED64F3601AC3D0767E5FD19588E8F35D96AEFFCC",
+      "scripts/test-harbour-http-send.ps1": "ED8CC3A753CB334B7ACF26AB91739ACC4D4459BC0514279D37C8F042A5934429",
+      "scripts/test-hbbridge.ps1": "91C0C29C29222F1220B3A432B664FEBD5642F6251F660A8E3A538BD57F85D55A",
+      "scripts/test-protheus-http-gzip.ps1": "DE42A77352EDCE0BC1A6E16523B7F14C50D3243C0F43798B98F39778A32298F2",
+      "scripts/toolchain.ps1": "CC10DD3414B006526D7B93F172893969C0F9567C553CE8479CFB7903E7B1BAD4",
+      "src/c/hbbridge.compressor.c": "D0BBA1595578458BB23D952B0DA95ECE0C5764AD5AA5E8E8A6D64BDC9CFF3697",
+      "src/c/hbbridge.decoder.c": "97ECD24E000E7575010747086B34D3131B4677F36058BA0C5CB0EC9A612C85D7",
+      "src/c/hbbridge.json.c": "7D1F57FA055D5A31BE8FB69B06A47B510F6C6B312EFC7368B4DE2395C9E31DF7",
+      "src/c/hbbridge.time.c": "3C22D3A0F486B06AA6B1CA2860D2D60143AF6F94805C53C68B6B73A8A6A74672",
+      "src/c/hbbridge.utf8.c": "A2D82324EC88DF49DD4BE0B7D84D9B2C2F90A9C6771F2B4DFD5AE4F13137AC45",
+      "src/c/hbbridge.zig.c": "110CB7A43B34578476265EF59727A036A5A45D93F4FE85CAD7C3F65A90F034E2",
+      "src/c/third_party/zlib/zconf.h": "359A00DF765E72138F086C481FA05F1304C99D0EB9CB9D676556EB53504E4D00",
+      "src/c/third_party/zlib/zlib.h": "C8C65B410C234DA3BD122DE8B538A77CB0DF34412DBDBB1ACEC5FCDCA5D613BF",
+      "src/c/third_party/zlib/zlib.hbp": "01DA59F64088192047BA1C1DDDEF5B2C35CB63A1BF91CE49C306CE713C5F896C",
+      "src/hb/addons/hbbridge.addon.hb": "BEA523066CFBC5D122E4F4FB926BCF3AAB3B28229A6024326E96486DD44215EF",
+      "src/hb/core/hbbridge.dispatcher.hb": "1B1F14FEB93AC631F766CEA0E0BB2BD4339815E4FCABACDD98AEBEB877172BB7",
+      "src/hb/core/hbbridge.wire.hb": "B29072ACB4D1CE9286B5AA75E050D4589A6D8D708DA116B63BBE0B200144616D",
+      "src/hb/host/hbbridge.config.hb": "7CEDB9CCA7BA5718CDC0D305C20B360E363975A6DF00AC0F43C366B9FD7F7CA7",
+      "src/hb/host/hbbridge.ini.hb": "8A6EF65B17E6DE48866087B96A1C4232110B94A67B6CBE031F7DBD376559846F",
+      "src/hb/host/hbbridge.life.cycle.hb": "DF0E2EFBB7BF202DF748C6599B9567634659AC88F91F66CC69ACA56FEA76F5A6",
+      "src/hb/host/hbbridge.main.hb": "B66D28121E4680303081144E2269C6B1EF76144FC77BA2495D4DA7ED755A9954",
+      "src/hb/services/hbbridge.query.hb": "6A5F42C492B18A485B9334E2A596C47F70C4A83981724D863756D02CBC40D962",
+      "src/hb/services/hbbridge.services.hb": "D07606598F8CEE8368930955B0E9E0A5DC20221A615371621AB8DC6BE49E0FA8",
+      "src/hb/services/hbbridge.sql.pool.hb": "BA15177F86192851DE0700141269CDEFB277129DAD662A952B514118E3D38E78",
+      "src/hb/telemetry/hbbridge.syslog.hb": "897FD989E789F763CD0F4B652E2D72DEEBCB74A15E8DBBC5703C71A4CF92C9AF",
+      "src/hb/transports/http/hbbridge.http.encoding.hb": "3BF0F4EAB54DB4385E51B1E3BF5DA99679C80E6D9B08AAEF54468951F73D1BED",
+      "src/hb/transports/http/hbbridge.http.hb": "991DC17DEF9D835C102E74820B271FD0C32A4AC68C085A4ACF0253004D21FFA0",
+      "src/hb/transports/netio/hbbridge.netio.hb": "80A290EB248CD306076F15679DE4461CBB9991F593CCB939A01B4E26541EB67B",
+      "src/hb/transports/protheus/hbbridge.adapter.hb": "6CC1CD0F89A23599313F9B927577473924C3E2E17FFED1B2A296F04C7137C268",
+      "src/hb/transports/protheus/hbbridge.framing.hb": "5BD69E2FC3EBA5E6B6DC18F0D2339BB41C2ED4533F555BCB9B169AD8AD306007",
+      "src/hb/transports/protheus/hbbridge.server.hb": "1EC0B1DA3DA522A6D90DD580DD8626125743B0C220CBF5E44BB8D9C73B3C7007",
+      "src/tlpp/__rpo-legacy-cleanup/hbbridge.helper.tlpp": "FB0FA9C560CB5A0D4B2521E138FEFF8AB2685056EE4EFA736F043AD28DAA4A31",
+      "src/tlpp/hbbridge.browse.data.tlpp": "3557640F70D0FF6008C04F7EF51590775CE876579BCA709A658A4E2648784F49",
+      "src/tlpp/hbbridge.client.tlpp": "997CC6F71BEEC4ECE5599EA996288B6EAE11F6404B0814A67A501AD9D47BD963",
+      "src/tlpp/hbbridge.config.tlpp": "AD4327AE66703821ED2D78B07EBA9CCAC4A001BDFA5A495E7F4658C174E906F9",
+      "src/tlpp/hbbridge.http.client.tlpp": "A0E7BD9E5A9017C07DE0CFEF50456B08C821771D1257BD94FF0916160E6D0E1F",
+      "src/tlpp/hbbridge.http.table.tlpp": "F078155B1CD31EB98E6FA312CC48292FA64111117EB33688C93E9D7B16A4C49E",
+      "src/tlpp/hbbridge.json.tlpp": "DB48712120783EA2B1113BA3644AC05F2823BFF2E8BE7A4BE9464B8923444578",
+      "src/tlpp/hbbridge.msmgetex.tlpp": "3F90D1651CBF51F6A88C3D23DCAD106C4B762659DC7C78795873AA8425F146BE",
+      "src/tlpp/hbbridge.number.tools.tlpp": "4BC804E2E2FC4AE53625950835A179CBE20A33DCF7EE7F1A7571A29C31E68567",
+      "src/tlpp/hbbridge.rpc.dataset.tlpp": "CFAAA7421A7ED3CC4A2C5EB2CB80CF27CAAD8893D000A0922B797B804421334B",
+      "src/tlpp/hbbridge.sql.tools.tlpp": "F43BC87DF8C858CA088894B3D9249CF13FF89E53B05224E3DE26D475B26F3567",
+      "src/tlpp/hbbridge.str.tools.tlpp": "7CDE9F97F273EE55945F6D773F2CFEE7B5AD6E8E2C0DE61DFD6F0F508B99AAD6",
+      "src/tlpp/hbbridge.time.tlpp": "AC8E667E1BCC83048A1B17C0E7492C5803EA7998F6D5A6DB6D0082441FC8DDD4",
+      "src/tlpp/hbbridge.totvs.filter.tlpp": "173DC18E620428C32C2D5D6A191FD95B2C4169D9C373E1222625BDC2E584E743",
+      "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.control.test.tlpp": "21326A9D808FD36BD3607A03F68F5723DABD12BBF7A3C4DD1EF27F8620EF2802",
+      "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.controller.tlpp": "A21275042E7B9A2B0A2017F3AA1601C9D55880EDA42AFBFB687301181C77A02F",
+      "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.example.tlpp": "9D70404FCAA668A217E39CCFF91F22442C998DC6E7F82F15D4A86C2675EFBFA0",
+      "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.mock.client.tlpp": "BBA208AF99817A76F5D5E3BEDE3F200FCBF4C735435872080A7936F876653F31",
+      "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.native.client.tlpp": "CB068F551A2C172C17FC59BB57D7B9780A0DCD050CA65B787A28180F9F3DCCB4",
+      "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.page.tlpp": "B07E2415CC599B6C8C6412439D982E0E313F811676327587569D03FDDFE3D112",
+      "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.policy.tlpp": "F5AFDB66CEE6B2630BE236C4B0F0206B7738C3EA7687772D0ECBF00E38C6951D",
+      "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.protheus.entry.tlpp": "4D04D857DDD0F4F5C421E40B2286EC8278EE718958D6E38B2F3A8A817C8078C1",
+      "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.protheus.tlpp": "8DEDA13770BDA4E766DA5E560648F307726F7948D3D095D858C2465E5B0B69A2",
+      "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.rest.test.tlpp": "F9138C9C4E22183AD90CA237D17F3C463CBB992FDF4B348518B152910D71E720",
+      "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.rest.tlpp": "33229A23ED63E02488EBE1D302CE2DE9A89EB10F36300B949F96871D7EC3B012",
+      "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.server.client.tlpp": "B876F61BA1CB09C38665A13CBA9A371555A45E32567BFCA6E52901B514359BDA",
+      "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.stats.tlpp": "193676823D7E08BF4C6508FBAC03AB6B46F9833CE4A8F08C68836B94E8DA7859",
+      "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.test.entry.tlpp": "F3417FA898CD705D9AB506CFD9BED58C607DFE414D7C53DCC81086BDDD766CA4",
+      "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.test.tlpp": "E616E8E181AEE1360FBF322860D7160583CF88EA5BA75BF7FE3932CD701DAFBF",
+      "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.visual.test.tlpp": "20C6BFD3CB2D2635DB23FAA59C6A24C48663DE01F8C3A1AEE7947CA1BC9D64D7",
+      "src/tlpp/tests/protheus/hbbridge.browse.data.test/hbbridge.browse.data.test.sra.tlpp": "ACC6765D14ADC60B0248DEF98F319477C81FA3A7EED711A34752314EC98A3DC0",
+      "src/tlpp/tests/protheus/hbbridge.browse.data.test/hbbridge.browse.data.test.sx5.tlpp": "7FBC203EEBF071C0BAF347C2521097CDBC4CCB1E83E616D702DB2FC52601CB27",
+      "src/tlpp/tests/protheus/hbbridge.browse.data.test/hbbridge.browse.data.test.tlpp": "099FDD6F11F255191DE951E881FD090019F2BCCA71F612A11EFD8AF583AA7840",
+      "src/tlpp/tests/protheus/hbbridge.client.lifecycle.test/hbbridge.client.lifecycle.test.entry.tlpp": "1250A454FF895358F1C2847E5FBDA8FD84E2C754809CA3AB829A91366E56B89B",
+      "src/tlpp/tests/protheus/hbbridge.client.lifecycle.test/hbbridge.client.lifecycle.test.tlpp": "EDF5BD7D3F989CC7BAACBE142E10DE434A8D2A5C63E3DC54AFB50F6FC96AF574",
+      "src/tlpp/tests/protheus/hbbridge.concurrency.test/hbbridge.concurrency.test.entry.tlpp": "4485B05D6D0517FE68290369EF7066E571D2EE3205E2E7C22ADC14C525DFA82A",
+      "src/tlpp/tests/protheus/hbbridge.concurrency.test/hbbridge.concurrency.test.tlpp": "87DF3D2456BB0B2DBE3D5F8404EB7102F9E96672632AEE1E9ADB5D9A9735C3C9",
+      "src/tlpp/tests/protheus/hbbridge.config.test/hbbridge.config.test.tlpp": "0D36A2C822337B98C6D4014B512489BD7D90121A31A4FE45B7AF4F279D7F5F9E",
+      "src/tlpp/tests/protheus/hbbridge.connection.test/hbbridge.connection.test.tlpp": "0E57C603D4856114B7F5936CB0386B6EBAF39ADF41D53C4E10B04DB9CA042A43",
+      "src/tlpp/tests/protheus/hbbridge.dataset.test/hbbridge.dataset.mock.client.tlpp": "4116C0BD29C35A5185C6371F9EE238AD7FD3FB7514863D233B71A6286E3CC4D9",
+      "src/tlpp/tests/protheus/hbbridge.dataset.test/hbbridge.dataset.test.tlpp": "080AFBE1984DFA6C9E8A4A86A07D7DE4832DFB03B9155AF04F6106F25749BB07",
+      "src/tlpp/tests/protheus/hbbridge.failure.test/hbbridge.failure.test.entry.tlpp": "01FE1BB035C453A793A41EE8A713BD0E8A917434AE7EA2D868C3D3C7A6366982",
+      "src/tlpp/tests/protheus/hbbridge.failure.test/hbbridge.failure.test.tlpp": "696003110E56633D87CFA691C6C842F6F9DD0B736A158B3A184F1E7978BD4AAF",
+      "src/tlpp/tests/protheus/hbbridge.helper.test/hbbridge.helper.test.tlpp": "DEAD0DE7198619AC5E86C590596F362CF0ACD2A3BD185FA0FDAE5E0F7A43D087",
+      "src/tlpp/tests/protheus/hbbridge.http.table.test/hbbridge.http.table.example.tlpp": "33BEB1B4CE6D13118D28B77545B9406FAC6EBB0151949875BB002F3AE50075EE",
+      "src/tlpp/tests/protheus/hbbridge.http.table.test/hbbridge.http.table.mock.client.tlpp": "4D71FD43B6FC70B93750504CE43A6552DCC6B6880576C379CF5437A9B3897BEC",
+      "src/tlpp/tests/protheus/hbbridge.http.table.test/hbbridge.http.table.test.tlpp": "2748BE835D30BEED952357F1AA05B9F0644B6C5D789A4E58AEFB14A9DA2E7912",
+      "src/tlpp/tests/protheus/hbbridge.http.test/hbbridge.http.gzip.probe.tlpp": "044D085DEFF471C79C45BFF191806AFC45BCBBA2022ECF7A409005743319CE99",
+      "src/tlpp/tests/protheus/hbbridge.http.test/hbbridge.http.profile.probe.tlpp": "E4C6433AABA129BBA15BD3B998EE9DD96886CF158378AC7FD24912884F0A34D0",
+      "src/tlpp/tests/protheus/hbbridge.http.test/hbbridge.http.test.tlpp": "271DCE3D7708B9EB16E02F11C2344CBD9E3D5908278676A0C598045F0FA43B81",
+      "src/tlpp/tests/protheus/hbbridge.integrity.test/hbbridge.integrity.test.entry.tlpp": "C16A6B934A984E9EC08D2EF9EB1F6D0049EA1935592F7984C53F88E8D90B135A",
+      "src/tlpp/tests/protheus/hbbridge.integrity.test/hbbridge.integrity.test.tlpp": "CBE2EF5757346ECF528F9F37F69056DFB4324D140AA8E578B56CE740521F5F2A",
+      "src/tlpp/tests/protheus/hbbridge.integrity.test/hbbridge.json.test.tlpp": "21483C9BEF091762D942F59CCB7D215A4B1CC476213E63F5B645C852103C91C1",
+      "src/tlpp/tests/protheus/hbbridge.query.test/hbbridge.query.test.sqlite.tlpp": "C4A689AD6B1CF9748BC17E8D4DEA0F74C22FCC1FA2C5FF4A6836494537E3DA9A",
+      "src/tlpp/tests/protheus/hbbridge.query.test/hbbridge.query.test.tlpp": "D730263BB0864A7793D8236202657B1968DE913173971CF864DEB76FFEC10FCB",
+      "src/tlpp/tests/protheus/hbbridge.query.test/hbbridge.query.test.topinfo.tlpp": "EE6746311A6ED1FF0F2E7C64324972EAA576DECF1836E1BA19DE04707184EB48",
+      "src/zig/runtime/hbbridge.number.zig": "D78351BD3E36435ECFBC98DD4BB693F2789F0602DA2118A99F15C1A47A5BEC33",
+      "src/zig/runtime/hbbridge.runtime.zig": "ABEBF65E9C1381C067D64598DA4EA228D608F76353FBFE5EB9E42630C1CFC059",
+      "tests/integration/harbour/hbbridge.http.test.hb": "F65EE8FBF7D77B149D44266CA61A623E30EA4FE2DE05E6E9F81C9507D2F2A108",
+      "tests/probes/hbbridge.benchmark.report.test.py": "AC612A73DA9E7C481386D2F85D44C3CD42835DC03DF3C283841C4DC5A28B8DF2",
+      "tests/probes/hbbridge.http.send.test.hb": "B7139CC5E0F74827C966275D23F23B7EC3DA24A169D6A9308A8118514B0EFD8E",
+      "tests/probes/hbbridge.http.wire.test.py": "5B3A6039AB629A3D18756DB38C829FE182570373A0806D41FDF6C24E9F91697E",
+      "tests/probes/hbbridge.json.benchmark.hb": "77047E46F1C6EFAFD428EA8946163A5EE61A6D4930522A3F3869DD065D21D4F1",
+      "tests/probes/hbbridge.memio.snapshot.test.hb": "E967FA7ED420270651417328880A6DA78F0964B78F88A515CA51AF31535D8687",
+      "tests/probes/hbbridge.thread.state.addon.hb": "D8D2A175F4103EE258BF84E2481D25BAEB72F1AD4909A2286A573A1B91688703",
+      "tests/probes/hbbridge.thread.state.test.hb": "372945029AC2E3E533426CD1CDDFC90D87B66699ED9B766F635698D8D275805A"
+    }
+  },
+  "dependencyPins": {
+    "hbCompile": "2cb6f3ef59c297025a2c49c4cfa8c7639f3a1455",
+    "harbour": "6deac9cf3ad977ae829e5bca543d553b92dd4b6d",
+    "zig": "0.16.0"
+  },
+  "finalManagedHTTP": {
+    "patchSHA256": "8734B9860E809F4DBC598304C011B607FDCFA53C58D1DCD72569DF4317CE81A9",
+    "librarySHA256": {
+      "hbhttpd": "DBC456D90FCE21143FC3BBDA5FF5FBAC1D41F21861F423845D241302543B5062",
+      "hbtcpio": "8EEA0B98BE79E11140D1C49496FF117CA43E4B89276D69AF7B8CB3981B0E8BB8"
+    },
+    "directTLS": false
+  },
+  "artifactPhases": {
+    "encodingComparison": {
+      "nativeExecutableSHA256": "9DC82F3EC0CA3A68C1F87F5F2E16055DF0702BCEF4A81B6F72D52CF4F66A7F00",
+      "httpPatchSHA256": "71D8D4C7A03D300D90E988FDA89DED4FA96EB73A99814CA63F326C5EF0E65AA6",
+      "appServerSHA256": "A14029C4CCD8F410FF9D0CA1782D0FFFD076283393D005A39D7BD072C64440D6",
+      "customRPOSHA256": "E25288DE0AEADF57C950A484B46647D9BF2997ED15CAC5145E1DF074CD00AA0C",
+      "note": "Predates benchmark-required gzip, repeated-header fix, delimiter caching and JSON codepage caching."
+    },
+    "mandatoryBenchmarkGzip": {
+      "nativeExecutableSHA256": "9DC82F3EC0CA3A68C1F87F5F2E16055DF0702BCEF4A81B6F72D52CF4F66A7F00",
+      "customRPOSHA256": "8262A01E60FE2D8C02A62587E83D25CA29410089E140C16ED012B3121C592E06",
+      "compiledSources": 55,
+      "errors": 0,
+      "exitCode": 0
+    },
+    "phaseDiagnostic": {
+      "nativeExecutableSHA256": "9DC82F3EC0CA3A68C1F87F5F2E16055DF0702BCEF4A81B6F72D52CF4F66A7F00",
+      "customRPOSHA256": "74A66CDA0CAA8EB1776450A0E82DA4DD6B0311C2F9B0D8BCDAC822D716A899F8",
+      "compiledSources": 56,
+      "errors": 0,
+      "exitCode": 0,
+      "note": "Separate diagnostic before the final native delimiter/repeated-header build; direct rows, no dataset processing."
+    },
+    "finalCandidate": {
+      "executableSHA256": "9C2EB45798EBF32F9F56D16F2493D883F45C0866915BAB86BE287A6F227A44BC",
+      "buildExitCode": 0,
+      "nativeSuiteExecutableSHA256": "313680AC15141E549EE7663A94AC5783DB37342964223128A85F3097028C778B"
+    }
+  },
+  "finalChecks": {
+    "nativeRegression": {
+      "failures": 0,
+      "exitCode": 0,
+      "checks": 777
+    },
+    "nativeSendFaults": {
+      "failures": 0,
+      "exitCode": 0,
+      "checks": 18,
+      "includes": "seven-byte UTF8/NUL, keepalive, stalled reader, deadline, incomplete pipeline, coordinated stop"
+    },
+    "actualFWRestClient": {
+      "failures": 0,
+      "exitCode": 0,
+      "checks": 14,
+      "includes": "gzip/identity, seven-byte transfer chunks, CRC failure/recovery, NUL, strict gzip and empty406"
+    },
+    "finalTLPPCompilation": {
+      "sources": 56,
+      "errors": 0,
+      "exitCode": 0
+    },
+    "directPhaseRequests": {
+      "failures": 0,
+      "requests": 12,
+      "rowsCheckedPerRequest": 10000,
+      "exitCode": 0
+    },
+    "benchmarkControl": {
+      "failures": 0,
+      "exitCode": 0,
+      "checks": 82
+    },
+    "benchmarkVisual": {
+      "failures": 0,
+      "exitCode": 0,
+      "checks": 81
+    },
+    "benchmarkREST": {
+      "failures": 0,
+      "exitCode": 0,
+      "checks": 43
+    },
+    "headerInvariant": "One worker-local cHeaderEnd initialization; reused in read loop/trace and passed to ParseRequestHeader; verified managed preparation and real native regression."
+  },
+  "encodingComparison": {
+    "fixture": "m08.constant.v1",
+    "profile": "MSSQL/pData",
+    "backend": {
+      "productVersion": "16.0.1210.3",
+      "driver": "mssql",
+      "database": "pData"
+    },
+    "rows": 10000,
+    "pageSize": 10000,
+    "concurrency": 1,
+    "odbcPooling": "off",
+    "order": "identity,gzip,identity,gzip",
+    "timingScope": "Full M08 client traversal and value validation; construction/warmup excluded.",
+    "runs": [
+      {
+        "encoding": "identity",
+        "runID": "C83EB22B9DD5AB48AF39348EA3A184F3",
+        "success": true,
+        "measuredIterations": 5,
+        "warmupIterations": 2,
+        "avgMs": 1948.21012001037,
+        "medianMs": 1786.81920003891,
+        "p95Ms": 2747.96559989452,
+        "measuredSamples": {
+          "1": {
+            "elapsedMs": 1833.00130009651,
+            "success": true,
+            "failureCategory": "",
+            "rowsRead": 10000,
+            "pagesRead": 1,
+            "rpcCalls": 1,
+            "serviceCode": "",
+            "httpStatus": 200,
+            "failedPage": null
+          },
+          "2": {
+            "elapsedMs": 1653.12779998779,
+            "success": true,
+            "failureCategory": "",
+            "rowsRead": 10000,
+            "pagesRead": 1,
+            "rpcCalls": 1,
+            "serviceCode": "",
+            "httpStatus": 200,
+            "failedPage": null
+          },
+          "3": {
+            "elapsedMs": 1720.13670003414,
+            "success": true,
+            "failureCategory": "",
+            "rowsRead": 10000,
+            "pagesRead": 1,
+            "rpcCalls": 1,
+            "serviceCode": "",
+            "httpStatus": 200,
+            "failedPage": null
+          },
+          "4": {
+            "elapsedMs": 1786.81920003891,
+            "success": true,
+            "failureCategory": "",
+            "rowsRead": 10000,
+            "pagesRead": 1,
+            "rpcCalls": 1,
+            "serviceCode": "",
+            "httpStatus": 200,
+            "failedPage": null
+          },
+          "5": {
+            "elapsedMs": 2747.96559989452,
+            "success": true,
+            "failureCategory": "",
+            "rowsRead": 10000,
+            "pagesRead": 1,
+            "rpcCalls": 1,
+            "serviceCode": "",
+            "httpStatus": 200,
+            "failedPage": null
+          }
+        },
+        "warmupSamples": {
+          "1": {
+            "elapsedMs": 2094.37520003319,
+            "success": true,
+            "failureCategory": "",
+            "rowsRead": 10000,
+            "pagesRead": 1,
+            "rpcCalls": 1,
+            "serviceCode": "",
+            "httpStatus": 200,
+            "failedPage": null
+          },
+          "2": {
+            "elapsedMs": 1890.37880003452,
+            "success": true,
+            "failureCategory": "",
+            "rowsRead": 10000,
+            "pagesRead": 1,
+            "rpcCalls": 1,
+            "serviceCode": "",
+            "httpStatus": 200,
+            "failedPage": null
+          }
+        }
+      },
+      {
+        "encoding": "gzip",
+        "runID": "97C362D1DF23DB409179148221D82252",
+        "success": true,
+        "measuredIterations": 5,
+        "warmupIterations": 2,
+        "avgMs": 816.157639956476,
+        "medianMs": 771.057100057602,
+        "p95Ms": 992.23509991169,
+        "measuredSamples": {
+          "1": {
+            "elapsedMs": 771.057100057602,
+            "success": true,
+            "failureCategory": "",
+            "rowsRead": 10000,
+            "pagesRead": 1,
+            "rpcCalls": 1,
+            "serviceCode": "",
+            "httpStatus": 200,
+            "failedPage": null
+          },
+          "2": {
+            "elapsedMs": 760.436899900436,
+            "success": true,
+            "failureCategory": "",
+            "rowsRead": 10000,
+            "pagesRead": 1,
+            "rpcCalls": 1,
+            "serviceCode": "",
+            "httpStatus": 200,
+            "failedPage": null
+          },
+          "3": {
+            "elapsedMs": 799.789399981499,
+            "success": true,
+            "failureCategory": "",
+            "rowsRead": 10000,
+            "pagesRead": 1,
+            "rpcCalls": 1,
+            "serviceCode": "",
+            "httpStatus": 200,
+            "failedPage": null
+          },
+          "4": {
+            "elapsedMs": 757.269699931145,
+            "success": true,
+            "failureCategory": "",
+            "rowsRead": 10000,
+            "pagesRead": 1,
+            "rpcCalls": 1,
+            "serviceCode": "",
+            "httpStatus": 200,
+            "failedPage": null
+          },
+          "5": {
+            "elapsedMs": 992.23509991169,
+            "success": true,
+            "failureCategory": "",
+            "rowsRead": 10000,
+            "pagesRead": 1,
+            "rpcCalls": 1,
+            "serviceCode": "",
+            "httpStatus": 200,
+            "failedPage": null
+          }
+        },
+        "warmupSamples": {
+          "1": {
+            "elapsedMs": 863.468899965286,
+            "success": true,
+            "failureCategory": "",
+            "rowsRead": 10000,
+            "pagesRead": 1,
+            "rpcCalls": 1,
+            "serviceCode": "",
+            "httpStatus": 200,
+            "failedPage": null
+          },
+          "2": {
+            "elapsedMs": 807.764899969101,
+            "success": true,
+            "failureCategory": "",
+            "rowsRead": 10000,
+            "pagesRead": 1,
+            "rpcCalls": 1,
+            "serviceCode": "",
+            "httpStatus": 200,
+            "failedPage": null
+          }
+        }
+      },
+      {
+        "encoding": "identity",
+        "runID": "BF0BF5D3B2B44549B112CDCD2D390F18",
+        "success": true,
+        "measuredIterations": 5,
+        "warmupIterations": 2,
+        "avgMs": 1790.34764001369,
+        "medianMs": 1826.76769995689,
+        "p95Ms": 1920.72770011425,
+        "measuredSamples": {
+          "1": {
+            "elapsedMs": 1608.44659996033,
+            "success": true,
+            "failureCategory": "",
+            "rowsRead": 10000,
+            "pagesRead": 1,
+            "rpcCalls": 1,
+            "serviceCode": "",
+            "httpStatus": 200,
+            "failedPage": null
+          },
+          "2": {
+            "elapsedMs": 1883.92860007286,
+            "success": true,
+            "failureCategory": "",
+            "rowsRead": 10000,
+            "pagesRead": 1,
+            "rpcCalls": 1,
+            "serviceCode": "",
+            "httpStatus": 200,
+            "failedPage": null
+          },
+          "3": {
+            "elapsedMs": 1826.76769995689,
+            "success": true,
+            "failureCategory": "",
+            "rowsRead": 10000,
+            "pagesRead": 1,
+            "rpcCalls": 1,
+            "serviceCode": "",
+            "httpStatus": 200,
+            "failedPage": null
+          },
+          "4": {
+            "elapsedMs": 1920.72770011425,
+            "success": true,
+            "failureCategory": "",
+            "rowsRead": 10000,
+            "pagesRead": 1,
+            "rpcCalls": 1,
+            "serviceCode": "",
+            "httpStatus": 200,
+            "failedPage": null
+          },
+          "5": {
+            "elapsedMs": 1711.86759996414,
+            "success": true,
+            "failureCategory": "",
+            "rowsRead": 10000,
+            "pagesRead": 1,
+            "rpcCalls": 1,
+            "serviceCode": "",
+            "httpStatus": 200,
+            "failedPage": null
+          }
+        },
+        "warmupSamples": {
+          "1": {
+            "elapsedMs": 2445.16839993,
+            "success": true,
+            "failureCategory": "",
+            "rowsRead": 10000,
+            "pagesRead": 1,
+            "rpcCalls": 1,
+            "serviceCode": "",
+            "httpStatus": 200,
+            "failedPage": null
+          },
+          "2": {
+            "elapsedMs": 1831.14479994774,
+            "success": true,
+            "failureCategory": "",
+            "rowsRead": 10000,
+            "pagesRead": 1,
+            "rpcCalls": 1,
+            "serviceCode": "",
+            "httpStatus": 200,
+            "failedPage": null
+          }
+        }
+      },
+      {
+        "encoding": "gzip",
+        "runID": "1D6F165E4700754DA8ABA33FE5E010E3",
+        "success": true,
+        "measuredIterations": 5,
+        "warmupIterations": 2,
+        "avgMs": 1004.74805998802,
+        "medianMs": 881.230000019074,
+        "p95Ms": 1301.8517999649,
+        "measuredSamples": {
+          "1": {
+            "elapsedMs": 850.475299954414,
+            "success": true,
+            "failureCategory": "",
+            "rowsRead": 10000,
+            "pagesRead": 1,
+            "rpcCalls": 1,
+            "serviceCode": "",
+            "httpStatus": 200,
+            "failedPage": null
+          },
+          "2": {
+            "elapsedMs": 790.671000003815,
+            "success": true,
+            "failureCategory": "",
+            "rowsRead": 10000,
+            "pagesRead": 1,
+            "rpcCalls": 1,
+            "serviceCode": "",
+            "httpStatus": 200,
+            "failedPage": null
+          },
+          "3": {
+            "elapsedMs": 881.230000019074,
+            "success": true,
+            "failureCategory": "",
+            "rowsRead": 10000,
+            "pagesRead": 1,
+            "rpcCalls": 1,
+            "serviceCode": "",
+            "httpStatus": 200,
+            "failedPage": null
+          },
+          "4": {
+            "elapsedMs": 1301.8517999649,
+            "success": true,
+            "failureCategory": "",
+            "rowsRead": 10000,
+            "pagesRead": 1,
+            "rpcCalls": 1,
+            "serviceCode": "",
+            "httpStatus": 200,
+            "failedPage": null
+          },
+          "5": {
+            "elapsedMs": 1199.5121999979,
+            "success": true,
+            "failureCategory": "",
+            "rowsRead": 10000,
+            "pagesRead": 1,
+            "rpcCalls": 1,
+            "serviceCode": "",
+            "httpStatus": 200,
+            "failedPage": null
+          }
+        },
+        "warmupSamples": {
+          "1": {
+            "elapsedMs": 888.509299993515,
+            "success": true,
+            "failureCategory": "",
+            "rowsRead": 10000,
+            "pagesRead": 1,
+            "rpcCalls": 1,
+            "serviceCode": "",
+            "httpStatus": 200,
+            "failedPage": null
+          },
+          "2": {
+            "elapsedMs": 821.79339993,
+            "success": true,
+            "failureCategory": "",
+            "rowsRead": 10000,
+            "pagesRead": 1,
+            "rpcCalls": 1,
+            "serviceCode": "",
+            "httpStatus": 200,
+            "failedPage": null
+          }
+        }
+      }
+    ],
+    "combinedMeanMs": {
+      "gzip": 910.452849972248,
+      "identity": 1869.27888001203
+    },
+    "allMeasuredTraversals": 20,
+    "allWarmupTraversals": 8,
+    "success": true,
+    "limitation": "Short local encoding comparison on the same server build; not isolated attribution of every HTTP change or general production speedup."
+  },
+  "wireIntegrity": [
+    {
+      "requestedEncoding": "identity",
+      "contentEncoding": null,
+      "wireBytes": 582624,
+      "decodedBytes": 582624,
+      "decodedSHA256": "37FAB9EF66483944DEEF51F9C51ADFC9E13EDACABDBAAB0EFA5638F4B7A03EA9",
+      "success": true
+    },
+    {
+      "requestedEncoding": "gzip",
+      "contentEncoding": "gzip",
+      "wireBytes": 107099,
+      "decodedBytes": 582624,
+      "decodedSHA256": "37FAB9EF66483944DEEF51F9C51ADFC9E13EDACABDBAAB0EFA5638F4B7A03EA9",
+      "success": true
+    }
+  ],
+  "mandatoryBenchmarkGzip": [
+    {
+      "serverCompression": "auto",
+      "deliberatelyConfiguredAcceptEncoding": "identity",
+      "expectedOutcomePassed": true,
+      "runID": "5D0E7C211A16794A8907F6088F4F1BB7",
+      "reportSuccess": true,
+      "httpRequireGzip": true,
+      "httpAcceptEncoding": "gzip, identity;q=0",
+      "http": {
+        "success": true,
+        "completedIterations": 2,
+        "warmupCompleted": 1,
+        "totalMs": 1086.97090000007,
+        "minMs": 541.599100000225,
+        "maxMs": 545.371799999848,
+        "avgMs": 543.485450000035,
+        "measuredCalls": 2,
+        "measuredRows": 20000,
+        "samples": {
+          "1": {
+            "elapsedMs": 545.371799999848,
+            "success": true,
+            "failureCategory": "",
+            "rowsRead": 10000,
+            "pagesRead": 1,
+            "rpcCalls": 1,
+            "serviceCode": "",
+            "httpStatus": 200,
+            "failedPage": null
+          },
+          "2": {
+            "elapsedMs": 541.599100000225,
+            "success": true,
+            "failureCategory": "",
+            "rowsRead": 10000,
+            "pagesRead": 1,
+            "rpcCalls": 1,
+            "serviceCode": "",
+            "httpStatus": 200,
+            "failedPage": null
+          }
+        },
+        "warmupSamples": {
+          "1": {
+            "elapsedMs": 566.633499999996,
+            "success": true,
+            "failureCategory": "",
+            "rowsRead": 10000,
+            "pagesRead": 1,
+            "rpcCalls": 1,
+            "serviceCode": "",
+            "httpStatus": 200,
+            "failedPage": null
+          }
+        },
+        "failureCategory": "",
+        "failurePhase": "",
+        "failureIteration": 0,
+        "statisticsScope": "successful measured iterations only; inspect success before comparison",
+        "sampleCount": 2,
+        "medianMs": 543.485450000037,
+        "p95Ms": 545.371799999848,
+        "stdDevMs": 1.88634999981173,
+        "cvPct": 0.3470838087407,
+        "throughputRowsSec": 18399.7566080184,
+        "throughputCallsSec": 1.839975660802,
+        "statisticsMethod": "successful measured samples only; median of sorted durations; P95 nearest rank ceil(0.95*n); population SD via Welford; throughput=sum(count)/sum(ms)*1000; undefined ratios=null"
+      }
+    },
+    {
+      "serverCompression": "off",
+      "deliberatelyConfiguredAcceptEncoding": "identity",
+      "expectedOutcomePassed": true,
+      "runID": "F66DE901B6F9924C8D55505E33F12AC0",
+      "reportSuccess": false,
+      "httpRequireGzip": true,
+      "httpAcceptEncoding": "gzip, identity;q=0",
+      "http": {
+        "success": false,
+        "completedIterations": 0,
+        "warmupCompleted": 0,
+        "totalMs": null,
+        "minMs": null,
+        "maxMs": null,
+        "avgMs": null,
+        "measuredCalls": 0,
+        "measuredRows": 0,
+        "samples": {},
+        "warmupSamples": {
+          "1": {
+            "elapsedMs": 177.038000000175,
+            "success": false,
+            "failureCategory": "QUERY_FAILED",
+            "rowsRead": 0,
+            "pagesRead": 0,
+            "rpcCalls": 1,
+            "serviceCode": "HTTP_COMPRESSION_REQUIRED",
+            "httpStatus": 406,
+            "failedPage": 1
+          }
+        },
+        "failureCategory": "WARMUP_FAILED",
+        "failurePhase": "warmup",
+        "failureIteration": 1,
+        "statisticsScope": "successful measured iterations only; inspect success before comparison",
+        "sampleCount": 0,
+        "medianMs": null,
+        "p95Ms": null,
+        "stdDevMs": null,
+        "cvPct": null,
+        "throughputRowsSec": null,
+        "throughputCallsSec": null,
+        "statisticsMethod": "successful measured samples only; median of sorted durations; P95 nearest rank ceil(0.95*n); population SD via Welford; throughput=sum(count)/sum(ms)*1000; undefined ratios=null"
+      }
+    }
+  ],
+  "diagnosticPhaseProfile": {
+    "schemaVersion": 1,
+    "success": true,
+    "fixture": "m08.constant.v1; 10000 rows, one page, full row-value validation",
+    "scope": "Diagnostic FWRest POST + expansion + JSON parse + direct row validation; not dataset/M08 statistics",
+    "clock": "HBBridgeTime.TimeCounter.normalized.ms",
+    "iterationsPerEncoding": 5,
+    "warmupPerEncoding": 1,
+    "order": "identity/gzip first order alternates per pair",
+    "nativeRequestScope": "Post, GetHTTPCode, GetResult and response Content-Encoding; includes server SQL/serialization/network",
+    "constructionTimed": "included only in totalMs",
+    "fwRestExpansion": "wireBytes represent raw gzip only when rawGzip is true",
+    "appServerSHA256": "A14029C4CCD8F410FF9D0CA1782D0FFFD076283393D005A39D7BD072C64440D6",
+    "samples": [
+      {
+        "wireBytes": 582624,
+        "rawGzip": false,
+        "decodedBytes": 582624,
+        "encoding": "identity",
+        "contentEncoding": "",
+        "success": true,
+        "httpStatus": 200,
+        "fwRestMs": 213.482899999712,
+        "decompressMs": 0.001900000032037,
+        "jsonParseMs": 34.6392999999225,
+        "validateMs": 16.9030000003986,
+        "totalMs": 266.289100000169,
+        "iteration": 0,
+        "warmup": true
+      },
+      {
+        "wireBytes": 107099,
+        "rawGzip": true,
+        "decodedBytes": 582624,
+        "encoding": "gzip",
+        "contentEncoding": "gzip",
+        "success": true,
+        "httpStatus": 200,
+        "fwRestMs": 158.708100000396,
+        "decompressMs": 1.10670000035316,
+        "jsonParseMs": 34.6691999998875,
+        "validateMs": 16.5781000000425,
+        "totalMs": 211.214900000021,
+        "iteration": 0,
+        "warmup": true
+      },
+      {
+        "wireBytes": 107099,
+        "rawGzip": true,
+        "decodedBytes": 582624,
+        "encoding": "gzip",
+        "contentEncoding": "gzip",
+        "success": true,
+        "httpStatus": 200,
+        "fwRestMs": 140.292700000107,
+        "decompressMs": 1.00520000001416,
+        "jsonParseMs": 34.1093000001274,
+        "validateMs": 16.5896999998949,
+        "totalMs": 192.0746000004,
+        "iteration": 1,
+        "warmup": false
+      },
+      {
+        "wireBytes": 582624,
+        "rawGzip": false,
+        "decodedBytes": 582624,
+        "encoding": "identity",
+        "contentEncoding": "",
+        "success": true,
+        "httpStatus": 200,
+        "fwRestMs": 159.257800000254,
+        "decompressMs": 0.001399999950081,
+        "jsonParseMs": 34.1408999999985,
+        "validateMs": 18.124700000044,
+        "totalMs": 211.613799999934,
+        "iteration": 1,
+        "warmup": false
+      },
+      {
+        "wireBytes": 582624,
+        "rawGzip": false,
+        "decodedBytes": 582624,
+        "encoding": "identity",
+        "contentEncoding": "",
+        "success": true,
+        "httpStatus": 200,
+        "fwRestMs": 162.984699999914,
+        "decompressMs": 0.001700000371784,
+        "jsonParseMs": 35.3951000003144,
+        "validateMs": 17.7205999996513,
+        "totalMs": 216.168100000359,
+        "iteration": 2,
+        "warmup": false
+      },
+      {
+        "wireBytes": 107099,
+        "rawGzip": true,
+        "decodedBytes": 582624,
+        "encoding": "gzip",
+        "contentEncoding": "gzip",
+        "success": true,
+        "httpStatus": 200,
+        "fwRestMs": 167.601800000295,
+        "decompressMs": 1.29410000005737,
+        "jsonParseMs": 41.340799999889,
+        "validateMs": 19.2415999998339,
+        "totalMs": 229.554199999664,
+        "iteration": 2,
+        "warmup": false
+      },
+      {
+        "wireBytes": 107099,
+        "rawGzip": true,
+        "decodedBytes": 582624,
+        "encoding": "gzip",
+        "contentEncoding": "gzip",
+        "success": true,
+        "httpStatus": 200,
+        "fwRestMs": 193.981900000013,
+        "decompressMs": 1.86270000040531,
+        "jsonParseMs": 50.4819000000134,
+        "validateMs": 35.1661000000313,
+        "totalMs": 281.601800000295,
+        "iteration": 3,
+        "warmup": false
+      },
+      {
+        "wireBytes": 582624,
+        "rawGzip": false,
+        "decodedBytes": 582624,
+        "encoding": "identity",
+        "contentEncoding": "",
+        "success": true,
+        "httpStatus": 200,
+        "fwRestMs": 272.466499999631,
+        "decompressMs": 0.002399999648333,
+        "jsonParseMs": 52.2338000000455,
+        "validateMs": 29.0352000002749,
+        "totalMs": 353.834999999963,
+        "iteration": 3,
+        "warmup": false
+      },
+      {
+        "wireBytes": 582624,
+        "rawGzip": false,
+        "decodedBytes": 582624,
+        "encoding": "identity",
+        "contentEncoding": "",
+        "success": true,
+        "httpStatus": 200,
+        "fwRestMs": 245.881300000008,
+        "decompressMs": 0.002299999818206,
+        "jsonParseMs": 52.5265999999829,
+        "validateMs": 26.4627999998629,
+        "totalMs": 324.982899999712,
+        "iteration": 4,
+        "warmup": false
+      },
+      {
+        "wireBytes": 107099,
+        "rawGzip": true,
+        "decodedBytes": 582624,
+        "encoding": "gzip",
+        "contentEncoding": "gzip",
+        "success": true,
+        "httpStatus": 200,
+        "fwRestMs": 210.375,
+        "decompressMs": 1.68050000024959,
+        "jsonParseMs": 46.621499999892,
+        "validateMs": 22.875299999956,
+        "totalMs": 281.652800000273,
+        "iteration": 4,
+        "warmup": false
+      },
+      {
+        "wireBytes": 107099,
+        "rawGzip": true,
+        "decodedBytes": 582624,
+        "encoding": "gzip",
+        "contentEncoding": "gzip",
+        "success": true,
+        "httpStatus": 200,
+        "fwRestMs": 187.004800000228,
+        "decompressMs": 1.71109999995679,
+        "jsonParseMs": 43.2357000000775,
+        "validateMs": 22.0989000000991,
+        "totalMs": 254.157000000123,
+        "iteration": 5,
+        "warmup": false
+      },
+      {
+        "wireBytes": 582624,
+        "rawGzip": false,
+        "decodedBytes": 582624,
+        "encoding": "identity",
+        "contentEncoding": "",
+        "success": true,
+        "httpStatus": 200,
+        "fwRestMs": 185.399500000291,
+        "decompressMs": 0.002199999988079,
+        "jsonParseMs": 44.6025999998674,
+        "validateMs": 22.2354999999516,
+        "totalMs": 252.328799999785,
+        "iteration": 5,
+        "warmup": false
+      }
+    ],
+    "averages": {
+      "identity": {
+        "fwRestMs": 205.1979600000196,
+        "decompressMs": 0.0019999999552966,
+        "jsonParseMs": 43.77980000004174,
+        "validateMs": 22.715759999956937,
+        "totalMs": 271.78571999995063,
+        "wireBytes": 582624.0,
+        "decodedBytes": 582624.0
+      },
+      "gzip": {
+        "fwRestMs": 179.8512400001286,
+        "decompressMs": 1.510720000136644,
+        "jsonParseMs": 43.157839999999865,
+        "validateMs": 23.19431999996304,
+        "totalMs": 247.808080000151,
+        "wireBytes": 107099.0,
+        "decodedBytes": 582624.0
+      }
+    }
+  },
+  "jsonCodepageComparison": {
+    "runs": [
+      {
+        "schemaVersion": 1,
+        "fixture": "json.m08.scalar.v1",
+        "rows": 10000,
+        "encodesPerBatch": 50,
+        "batches": 8,
+        "warmupEncodesPerVariant": 3,
+        "clock": "HBBridgeMonotonicMs",
+        "scope": "in-memory encoding only; fixture construction and comparisons excluded",
+        "runtime": "Harbour 3.2.1dev (r2609292008)",
+        "platform": "Windows 8 6.2",
+        "samples": {
+          "baseline": {
+            "1": 1485,
+            "2": 1563,
+            "3": 1656,
+            "4": 1313,
+            "5": 1390,
+            "6": 2047,
+            "7": 2110,
+            "8": 2031
+          },
+          "optimized": {
+            "1": 1219,
+            "2": 1187,
+            "3": 1219,
+            "4": 1218,
+            "5": 1829,
+            "6": 2703,
+            "7": 2359,
+            "8": 2125
+          }
+        },
+        "byteIdentical": true,
+        "payloadBytes": 582434,
+        "fixtureWritten": true,
+        "success": true,
+        "payloadSHA256": "E6AE344D62D95D2C5FE9184C650026D37D5E495BE43846D28A384F171D3F1BFF",
+        "sourceSHA256": "44106EF20967DAC14F4FC09FCE4B0931441FEBBE1BE3E9BF897AEA5FF1E0E053",
+        "sources": {
+          "optimized": "A2705D7EA986557602D830CAAAC3D06ADAAFC41E1BDDAA39D4413B865EA9C142",
+          "baseline": "1AE3FCBE9CFE26FB1FF29C4902C4E354E6E1955A28758B8E3947AB85621BB6B0"
+        },
+        "comparison": {
+          "limitation": "Serializer-only microbenchmark; no SQL, HTTP, compression or end-to-end speedup is inferred.",
+          "optimizedMeanMsPerEncode": 34.6475,
+          "reductionPercent": -1.9418904008826843,
+          "baselineMeanMsPerEncode": 33.9875
+        }
+      },
+      {
+        "schemaVersion": 1,
+        "fixture": "json.m08.scalar.v1",
+        "rows": 10000,
+        "encodesPerBatch": 50,
+        "batches": 8,
+        "warmupEncodesPerVariant": 3,
+        "clock": "HBBridgeMonotonicMs",
+        "scope": "in-memory encoding only; fixture construction and comparisons excluded",
+        "runtime": "Harbour 3.2.1dev (r2609292008)",
+        "platform": "Windows 8 6.2",
+        "samples": {
+          "baseline": {
+            "1": 2500,
+            "2": 1735,
+            "3": 1953,
+            "4": 1687,
+            "5": 1922,
+            "6": 1594,
+            "7": 1671,
+            "8": 1609
+          },
+          "optimized": {
+            "1": 2266,
+            "2": 1921,
+            "3": 1656,
+            "4": 1719,
+            "5": 1250,
+            "6": 1422,
+            "7": 1516,
+            "8": 1563
+          }
+        },
+        "byteIdentical": true,
+        "payloadBytes": 582434,
+        "fixtureWritten": true,
+        "success": true,
+        "payloadSHA256": "E6AE344D62D95D2C5FE9184C650026D37D5E495BE43846D28A384F171D3F1BFF",
+        "sourceSHA256": "7D1F57FA055D5A31BE8FB69B06A47B510F6C6B312EFC7368B4DE2395C9E31DF7",
+        "sources": {
+          "baseline": "3DDD0A464D1B41CD44D0989CAA59FD9B92D65314DA7453F4AF3C338B0B1B6466",
+          "optimized": "DB35B4089B1AFEA3C282B9DA560FE01598B7F54639C976C044C5BFBC95DE5F70"
+        },
+        "statistics": {
+          "baseline": {
+            "minMsPerEncode": 31.88,
+            "medianMsPerEncode": 34.22,
+            "meanMsPerEncode": 36.6775,
+            "populationStdDevMs": 5.619897129841435,
+            "cvPercent": 15.322465080339269,
+            "maxMsPerEncode": 50
+          },
+          "optimized": {
+            "minMsPerEncode": 25,
+            "medianMsPerEncode": 32.19,
+            "meanMsPerEncode": 33.2825,
+            "populationStdDevMs": 5.889001931567012,
+            "cvPercent": 17.693989128121423,
+            "maxMsPerEncode": 45.32
+          }
+        },
+        "comparison": {
+          "reductionPercent": 9.256356076613736,
+          "optimizedMeanMsPerEncode": 33.2825,
+          "baselineMeanMsPerEncode": 36.6775,
+          "limitation": "Serializer-only microbenchmark; no SQL, HTTP, compression or end-to-end speedup is inferred."
+        }
+      }
+    ],
+    "conclusion": "Exact output and SET behavior preserved. Opposite timing directions and high batch CV do not establish a reliable speedup; keep invariant lookup removal without HTTP performance claim."
+  },
+  "logReconstruction": "Remove only the exact interleaved [INFO ][SERVER] TOTVS Application Server Initializing... marker and actual CR/LF to recover complete JSON records; then verify counts, success and aggregates. Samples/statistics unchanged. Corrected profile parser validated on the completed raw run.",
+  "reproduction": [
+    "./scripts/bootstrap.ps1",
+    "./scripts/test-hbbridge.ps1",
+    "./scripts/test-harbour-http-send.ps1",
+    "./scripts/test-protheus-http-gzip.ps1 -AppServerDirectory <external-sdk> -IniFile <external-ini> -IncludeDirectory <vendor-includes> -CompileAll",
+    "./scripts/benchmark-hbbridge-mssql.ps1 -Config <private-ini> -Profile <alias> -Rows 10000 -PageSize 10000 -Iterations 1 -Warmup 0 -Route http -ServeSeconds 600 -ODBCPooling off",
+    "python ./tests/probes/hbbridge.http.wire.test.py --endpoints <fresh-endpoints.json> --output <new-wire.json>",
+    "./scripts/profile-protheus-http.ps1 -AppServerDirectory <external-sdk> -IniFile <external-ini> -IncludeDirectory <vendor-includes> -EndpointsFile <fresh-endpoints.json>",
+    "./scripts/benchmark-harbour-json.ps1",
+    "./scripts/build-hbbridge.ps1",
+    "./scripts/check-doc-links.ps1",
+    "./scripts/commit-check.ps1"
+  ],
+  "limitations": [
+    "Dated phases have different native binary/RPO identities; historical tmp paths are not reproduction prerequisites.",
+    "Responses materialized; request gzip, streaming, SQL binding and MEMIO caching not implemented.",
+    "No Linux/direct TLS, per-stage CPU/memory, production capacity, cold-cache or general speedup acceptance.",
+    "FWRest phase includes SQL, encoding and network; diagnostic direct validation does not measure dataset overhead.",
+    "Private configurations, credentials, licensed SDK/RPO contents and raw logs are not included."
+  ],
+  "userProvidedBenchmarks": {
+    "schemaVersion": 1,
+    "kind": "hbbridge.benchmark.export.validation",
+    "success": true,
+    "method": "Recompute measured samples; median, P95 nearest rank, population SD; check row/page/call totals. Companion HTML is never read or executed.",
+    "tolerance": {
+      "relative": 1E-09,
+      "absolute": 1E-05
+    },
+    "reports": 6,
+    "selectedSeries": 31,
+    "measuredSamples": 17580,
+    "warmupSamples": 62,
+    "checks": 106618,
+    "failures": 0,
+    "runs": [
+      {
+        "file": "hbbridge-benchmark-2CDD60CA9BB73B4B84DD2D5C2214B7FD.json",
+        "fileSHA256": "063565C1BCA7A8A7CF3D1763E6CED53E614A12DE9822BDA9DE1DDC0B918304AA",
+        "settings": {
+          "schemaVersion": 1,
+          "routeSelectionVersion": 1,
+          "runID": "2CDD60CA9BB73B4B84DD2D5C2214B7FD",
+          "startedLocal": "20261024/07:13:19",
+          "fixture": "m08.constant.v1",
+          "profile": "MSSQL/pData",
+          "protheusEnvironment": "PROTHEUS_NGROK",
+          "rowsPerIteration": 1000,
+          "pageSize": 100,
+          "iterations": 1500,
+          "warmupIterations": 2,
+          "concurrency": 1,
+          "selectedRoutes": {
+            "tcp": true,
+            "http": true,
+            "protheusStartJob": false,
+            "protheusRest": true,
+            "hbbridgeAddon": true,
+            "protheusServer": true
+          },
+          "routeStates": {
+            "tcp": "completed",
+            "http": "completed",
+            "protheusStartJob": "skipped",
+            "protheusRest": "completed",
+            "hbbridgeAddon": "completed",
+            "protheusServer": "completed"
+          },
+          "transportOrder": "TCP,HTTP,ProtheusREST,hbBridgeAddon,ProtheusServer",
+          "timeoutSeconds": 900,
+          "clock": "HBBridgeTime.TimeCounter.normalized.ms",
+          "serverUnix": false,
+          "timingScope": "full paged traversal including client calls, value checks and dataset close",
+          "clientConstructionTimed": false,
+          "warmupExcludedFromMeasuredStatistics": true,
+          "clientPolicy": "production TCP framing; benchmark HTTP requires gzip responses, with no identity fallback",
+          "httpAcceptEncoding": "gzip, identity;q=0",
+          "httpRequireGzip": true,
+          "comparisonScope": "same constant SQL, SELECT plus COUNT per page and dataset validation; StartJob is an in-process job, not TCP",
+          "comparisonBackend": "Protheus uses its environment DBAccess configuration; verify it targets the same MSSQL database as the explicit hbBridge alias",
+          "physicalPooling": "not inferred; record the hbBridge process configuration separately",
+          "memory": {
+            "status": "UNAVAILABLE",
+            "scope": "sample the AppServer process externally; no per-thread or peak memory estimate"
+          },
+          "runElapsedMs": 3244666.0214
+        },
+        "routes": {
+          "tcp": {
+            "success": true,
+            "measuredSamples": 1500,
+            "warmupSamples": 2,
+            "measuredRows": 1500000,
+            "measuredCalls": 15000,
+            "recomputed": {
+              "totalMs": 584611.8810000104,
+              "minMs": 288.06269999966,
+              "maxMs": 728.976599999704,
+              "avgMs": 389.7412540000069,
+              "medianMs": 376.026549999602,
+              "p95Ms": 507.13030000031,
+              "stdDevMs": 63.68516854499913,
+              "cvPct": 16.340371436532095,
+              "throughputRowsSec": 2565.804850620156,
+              "throughputCallsSec": 25.658048506201556
+            },
+            "statisticsScope": "successful measured iterations only; inspect success before comparison"
+          },
+          "http": {
+            "success": true,
+            "measuredSamples": 1500,
+            "warmupSamples": 2,
+            "measuredRows": 1500000,
+            "measuredCalls": 15000,
+            "recomputed": {
+              "totalMs": 689042.1052999991,
+              "minMs": 357.23379999958,
+              "maxMs": 1080.23559999932,
+              "avgMs": 459.36140353333275,
+              "medianMs": 443.7110999999565,
+              "p95Ms": 625.664800000377,
+              "stdDevMs": 83.35725672287765,
+              "cvPct": 18.14633447253236,
+              "throughputRowsSec": 2176.935180683801,
+              "throughputCallsSec": 21.769351806838007
+            },
+            "statisticsScope": "successful measured iterations only; inspect success before comparison"
+          },
+          "protheusRest": {
+            "success": true,
+            "measuredSamples": 1500,
+            "warmupSamples": 2,
+            "measuredRows": 1500000,
+            "measuredCalls": 15000,
+            "recomputed": {
+              "totalMs": 935458.7074000286,
+              "minMs": 484.429800000042,
+              "maxMs": 5402.99399999995,
+              "avgMs": 623.6391382666858,
+              "medianMs": 609.4785500001165,
+              "p95Ms": 825.144700000063,
+              "stdDevMs": 160.20307358261496,
+              "cvPct": 25.68842520497929,
+              "throughputRowsSec": 1603.4914081552909,
+              "throughputCallsSec": 16.03491408155291
+            },
+            "statisticsScope": "successful measured iterations only; inspect success before comparison"
+          },
+          "hbbridgeAddon": {
+            "success": true,
+            "measuredSamples": 1500,
+            "warmupSamples": 2,
+            "measuredRows": 1500000,
+            "measuredCalls": 15000,
+            "recomputed": {
+              "totalMs": 449704.0,
+              "minMs": 250,
+              "maxMs": 657,
+              "avgMs": 299.80266666666665,
+              "medianMs": 282.0,
+              "p95Ms": 391,
+              "stdDevMs": 45.81468170309115,
+              "cvPct": 15.281612472790266,
+              "throughputRowsSec": 3335.527369113906,
+              "throughputCallsSec": 33.35527369113906
+            },
+            "statisticsScope": "successful server-side measured traversals only; warmups excluded",
+            "timingScope": "Harbour addon: local paged dispatcher, SQL, hash traversal and value validation; excludes transport and HRB loading",
+            "clock": "HBBridgeMonotonicMs",
+            "callElapsedMs": 450354.5791,
+            "serverRunElapsedMs": 450281,
+            "transport": "TCP",
+            "networkCalls": 1,
+            "workerCalls": 0,
+            "returnedDatasetRows": 0,
+            "callTimingScope": "one complete ADDON.Execute call, including HRB loading, all warmups/traversals, JSON and network; separate from server samples"
+          },
+          "protheusServer": {
+            "success": true,
+            "measuredSamples": 1500,
+            "warmupSamples": 2,
+            "measuredRows": 1500000,
+            "measuredCalls": 15000,
+            "recomputed": {
+              "totalMs": 578529.5513999965,
+              "minMs": 292.111400000751,
+              "maxMs": 590.814299998805,
+              "avgMs": 385.6863675999977,
+              "medianMs": 380.6388499997555,
+              "p95Ms": 466.970699999481,
+              "stdDevMs": 43.346161425190495,
+              "cvPct": 11.238707163781733,
+              "throughputRowsSec": 2592.780258795971,
+              "throughputCallsSec": 25.92780258795971
+            },
+            "statisticsScope": "successful measured iterations only; inspect success before comparison",
+            "timingScope": "Protheus worker: local DBAccess SELECT plus COUNT per page, keyed dataset traversal and value validation; excludes environment preparation, teardown and outer StartJob",
+            "clock": "HBBridgeTime.TimeCounter.normalized.ms",
+            "callElapsedMs": 581455.474400001,
+            "serverRunElapsedMs": 579283.0385,
+            "transport": "StartJob",
+            "networkCalls": 0,
+            "workerCalls": 1,
+            "returnedDatasetRows": 0,
+            "callTimingScope": "one complete StartJob call including environment preparation, all warmups/traversals, JSON and teardown; internal samples exclude preparation and teardown"
+          }
+        },
+        "validation": {
+          "checks": 45184,
+          "failures": []
+        },
+        "success": true
+      },
+      {
+        "file": "hbbridge-benchmark-45A171CFF861FA4DB66F2F16B9EBB9CD.json",
+        "fileSHA256": "A9DD96228F8D2D736B08E65D12D5A082C3A9B8A5D82E301D07AB76D3AC2AAE2E",
+        "settings": {
+          "schemaVersion": 1,
+          "routeSelectionVersion": 1,
+          "runID": "45A171CFF861FA4DB66F2F16B9EBB9CD",
+          "startedLocal": "20261024/06:48:30",
+          "fixture": "m08.constant.v1",
+          "profile": "MSSQL/pData",
+          "protheusEnvironment": "PROTHEUS_NGROK",
+          "rowsPerIteration": 1000,
+          "pageSize": 100,
+          "iterations": 500,
+          "warmupIterations": 2,
+          "concurrency": 1,
+          "selectedRoutes": {
+            "tcp": true,
+            "http": true,
+            "protheusStartJob": false,
+            "protheusRest": true,
+            "hbbridgeAddon": true,
+            "protheusServer": true
+          },
+          "routeStates": {
+            "tcp": "completed",
+            "http": "completed",
+            "protheusStartJob": "skipped",
+            "protheusRest": "completed",
+            "hbbridgeAddon": "completed",
+            "protheusServer": "completed"
+          },
+          "transportOrder": "TCP,HTTP,ProtheusREST,hbBridgeAddon,ProtheusServer",
+          "timeoutSeconds": 900,
+          "clock": "HBBridgeTime.TimeCounter.normalized.ms",
+          "serverUnix": false,
+          "timingScope": "full paged traversal including client calls, value checks and dataset close",
+          "clientConstructionTimed": false,
+          "warmupExcludedFromMeasuredStatistics": true,
+          "clientPolicy": "production TCP framing; benchmark HTTP requires gzip responses, with no identity fallback",
+          "httpAcceptEncoding": "gzip, identity;q=0",
+          "httpRequireGzip": true,
+          "comparisonScope": "same constant SQL, SELECT plus COUNT per page and dataset validation; StartJob is an in-process job, not TCP",
+          "comparisonBackend": "Protheus uses its environment DBAccess configuration; verify it targets the same MSSQL database as the explicit hbBridge alias",
+          "physicalPooling": "not inferred; record the hbBridge process configuration separately",
+          "memory": {
+            "status": "UNAVAILABLE",
+            "scope": "sample the AppServer process externally; no per-thread or peak memory estimate"
+          },
+          "runElapsedMs": 1302753.4801
+        },
+        "routes": {
+          "tcp": {
+            "success": true,
+            "measuredSamples": 500,
+            "warmupSamples": 2,
+            "measuredRows": 500000,
+            "measuredCalls": 5000,
+            "recomputed": {
+              "totalMs": 283214.6922999826,
+              "minMs": 289.052600000054,
+              "maxMs": 1526.26230000053,
+              "avgMs": 566.4293845999651,
+              "medianMs": 487.828549999744,
+              "p95Ms": 1134.42260000017,
+              "stdDevMs": 230.65249160505445,
+              "cvPct": 40.72043186247309,
+              "throughputRowsSec": 1765.4451325936056,
+              "throughputCallsSec": 17.65445132593606
+            },
+            "statisticsScope": "successful measured iterations only; inspect success before comparison"
+          },
+          "http": {
+            "success": true,
+            "measuredSamples": 500,
+            "warmupSamples": 2,
+            "measuredRows": 500000,
+            "measuredCalls": 5000,
+            "recomputed": {
+              "totalMs": 285250.8807000034,
+              "minMs": 403.637000000104,
+              "maxMs": 1391.21639999934,
+              "avgMs": 570.5017614000068,
+              "medianMs": 531.8613000004555,
+              "p95Ms": 897.44840000011,
+              "stdDevMs": 145.95549244674578,
+              "cvPct": 25.583705839675613,
+              "throughputRowsSec": 1752.8429667701778,
+              "throughputCallsSec": 17.528429667701776
+            },
+            "statisticsScope": "successful measured iterations only; inspect success before comparison"
+          },
+          "protheusRest": {
+            "success": true,
+            "measuredSamples": 500,
+            "warmupSamples": 2,
+            "measuredRows": 500000,
+            "measuredCalls": 5000,
+            "recomputed": {
+              "totalMs": 338125.1568999999,
+              "minMs": 494.371799999848,
+              "maxMs": 1617.00029999949,
+              "avgMs": 676.2503137999997,
+              "medianMs": 652.0735999997705,
+              "p95Ms": 1022.73480000068,
+              "stdDevMs": 168.84917989003287,
+              "cvPct": 24.968443850507377,
+              "throughputRowsSec": 1478.7423822116684,
+              "throughputCallsSec": 14.787423822116684
+            },
+            "statisticsScope": "successful measured iterations only; inspect success before comparison"
+          },
+          "hbbridgeAddon": {
+            "success": true,
+            "measuredSamples": 500,
+            "warmupSamples": 2,
+            "measuredRows": 500000,
+            "measuredCalls": 5000,
+            "recomputed": {
+              "totalMs": 169406.0,
+              "minMs": 265,
+              "maxMs": 812,
+              "avgMs": 338.812,
+              "medianMs": 313.0,
+              "p95Ms": 500,
+              "stdDevMs": 69.13835878873608,
+              "cvPct": 20.406112767179465,
+              "throughputRowsSec": 2951.489321511635,
+              "throughputCallsSec": 29.51489321511635
+            },
+            "statisticsScope": "successful server-side measured traversals only; warmups excluded",
+            "timingScope": "Harbour addon: local paged dispatcher, SQL, hash traversal and value validation; excludes transport and HRB loading",
+            "clock": "HBBridgeMonotonicMs",
+            "callElapsedMs": 170103.0521,
+            "serverRunElapsedMs": 170000,
+            "transport": "TCP",
+            "networkCalls": 1,
+            "workerCalls": 0,
+            "returnedDatasetRows": 0,
+            "callTimingScope": "one complete ADDON.Execute call, including HRB loading, all warmups/traversals, JSON and network; separate from server samples"
+          },
+          "protheusServer": {
+            "success": true,
+            "measuredSamples": 500,
+            "warmupSamples": 2,
+            "measuredRows": 500000,
+            "measuredCalls": 5000,
+            "recomputed": {
+              "totalMs": 216324.3607000057,
+              "minMs": 307.495099999942,
+              "maxMs": 792.37740000058,
+              "avgMs": 432.64872140001137,
+              "medianMs": 418.086999999825,
+              "p95Ms": 542.121899999678,
+              "stdDevMs": 64.61157399903476,
+              "cvPct": 14.933956996326643,
+              "throughputRowsSec": 2311.3439391756256,
+              "throughputCallsSec": 23.113439391756252
+            },
+            "statisticsScope": "successful measured iterations only; inspect success before comparison",
+            "timingScope": "Protheus worker: local DBAccess SELECT plus COUNT per page, keyed dataset traversal and value validation; excludes environment preparation, teardown and outer StartJob",
+            "clock": "HBBridgeTime.TimeCounter.normalized.ms",
+            "callElapsedMs": 222329.7548,
+            "serverRunElapsedMs": 217062.84,
+            "transport": "StartJob",
+            "networkCalls": 0,
+            "workerCalls": 1,
+            "returnedDatasetRows": 0,
+            "callTimingScope": "one complete StartJob call including environment preparation, all warmups/traversals, JSON and teardown; internal samples exclude preparation and teardown"
+          }
+        },
+        "validation": {
+          "checks": 15184,
+          "failures": []
+        },
+        "success": true
+      },
+      {
+        "file": "hbbridge-benchmark-4C54065BB534174FAE051D02B434E9E3.json",
+        "fileSHA256": "942DB4C6EDF6D4FF378C2F699E69320B477D9BB19C8565ED5520FD8BF6CC5797",
+        "settings": {
+          "schemaVersion": 1,
+          "routeSelectionVersion": 1,
+          "runID": "4C54065BB534174FAE051D02B434E9E3",
+          "startedLocal": "20261024/13:20:28",
+          "fixture": "m08.constant.v1",
+          "profile": "MSSQL/pData",
+          "protheusEnvironment": "PROTHEUS_NGROK",
+          "rowsPerIteration": 1000,
+          "pageSize": 100,
+          "iterations": 5,
+          "warmupIterations": 2,
+          "concurrency": 1,
+          "selectedRoutes": {
+            "tcp": true,
+            "http": true,
+            "protheusStartJob": false,
+            "protheusRest": true,
+            "hbbridgeAddon": true,
+            "protheusServer": true
+          },
+          "routeStates": {
+            "tcp": "completed",
+            "http": "completed",
+            "protheusStartJob": "skipped",
+            "protheusRest": "completed",
+            "hbbridgeAddon": "completed",
+            "protheusServer": "completed"
+          },
+          "transportOrder": "TCP,HTTP,ProtheusREST,hbBridgeAddon,ProtheusServer",
+          "timeoutSeconds": 100,
+          "clock": "HBBridgeTime.TimeCounter.normalized.ms",
+          "serverUnix": false,
+          "timingScope": "full paged traversal including client calls, value checks and dataset close",
+          "clientConstructionTimed": false,
+          "warmupExcludedFromMeasuredStatistics": true,
+          "clientPolicy": "production TCP framing; benchmark HTTP requires gzip responses, with no identity fallback",
+          "httpAcceptEncoding": "gzip, identity;q=0",
+          "httpRequireGzip": true,
+          "comparisonScope": "same constant SQL, SELECT plus COUNT per page and dataset validation; StartJob is an in-process job, not TCP",
+          "comparisonBackend": "Protheus uses its environment DBAccess configuration; verify it targets the same MSSQL database as the explicit hbBridge alias",
+          "physicalPooling": "not inferred; record the hbBridge process configuration separately",
+          "memory": {
+            "status": "UNAVAILABLE",
+            "scope": "sample the AppServer process externally; no per-thread or peak memory estimate"
+          },
+          "runElapsedMs": 20048.2879999988
+        },
+        "routes": {
+          "tcp": {
+            "success": true,
+            "measuredSamples": 5,
+            "warmupSamples": 2,
+            "measuredRows": 5000,
+            "measuredCalls": 50,
+            "recomputed": {
+              "totalMs": 2185.8605000004172,
+              "minMs": 362.621100001037,
+              "maxMs": 520.900400001556,
+              "avgMs": 437.1721000000834,
+              "medianMs": 439.219899997115,
+              "p95Ms": 520.900400001556,
+              "stdDevMs": 58.66197997841285,
+              "cvPct": 13.41850954770482,
+              "throughputRowsSec": 2287.428680832581,
+              "throughputCallsSec": 22.87428680832581
+            },
+            "statisticsScope": "successful measured iterations only; inspect success before comparison"
+          },
+          "http": {
+            "success": true,
+            "measuredSamples": 5,
+            "warmupSamples": 2,
+            "measuredRows": 5000,
+            "measuredCalls": 50,
+            "recomputed": {
+              "totalMs": 2075.735300000758,
+              "minMs": 397.095100000501,
+              "maxMs": 433.252300001681,
+              "avgMs": 415.1470600001516,
+              "medianMs": 415.33199999854,
+              "p95Ms": 433.252300001681,
+              "stdDevMs": 13.071847985185626,
+              "cvPct": 3.1487271005076733,
+              "throughputRowsSec": 2408.7849736901303,
+              "throughputCallsSec": 24.0878497369013
+            },
+            "statisticsScope": "successful measured iterations only; inspect success before comparison"
+          },
+          "protheusRest": {
+            "success": true,
+            "measuredSamples": 5,
+            "warmupSamples": 2,
+            "measuredRows": 5000,
+            "measuredCalls": 50,
+            "recomputed": {
+              "totalMs": 3095.809899996966,
+              "minMs": 582.435100000352,
+              "maxMs": 651.497699998319,
+              "avgMs": 619.1619799993932,
+              "medianMs": 631.888000000268,
+              "p95Ms": 651.497699998319,
+              "stdDevMs": 26.436328365432274,
+              "cvPct": 4.269695042557068,
+              "throughputRowsSec": 1615.086249321995,
+              "throughputCallsSec": 16.15086249321995
+            },
+            "statisticsScope": "successful measured iterations only; inspect success before comparison"
+          },
+          "hbbridgeAddon": {
+            "success": true,
+            "measuredSamples": 5,
+            "warmupSamples": 2,
+            "measuredRows": 5000,
+            "measuredCalls": 50,
+            "recomputed": {
+              "totalMs": 1406.0,
+              "minMs": 250,
+              "maxMs": 344,
+              "avgMs": 281.2,
+              "medianMs": 266,
+              "p95Ms": 344,
+              "stdDevMs": 32.89620038849472,
+              "cvPct": 11.698506539293996,
+              "throughputRowsSec": 3556.1877667140825,
+              "throughputCallsSec": 35.56187766714083
+            },
+            "statisticsScope": "successful server-side measured traversals only; warmups excluded",
+            "timingScope": "Harbour addon: local paged dispatcher, SQL, hash traversal and value validation; excludes transport and HRB loading",
+            "clock": "HBBridgeMonotonicMs",
+            "callElapsedMs": 1965.64869999886,
+            "serverRunElapsedMs": 1953,
+            "transport": "TCP",
+            "networkCalls": 1,
+            "workerCalls": 0,
+            "returnedDatasetRows": 0,
+            "callTimingScope": "one complete ADDON.Execute call, including HRB loading, all warmups/traversals, JSON and network; separate from server samples"
+          },
+          "protheusServer": {
+            "success": true,
+            "measuredSamples": 5,
+            "warmupSamples": 2,
+            "measuredRows": 5000,
+            "measuredCalls": 50,
+            "recomputed": {
+              "totalMs": 1719.010200001299,
+              "minMs": 331.684500001371,
+              "maxMs": 350.754100002348,
+              "avgMs": 343.8020400002598,
+              "medianMs": 343.728199999779,
+              "p95Ms": 350.754100002348,
+              "stdDevMs": 6.977196767597866,
+              "cvPct": 2.0294227362910915,
+              "throughputRowsSec": 2908.6505711229765,
+              "throughputCallsSec": 29.086505711229766
+            },
+            "statisticsScope": "successful measured iterations only; inspect success before comparison",
+            "timingScope": "Protheus worker: local DBAccess SELECT plus COUNT per page, keyed dataset traversal and value validation; excludes environment preparation, teardown and outer StartJob",
+            "clock": "HBBridgeTime.TimeCounter.normalized.ms",
+            "callElapsedMs": 6782.72329999879,
+            "serverRunElapsedMs": 2395.57169999927,
+            "transport": "StartJob",
+            "networkCalls": 0,
+            "workerCalls": 1,
+            "returnedDatasetRows": 0,
+            "callTimingScope": "one complete StartJob call including environment preparation, all warmups/traversals, JSON and teardown; internal samples exclude preparation and teardown"
+          }
+        },
+        "validation": {
+          "checks": 334,
+          "failures": []
+        },
+        "success": true
+      },
+      {
+        "file": "hbbridge-benchmark-59108C5247C8CD45A8C991F6BCFF99E7.json",
+        "fileSHA256": "0A1667E2C21A5611A9F0047D2E83F4F8AE96F123B5BB94675F2135D4DAD9609C",
+        "settings": {
+          "schemaVersion": 1,
+          "routeSelectionVersion": 1,
+          "runID": "59108C5247C8CD45A8C991F6BCFF99E7",
+          "startedLocal": "20261024/08:49:23",
+          "fixture": "m08.constant.v1",
+          "profile": "MSSQL/pData",
+          "protheusEnvironment": "PROTHEUS_NGROK",
+          "rowsPerIteration": 10000,
+          "pageSize": 1000,
+          "iterations": 1500,
+          "warmupIterations": 2,
+          "concurrency": 1,
+          "selectedRoutes": {
+            "tcp": true,
+            "http": true,
+            "protheusStartJob": false,
+            "protheusRest": true,
+            "hbbridgeAddon": true,
+            "protheusServer": true
+          },
+          "routeStates": {
+            "tcp": "completed",
+            "http": "completed",
+            "protheusStartJob": "skipped",
+            "protheusRest": "completed",
+            "hbbridgeAddon": "completed",
+            "protheusServer": "completed"
+          },
+          "transportOrder": "TCP,HTTP,ProtheusREST,hbBridgeAddon,ProtheusServer",
+          "timeoutSeconds": 3000,
+          "clock": "HBBridgeTime.TimeCounter.normalized.ms",
+          "serverUnix": false,
+          "timingScope": "full paged traversal including client calls, value checks and dataset close",
+          "clientConstructionTimed": false,
+          "warmupExcludedFromMeasuredStatistics": true,
+          "clientPolicy": "production TCP framing; benchmark HTTP requires gzip responses, with no identity fallback",
+          "httpAcceptEncoding": "gzip, identity;q=0",
+          "httpRequireGzip": true,
+          "comparisonScope": "same constant SQL, SELECT plus COUNT per page and dataset validation; StartJob is an in-process job, not TCP",
+          "comparisonBackend": "Protheus uses its environment DBAccess configuration; verify it targets the same MSSQL database as the explicit hbBridge alias",
+          "physicalPooling": "not inferred; record the hbBridge process configuration separately",
+          "memory": {
+            "status": "UNAVAILABLE",
+            "scope": "sample the AppServer process externally; no per-thread or peak memory estimate"
+          },
+          "runElapsedMs": 8305614.1283
+        },
+        "routes": {
+          "tcp": {
+            "success": true,
+            "measuredSamples": 1500,
+            "warmupSamples": 2,
+            "measuredRows": 15000000,
+            "measuredCalls": 15000,
+            "recomputed": {
+              "totalMs": 1640096.5811999703,
+              "minMs": 703.080900000408,
+              "maxMs": 1818.87120000087,
+              "avgMs": 1093.39772079998,
+              "medianMs": 1069.940449999645,
+              "p95Ms": 1365.7368999999,
+              "stdDevMs": 151.20901928978282,
+              "cvPct": 13.829278808003306,
+              "throughputRowsSec": 9145.802858161747,
+              "throughputCallsSec": 9.145802858161748
+            },
+            "statisticsScope": "successful measured iterations only; inspect success before comparison"
+          },
+          "http": {
+            "success": true,
+            "measuredSamples": 1500,
+            "warmupSamples": 2,
+            "measuredRows": 15000000,
+            "measuredCalls": 15000,
+            "recomputed": {
+              "totalMs": 2135325.310000008,
+              "minMs": 868.642799999565,
+              "maxMs": 3250.62460000068,
+              "avgMs": 1423.5502066666722,
+              "medianMs": 1316.30065000057,
+              "p95Ms": 2096.30340000056,
+              "stdDevMs": 340.1050067088634,
+              "cvPct": 23.89132502079007,
+              "throughputRowsSec": 7024.690771824338,
+              "throughputCallsSec": 7.024690771824338
+            },
+            "statisticsScope": "successful measured iterations only; inspect success before comparison"
+          },
+          "protheusRest": {
+            "success": true,
+            "measuredSamples": 1500,
+            "warmupSamples": 2,
+            "measuredRows": 15000000,
+            "measuredCalls": 15000,
+            "recomputed": {
+              "totalMs": 2228150.1558000427,
+              "minMs": 1234.98889999837,
+              "maxMs": 6357.51509999856,
+              "avgMs": 1485.4334372000285,
+              "medianMs": 1379.67294999957,
+              "p95Ms": 1910.64749999903,
+              "stdDevMs": 293.6361976927821,
+              "cvPct": 19.767711587687995,
+              "throughputRowsSec": 6732.0418064975875,
+              "throughputCallsSec": 6.7320418064975875
+            },
+            "statisticsScope": "successful measured iterations only; inspect success before comparison"
+          },
+          "hbbridgeAddon": {
+            "success": true,
+            "measuredSamples": 1500,
+            "warmupSamples": 2,
+            "measuredRows": 15000000,
+            "measuredCalls": 15000,
+            "recomputed": {
+              "totalMs": 756422.0,
+              "minMs": 422,
+              "maxMs": 1094,
+              "avgMs": 504.28133333333335,
+              "medianMs": 484.0,
+              "p95Ms": 656,
+              "stdDevMs": 65.97618397236654,
+              "cvPct": 13.083209631468916,
+              "throughputRowsSec": 19830.200602309294,
+              "throughputCallsSec": 19.830200602309294
+            },
+            "statisticsScope": "successful server-side measured traversals only; warmups excluded",
+            "timingScope": "Harbour addon: local paged dispatcher, SQL, hash traversal and value validation; excludes transport and HRB loading",
+            "clock": "HBBridgeMonotonicMs",
+            "callElapsedMs": 757407.285800003,
+            "serverRunElapsedMs": 757344,
+            "transport": "TCP",
+            "networkCalls": 1,
+            "workerCalls": 0,
+            "returnedDatasetRows": 0,
+            "callTimingScope": "one complete ADDON.Execute call, including HRB loading, all warmups/traversals, JSON and network; separate from server samples"
+          },
+          "protheusServer": {
+            "success": true,
+            "measuredSamples": 1500,
+            "warmupSamples": 2,
+            "measuredRows": 15000000,
+            "measuredCalls": 15000,
+            "recomputed": {
+              "totalMs": 1527944.8026999945,
+              "minMs": 853.179800000042,
+              "maxMs": 2046.5503000021,
+              "avgMs": 1018.629868466663,
+              "medianMs": 989.3982999976724,
+              "p95Ms": 1209.98059999943,
+              "stdDevMs": 110.29801054348447,
+              "cvPct": 10.828075433279349,
+              "throughputRowsSec": 9817.108558826118,
+              "throughputCallsSec": 9.817108558826117
+            },
+            "statisticsScope": "successful measured iterations only; inspect success before comparison",
+            "timingScope": "Protheus worker: local DBAccess SELECT plus COUNT per page, keyed dataset traversal and value validation; excludes environment preparation, teardown and outer StartJob",
+            "clock": "HBBridgeTime.TimeCounter.normalized.ms",
+            "callElapsedMs": 1534303.3231,
+            "serverRunElapsedMs": 1529983.7256,
+            "transport": "StartJob",
+            "networkCalls": 0,
+            "workerCalls": 1,
+            "returnedDatasetRows": 0,
+            "callTimingScope": "one complete StartJob call including environment preparation, all warmups/traversals, JSON and teardown; internal samples exclude preparation and teardown"
+          }
+        },
+        "validation": {
+          "checks": 45184,
+          "failures": []
+        },
+        "success": true
+      },
+      {
+        "file": "hbbridge-benchmark-A7DBFCF38010954CBF183D5B91BAFDB7.json",
+        "fileSHA256": "6B30527E293EA443B30A9A1C428F68EB354BC90A72397E698DBD3988E8B6D1ED",
+        "settings": {
+          "schemaVersion": 1,
+          "routeSelectionVersion": 1,
+          "runID": "A7DBFCF38010954CBF183D5B91BAFDB7",
+          "startedLocal": "20261024/06:43:21",
+          "fixture": "m08.constant.v1",
+          "profile": "MSSQL/pData",
+          "protheusEnvironment": "PROTHEUS_NGROK",
+          "rowsPerIteration": 1000,
+          "pageSize": 100,
+          "iterations": 5,
+          "warmupIterations": 2,
+          "concurrency": 1,
+          "selectedRoutes": {
+            "tcp": true,
+            "http": true,
+            "protheusStartJob": true,
+            "protheusRest": true,
+            "hbbridgeAddon": true,
+            "protheusServer": true
+          },
+          "routeStates": {
+            "tcp": "completed",
+            "http": "completed",
+            "protheusStartJob": "completed",
+            "protheusRest": "completed",
+            "hbbridgeAddon": "completed",
+            "protheusServer": "completed"
+          },
+          "transportOrder": "TCP,HTTP,ProtheusStartJob,ProtheusREST,hbBridgeAddon,ProtheusServer",
+          "timeoutSeconds": 100,
+          "clock": "HBBridgeTime.TimeCounter.normalized.ms",
+          "serverUnix": false,
+          "timingScope": "full paged traversal including client calls, value checks and dataset close",
+          "clientConstructionTimed": false,
+          "warmupExcludedFromMeasuredStatistics": true,
+          "clientPolicy": "production TCP framing; benchmark HTTP requires gzip responses, with no identity fallback",
+          "httpAcceptEncoding": "gzip, identity;q=0",
+          "httpRequireGzip": true,
+          "comparisonScope": "same constant SQL, SELECT plus COUNT per page and dataset validation; StartJob is an in-process job, not TCP",
+          "comparisonBackend": "Protheus uses its environment DBAccess configuration; verify it targets the same MSSQL database as the explicit hbBridge alias",
+          "physicalPooling": "not inferred; record the hbBridge process configuration separately",
+          "memory": {
+            "status": "UNAVAILABLE",
+            "scope": "sample the AppServer process externally; no per-thread or peak memory estimate"
+          },
+          "runElapsedMs": 208640.9632
+        },
+        "routes": {
+          "tcp": {
+            "success": true,
+            "measuredSamples": 5,
+            "warmupSamples": 2,
+            "measuredRows": 5000,
+            "measuredCalls": 50,
+            "recomputed": {
+              "totalMs": 1670.300299999303,
+              "minMs": 299.462400000542,
+              "maxMs": 364.397799999453,
+              "avgMs": 334.0600599998606,
+              "medianMs": 339.923700000159,
+              "p95Ms": 364.397799999453,
+              "stdDevMs": 24.071715961923896,
+              "cvPct": 7.205804836990672,
+              "throughputRowsSec": 2993.4736885349816,
+              "throughputCallsSec": 29.934736885349817
+            },
+            "statisticsScope": "successful measured iterations only; inspect success before comparison"
+          },
+          "http": {
+            "success": true,
+            "measuredSamples": 5,
+            "warmupSamples": 2,
+            "measuredRows": 5000,
+            "measuredCalls": 50,
+            "recomputed": {
+              "totalMs": 1976.215400001034,
+              "minMs": 378.576600000262,
+              "maxMs": 413.409200000577,
+              "avgMs": 395.2430800002068,
+              "medianMs": 395.121900000609,
+              "p95Ms": 413.409200000577,
+              "stdDevMs": 12.892161727877538,
+              "cvPct": 3.2618311060299376,
+              "throughputRowsSec": 2530.088572327381,
+              "throughputCallsSec": 25.300885723273808
+            },
+            "statisticsScope": "successful measured iterations only; inspect success before comparison"
+          },
+          "protheusStartJob": {
+            "success": true,
+            "measuredSamples": 5,
+            "warmupSamples": 2,
+            "measuredRows": 5000,
+            "measuredCalls": 50,
+            "recomputed": {
+              "totalMs": 133787.2673000004,
+              "minMs": 22176.8066999996,
+              "maxMs": 30692.2263000002,
+              "avgMs": 26757.45346000008,
+              "medianMs": 26116.3491000002,
+              "p95Ms": 30692.2263000002,
+              "stdDevMs": 3250.315668344575,
+              "cvPct": 12.147328120007744,
+              "throughputRowsSec": 37.3727642466017,
+              "throughputCallsSec": 0.373727642466017
+            },
+            "statisticsScope": "successful measured iterations only; inspect success before comparison"
+          },
+          "protheusRest": {
+            "success": true,
+            "measuredSamples": 5,
+            "warmupSamples": 2,
+            "measuredRows": 5000,
+            "measuredCalls": 50,
+            "recomputed": {
+              "totalMs": 3120.378100000323,
+              "minMs": 587.693900000304,
+              "maxMs": 677.258499999531,
+              "avgMs": 624.0756200000645,
+              "medianMs": 601.615699999966,
+              "p95Ms": 677.258499999531,
+              "stdDevMs": 37.65817582396663,
+              "cvPct": 6.034232810434533,
+              "throughputRowsSec": 1602.3699179274086,
+              "throughputCallsSec": 16.023699179274086
+            },
+            "statisticsScope": "successful measured iterations only; inspect success before comparison"
+          },
+          "hbbridgeAddon": {
+            "success": true,
+            "measuredSamples": 5,
+            "warmupSamples": 2,
+            "measuredRows": 5000,
+            "measuredCalls": 50,
+            "recomputed": {
+              "totalMs": 1484.0,
+              "minMs": 281,
+              "maxMs": 313,
+              "avgMs": 296.8,
+              "medianMs": 297,
+              "p95Ms": 313,
+              "stdDevMs": 14.091131963046829,
+              "cvPct": 4.7476859713769635,
+              "throughputRowsSec": 3369.2722371967657,
+              "throughputCallsSec": 33.692722371967655
+            },
+            "statisticsScope": "successful server-side measured traversals only; warmups excluded",
+            "timingScope": "Harbour addon: local paged dispatcher, SQL, hash traversal and value validation; excludes transport and HRB loading",
+            "clock": "HBBridgeMonotonicMs",
+            "callElapsedMs": 2036.20720000006,
+            "serverRunElapsedMs": 2015,
+            "transport": "TCP",
+            "networkCalls": 1,
+            "workerCalls": 0,
+            "returnedDatasetRows": 0,
+            "callTimingScope": "one complete ADDON.Execute call, including HRB loading, all warmups/traversals, JSON and network; separate from server samples"
+          },
+          "protheusServer": {
+            "success": true,
+            "measuredSamples": 5,
+            "warmupSamples": 2,
+            "measuredRows": 5000,
+            "measuredCalls": 50,
+            "recomputed": {
+              "totalMs": 2022.81839999929,
+              "minMs": 386.19299999997,
+              "maxMs": 438.536899999715,
+              "avgMs": 404.563679999858,
+              "medianMs": 398.096900000237,
+              "p95Ms": 438.536899999715,
+              "stdDevMs": 18.560856872908296,
+              "cvPct": 4.587870288532775,
+              "throughputRowsSec": 2471.798753660613,
+              "throughputCallsSec": 24.717987536606127
+            },
+            "statisticsScope": "successful measured iterations only; inspect success before comparison",
+            "timingScope": "Protheus worker: local DBAccess SELECT plus COUNT per page, keyed dataset traversal and value validation; excludes environment preparation, teardown and outer StartJob",
+            "clock": "HBBridgeTime.TimeCounter.normalized.ms",
+            "callElapsedMs": 5137.99179999996,
+            "serverRunElapsedMs": 2766.85479999986,
+            "transport": "StartJob",
+            "networkCalls": 0,
+            "workerCalls": 1,
+            "returnedDatasetRows": 0,
+            "callTimingScope": "one complete StartJob call including environment preparation, all warmups/traversals, JSON and teardown; internal samples exclude preparation and teardown"
+          }
+        },
+        "validation": {
+          "checks": 398,
+          "failures": []
+        },
+        "success": true
+      },
+      {
+        "file": "hbbridge-benchmark-FE3135B9F8C63C4199005F77786E3F6C.json",
+        "fileSHA256": "B92C796ABEAB674157AD39D4D29B3644213AAD33C30D8C612A88380F603D2FC1",
+        "settings": {
+          "schemaVersion": 1,
+          "routeSelectionVersion": 1,
+          "runID": "FE3135B9F8C63C4199005F77786E3F6C",
+          "startedLocal": "20261024/06:47:22",
+          "fixture": "m08.constant.v1",
+          "profile": "MSSQL/pData",
+          "protheusEnvironment": "PROTHEUS_NGROK",
+          "rowsPerIteration": 1000,
+          "pageSize": 100,
+          "iterations": 5,
+          "warmupIterations": 2,
+          "concurrency": 1,
+          "selectedRoutes": {
+            "tcp": true,
+            "http": true,
+            "protheusStartJob": false,
+            "protheusRest": true,
+            "hbbridgeAddon": true,
+            "protheusServer": true
+          },
+          "routeStates": {
+            "tcp": "completed",
+            "http": "completed",
+            "protheusStartJob": "skipped",
+            "protheusRest": "completed",
+            "hbbridgeAddon": "completed",
+            "protheusServer": "completed"
+          },
+          "transportOrder": "TCP,HTTP,ProtheusREST,hbBridgeAddon,ProtheusServer",
+          "timeoutSeconds": 100,
+          "clock": "HBBridgeTime.TimeCounter.normalized.ms",
+          "serverUnix": false,
+          "timingScope": "full paged traversal including client calls, value checks and dataset close",
+          "clientConstructionTimed": false,
+          "warmupExcludedFromMeasuredStatistics": true,
+          "clientPolicy": "production TCP framing; benchmark HTTP requires gzip responses, with no identity fallback",
+          "httpAcceptEncoding": "gzip, identity;q=0",
+          "httpRequireGzip": true,
+          "comparisonScope": "same constant SQL, SELECT plus COUNT per page and dataset validation; StartJob is an in-process job, not TCP",
+          "comparisonBackend": "Protheus uses its environment DBAccess configuration; verify it targets the same MSSQL database as the explicit hbBridge alias",
+          "physicalPooling": "not inferred; record the hbBridge process configuration separately",
+          "memory": {
+            "status": "UNAVAILABLE",
+            "scope": "sample the AppServer process externally; no per-thread or peak memory estimate"
+          },
+          "runElapsedMs": 15727.9465999994
+        },
+        "routes": {
+          "tcp": {
+            "success": true,
+            "measuredSamples": 5,
+            "warmupSamples": 2,
+            "measuredRows": 5000,
+            "measuredCalls": 50,
+            "recomputed": {
+              "totalMs": 1567.2294999994351,
+              "minMs": 299.754100000486,
+              "maxMs": 329.326399999671,
+              "avgMs": 313.445899999887,
+              "medianMs": 305.759699999355,
+              "p95Ms": 329.326399999671,
+              "stdDevMs": 12.511466294803265,
+              "cvPct": 3.9915871589986587,
+              "throughputRowsSec": 3190.3432139337615,
+              "throughputCallsSec": 31.903432139337614
+            },
+            "statisticsScope": "successful measured iterations only; inspect success before comparison"
+          },
+          "http": {
+            "success": true,
+            "measuredSamples": 5,
+            "warmupSamples": 2,
+            "measuredRows": 5000,
+            "measuredCalls": 50,
+            "recomputed": {
+              "totalMs": 1899.399700000882,
+              "minMs": 355.181700000539,
+              "maxMs": 399.402400000021,
+              "avgMs": 379.8799400001764,
+              "medianMs": 383.410299999639,
+              "p95Ms": 399.402400000021,
+              "stdDevMs": 15.136189592272064,
+              "cvPct": 3.9844666691968613,
+              "throughputRowsSec": 2632.410650584855,
+              "throughputCallsSec": 26.32410650584855
+            },
+            "statisticsScope": "successful measured iterations only; inspect success before comparison"
+          },
+          "protheusRest": {
+            "success": true,
+            "measuredSamples": 5,
+            "warmupSamples": 2,
+            "measuredRows": 5000,
+            "measuredCalls": 50,
+            "recomputed": {
+              "totalMs": 2891.361100000329,
+              "minMs": 555.972299999557,
+              "maxMs": 591.189100000076,
+              "avgMs": 578.2722200000658,
+              "medianMs": 586.793200000189,
+              "p95Ms": 591.189100000076,
+              "stdDevMs": 14.310037040345312,
+              "cvPct": 2.47461948636296,
+              "throughputRowsSec": 1729.2893647906626,
+              "throughputCallsSec": 17.292893647906624
+            },
+            "statisticsScope": "successful measured iterations only; inspect success before comparison"
+          },
+          "hbbridgeAddon": {
+            "success": true,
+            "measuredSamples": 5,
+            "warmupSamples": 2,
+            "measuredRows": 5000,
+            "measuredCalls": 50,
+            "recomputed": {
+              "totalMs": 1297.0,
+              "minMs": 250,
+              "maxMs": 281,
+              "avgMs": 259.4,
+              "medianMs": 250,
+              "p95Ms": 281,
+              "stdDevMs": 12.451505933018705,
+              "cvPct": 4.800117938711915,
+              "throughputRowsSec": 3855.0501156515033,
+              "throughputCallsSec": 38.55050115651503
+            },
+            "statisticsScope": "successful server-side measured traversals only; warmups excluded",
+            "timingScope": "Harbour addon: local paged dispatcher, SQL, hash traversal and value validation; excludes transport and HRB loading",
+            "clock": "HBBridgeMonotonicMs",
+            "callElapsedMs": 1783.82400000002,
+            "serverRunElapsedMs": 1781,
+            "transport": "TCP",
+            "networkCalls": 1,
+            "workerCalls": 0,
+            "returnedDatasetRows": 0,
+            "callTimingScope": "one complete ADDON.Execute call, including HRB loading, all warmups/traversals, JSON and network; separate from server samples"
+          },
+          "protheusServer": {
+            "success": true,
+            "measuredSamples": 5,
+            "warmupSamples": 2,
+            "measuredRows": 5000,
+            "measuredCalls": 50,
+            "recomputed": {
+              "totalMs": 1622.546400000341,
+              "minMs": 306.517699999735,
+              "maxMs": 353.518099999987,
+              "avgMs": 324.5092800000682,
+              "medianMs": 318.02430000063,
+              "p95Ms": 353.518099999987,
+              "stdDevMs": 16.87387400011215,
+              "cvPct": 5.199812467646103,
+              "throughputRowsSec": 3081.5759721872664,
+              "throughputCallsSec": 30.815759721872663
+            },
+            "statisticsScope": "successful measured iterations only; inspect success before comparison",
+            "timingScope": "Protheus worker: local DBAccess SELECT plus COUNT per page, keyed dataset traversal and value validation; excludes environment preparation, teardown and outer StartJob",
+            "clock": "HBBridgeTime.TimeCounter.normalized.ms",
+            "callElapsedMs": 4884.88030000031,
+            "serverRunElapsedMs": 2270.35219999962,
+            "transport": "StartJob",
+            "networkCalls": 0,
+            "workerCalls": 1,
+            "returnedDatasetRows": 0,
+            "callTimingScope": "one complete StartJob call including environment preparation, all warmups/traversals, JSON and teardown; internal samples exclude preparation and teardown"
+          }
+        },
+        "validation": {
+          "checks": 334,
+          "failures": []
+        },
+        "success": true
+      }
+    ],
+    "limitations": [
+      "A report is self-reported evidence, without deployed executable/RPO hashes.",
+      "Compression policy fields do not independently capture response headers.",
+      "Pooling, system load and route order may affect comparisons between runs.",
+      "Server-local traversal samples and complete client traversals have distinct scopes."
+    ]
+  }
+}

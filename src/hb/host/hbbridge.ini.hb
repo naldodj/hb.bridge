@@ -26,6 +26,8 @@ FUNCTION HBBridgeConfigINI( cContents, hDefaults, cError )
         "ADMIN" => { "HOST" => "adminHost", "PORT" => "adminPort", "PASSWORD" => "adminPassword" }, ;
         "HTTP" => { "ENABLED" => "httpEnabled", "HOST" => "httpHost", "PORT" => "httpPort", ;
             "LISTENBACKLOG" => "httpListenBacklog", ;
+            "SENDTIMEOUTMS" => "httpSendTimeoutMs", "COMPRESSION" => "httpCompression", ;
+            "COMPRESSIONMINBYTES" => "httpCompressionMinBytes", "COMPRESSIONLEVEL" => "httpCompressionLevel", ;
             "PASSWORD" => "httpPassword", "TLS" => "httpTLS", "CERTIFICATE" => "httpCertificate", ;
             "PRIVATEKEY" => "httpPrivateKey" } }
     hProfileKeys := { "DRIVER" => "driver", "DATABASE" => "database", ;

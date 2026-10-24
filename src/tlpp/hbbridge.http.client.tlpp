@@ -18,20 +18,25 @@ class HBBridgeHTTPClient
     private data cURL as character
     private data cToken as character
     private data cConfigurationError as character
+    private data cAcceptEncoding as character
+
+    private data lRequireGzip as logical
 
     private data nTimeoutSeconds as numeric
     private data nHTTPStatus as numeric
 
-    public method New(cURL as character, cToken as character, nTimeoutSeconds as numeric) as object
+    public method New(cURL as character, cToken as character, nTimeoutSeconds as numeric, ;
+        cAcceptEncoding as character, lRequireGzip as logical) as object
     public method Health() as JSON
     public method Services() as JSON
     public method CallService(cService as character, jParams as JSON) as JSON
     public method StatusCode() as numeric
+    public method AcceptEncoding() as character
     private method Request(cMethod as character, cPath as character, cBody as character) as JSON
 
 endclass
 
-method New(cURL, cToken, nTimeoutSeconds) class HBBridgeHTTPClient
+method New(cURL, cToken, nTimeoutSeconds, cAcceptEncoding, lRequireGzip) class HBBridgeHTTPClient
 
     local cIniFile := GetSrvIniName() as character
     local cTimeout := "" as character
@@ -41,6 +46,8 @@ method New(cURL, cToken, nTimeoutSeconds) class HBBridgeHTTPClient
     self:nTimeoutSeconds := 0
     self:nHTTPStatus := 0
     self:cConfigurationError := ""
+    self:cAcceptEncoding := "identity"
+    self:lRequireGzip := .F.
 
     // Only omitted arguments read installation values; explicit values win.
     if ValType(cURL) == "U"
@@ -53,6 +60,12 @@ method New(cURL, cToken, nTimeoutSeconds) class HBBridgeHTTPClient
         cTimeout := GetPvProfString("hbBridge", "HTTPTimeoutSeconds", "30", cIniFile)
         nTimeoutSeconds := HTTPTimeout(cTimeout)
     endif
+    if ValType(cAcceptEncoding) == "U"
+        cAcceptEncoding := GetPvProfString("hbBridge", "HTTPAcceptEncoding", "gzip", cIniFile)
+    endif
+    if ValType(lRequireGzip) == "U"
+        lRequireGzip := .F.
+    endif
 
     if !HTTPURLValid(cURL)
         self:cConfigurationError := "Invalid HTTPURL: supply an HTTP(S) destination without credentials, query or fragment."
@@ -62,6 +75,14 @@ method New(cURL, cToken, nTimeoutSeconds) class HBBridgeHTTPClient
         self:cConfigurationError := "HTTPTimeoutSeconds must be a positive integer."
     elseif nTimeoutSeconds < 1 .or. nTimeoutSeconds > 2147483647 .or. nTimeoutSeconds != Int(nTimeoutSeconds)
         self:cConfigurationError := "HTTPTimeoutSeconds must fit a positive signed 32-bit integer."
+    elseif ValType(cAcceptEncoding) != "C"
+        self:cConfigurationError := "HTTPAcceptEncoding must be gzip or identity."
+    elseif !(cAcceptEncoding == "gzip" .or. cAcceptEncoding == "identity")
+        self:cConfigurationError := "HTTPAcceptEncoding must be gzip or identity."
+    elseif ValType(lRequireGzip) != "L"
+        self:cConfigurationError := "RequireGzip must be logical."
+    elseif lRequireGzip .and. cAcceptEncoding != "gzip"
+        self:cConfigurationError := "RequireGzip needs gzip negotiation."
     else
         self:cURL := AllTrim(cURL)
         do while Right(self:cURL, 1) == "/"
@@ -70,6 +91,8 @@ method New(cURL, cToken, nTimeoutSeconds) class HBBridgeHTTPClient
         // Credentials are opaque: preserve their bytes and never log them.
         self:cToken := cToken
         self:nTimeoutSeconds := nTimeoutSeconds
+        self:cAcceptEncoding := cAcceptEncoding
+        self:lRequireGzip := lRequireGzip
     endif
 
 return(self)
@@ -121,6 +144,10 @@ method StatusCode() class HBBridgeHTTPClient
 
 return(self:nHTTPStatus)
 
+method AcceptEncoding() class HBBridgeHTTPClient
+
+return(IIf(self:lRequireGzip, "gzip, identity;q=0", self:cAcceptEncoding))
+
 method Request(cMethod, cPath, cBody) class HBBridgeHTTPClient
 
     // FWRest's native API requires an array of header strings.
@@ -128,12 +155,17 @@ method Request(cMethod, cPath, cBody) class HBBridgeHTTPClient
 
     local cResponse as character
     local cInternalError as character
+    local cExpanded as character
+    local cEncoding as character
 
     local jResponse as JSON
 
     local lConnected as logical
+    local lExpanded := .F. as logical
+    local lRawGzip := .F. as logical
 
     local oREST as object
+    local oDecodeError as object
 
     jResponse := JSONObject():New()
     cResponse := ""
@@ -142,7 +174,7 @@ method Request(cMethod, cPath, cBody) class HBBridgeHTTPClient
     aHeaders := { ;
         "Accept: application/json", ;
         "Content-Type: application/json; charset=utf-8", ;
-        "Accept-Encoding: identity", ;
+        "Accept-Encoding: " + self:AcceptEncoding(), ;
         "Authorization: Bearer " + self:cToken ;
     }
 
@@ -166,6 +198,7 @@ method Request(cMethod, cPath, cBody) class HBBridgeHTTPClient
     endif
     self:nHTTPStatus := Val(oREST:GetHTTPCode())
     cResponse := oREST:GetResult()
+    cEncoding := HTTPResponseEncoding(oREST)
     // This LIB exposes an unauthorized response through cInternalError with
     // a zero HTTP code. Keep this compatibility fallback local to the client.
     if !Empty(oREST:cInternalError)
@@ -196,6 +229,30 @@ method Request(cMethod, cPath, cBody) class HBBridgeHTTPClient
         return HTTPFailure("INVALID_HTTP_RESPONSE", "The HTTP response has no JSON body.")
     endif
 
+    // This LIB exposes gzip bytes through GetResult(). A native client that
+    // already expands the response leaves JSON here, avoiding a second decode.
+    lRawGzip := Left(cResponse, 2) == Chr(31) + Chr(139)
+    if self:lRequireGzip .and. !lRawGzip .and. cEncoding != "gzip"
+        FreeObj(@jResponse)
+        return HTTPFailure("HTTP_COMPRESSION_REQUIRED", "The HTTP response must use gzip; identity fallback is disabled.")
+    endif
+    if lRawGzip
+        cExpanded := ""
+        try
+            lExpanded := GzStrDecomp(cResponse, Len(cResponse), @cExpanded)
+        catch oDecodeError
+            if ValType(oDecodeError) == "O"
+                FreeObj(@oDecodeError)
+            endif
+            lExpanded := .F.
+        endtry
+        if !lExpanded
+            FreeObj(@jResponse)
+            return HTTPFailure("HTTP_DECOMPRESSION_FAILED", "The HTTP gzip response is invalid or incomplete.")
+        endif
+        cResponse := cExpanded
+    endif
+
     // Retain native JSON types and recover embedded NUL without recoding text.
     // HTML/proxy errors fail here without logging raw headers or body contents.
     if !HBBridge.Client.HBBridgeJSON():Parse(cResponse, jResponse)
@@ -223,6 +280,45 @@ method Request(cMethod, cPath, cBody) class HBBridgeHTTPClient
 
     // Preserve native service codes and error bodies, including non-2xx JSON.
 return(jResponse)
+
+// Native FWRest exposes the received header fields as an SDK-owned array.
+static function HTTPResponseEncoding(oREST as object) as character
+
+    local aHeaders as array
+
+    local cCR := Chr(13), cLF := Chr(10) as character
+    local cName := "", cValue := "" as character
+
+    local nHeader := 0, nHeaders := 0 as numeric
+
+    local oHeaderError as object
+
+    try
+        aHeaders := oREST:oResponseH:aHeaderFields
+    catch oHeaderError
+        if ValType(oHeaderError) == "O"
+            FreeObj(@oHeaderError)
+        endif
+        return ""
+    endtry
+    if ValType(aHeaders) != "A"
+        return ""
+    endif
+    nHeaders := Len(aHeaders)
+    for nHeader := 1 to nHeaders
+        if ValType(aHeaders[nHeader]) == "A"
+            if Len(aHeaders[nHeader]) >= 2 .and. ValType(aHeaders[nHeader][1]) == "C" .and. ;
+                ValType(aHeaders[nHeader][2]) == "C"
+                cName := Lower(AllTrim(aHeaders[nHeader][1]))
+                if cName == "content-encoding"
+                    cValue := Lower(AllTrim(StrTran(StrTran(aHeaders[nHeader][2], cCR, ""), cLF, "")))
+                    return cValue
+                endif
+            endif
+        endif
+    next nHeader
+
+return ""
 
 static function HTTPTimeout(cValue as character) as numeric
 

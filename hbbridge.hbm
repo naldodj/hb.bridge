@@ -20,6 +20,7 @@ src/hb/transports/protheus/hbbridge.adapter.hb
 src/hb/transports/protheus/hbbridge.server.hb
 src/hb/transports/netio/hbbridge.netio.hb
 src/hb/transports/http/hbbridge.http.hb
+src/hb/transports/http/hbbridge.http.encoding.hb
 src/hb/host/hbbridge.config.hb
 src/hb/host/hbbridge.ini.hb
 src/hb/host/hbbridge.life.cycle.hb

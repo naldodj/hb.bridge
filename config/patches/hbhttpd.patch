@@ -1,12 +1,14 @@
 diff --git a/hbhttpd/core.prg b/hbhttpd/core.prg
 --- a/hbhttpd/core.prg
 +++ b/hbhttpd/core.prg
-@@ -77,11 +77,14 @@
+@@ -77,11 +77,16 @@ METHOD Run( hConfig ) CLASS UHttpd
     ::hConfig := { ;
        "SSL"                  => .F., ;
        "Port"                 => 80, ;
 +      "MaxWorkers"           => THREAD_COUNT_MAX, ;
 +      "ListenBacklog"        => 10, ;
++      "SendTimeout"          => 30000, ;
++      "SendChunkSize"        => 65536, ;
        "BindAddress"          => "0.0.0.0", ;
        "LogAccess"            => {|| NIL }, ;
        "LogError"             => {|| NIL }, ;
@@ -16,7 +18,7 @@ diff --git a/hbhttpd/core.prg b/hbhttpd/core.prg
        "Mount"                => { => }, ;
        "PrivateKeyFilename"   => "", ;
        "CertificateFilename"  => "", ;
-@@ -123,6 +126,21 @@
+@@ -123,6 +128,33 @@ METHOD Run( hConfig ) CLASS UHttpd
        RETURN .F.
     ENDIF
 
@@ -35,10 +37,22 @@ diff --git a/hbhttpd/core.prg b/hbhttpd/core.prg
 +      ENDIF
 +   ENDIF
 +
++   IF ::hConfig[ "SendTimeout" ] < 0 .OR. ::hConfig[ "SendTimeout" ] > 2147483647 .OR. ;
++         ::hConfig[ "SendTimeout" ] != Int( ::hConfig[ "SendTimeout" ] )
++      ::cError := "Invalid send timeout"
++      RETURN .F.
++   ENDIF
++
++   IF ::hConfig[ "SendChunkSize" ] < 1 .OR. ::hConfig[ "SendChunkSize" ] > 2147483647 .OR. ;
++         ::hConfig[ "SendChunkSize" ] != Int( ::hConfig[ "SendChunkSize" ] )
++      ::cError := "Invalid send chunk size"
++      RETURN .F.
++   ENDIF
++
     IF ParseFirewallFilter( ::hConfig[ "FirewallFilter" ], @aI )
        ::aFirewallFilter := aI
     ELSE
-@@ -139,27 +157,30 @@
+@@ -139,27 +171,30 @@ METHOD Run( hConfig ) CLASS UHttpd
        RETURN .F.
     ENDIF
 
@@ -65,15 +79,14 @@ diff --git a/hbhttpd/core.prg b/hbhttpd/core.prg
 
     ::lStop := .F.
     ::hSession := { => }
--
--   DO WHILE .T.
 +   Eval( ::hConfig[ "Ready" ], Self )
-+
+
+-   DO WHILE .T.
 +   DO WHILE ! ::lStop
        IF Empty( hSocket := hb_socketAccept( ::hListen,, 1000 ) )
           IF hb_socketGetError() == HB_SOCKET_ERR_TIMEOUT
              Eval( ::hConfig[ "Idle" ], Self )
-@@ -172,7 +193,7 @@
+@@ -172,7 +207,7 @@ METHOD Run( hConfig ) CLASS UHttpd
        ELSE
           Eval( ::hConfig[ "Trace" ], "New connection", hSocket )
           IF hb_mutexQueueInfo( ::hmtxQueue, @nWorkers, @nJobs ) .AND. ;
@@ -82,7 +95,7 @@ diff --git a/hbhttpd/core.prg b/hbhttpd/core.prg
                 nJobs >= nWorkers
              AAdd( aThreads, hb_threadStart( HB_THREAD_INHERIT_PUBLIC, @ProcessConnection(), Self ) )
           ENDIF
-@@ -211,7 +232,7 @@
+@@ -211,7 +246,7 @@ METHOD LogAccess() CLASS UHttpd
        server[ "REMOTE_ADDR" ] + " - - [" + Right( cDate, 2 ) + "/" + ;
        { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" }[ Val( SubStr( cDate, 5, 2 ) ) ] + ;
        "/" + Left( cDate, 4 ) + ":" + cTime + ' +0000] "' + server[ "REQUEST_ALL" ] + '" ' + ;
@@ -91,25 +104,36 @@ diff --git a/hbhttpd/core.prg b/hbhttpd/core.prg
        ' "' + server[ "HTTP_REFERER" ] + '" "' + server[ "HTTP_USER_AGENT" ] + ;
        '"' )
     hb_mutexUnlock( ::hmtxLog )
-@@ -514,7 +535,7 @@
+@@ -425,6 +460,7 @@ STATIC FUNCTION MY_SSL_ACCEPT( hConfig, hSSL, hSocket, nTimeout )
+
+ STATIC FUNCTION ProcessConnection( oServer )
+
++   LOCAL cHeaderEnd := CR_LF + CR_LF
+    LOCAL hSocket, cRequest, aI, nLen, nErr, nTime, nReqLen, cBuf, aServer
+    LOCAL hSSL
+
+@@ -514,7 +550,7 @@ STATIC FUNCTION ProcessConnection( oServer )
           nLen := 1
           nTime := hb_MilliSeconds()
           cBuf := Space( 4096 )
 -         DO WHILE At( CR_LF + CR_LF, cRequest ) == 0
-+         DO WHILE hb_BAt( CR_LF + CR_LF, cRequest ) == 0 .AND. ! oServer:lStop
++         DO WHILE hb_BAt( cHeaderEnd, cRequest ) == 0 .AND. ! oServer:lStop
              IF oServer:lHasSSL .AND. oServer:hConfig[ "SSL" ]
                 nLen := MY_SSL_READ( oServer:hConfig, hSSL, hSocket, @cBuf, 1000, @nErr )
              ELSE
-@@ -559,7 +580,7 @@
+@@ -559,9 +595,9 @@ STATIC FUNCTION ProcessConnection( oServer )
           t_nStatusCode := 200
           t_aSessionData := NIL
 
 -         Eval( oServer:hConfig[ "Trace" ], Left( cRequest, At( CR_LF + CR_LF, cRequest ) + 1 ) )
-+         Eval( oServer:hConfig[ "Trace" ], hb_BLeft( cRequest, hb_BAt( CR_LF + CR_LF, cRequest ) + 1 ) )
++         Eval( oServer:hConfig[ "Trace" ], hb_BLeft( cRequest, hb_BAt( cHeaderEnd, cRequest ) + 1 ) )
 
-          nReqLen := ParseRequestHeader( @cRequest )
+-         nReqLen := ParseRequestHeader( @cRequest )
++         nReqLen := ParseRequestHeader( @cRequest, cHeaderEnd )
           IF nReqLen == NIL
-@@ -571,7 +592,7 @@
+             USetStatusCode( 400 )
+             UAddHeader( "Connection", "close" )
+@@ -571,7 +607,7 @@ STATIC FUNCTION ProcessConnection( oServer )
              nLen := 1
              nTime := hb_MilliSeconds()
              cBuf := Space( 4096 )
@@ -118,7 +142,7 @@ diff --git a/hbhttpd/core.prg b/hbhttpd/core.prg
                 IF oServer:lHasSSL .AND. oServer:hConfig[ "SSL" ]
                    nLen := MY_SSL_READ( oServer:hConfig, hSSL, hSocket, @cBuf, 1000, @nErr )
                 ELSE
-@@ -605,8 +626,8 @@
+@@ -605,8 +641,8 @@ STATIC FUNCTION ProcessConnection( oServer )
              ENDIF
 
              Eval( oServer:hConfig[ "Trace" ], cRequest )
@@ -129,27 +153,131 @@ diff --git a/hbhttpd/core.prg b/hbhttpd/core.prg
 
              /* Deal with supported protocols and methods */
              IF !( Left( server[ "SERVER_PROTOCOL" ], 5 ) == "HTTP/" )
-@@ -729,11 +750,11 @@
+@@ -635,24 +671,9 @@ STATIC FUNCTION ProcessConnection( oServer )
 
- STATIC FUNCTION ParseRequestHeader( cRequest )
+          // Send response
+          cBuf := MakeResponse( oServer:hConfig )
+-
+-         DO WHILE hb_BLen( cBuf ) > 0 .AND. ! oServer:lStop
+-            IF oServer:lHasSSL .AND. oServer:hConfig[ "SSL" ]
+-               nLen := MY_SSL_WRITE( oServer:hConfig, hSSL, hSocket, cBuf, 1000, @nErr )
+-            ELSE
+-               nLen := hb_socketSend( hSocket, cBuf,,, 1000 )
+-               IF nLen < 0
+-                  nErr := hb_socketGetError()
+-               ENDIF
+-            ENDIF
+-
+-            IF nLen < 0
+-               Eval( oServer:hConfig[ "Trace" ], "send error:", nErr, hb_socketErrorString( nErr ) )
+-               EXIT
+-            ELSEIF nLen > 0
+-               cBuf := hb_BSubStr( cBuf, nLen + 1 )
+-            ENDIF
+-         ENDDO
++         IF ! SendResponse( oServer, hSSL, hSocket, cBuf )
++            EXIT
++         ENDIF
+
+          IF oServer:lStop
+             EXIT
+@@ -676,6 +697,68 @@ STATIC FUNCTION ProcessConnection( oServer )
+
+    RETURN 0
+
++STATIC FUNCTION SendResponse( oServer, hSSL, hSocket, cResponse )
++
++   LOCAL cChunk := ""
++   LOCAL lSSL := oServer:lHasSSL .AND. oServer:hConfig[ "SSL" ]
++   LOCAL nLength := hb_BLen( cResponse ), nOffset := 1, nLen, nErr, nWait
++   LOCAL nChunkSize := oServer:hConfig[ "SendChunkSize" ]
++   LOCAL nTimeout := oServer:hConfig[ "SendTimeout" ], nTime := UHttpdSendClock()
++
++   /* A writable blocking socket can still block inside send(). */
++   IF ! lSSL .AND. hb_socketSetBlockingIO( hSocket, .F. ) < 0
++      Eval( oServer:hConfig[ "Trace" ], "send nonblocking error:", hb_socketGetError() )
++      RETURN .F.
++   ENDIF
++
++   DO WHILE nOffset <= nLength .AND. ! oServer:lStop
++      nWait := 1000
++      IF nTimeout > 0
++         nWait := Min( nWait, nTimeout - ( UHttpdSendClock() - nTime ) )
++         IF nWait <= 0
++            Eval( oServer:hConfig[ "Trace" ], "send timeout:", nOffset - 1, nLength )
++            RETURN .F.
++         ENDIF
++      ENDIF
++
++      IF hb_BLen( cChunk ) == 0
++         cChunk := hb_BSubStr( cResponse, nOffset, nChunkSize )
++      ENDIF
++      IF lSSL
++         /* Keep the same buffer and length while SSL_write() wants a retry. */
++         nLen := MY_SSL_WRITE( oServer:hConfig, hSSL, hSocket, cChunk, nWait, @nErr )
++      ELSE
++         nLen := hb_socketSend( hSocket, cChunk,,, nWait )
++         IF nLen < 0
++            nErr := hb_socketGetError()
++         ELSEIF nLen == 0
++            Eval( oServer:hConfig[ "Trace" ], "send closed:", nOffset - 1, nLength )
++            RETURN .F.
++         ENDIF
++      ENDIF
++
++      IF nLen > 0
++         nOffset += nLen
++         /* Only a bounded chunk is copied after a partial send. */
++         cChunk := hb_BSubStr( cChunk, nLen + 1 )
++      ELSEIF nLen < 0 .AND. nErr != HB_SOCKET_ERR_TIMEOUT .AND. nErr != HB_SOCKET_ERR_AGAIN
++         Eval( oServer:hConfig[ "Trace" ], "send error:", nErr, hb_socketErrorString( nErr ), nOffset - 1, nLength )
++         RETURN .F.
++      ENDIF
++   ENDDO
++
++   IF oServer:lStop
++      RETURN .F.
++   ENDIF
++
++   /* Plain accepted sockets are blocking before each response. */
++   IF ! lSSL .AND. hb_socketSetBlockingIO( hSocket, .T. ) < 0
++      Eval( oServer:hConfig[ "Trace" ], "send blocking restore error:", hb_socketGetError() )
++      RETURN .F.
++   ENDIF
++
++   RETURN nOffset > nLength
++
+ STATIC PROCEDURE ProcessRequest( oServer )
+
+    LOCAL nI, aMount, cMount, cPath, bEval, xRet, nT := hb_MilliSeconds()
+@@ -727,13 +810,13 @@ STATIC PROCEDURE ProcessRequest( oServer )
+
+    RETURN
+
+-STATIC FUNCTION ParseRequestHeader( cRequest )
++STATIC FUNCTION ParseRequestHeader( cRequest, cHeaderEnd )
 
 -   LOCAL aRequest, aLine, nI, nJ, cI, nK, nContentLength := 0
--
++   LOCAL aRequest, aLine, nI, nJ, cI, nK, nContentLength := 0, lHasContentLength := .F.
+
 -   nI := At( CR_LF + CR_LF, cRequest )
 -   aRequest := hb_ATokens( Left( cRequest, nI - 1 ), CR_LF )
 -   cRequest := SubStr( cRequest, nI + 4 )
-+   LOCAL aRequest, aLine, nI, nJ, cI, nK, nContentLength := 0, lHasContentLength := .F.
-+
-+   nI := hb_BAt( CR_LF + CR_LF, cRequest )
++   nI := hb_BAt( cHeaderEnd, cRequest )
 +   aRequest := hb_ATokens( hb_BLeft( cRequest, nI - 1 ), CR_LF )
 +   cRequest := hb_BSubStr( cRequest, nI + 4 )
 
     aLine := hb_ATokens( aRequest[ 1 ], " " )
 
-@@ -789,7 +810,14 @@
+@@ -789,7 +872,19 @@ STATIC FUNCTION ParseRequestHeader( cRequest )
                 cookie[ Upper( Left( cI, nK - 1 ) ) ] := SubStr( cI, nK + 1 )
              ENDIF
              EXIT
++         CASE "ACCEPT-ENCODING"
++            /* Repeated field lines form one comma-separated coding list. */
++            server[ "HTTP_ACCEPT_ENCODING" ] += ;
++               iif( Empty( server[ "HTTP_ACCEPT_ENCODING" ] ), "", "," ) + cI
++            EXIT
 +         CASE "TRANSFER-ENCODING"
 +            /* This server reads Content-Length bodies, not transfer codings. */
 +            RETURN NIL
@@ -161,21 +289,21 @@ diff --git a/hbhttpd/core.prg b/hbhttpd/core.prg
              nContentLength := Val( cI )
              EXIT
           CASE "CONTENT-TYPE"
-@@ -816,6 +844,8 @@
- STATIC PROCEDURE ParseRequestBody( cRequest )
+@@ -817,6 +912,8 @@ STATIC PROCEDURE ParseRequestBody( cRequest )
 
     LOCAL nI, cPart, cEncoding
-+
-+   server[ "REQUEST_BODY" ] := cRequest
 
++   server[ "REQUEST_BODY" ] := cRequest
++
     IF hb_HHasKey( server, "CONTENT_TYPE" ) .AND. ;
           Left( server[ "CONTENT_TYPE" ], 33 ) == "application/x-www-form-urlencoded"
-@@ -900,10 +930,10 @@
+       IF ( nI := At( "CHARSET=", Upper( server[ "CONTENT_TYPE" ] ) ) ) > 0
+@@ -900,10 +997,10 @@ STATIC FUNCTION MakeResponse( hConfig )
     ENDSWITCH
 
     cRet += cStatus + CR_LF
 -   IF t_nStatusCode != 200
-+   IF t_nStatusCode != 200 .AND. Empty( t_cResult )
++   IF t_nStatusCode != 200 .AND. t_nStatusCode != 406 .AND. Empty( t_cResult )
        t_cResult := "<html><body><h1>" + cStatus + "</h1></body></html>"
     ENDIF
 -   UAddHeader( "Content-Length", hb_ntos( Len( t_cResult ) ) )
@@ -183,3 +311,20 @@ diff --git a/hbhttpd/core.prg b/hbhttpd/core.prg
     AEval( t_aHeader, {| x | cRet += x[ 1 ] + ": " + x[ 2 ] + CR_LF } )
     cRet += CR_LF
     Eval( hConfig[ "Trace" ], cRet )
+@@ -1735,3 +1832,16 @@ STATIC FUNCTION SubStrCount( cSub, cString, nStart, nEnd )
+    ENDDO
+
+    RETURN nCount
++
++#pragma BEGINDUMP
++
++#include "hbapi.h"
++#include "hbdate.h"
++
++HB_FUNC( UHTTPDSENDCLOCK )
++{
++   /* Use Harbour's elapsed-time clock, independently of civil clock changes. */
++   hb_retnint( ( HB_MAXINT ) hb_timerGet() );
++}
++
++#pragma ENDDUMP

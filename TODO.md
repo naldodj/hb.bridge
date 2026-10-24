@@ -11,6 +11,10 @@ code or specifically identified evidence, not unrestricted platform acceptance.
 prerequisites and evidence. Continue there instead of reanalyzing this entire
 roadmap. Reconcile completed items here when the package closes; intermediate
 commits/publication preserve its progress. Package 001 MSSQL acceptance is complete; package 002 is typed SQL/native presentation.
+Current user priority: investigate and improve hbBridge HTTP performance with
+attributable timing/acceptance. T01 remains unfinished; its
+[typed SQL draft](docs/typed-sql.md) is parked pending review, and T02–T05 have
+not started.
 The [2026-10-12 extension review](docs/extensions-review.md) evaluates SQLRDD,
 Duktape and CCHarbour as future packages, without adding runtime dependencies.
 
@@ -532,6 +536,11 @@ and Oracle require their own evidence.
 
 ### Native presentation and shared query results
 
+- [ ] Future MEMIO result reuse: materialize once, publish immutable results
+  behind authorized opaque handles and read through independent areas, with
+  explicit lifetime/memory/cleanup and type-integrity acceptance. The native
+  22+1-check probe is not a product cache service. Preserve fresh Query pages;
+  [design and evidence](docs/evolution.md#in-memory-results-between-requests).
 - [ ] TLPP adapter from an explicit schema/paginated dataset to client-owned
   FWTemporaryTable and native browse, preserving types/nulls and cleanup.
 - [ ] Separate RPCRDD.Materialize/Release contract for committed MSSQL staging
@@ -607,6 +616,11 @@ and Oracle require their own evidence.
   HTTP behind a TLS reverse proxy is a separate deployment configuration.
 - [ ] Broader REST verb/routes, OpenAPI contract, content/compression negotiation
   and client interoperability; retain generic services and explicit caller context.
+- [x] HTTP response gzip/identity negotiation and bounded partial-send lifecycle;
+  configurable send deadline/threshold/level and explicit TLPP gzip decoding.
+  Windows native and isolated AppServer evidence is recorded in
+  [the HTTP guide](docs/http.md). Request compression, direct TLS and broader
+  content/transfer negotiation remain separate work.
 - [ ] Evaluate a Zig 0.16-compatible HTTP adapter against measured hbhttpd gaps;
   preserve shared contracts/core and define C ABI/VM thread ownership. Compare
   conformance, resource use, lifecycle and Windows/Linux acceptance first.

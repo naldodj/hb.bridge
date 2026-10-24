@@ -115,7 +115,12 @@ even named shared-cache memory databases require connections in the same process
 | SQLite `:memory:` | Not a shared AppServer result store; the current connection closes after each call. |
 | SQLite file | Requires an explicitly shared location, compatible client access, schema, locks/journaling and cleanup. `LOCALFILES=SQLITE` alone does not provide that integration. |
 
-A first presentation adapter can create `FWTemporaryTable` in TLPP from an
+`HBBridgeBrowseData` already presents the current page through FWBrowse arrays,
+with Protheus-side labels/masks and a temporary table used by its filter UI.
+It does not populate a native result table. Package 002's
+[typed SQL/presentation draft](typed-sql.md) inventories this implementation;
+T01 remains pending review while HTTP performance has priority.
+A result-table adapter can create `FWTemporaryTable` in TLPP from an
 explicit schema and copy paginated rows, returning the owning object and alias
 for `FWMBrowse`. This retains the existing transport. The TOTVS
 [temporary table contract](https://tdn.totvs.com/display/framework/FWTemporaryTable)
@@ -139,5 +144,69 @@ connection/cursor contract. Company/branch/tenant rules, dictionary metadata,
 captions, masks and actions remain with the caller. Benchmark staging writes
 and reads against paginated JSON before choosing the default path.
 
-These presentation/materialization services are design proposals and are not
-implemented by the current query service.
+The populated native result-table adapter and server materialization service
+are proposals, not implemented capabilities of the current query service.
+
+## In-memory results between requests
+
+Future idea recorded on 2026-10-23, outside package 002 implementation:
+materialize an SQL result once and reuse it across requests without repeating
+the source SELECT. Harbour **MEMIO (`hbmemio`, `mem:`)** is an in-memory virtual
+filesystem, distinct from `MemoRead()`/`MemoWrit()`. A DBF RDD can store its
+table, memo and index files there. The contrib is in the managed dependency
+catalog; the current product does not link/expose a MEMIO result-cache service.
+
+The pinned [MEMIO implementation](https://github.com/harbour/core/blob/6deac9cf3ad977ae829e5bca543d553b92dd4b6d/contrib/hbmemio/memio.c)
+retains named files after their last open handle closes, in shared process
+storage. Closing an SQL connection or an RDD area need not remove those files.
+This observation concerns ordinary named DBF/memo/index files. An RDD
+temporary/auto-delete table can delete its files when its owning area closes
+(for example through `DBI_ISTEMPORARY`); MEMIO does not override that policy.
+An independent thread can reopen retained files with its own workarea/cursor. Explicit
+deletion or process exit ends that lifetime; another process/host cannot read
+the same MEMIO store. This is reuse within one running host, not durability
+across service restarts. The source's byte-lock operations are stubs; its
+internal critical section does not establish concurrent DBF write/record-lock
+semantics. Start any future evaluation with immutable published results and
+independent read-only areas, not concurrent writers.
+
+The reusable [native probe](../tests/probes/hbbridge.memio.snapshot.test.hb)
+and [runner](../scripts/test-harbour-memio.ps1) passed on 2026-10-23 with managed
+Windows Harbour/Zig: **22 assertions in one process plus one fresh-process
+assertion**, zero failures/exit 0. They cover producer close/thread exit,
+DBF/FPT/CDX reopening, two independent reader threads/cursors, memo NUL bytes,
+explicit three-file deletion and loss at process exit. No SQL connection,
+product endpoint, cache service, write-lock or Linux acceptance is inferred.
+
+Proposed future flow, with no service names or new API committed yet:
+
+1. An authorized caller requests a materialized result using an explicit
+   profile, SQL, values and caller-resolved access scope.
+2. The host fetches once, creates a private result, validates its schema/values
+   and publishes it read-only only after completing the copy/indexes.
+3. Return an opaque authorized handle. Later requests read pages/seek through
+   independent areas using that handle; they do not rerun the source SELECT.
+4. Explicit release, expiration or memory eviction retires the result. Wait
+   for active readers before deleting every associated file. Refresh creates
+   and publishes a new result instead of rewriting a published snapshot.
+
+This stores an observation made at materialization time. It does not create
+database transaction/snapshot guarantees while the original query is fetched,
+or notice later writes through DBAccess/other applications. The caller chooses
+freshness/refresh and Protheus resolves tenant/company/branch; the host enforces
+the supplied authorization scope. Do not transparently reuse another user's
+SQL text/result or infer ERP context. A pathname is not an authorization token.
+
+Before implementation, define ownership, scope isolation, expiry/last-use,
+reference counts, cancellation/partial-build cleanup, configurable memory
+budgets and exhaustion/eviction behavior. Prove UTF-8, NULL, long text, exact
+numeric representation and index behavior; a DBF copy must not silently change
+SQL types. Compare MEMIO/RDD with hashes or another explicit result store using
+creation/copy/index cost, repeated-read latency, memory and source freshness.
+Repeated database queries may already benefit from the database's own cache;
+no speed advantage follows from storage in RAM alone.
+
+Keep `RPCRDD.Query` fresh-query/page semantics unchanged. Result reuse is separate
+from ODBC physical connection pooling, Protheus-owned FWTemporaryTable and MSSQL
+staging materialization. One reusable result can reduce source work and stabilize
+subsequent page traversal, at the cost of memory and deliberately older data.

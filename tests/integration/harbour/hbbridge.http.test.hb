@@ -34,6 +34,8 @@ PROCEDURE HTTPTests( nFailures, nChecks )
     cUnicode := hb_HexToStr( "C3A9E4B8ADE69687F09F9880" )
     cUnicodeJSON := '{"text":"' + cUnicode + '"}'
 
+    HTTPEncodingTests( @nFailures, @nChecks )
+
     HTTPAssert( ! hConfig[ "httpEnabled" ] .AND. hConfig[ "httpHost" ] == "127.0.0.1" .AND. ;
         hConfig[ "httpPort" ] == 8080 .AND. Empty( hConfig[ "httpPassword" ] ), ;
         "HTTP is disabled with loopback defaults and no default secret", @nFailures, @nChecks )
@@ -120,6 +122,8 @@ PROCEDURE HTTPTests( nFailures, nChecks )
             hb_jsonEncode( { "text" => cLarge } ), cDataAuth )
         HTTPAssert( hResponse[ "status" ] == 200 .AND. hResponse[ "json" ][ "params" ][ "text" ] == cLarge, ;
             "REST service route returns a large JSON body identically", @nFailures, @nChecks )
+        HTTPCompressionTests( hConfig[ "httpPort" ], cDataAuth, cLarge + cUnicode + Chr( 0 ) + "end", ;
+            @nFailures, @nChecks )
         hResponse := HBBridgeHTTPTestRequest( hConfig[ "httpPort" ], "POST", "/api/v1/services/Echo", cUnicodeJSON, cDataAuth )
         HTTPAssert( hResponse[ "status" ] == 200 .AND. hResponse[ "json" ][ "params" ][ "text" ] == cUnicode, ;
             "REST preserves raw UTF-8 accents, CJK and supplementary characters", @nFailures, @nChecks )
@@ -488,7 +492,132 @@ FUNCTION HBBridgeHTTPTestRequest( nPort, cMethod, cPath, cBody, cAuthorization, 
         hResponse[ "headers" ] := hb_BLeft( cResponse, nSeparator - 1 )
         hResponse[ "body" ] := hb_BSubStr( cResponse, nSeparator + 4 )
         hResponse[ "status" ] := Val( SubStr( cResponse, 10, 3 ) )
-        hb_jsonDecode( hResponse[ "body" ], @hJSON )
+        hResponse[ "decodedBody" ] := hResponse[ "body" ]
+        IF "content-encoding: gzip" $ Lower( hResponse[ "headers" ] )
+            hResponse[ "decodedBody" ] := hb_ZUncompress( hResponse[ "body" ] )
+        ENDIF
+        IF HB_ISSTRING( hResponse[ "decodedBody" ] )
+            hb_jsonDecode( hResponse[ "decodedBody" ], @hJSON )
+        ENDIF
         hResponse[ "json" ] := hJSON
     ENDIF
 RETURN hResponse
+
+STATIC PROCEDURE HTTPEncodingTests( nFailures, nChecks )
+
+    LOCAL cError
+
+    LOCAL hWeights, hConfig := HBBridgeConfig( {} )
+
+    hWeights := HBBridgeHTTPEncoding( "gzip;q=0.125, identity;q=0.250" )
+    HTTPAssert( hWeights[ "gzip" ] == 125 .AND. hWeights[ "identity" ] == 250, ;
+        "HTTP coding qualities keep integer precision", @nFailures, @nChecks )
+    hWeights := HBBridgeHTTPEncoding( "GZip ; q=0, *;q=1" )
+    HTTPAssert( hWeights[ "gzip" ] == 0 .AND. hWeights[ "identity" ] == 1000, ;
+        "explicit gzip exclusion overrides wildcard", @nFailures, @nChecks )
+    hWeights := HBBridgeHTTPEncoding( "gzip;q=1.001, identity;q=0" )
+    HTTPAssert( hWeights[ "gzip" ] == 0 .AND. hWeights[ "identity" ] == 0, ;
+        "invalid quality cannot authorize gzip", @nFailures, @nChecks )
+    hWeights := HBBridgeHTTPEncoding( "gzip;q=1,gzip;q=0" )
+    HTTPAssert( hWeights[ "gzip" ] == 0, "duplicate coding uses restrictive quality", @nFailures, @nChecks )
+    hWeights := HBBridgeHTTPEncoding( "x-gzip-unknown, br" )
+    HTTPAssert( hWeights[ "gzip" ] == 0 .AND. hWeights[ "identity" ] == 1000, ;
+        "unknown coding is not a gzip token", @nFailures, @nChecks )
+    HTTPAssert( hConfig[ "httpCompression" ] == "auto" .AND. hConfig[ "httpSendTimeoutMs" ] == 30000, ;
+        "HTTP response defaults use negotiated gzip and bounded sending", @nFailures, @nChecks )
+    hConfig[ "httpCompression" ] := "always"
+    HTTPAssert( ! HBBridgeConfigValid( hConfig, @cError ), ;
+        "HTTP rejects unnegotiated compression mode", @nFailures, @nChecks )
+    hConfig[ "httpCompression" ] := "off"
+    hConfig[ "httpSendTimeoutMs" ] := 0
+    HTTPAssert( HBBridgeConfigValid( hConfig, @cError ), ;
+        "HTTP permits explicit compression off and disabled send deadline", @nFailures, @nChecks )
+    hConfig[ "httpSendTimeoutMs" ] := -1
+    HTTPAssert( ! HBBridgeConfigValid( hConfig, @cError ), ;
+        "HTTP rejects negative send deadline", @nFailures, @nChecks )
+    hConfig[ "httpSendTimeoutMs" ] := 30000
+    hConfig[ "httpCompressionMinBytes" ] := 0.5
+    HTTPAssert( ! HBBridgeConfigValid( hConfig, @cError ), ;
+        "HTTP rejects fractional compression threshold", @nFailures, @nChecks )
+    hConfig[ "httpCompressionMinBytes" ] := 0
+    hConfig[ "httpCompressionLevel" ] := 10
+    HTTPAssert( ! HBBridgeConfigValid( hConfig, @cError ), ;
+        "HTTP rejects invalid zlib compression level", @nFailures, @nChecks )
+    hb_MemoWrit( "config-test/http-response.ini", "[HTTP]" + hb_eol() + ;
+        "SendTimeoutMs=45000" + hb_eol() + "Compression=off" + hb_eol() + ;
+        "CompressionMinBytes=2048" + hb_eol() + "CompressionLevel=3" + hb_eol() )
+    hConfig := HBBridgeConfig( { "-config=config-test/http-response.ini", "-httpcompression=auto", ;
+        "-httpsendtimeoutms=5000" }, @cError )
+    HTTPAssert( HB_ISHASH( hConfig ) .AND. hConfig[ "httpSendTimeoutMs" ] == 5000 .AND. ;
+        hConfig[ "httpCompression" ] == "auto" .AND. hConfig[ "httpCompressionMinBytes" ] == 2048 .AND. ;
+        hConfig[ "httpCompressionLevel" ] == 3, ;
+        "HTTP INI response policy honors explicit CLI overrides", @nFailures, @nChecks )
+
+RETURN
+
+STATIC PROCEDURE HTTPCompressionTests( nPort, cAuthorization, cText, nFailures, nChecks )
+
+    LOCAL cRequest := hb_jsonEncode( { "text" => cText } )
+
+    LOCAL hPlain, hCompressed, hResponse
+
+    hPlain := HBBridgeHTTPTestRequest( nPort, "POST", "/api/v1/rpc", ;
+        '{"service":"Echo","params":' + cRequest + '}', cAuthorization, NIL, "Accept-Encoding: identity" )
+    hCompressed := HBBridgeHTTPTestRequest( nPort, "POST", "/api/v1/rpc", ;
+        '{"service":"Echo","params":' + cRequest + '}', cAuthorization, NIL, "Accept-Encoding: gzip" )
+    HTTPAssert( hCompressed[ "status" ] == 200 .AND. ;
+        hb_BLeft( hCompressed[ "body" ], 2 ) == hb_HexToStr( "1F8B" ), ;
+        "RPC negotiates real gzip bytes", @nFailures, @nChecks )
+    HTTPAssert( HB_ISHASH( hCompressed[ "json" ] ) .AND. ;
+        hCompressed[ "json" ][ "params" ][ "text" ] == cText, ;
+        "gzip RPC preserves UTF-8 and embedded NUL", @nFailures, @nChecks )
+    HTTPAssert( hCompressed[ "decodedBody" ] == hPlain[ "body" ] .AND. ;
+        hb_BLen( hCompressed[ "body" ] ) < hb_BLen( hPlain[ "body" ] ), ;
+        "gzip and identity have identical JSON with fewer wire bytes", @nFailures, @nChecks )
+    HTTPAssert( HTTPContentLength( hCompressed ) == hb_BLen( hCompressed[ "body" ] ) .AND. ;
+        "Vary: Accept-Encoding" $ hCompressed[ "headers" ], ;
+        "gzip response length and Vary describe compressed representation", @nFailures, @nChecks )
+    hResponse := HBBridgeHTTPTestRequest( nPort, "POST", "/api/v1/services/Echo", cRequest, ;
+        cAuthorization, NIL, "Accept-Encoding: gzip;q=0, *;q=1" )
+    HTTPAssert( hResponse[ "status" ] == 200 .AND. ! ( "Content-Encoding:" $ hResponse[ "headers" ] ) .AND. ;
+        hResponse[ "json" ][ "params" ][ "text" ] == cText, ;
+        "REST honors gzip exclusion despite wildcard", @nFailures, @nChecks )
+    hResponse := HBBridgeHTTPTestRequest( nPort, "POST", "/api/v1/services/Echo", cRequest, ;
+        cAuthorization, NIL, "Accept-Encoding: gzip;q=0.5, identity;q=1" )
+    HTTPAssert( ! ( "Content-Encoding:" $ hResponse[ "headers" ] ), ;
+        "REST honors higher identity preference", @nFailures, @nChecks )
+    hResponse := HBBridgeHTTPTestRequest( nPort, "POST", "/api/v1/services/Echo", cRequest, ;
+        cAuthorization, NIL, "Accept-Encoding: *" )
+    HTTPAssert( "Content-Encoding: gzip" $ hResponse[ "headers" ], ;
+        "REST accepts wildcard negotiation", @nFailures, @nChecks )
+    hResponse := HBBridgeHTTPTestRequest( nPort, "GET", "/api/v1/health", "", ;
+        cAuthorization, NIL, "Accept-Encoding: gzip, identity;q=0" )
+    HTTPAssert( hResponse[ "status" ] == 200 .AND. "Content-Encoding: gzip" $ hResponse[ "headers" ] .AND. ;
+        hResponse[ "json" ][ "success" ], ;
+        "gzip-only client receives small responses compressed", @nFailures, @nChecks )
+    hResponse := HBBridgeHTTPTestRequest( nPort, "GET", "/api/v1/health", "", ;
+        cAuthorization, NIL, "Accept-Encoding: gzip;q=0, identity;q=0" )
+    HTTPAssert( hResponse[ "status" ] == 406 .AND. Empty( hResponse[ "body" ] ) .AND. ;
+        HTTPContentLength( hResponse ) == 0, ;
+        "no acceptable coding returns empty 406", @nFailures, @nChecks )
+    hResponse := HBBridgeHTTPTestRequest( nPort, "GET", "/api/v1/health", "", ;
+        cAuthorization, NIL, "Accept-Encoding: identity;q=0" + Chr( 13 ) + Chr( 10 ) + ;
+        "Accept-Encoding: gzip;q=0" )
+    HTTPAssert( hResponse[ "status" ] == 406 .AND. Empty( hResponse[ "body" ] ) .AND. ;
+        HTTPContentLength( hResponse ) == 0, ;
+        "repeated encoding fields retain every explicit coding exclusion", @nFailures, @nChecks )
+    hResponse := HBBridgeHTTPTestRequest( nPort, "GET", "/api/v1/health", "", cAuthorization )
+    HTTPAssert( hResponse[ "status" ] == 200 .AND. ! ( "Content-Encoding:" $ hResponse[ "headers" ] ) .AND. ;
+        hResponse[ "json" ][ "success" ], ;
+        "HTTP recovers after repeated encoding fields reject every coding", @nFailures, @nChecks )
+    hResponse := HBBridgeHTTPTestRequest( nPort, "POST", "/api/v1/rpc", '{"service":"Missing"}', ;
+        cAuthorization, NIL, "Accept-Encoding: gzip, identity;q=0" )
+    HTTPAssert( hResponse[ "status" ] == 404 .AND. HB_ISHASH( hResponse[ "json" ] ) .AND. ;
+        hResponse[ "json" ][ "code" ] == "SERVICE_NOT_FOUND", ;
+        "gzip retains structured non-2xx errors", @nFailures, @nChecks )
+    hResponse := HBBridgeHTTPTestRequest( nPort, "GET", "/api/v1/health", "", cAuthorization )
+    HTTPAssert( hResponse[ "status" ] == 200 .AND. ! ( "Content-Encoding:" $ hResponse[ "headers" ] ) .AND. ;
+        hResponse[ "json" ][ "success" ], ;
+        "worker resets response coding after compressed error", @nFailures, @nChecks )
+
+RETURN
