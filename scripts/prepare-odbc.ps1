@@ -10,6 +10,8 @@ $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 . (Join-Path $PSScriptRoot 'toolchain.ps1')
 $toolchain = Resolve-HBBridgeToolchain -ProjectRoot $projectRoot -HbCompileRoot $HbCompileRoot -ZigPath $ZigPath
+& (Join-Path $PSScriptRoot 'prepare-sqlite.ps1') -HbCompileRoot $toolchain.HbCompileRoot -ZigPath $toolchain.Zig -ForceBuild:$ForceBuild
+if (-not $?) { throw 'Managed SQLite dependency preparation failed.' }
 $dependencies = Get-HBBridgeDependencies -ProjectRoot $projectRoot
 $patchDefinition = $dependencies.harbour.odbcPatch
 if (-not $patchDefinition -or [string]::IsNullOrWhiteSpace($patchDefinition.path) -or
@@ -18,6 +20,10 @@ if (-not $patchDefinition -or [string]::IsNullOrWhiteSpace($patchDefinition.path
 }
 $patchFile = Join-Path $projectRoot $patchDefinition.path
 $patchHash = (Get-FileHash -LiteralPath $patchFile -Algorithm SHA256).Hash
+$sourceHashes = @{}
+foreach ($source in @('src/c/hbbridge.sql.typed.h', 'src/c/hbbridge.odbc.typed.c')) {
+    $sourceHashes[$source] = (Get-FileHash -LiteralPath (Join-Path $projectRoot $source) -Algorithm SHA256).Hash
+}
 if ($patchHash -ne $patchDefinition.sha256) {
     throw 'The managed SDDODBC patch checksum does not match config/dependencies.json.'
 }
@@ -43,7 +49,11 @@ if (-not $ForceBuild -and (Test-Path -LiteralPath $libraryFile -PathType Leaf) -
         # An incomplete receipt cannot certify the installed library.
     }
     $libraryHash = (Get-FileHash -LiteralPath $libraryFile -Algorithm SHA256).Hash
-    if ($receipt -and $receipt.harbourRevision -eq $dependencies.harbour.revision -and
+    $sourcesMatch = $receipt -and $receipt.sourceHashes -is [Collections.IDictionary]
+    foreach ($source in $sourceHashes.Keys) {
+        $sourcesMatch = $sourcesMatch -and $receipt.sourceHashes[$source] -eq $sourceHashes[$source]
+    }
+    if ($sourcesMatch -and $receipt.harbourRevision -eq $dependencies.harbour.revision -and
         $receipt.patchSha256 -eq $patchHash -and $receipt.librarySha256 -eq $libraryHash -and
         $receipt.platform -eq $libraryPlatform -and $receipt.compiler -eq $toolchain.Compiler) {
         Write-Host 'Managed SDDODBC is ready.'
@@ -95,6 +105,9 @@ $previousEnvironment = Enter-HBBridgeToolchain -Toolchain $toolchain
 try {
     New-Item -ItemType Directory -Force -Path $libraryRoot, $installModule, $includeRoot | Out-Null
     $moduleRoot = Join-Path $stageRoot 'sddodbc'
+    foreach ($source in $sourceHashes.Keys) {
+        Copy-Item -LiteralPath (Join-Path $projectRoot $source) -Destination $moduleRoot
+    }
     & $toolchain.Hbmk2 "-comp=$($toolchain.Compiler)" (Join-Path $moduleRoot 'sddodbc.hbp') `
         "-I$(Join-Path $toolchain.HarbourRoot 'contrib/rddsql')" `
         "-o$(Join-Path $libraryRoot 'sddodbc')" "-workdir=$buildRoot"
@@ -107,6 +120,7 @@ try {
     @{
         harbourRevision = $dependencies.harbour.revision
         patchSha256 = $patchHash
+        sourceHashes = $sourceHashes
         librarySha256 = (Get-FileHash -LiteralPath $libraryFile -Algorithm SHA256).Hash
         platform = $libraryPlatform
         compiler = $toolchain.Compiler

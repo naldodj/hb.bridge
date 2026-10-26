@@ -1,0 +1,485 @@
+/* Released to Public Domain. */
+#include "totvs.ch"
+
+// Native JSONObject/client boundary tests; no network or ERP tables are read.
+function U_HBBridgeTypedDataSetTest()
+
+    local aChecks as array
+
+    local cSQL:="SELECT * FROM typed_fixture WHERE A=? AND B=? AND C=? AND D=? AND E=? AND F=? AND G=? AND H=?" as character
+    local cNul:=Chr(0) as character
+    local cText:="A"+Chr(0)+Chr(195)+Chr(169) as character
+
+    local jBindings as json
+    local jChecks:=JSONObject():New() as json
+    local jHeader as json
+    local jInfo as json
+    local jRequest as json
+    local jResponse as json
+    local jRow as json
+
+    local lOpened:=.F. as logical
+    local lOK:=.T. as logical
+
+    local nCalls:=0 as numeric
+    local nCheck:=0 as numeric
+    local nChecks:=0 as numeric
+
+    local oClient:=HBBridge.Tests.HBBridgeDataSetMockClient():New() as object
+    local oDataSet:=HBBridge.RDD.HBBridgeRPCDataSet():New(oClient) as object
+
+    oDataSet:SetAliasProfile("opaque/typed")
+    jBindings:=TypedDataSetBindings()
+    TypedDataSetQueue(oClient,TypedDataSetResult(0,1,1))
+    lOpened:=oDataSet:OpenSQLTyped(cSQL,jBindings)
+    jChecks["typedOpen"]:=lOpened.and.(oDataSet:FieldCount()==10)
+    jChecks["typedServiceOnly"]:=oClient:Service(1)=="RPCRDD.QueryTyped"
+    jRequest:=oClient:Request(1)
+    jChecks["typedRequestVersionAndProfile"]:=jRequest["requestVersion"]==1.and.;
+        jRequest["alias"]=="opaque/typed".and.jRequest["sql"]==cSQL
+    jChecks["nulBindingPreserved"]:=jRequest["bindings"]["1"]["value"]==cText
+    jChecks["exactBindingStringsPreserved"]:=jRequest["bindings"]["3"]["value"]=="-9223372036854775808".and.;
+        jRequest["bindings"]["5"]["value"]=="123456789012345678901234567890.12345678"
+    jChecks["typedNullHasNoValue"]:=jRequest["bindings"]["8"]["isNull"].and.;
+        !jRequest["bindings"]["8"]:HasProperty("value")
+    FreeObj(@jRequest)
+    if (lOpened)
+        jChecks["exactInt64Result"]:=oDataSet:FieldGet("ID")=="9223372036854775807"
+        jChecks["exactDecimalResult"]:=oDataSet:FieldGet("AMOUNT")=="123456789012345678901234567890.12345678"
+        jChecks["dateStaysISOText"]:=oDataSet:FieldGet("DAY")=="2024-02-29"
+        jChecks["nullVersusMissing"]:=oDataSet:FieldExist("NULLTEXT").and.;
+            ValType(oDataSet:FieldGet("NULLTEXT"))=="U".and.!oDataSet:FieldExist("MISSING")
+        jChecks["nullDespiteNonnullableSource"]:=ValType(oDataSet:FieldGet("NULLTEXT"))=="U"
+        jChecks["emptyZeroFalseRemainDistinct"]:=oDataSet:FieldGet("EMPTY")=="".and.;
+            oDataSet:FieldGet("ZERO")==0.and.(ValType(oDataSet:FieldGet("FLAG"))=="L").and.;
+            !oDataSet:FieldGet("FLAG")
+        jChecks["nulResultPreserved"]:=oDataSet:FieldGet("TEXT")==cText
+        jChecks["unpagedTypedTotals"]:=oDataSet:HasTotals().and.;
+            oDataSet:TotalRows()==1.and.oDataSet:TotalPages()==1
+        jHeader:=oDataSet:Header()
+        jHeader["AMOUNT"]["source"]["scale"]:=0
+        jHeader["TEXT"]["source"]["column"]:="mutated"+cNul
+        jInfo:=oDataSet:FieldInfo("AMOUNT")
+        jChecks["typedNestedHeaderSnapshot"]:=jInfo["source"]["scale"]==8.and.;
+            jInfo["wire"]["jsonType"]=="string"
+        FreeObj(@jInfo)
+        jInfo:=oDataSet:FieldInfo("TEXT")
+        jChecks["typedSourceNulSnapshot"]:=jInfo["source"]["column"]=="TEXT"+cNul
+        jInfo["wire"]["encoding"]:="changed"
+        FreeObj(@jInfo)
+        FreeObj(@jHeader)
+        jInfo:=oDataSet:FieldInfo("TEXT")
+        jChecks["typedNestedFieldSnapshot"]:=jInfo["wire"]["encoding"]=="UTF-8"
+        FreeObj(@jInfo)
+        jRow:=oDataSet:GetRow()
+        jRow["AMOUNT"]:="0.00000000"
+        jRow["TEXT"]:="changed"
+        jChecks["typedRowSnapshot"]:=oDataSet:FieldGet("TEXT")==cText.and.;
+            oDataSet:FieldGet("AMOUNT")=="123456789012345678901234567890.12345678"
+        FreeObj(@jRow)
+    endif
+
+    TypedDataSetQueue(oClient,TypedDataSetResult(1,1,3))
+    TypedDataSetQueue(oClient,TypedDataSetResult(2,1,3))
+    TypedDataSetQueue(oClient,TypedDataSetResult(1,1,3))
+    lOpened:=oDataSet:OpenPageTyped(cSQL,jBindings,1,1,"ID ASC")
+    nCalls:=oClient:CallCount()
+    jBindings["1"]["value"]:="caller changed"
+    jBindings["5"]["scale"]:=0
+    jChecks["typedNextPage"]:=lOpened.and.oDataSet:NextPage().and.oDataSet:PageNumber()==2
+    jRequest:=oClient:Request(nCalls+1)
+    jChecks["nextPageBindingsSnapshot"]:=jRequest["bindings"]["1"]["value"]==cText.and.;
+        jRequest["bindings"]["5"]["scale"]==8.and.jRequest["page"]["number"]==2.and.;
+        oClient:Service(nCalls+1)=="RPCRDD.QueryTyped"
+    jRequest["bindings"]["1"]["value"]:="request snapshot changed"
+    FreeObj(@jRequest)
+    jChecks["typedPreviousPage"]:=oDataSet:PreviousPage().and.oDataSet:PageNumber()==1
+    jRequest:=oClient:Request(nCalls+2)
+    jChecks["previousPageBindingsSnapshot"]:=jRequest["bindings"]["1"]["value"]==cText.and.;
+        jRequest["bindings"]["5"]["precision"]==38
+    FreeObj(@jRequest)
+    FreeObj(@jBindings)
+    jBindings:=TypedDataSetBindings()
+
+    nCalls:=oClient:CallCount()
+    jBindings["3"]["value"]:="9223372036854775808"
+    jChecks["int64OverflowRejectedLocally"]:=!oDataSet:OpenSQLTyped(cSQL,jBindings).and.;
+        oDataSet:ErrorCode()=="BINDING_RANGE_ERROR".and.oClient:CallCount()==nCalls
+    jChecks["invalidBindingClearsResult"]:=oDataSet:Eof().and.oDataSet:FieldCount()==0.and.;
+        !oDataSet:MoreToRead().and.oClient:CallCount()==nCalls
+    jChecks["missingBindingsRejectedLocally"]:=!oDataSet:OpenSQLTyped(cSQL,nil).and.;
+        oDataSet:ErrorCode()=="INVALID_BINDINGS".and.oClient:CallCount()==nCalls
+    jBindings["3"]["value"]:="-0"
+    jChecks["negativeInt64ZeroRejected"]:=!oDataSet:OpenSQLTyped(cSQL,jBindings)
+    jBindings["3"]["value"]:="01"
+    jChecks["int64LeadingZeroRejected"]:=!oDataSet:OpenSQLTyped(cSQL,jBindings)
+    jBindings["3"]["value"]:="9223372036854775807"
+    jBindings["2"]["value"]:=9007199254740992
+    jChecks["unsafeIntegerRejected"]:=!oDataSet:OpenSQLTyped(cSQL,jBindings)
+    jBindings["2"]["value"]:=1.5
+    jChecks["fractionalIntegerRejected"]:=!oDataSet:OpenSQLTyped(cSQL,jBindings)
+    jBindings["2"]["value"]:=0
+    jBindings["5"]["value"]:="1.123456789"
+    jChecks["decimalRoundingRejected"]:=!oDataSet:OpenSQLTyped(cSQL,jBindings)
+    jBindings["5"]["value"]:="-0.00000000"
+    jChecks["negativeDecimalZeroRejected"]:=!oDataSet:OpenSQLTyped(cSQL,jBindings)
+    jBindings["5"]["value"]:="1e2"
+    jChecks["decimalExponentRejected"]:=!oDataSet:OpenSQLTyped(cSQL,jBindings)
+    jBindings["5"]["value"]:="1.00"
+    jBindings["7"]["value"]:="2023-02-29"
+    jChecks["invalidCalendarRejected"]:=!oDataSet:OpenSQLTyped(cSQL,jBindings)
+    jBindings["7"]["value"]:="2024-02-29"
+    jBindings["6"]["value"]:=0
+    jChecks["booleanTruthinessRejected"]:=!oDataSet:OpenSQLTyped(cSQL,jBindings)
+    jBindings["6"]["value"]:=.F.
+    jBindings["8"]["value"]:=nil
+    jChecks["nullValueMemberRejected"]:=!oDataSet:OpenSQLTyped(cSQL,jBindings).and.;
+        oDataSet:ErrorCode()=="INVALID_BINDINGS"
+    FreeObj(@jBindings)
+    jBindings:=TypedDataSetBindings()
+    jBindings["1"]["unexpected"]:=.T.
+    jChecks["unknownBindingMemberRejected"]:=!oDataSet:OpenSQLTyped(cSQL,jBindings)
+    FreeObj(@jBindings)
+    jBindings:=JSONObject():New()
+    jBindings["2"]:=TypedDataSetBinding("text","gap",.F.)
+    jChecks["bindingOrdinalGapRejected"]:=!oDataSet:OpenSQLTyped(cSQL,jBindings)
+    FreeObj(@jBindings)
+    jBindings:=JSONObject():New()
+    jBindings["01"]:=TypedDataSetBinding("text","leading",.F.)
+    jChecks["noncanonicalOrdinalRejected"]:=!oDataSet:OpenSQLTyped(cSQL,jBindings)
+    FreeObj(@jBindings)
+    jBindings:=TypedDataSetBindings()
+    jBindings["1"]["type"]:="blob"
+    jChecks["unsupportedBindingRejected"]:=!oDataSet:OpenSQLTyped(cSQL,jBindings).and.;
+        oDataSet:ErrorCode()=="UNSUPPORTED_BINDING_TYPE"
+    jBindings["1"]["type"]:="text|integer"
+    jChecks["composedBindingTypeRejectedLocally"]:=!oDataSet:OpenSQLTyped(cSQL,jBindings).and.;
+        oDataSet:ErrorCode()=="UNSUPPORTED_BINDING_TYPE".and.oClient:CallCount()==nCalls
+    FreeObj(@jBindings)
+    jBindings:=TypedDataSetBindings()
+    jChecks["allBadBindingsStayLocal"]:=oClient:CallCount()==nCalls
+    jChecks["pageOverflowRejectedLocally"]:=!oDataSet:OpenPageTyped(cSQL,jBindings,9007199254740991,2,"ID")
+    jChecks["pageOrderExpressionRejectedLocally"]:=!oDataSet:OpenPageTyped(cSQL,jBindings,1,1,"ID; DROP TABLE x")
+    jChecks["pageTrailingCommaRejectedLocally"]:=!oDataSet:OpenPageTyped(cSQL,jBindings,1,1,"ID,")
+    jChecks["invalidPagesStayLocal"]:=oClient:CallCount()==nCalls
+
+    TypedDataSetQueue(oClient,TypedDataSetResult(0,0,0))
+    lOpened:=oDataSet:OpenSQLTyped(cSQL,jBindings)
+    jChecks["emptyTypedResultKeepsMetadata"]:=lOpened.and.oDataSet:Eof().and.;
+        oDataSet:FieldCount()==10.and.oDataSet:TotalRows()==0.and.oDataSet:TotalPages()==0
+    jResponse:=TypedDataSetResult(0,1,1)
+    jRow:=JSONObject():New()
+    jRow:FromJSON('{"ID":null,"AMOUNT":null,"TEXT":null,"INTEGER":null,"FLOAT":null,"FLAG":null,"DAY":null,"NULLTEXT":null,"EMPTY":null,"ZERO":null}')
+    jResponse["rows"]["1"]:=jRow
+    TypedDataSetQueue(oClient,jResponse)
+    lOpened:=oDataSet:OpenSQLTyped(cSQL,jBindings)
+    jChecks["allNullResultKeepsMetadata"]:=lOpened.and.!oDataSet:Eof().and.;
+        oDataSet:FieldCount()==10.and.ValType(oDataSet:FieldGet("AMOUNT"))=="U"
+
+    jResponse:=TypedDataSetResult(0,1,1)
+    jResponse["resultVersion"]:=1
+    TypedDataSetQueue(oClient,jResponse)
+    nCalls:=oClient:CallCount()
+    jChecks["typedRejectsVersion1WithoutFallback"]:=!oDataSet:OpenSQLTyped(cSQL,jBindings).and.;
+        oDataSet:ErrorCode()=="INVALID_RESULT".and.oClient:CallCount()==nCalls+1.and.;
+        oClient:Service(nCalls+1)=="RPCRDD.QueryTyped"
+    TypedDataSetQueue(oClient,TypedDataSetResult(0,1,1))
+    jChecks["legacyRejectsVersion2"]:=!oDataSet:OpenSQL(cSQL).and.;
+        oDataSet:ErrorCode()=="INVALID_RESULT".and.oClient:Service(oClient:CallCount())=="RPCRDD.Query"
+    TypedDataSetQueue(oClient,TypedDataSetResult(0,1,1,.F.))
+    jChecks["typedRequiresUnpagedTotals"]:=!oDataSet:OpenSQLTyped(cSQL,jBindings)
+
+    jResponse:=TypedDataSetResult(0,1,1)
+    jResponse["header"]["AMOUNT"]["wire"]["jsonType"]:="number"
+    TypedDataSetQueue(oClient,jResponse)
+    jChecks["inconsistentWireMetadataRejected"]:=!oDataSet:OpenSQLTyped(cSQL,jBindings)
+    jResponse:=TypedDataSetResult(0,1,1)
+    jResponse["header"]["AMOUNT"]["source"]["precisionRadix"]:=2
+    TypedDataSetQueue(oClient,jResponse)
+    jChecks["decimalBinaryRadixRejected"]:=!oDataSet:OpenSQLTyped(cSQL,jBindings)
+    jResponse:=TypedDataSetResult(0,1,1)
+    jResponse["header"]["TEXT"]["source"]["precisionRadix"]:=0
+    TypedDataSetQueue(oClient,jResponse)
+    jChecks["zeroMetadataRadixRejected"]:=!oDataSet:OpenSQLTyped(cSQL,jBindings)
+    jResponse:=TypedDataSetResult(0,1,1)
+    jResponse["header"]["TEXT"]["source"]["nullable"]:="unknown"
+    TypedDataSetQueue(oClient,jResponse)
+    jChecks["invalidNullableMetadataRejected"]:=!oDataSet:OpenSQLTyped(cSQL,jBindings)
+    jResponse:=TypedDataSetResult(0,1,1)
+    jResponse["header"]["TEXT"]["wire"]["encoding"]:=nil
+    TypedDataSetQueue(oClient,jResponse)
+    jChecks["missingUTF8DeclarationRejected"]:=!oDataSet:OpenSQLTyped(cSQL,jBindings)
+    jResponse:=TypedDataSetResult(0,1,1)
+    jResponse["header"]["TEXT"]["source"]:=JSONObject():New()
+    TypedDataSetQueue(oClient,jResponse)
+    jChecks["incompleteSourceMetadataRejected"]:=!oDataSet:OpenSQLTyped(cSQL,jBindings)
+    jResponse:=TypedDataSetResult(0,1,1)
+    jResponse["header"]["TEXT"]["unexpected"]:=1
+    TypedDataSetQueue(oClient,jResponse)
+    jChecks["unknownMetadataMemberRejected"]:=!oDataSet:OpenSQLTyped(cSQL,jBindings)
+    jResponse:=TypedDataSetResult(0,1,1)
+    jInfo:=JSONObject():New()
+    HBBridge.Client.HBBridgeJSON():Parse(StrTran(HBBridge.Client.HBBridgeJSON():Encode(jResponse["header"]["TEXT"]["source"]),;
+        '"collation":null','"catalog|schema":null'),jInfo)
+    jResponse["header"]["TEXT"]["source"]:=jInfo
+    TypedDataSetQueue(oClient,jResponse)
+    jChecks["composedSourceMemberDoesNotReplaceMissingNull"]:=!oDataSet:OpenSQLTyped(cSQL,jBindings)
+    jResponse:=TypedDataSetResult(0,1,1)
+    jInfo:=JSONObject():New()
+    jInfo:FromJSON('{"type|length":null,"length":null,"decimals":null}')
+    jResponse["header"]["TEXT"]["rdd"]:=jInfo
+    TypedDataSetQueue(oClient,jResponse)
+    jChecks["composedRDDMemberDoesNotReplaceMissingNull"]:=!oDataSet:OpenSQLTyped(cSQL,jBindings)
+    jResponse:=TypedDataSetResult(0,0,0)
+    jResponse["header"]["TEXT"]["wire"]["kind"]:="text|int64"
+    TypedDataSetQueue(oClient,jResponse)
+    jChecks["composedTextWireKindRejectedOnEmptyResult"]:=!oDataSet:OpenSQLTyped(cSQL,jBindings)
+    jResponse:=TypedDataSetResult(0,0,0)
+    jResponse["header"]["INTEGER"]["wire"]["kind"]:="integer|number"
+    TypedDataSetQueue(oClient,jResponse)
+    jChecks["composedNumericWireKindRejectedOnEmptyResult"]:=!oDataSet:OpenSQLTyped(cSQL,jBindings)
+    jResponse:=TypedDataSetResult(0,1,1)
+    jResponse["header"]["TEXT"]["wire"]["kind"]:="blob"
+    TypedDataSetQueue(oClient,jResponse)
+    jChecks["unsupportedWireKindRejected"]:=!oDataSet:OpenSQLTyped(cSQL,jBindings)
+    jResponse:=TypedDataSetResult(0,1,1)
+    jResponse["rows"]["1"]["ID"]:="9223372036854775808"
+    TypedDataSetQueue(oClient,jResponse)
+    jChecks["outOfRangeInt64ResultRejected"]:=!oDataSet:OpenSQLTyped(cSQL,jBindings)
+    jResponse:=TypedDataSetResult(0,1,1)
+    jResponse["rows"]["1"]["AMOUNT"]:="1.20"
+    TypedDataSetQueue(oClient,jResponse)
+    jChecks["inexactDecimalScaleRejected"]:=!oDataSet:OpenSQLTyped(cSQL,jBindings)
+    jResponse:=TypedDataSetResult(0,1,1)
+    jResponse["rows"]["1"]["AMOUNT"]:=1.25
+    TypedDataSetQueue(oClient,jResponse)
+    jChecks["decimalNumericCoercionRejected"]:=!oDataSet:OpenSQLTyped(cSQL,jBindings)
+    jResponse:=TypedDataSetResult(0,1,1)
+    jResponse["rows"]["1"]["FLAG"]:=0
+    TypedDataSetQueue(oClient,jResponse)
+    jChecks["booleanNumericResultRejected"]:=!oDataSet:OpenSQLTyped(cSQL,jBindings)
+    jResponse:=TypedDataSetResult(0,1,1)
+    jResponse["rows"]["1"]["DAY"]:="2024-02-30"
+    TypedDataSetQueue(oClient,jResponse)
+    jChecks["invalidDateResultRejected"]:=!oDataSet:OpenSQLTyped(cSQL,jBindings)
+    jResponse:=TypedDataSetResult(0,1,1)
+    jResponse["rows"]["1"]:=JSONObject():New()
+    TypedDataSetQueue(oClient,jResponse)
+    jChecks["missingRowFieldRejected"]:=!oDataSet:OpenSQLTyped(cSQL,jBindings)
+    jResponse:=TypedDataSetResult(0,1,1)
+    jRow:=JSONObject():New()
+    HBBridge.Client.HBBridgeJSON():Parse(StrTran(HBBridge.Client.HBBridgeJSON():Encode(jResponse["rows"]["1"]),;
+        '"NULLTEXT":null','"UNEXPECTED":null'),jRow)
+    jResponse["rows"]["1"]:=jRow
+    TypedDataSetQueue(oClient,jResponse)
+    jChecks["missingNullFieldIsNotAnUnknownNullKey"]:=!oDataSet:OpenSQLTyped(cSQL,jBindings)
+    jResponse:=TypedDataSetResult(0,1,1)
+    jResponse["rows"]["2"]:=JSONObject():New()
+    TypedDataSetQueue(oClient,jResponse)
+    jChecks["extraRowRejected"]:=!oDataSet:OpenSQLTyped(cSQL,jBindings)
+    nCalls:=oClient:CallCount()
+    jChecks["invalidResultDoesNotRetry"]:=!oDataSet:MoreToRead().and.;
+        oDataSet:FieldCount()==0.and.oClient:CallCount()==nCalls
+
+    jResponse:=JSONObject():New()
+    jResponse["success"]:=.F.
+    jResponse["code"]:="SERVICE_NOT_FOUND"
+    jResponse["error"]:="Typed queries are not available."
+    TypedDataSetQueue(oClient,jResponse)
+    jChecks["oldServerFailurePreserved"]:=!oDataSet:OpenSQLTyped(cSQL,jBindings).and.;
+        oDataSet:ErrorCode()=="SERVICE_NOT_FOUND".and.oClient:CallCount()==nCalls+1
+    TypedDataSetQueue(oClient,TypedDataSetResult(0,1,1))
+    jChecks["typedRecovery"]:=oDataSet:OpenSQLTyped(cSQL,jBindings).and.;
+        Empty(oDataSet:ErrorCode()).and.oDataSet:FieldGet("TEXT")==cText
+    TypedDataSetQueue(oClient,TypedDataSetResult(1,1,3))
+    jResponse:=JSONObject():New()
+    jResponse["success"]:=.F.
+    jResponse["code"]:="TIMEOUT"
+    jResponse["error"]:="Controlled typed next-page failure."
+    TypedDataSetQueue(oClient,jResponse)
+    lOpened:=oDataSet:OpenPageTyped(cSQL,jBindings,1,1,"ID ASC")
+    oDataSet:Skip()
+    nCalls:=oClient:CallCount()
+    jChecks["typedMoreToReadFailure"]:=lOpened.and.!oDataSet:MoreToRead().and.;
+        oDataSet:ErrorCode()=="TIMEOUT".and.oClient:CallCount()==nCalls+1
+    nCalls:=oClient:CallCount()
+    jChecks["typedPageFailureClearsSnapshotState"]:=oDataSet:Eof().and.;
+        oDataSet:FieldCount()==0.and.!oDataSet:NextPage().and.!oDataSet:PreviousPage()
+    jChecks["typedPageFailureDoesNotRetry"]:=!oDataSet:MoreToRead().and.;
+        !oDataSet:MoreToRead().and.oClient:CallCount()==nCalls.and.;
+        oDataSet:ErrorCode()=="TIMEOUT"
+    oDataSet:Close()
+    nCalls:=oClient:CallCount()
+    jChecks["typedCloseClearsNavigation"]:=!oDataSet:NextPage().and.;
+        !oDataSet:PreviousPage().and.oDataSet:FieldCount()==0.and.oClient:CallCount()==nCalls
+
+    aChecks:=jChecks:GetNames()
+    nChecks:=Len(aChecks)
+    for nCheck:=1 to nChecks
+        lOK:=jChecks[aChecks[nCheck]].and.lOK
+        ConOut("hbBridge typed dataset check "+aChecks[nCheck]+": "+IIf(jChecks[aChecks[nCheck]],"PASS","FAILED"))
+    next
+    aChecks:=nil
+    ConOut("hbBridge typed dataset Protheus "+IIf(lOK,"OK","FAILED")+;
+        "; checks="+tlpp.ToStr(nChecks)+"; mock calls="+tlpp.ToStr(oClient:CallCount()))
+    oDataSet:Close()
+    oClient:Close()
+    FreeObj(@oDataSet)
+    FreeObj(@oClient)
+    FreeObj(@jChecks)
+    FreeObj(@jBindings)
+
+return(IIf(lOK,0,1))
+
+static procedure TypedDataSetQueue(oClient as object,jResponse as json)
+
+    oClient:Queue(jResponse)
+    FreeObj(@jResponse)
+
+return
+
+static function TypedDataSetBinding(cType as character,xValue as variant,lNull as logical) as json
+
+    local jBinding:=JSONObject():New() as json
+
+    jBinding["type"]:=cType
+    jBinding["isNull"]:=lNull
+    if (!lNull)
+        jBinding["value"]:=xValue
+    endif
+
+return(jBinding)
+
+static function TypedDataSetBindings() as json
+
+    local jBindings:=JSONObject():New() as json
+
+    jBindings["1"]:=TypedDataSetBinding("text","A"+Chr(0)+Chr(195)+Chr(169),.F.)
+    jBindings["2"]:=TypedDataSetBinding("integer",9007199254740991,.F.)
+    jBindings["3"]:=TypedDataSetBinding("int64","-9223372036854775808",.F.)
+    jBindings["4"]:=TypedDataSetBinding("number",123.45678901234567,.F.)
+    jBindings["5"]:=TypedDataSetBinding("decimal","123456789012345678901234567890.12345678",.F.)
+    jBindings["5"]["precision"]:=38
+    jBindings["5"]["scale"]:=8
+    jBindings["6"]:=TypedDataSetBinding("boolean",.F.,.F.)
+    jBindings["7"]:=TypedDataSetBinding("date","2024-02-29",.F.)
+    jBindings["8"]:=TypedDataSetBinding("text",nil,.T.)
+
+return(jBindings)
+
+static function TypedDataSetField(nPosition as numeric,cType as character) as json
+
+    local jField:=JSONObject():New() as json
+    local jRDD:=JSONObject():New() as json
+    local jSource:=JSONObject():New() as json
+    local jWire:=JSONObject():New() as json
+
+    jRDD:FromJSON('{"type":null,"length":null,"decimals":null}')
+    jSource:FromJSON('{"typeCode":null,"typeName":null,"precision":null,"precisionRadix":null,"scale":null,"characterLength":null,"octetLength":null,"nullable":false,"catalog":null,"schema":null,"table":null,"column":null,"collation":null}')
+    jWire["kind"]:=cType
+    jWire["jsonType"]:=IIf(cType=="boolean","boolean",IIf(cType=="integer".or.cType=="number","number","string"))
+    jWire["encoding"]:=nil
+    if (jWire["jsonType"]=="string")
+        jWire["encoding"]:="UTF-8"
+    endif
+    do case
+    case cType=="int64"
+        jSource["typeCode"]:=-5
+        jSource["typeName"]:="bigint"
+        jSource["precision"]:=19
+        jSource["precisionRadix"]:=10
+        jSource["scale"]:=0
+    case cType=="decimal"
+        jSource["typeCode"]:=3
+        jSource["typeName"]:="decimal"
+        jSource["precision"]:=38
+        jSource["precisionRadix"]:=10
+        jSource["scale"]:=8
+    case cType=="text"
+        jSource["typeCode"]:=-9
+        jSource["typeName"]:="nvarchar"
+        jSource["characterLength"]:=256
+        jSource["octetLength"]:=512
+    case cType=="integer"
+        jSource["typeCode"]:=4
+        jSource["typeName"]:="int"
+        jSource["precision"]:=10
+        jSource["precisionRadix"]:=10
+        jSource["scale"]:=0
+    case cType=="number"
+        jSource["typeCode"]:=8
+        jSource["typeName"]:="float"
+        jSource["precision"]:=53
+        jSource["precisionRadix"]:=2
+        jSource["scale"]:=0
+    case cType=="boolean"
+        jSource["typeCode"]:=-7
+        jSource["typeName"]:="bit"
+    case cType=="date"
+        jSource["typeCode"]:=91
+        jSource["typeName"]:="date"
+    endcase
+    jField["position"]:=nPosition
+    jField["rdd"]:=jRDD
+    jField["source"]:=jSource
+    jField["wire"]:=jWire
+
+return(jField)
+
+static function TypedDataSetResult(nPage as numeric,nRows as numeric,nTotal as numeric,lTotals as logical) as json
+
+    local jResult:=JSONObject():New() as json
+    local jHeader:=JSONObject():New() as json
+    local jRows:=JSONObject():New() as json
+    local jRow as json
+    local jPage as json
+
+    if (ValType(lTotals)=="U")
+        lTotals:=.T.
+    endif
+    jHeader["ID"]:=TypedDataSetField(1,"int64")
+    jHeader["AMOUNT"]:=TypedDataSetField(2,"decimal")
+    jHeader["TEXT"]:=TypedDataSetField(3,"text")
+    jHeader["TEXT"]["source"]["column"]:="TEXT"+Chr(0)
+    jHeader["INTEGER"]:=TypedDataSetField(4,"integer")
+    jHeader["FLOAT"]:=TypedDataSetField(5,"number")
+    jHeader["FLAG"]:=TypedDataSetField(6,"boolean")
+    jHeader["DAY"]:=TypedDataSetField(7,"date")
+    jHeader["NULLTEXT"]:=TypedDataSetField(8,"text")
+    jHeader["EMPTY"]:=TypedDataSetField(9,"text")
+    jHeader["ZERO"]:=TypedDataSetField(10,"integer")
+    if (nRows>0)
+        jRow:=JSONObject():New()
+        jRow["ID"]:=IIf(nPage>0,tlpp.ToStr(nPage),"9223372036854775807")
+        jRow["AMOUNT"]:="123456789012345678901234567890.12345678"
+        jRow["TEXT"]:="A"+Chr(0)+Chr(195)+Chr(169)
+        jRow["INTEGER"]:=42
+        jRow["FLOAT"]:=123.45678901234567
+        jRow["FLAG"]:=.F.
+        jRow["DAY"]:="2024-02-29"
+        jRow["NULLTEXT"]:=nil
+        jRow["EMPTY"]:=""
+        jRow["ZERO"]:=0
+        jRows["1"]:=jRow
+    endif
+    jResult["success"]:=.T.
+    jResult["resultVersion"]:=2
+    jResult["driver"]:="mssql"
+    jResult["header"]:=jHeader
+    jResult["rows"]:=jRows
+    jResult["rowCount"]:=nRows
+    if (lTotals)
+        jResult["totalRows"]:=nTotal
+        jResult["totalPages"]:=IIf(nPage>0,nTotal,IIf(nRows>0,1,0))
+    endif
+    if (nPage>0)
+        jPage:=JSONObject():New()
+        jPage["number"]:=nPage
+        jPage["size"]:=1
+        jPage["hasNext"]:=nPage<nTotal
+        jPage["firstRow"]:=IIf(nRows>0,nPage,0)
+        jPage["lastRow"]:=IIf(nRows>0,nPage,0)
+        jResult["page"]:=jPage
+    endif
+
+return(jResult)

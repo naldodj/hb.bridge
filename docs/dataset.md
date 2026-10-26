@@ -90,6 +90,58 @@ Every `orderBy` field must exist in the SQL projection. If caller SQL uses
 `TOP`/`LIMIT`, it must also select that subset deterministically; ordering the
 outer pages cannot stabilize an unordered inner subset.
 
+## Typed queries and NULL
+
+`OpenSQLTyped(sql, bindings[, page])` and
+`OpenPageTyped(sql, bindings, number, size, orderBy)` call `RPCRDD.QueryTyped`
+with request version 1 and require result version 2. They share the profile,
+client, metadata snapshots and navigation of ordinary queries. An old server's
+`SERVICE_NOT_FOUND` remains visible; there is no unbound fallback.
+
+```advpl
+jBindings := JSONObject():New()
+jBinding := JSONObject():New()
+jBinding["type"] := "integer"
+jBinding["isNull"] := .F.
+jBinding["value"] := 10
+jBindings["1"] := jBinding
+oDataSet:SetAliasProfile(cProfile)
+if oDataSet:OpenPageTyped(cSQL, jBindings, 1, 100, "ID ASC")
+    while oDataSet:MoreToRead()
+        // FieldGet preserves the declared wire representation.
+        xAmount := oDataSet:FieldGet("AMOUNT")
+        oDataSet:Skip()
+    enddo
+endif
+oDataSet:Close()
+FreeObj(@jBindings)
+```
+
+The caller supplies SQL with anonymous `?` value markers and bindings keyed by
+contiguous ordinals; an empty object means no parameters. Binding snapshots
+remain available for later pages independently of caller/client mutations.
+`Header()`/`FieldInfo()` expose nested `source`, `rdd` and `wire` metadata;
+unknown attributes stay null. Source precision and radix do not establish a
+business scale. See the [complete contract and supported mappings](typed-sql.md).
+
+`FieldGet()` retains UTF-8 text, textual exact int64/decimal, ISO DATE, approximate
+numbers and booleans. SQL NULL remains `Nil`; it is never replaced by empty text,
+zero or false. Check `!Eof()` and `FieldExist(name)` before interpreting Nil,
+since missing fields and EOF also return Nil. Protheus owns business substitution.
+Decode text once at the presentation boundary and retain the UTF-8 dataset;
+native table NULL/precision limits do not change query values.
+
+The [native presentation adapter](native-presentation.md) implements this
+explicit boundary with caller schema, a current-page FWTemporaryTable and
+owned cleanup; it neither prefetches nor closes the borrowed dataset/client.
+
+The typed validator rejects malformed/missing metadata, mixed wire types,
+noncanonical exact strings and inconsistent versions/totals before publishing
+state. A failed page clears the old result and does not automatically retry.
+The [Windows integration record](validation/typed.sql.windows.json) separates
+native backend/TCP/gzip HTTP checks from actual AppServer JSONObject/mock checks.
+Real AppServer/backend and native presentation acceptance remain in T05.
+
 ## Manual dataset acceptance on 2026-10-13
 
 `U_HBBridgeDataSetTest()` passed **67 checks, zero failures and 31 mock calls**

@@ -1,0 +1,186 @@
+/* Released to Public Domain. */
+#include "totvs.ch"
+
+namespace HBBridge.Tests
+
+class HBBridgePresentationFixture
+
+    static method Header() as json
+    static method Schema() as json
+    static method Row() as json
+    static method Result(nPage as numeric,nRows as numeric,nTotal as numeric) as json
+
+endclass
+
+static method Header() class HBBridgePresentationFixture
+
+    local jHeader:=JSONObject():New() as json
+
+    jHeader["ID_CODE"]:=PresentationFixtureField(1,"text")
+    jHeader["ID"]:=PresentationFixtureField(2,"int64")
+    jHeader["AMOUNT"]:=PresentationFixtureField(3,"decimal")
+    jHeader["TEXT"]:=PresentationFixtureField(4,"text")
+    jHeader["FLAG"]:=PresentationFixtureField(5,"boolean")
+    jHeader["DAY"]:=PresentationFixtureField(6,"date")
+    jHeader["FLOAT"]:=PresentationFixtureField(7,"number")
+
+return(jHeader)
+
+static method Schema() class HBBridgePresentationFixture
+
+    local jFields:=JSONObject():New() as json
+    local jSchema:=JSONObject():New() as json
+
+    jFields["ID_CODE"]:=PresentationFixtureLogical("character",10,0,"Code")
+    jFields["ID"]:=PresentationFixtureLogical("character",20,0,"Identifier")
+    jFields["AMOUNT"]:=PresentationFixtureLogical("numeric",12,2,"Amount")
+    jFields["TEXT"]:=PresentationFixtureLogical("character",20,0,"Text")
+    jFields["FLAG"]:=PresentationFixtureLogical("logical",1,0,"Flag")
+    jFields["DAY"]:=PresentationFixtureLogical("date",8,0,"Day")
+    jFields["DAY"]["inputFormat"]:="YYYY-MM-DD"
+    jFields["FLOAT"]:=PresentationFixtureLogical("numeric",12,2,"Float")
+    jSchema["schemaVersion"]:=1
+    jSchema["fields"]:=jFields
+
+return(jSchema)
+
+static method Row() class HBBridgePresentationFixture
+
+    local jRow:=JSONObject():New() as json
+
+    jRow["ID_CODE"]:=StrZero(42,10)
+    jRow["ID"]:="42"
+    jRow["AMOUNT"]:="123.25"
+    jRow["TEXT"]:="a"+Chr(195)+Chr(167)+Chr(195)+Chr(163)+"o"
+    jRow["FLAG"]:=.F.
+    jRow["DAY"]:="2024-02-29"
+    jRow["FLOAT"]:=1.25
+
+return(jRow)
+
+static method Result(nPage,nRows,nTotal) class HBBridgePresentationFixture
+
+    local cKey:="" as character
+
+    local jResult:=JSONObject():New() as json
+    local jRows:=JSONObject():New() as json
+    local jRow as json
+    local jPage as json
+
+    local nRow:=0 as numeric
+    local nFirst:=1 as numeric
+    local nIdentifier:=0 as numeric
+    local nTotalPages:=0 as numeric
+
+    jResult["success"]:=.T.
+    jResult["resultVersion"]:=2
+    jResult["driver"]:="mssql"
+    jResult["header"]:=HBBridgePresentationFixture():Header()
+    if (nPage>0)
+        nFirst:=(nPage-1)*2+1
+    endif
+    for nRow:=1 to nRows
+        cKey:=tlpp.ToStr(nRow)
+        nIdentifier:=nFirst+nRow-1
+        jRow:=HBBridgePresentationFixture():Row()
+        jRow["ID_CODE"]:=StrZero(nIdentifier,10)
+        jRow["ID"]:=tlpp.ToStr(nIdentifier)
+        jRows[cKey]:=jRow
+    next nRow
+    jResult["rows"]:=jRows
+    jResult["rowCount"]:=nRows
+    if (nPage>0)
+        nTotalPages:=Int(nTotal/2)+if((nTotal%2)>0,1,0)
+    else
+        nTotal:=nRows
+        nTotalPages:=if(nRows>0,1,0)
+    endif
+    jResult["totalRows"]:=nTotal
+    jResult["totalPages"]:=nTotalPages
+    if (nPage>0)
+        jPage:=JSONObject():New()
+        jPage["number"]:=nPage
+        jPage["size"]:=2
+        jPage["hasNext"]:=nPage<nTotalPages
+        jPage["firstRow"]:=if(nRows>0,nFirst,0)
+        jPage["lastRow"]:=if(nRows>0,nFirst+nRows-1,0)
+        jResult["page"]:=jPage
+    endif
+
+return(jResult)
+
+static function PresentationFixtureLogical(cType as character,nLength as numeric,nDecimals as numeric,cCaption as character) as json
+
+    local jField:=JSONObject():New() as json
+
+    jField["type"]:=cType
+    jField["length"]:=nLength
+    jField["decimals"]:=nDecimals
+    jField["nullable"]:=.F.
+    jField["caption"]:=cCaption
+    jField["picture"]:=""
+    jField["inputFormat"]:=nil
+    jField["nullPolicy"]:="reject"
+    jField["roundingPolicy"]:="reject"
+
+return(jField)
+
+static function PresentationFixtureField(nPosition as numeric,cKind as character) as json
+
+    local cJSONType:="string" as character
+
+    local jField:=JSONObject():New() as json
+    local jRDD:=JSONObject():New() as json
+    local jSource:=JSONObject():New() as json
+    local jWire:=JSONObject():New() as json
+
+    jRDD:FromJSON('{"type":null,"length":null,"decimals":null}')
+    jSource:FromJSON('{"typeCode":null,"typeName":null,"precision":null,"precisionRadix":null,"scale":null,"characterLength":null,"octetLength":null,"nullable":false,"catalog":null,"schema":null,"table":null,"column":null,"collation":null}')
+    if (cKind=="boolean")
+        cJSONType:="boolean"
+    elseif ((cKind=="integer").or.(cKind=="number"))
+        cJSONType:="number"
+    endif
+    jWire["kind"]:=cKind
+    jWire["jsonType"]:=cJSONType
+    jWire["encoding"]:=nil
+    if (cJSONType=="string")
+        jWire["encoding"]:="UTF-8"
+    endif
+    do case
+    case cKind=="int64"
+        jSource["typeCode"]:=-5
+        jSource["typeName"]:="bigint"
+        jSource["precision"]:=19
+        jSource["precisionRadix"]:=10
+        jSource["scale"]:=0
+    case cKind=="decimal"
+        jSource["typeCode"]:=3
+        jSource["typeName"]:="decimal"
+        jSource["precision"]:=12
+        jSource["precisionRadix"]:=10
+        jSource["scale"]:=2
+    case cKind=="text"
+        jSource["typeCode"]:=-9
+        jSource["typeName"]:="nvarchar"
+        jSource["characterLength"]:=256
+        jSource["octetLength"]:=512
+    case cKind=="boolean"
+        jSource["typeCode"]:=-7
+        jSource["typeName"]:="bit"
+    case cKind=="date"
+        jSource["typeCode"]:=91
+        jSource["typeName"]:="date"
+    case cKind=="number"
+        jSource["typeCode"]:=8
+        jSource["typeName"]:="float"
+        jSource["precision"]:=53
+        jSource["precisionRadix"]:=2
+        jSource["scale"]:=0
+    endcase
+    jField["position"]:=nPosition
+    jField["rdd"]:=jRDD
+    jField["source"]:=jSource
+    jField["wire"]:=jWire
+
+return(jField)

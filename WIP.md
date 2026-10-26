@@ -21,11 +21,11 @@ is inferred. See [closure, exact artifacts and limitations](docs/acceptance.md#p
 | Item | Current value |
 | --- | --- |
 | ID | `002-typed-sql-presentation` |
-| Opened / updated | 2026-10-21 / 2026-10-24 |
-| Status | T01 inventory/draft in progress; prioritized HTTP maintenance accepted in its Windows scope on 2026-10-24. |
+| Opened / updated | 2026-10-21 / 2026-10-26 |
+| Status | T01–T04 validated in their recorded scopes. T05 local native presentation now retains indexed storage between pages, uses FWBulk when supported and exposes configurable synthetic data with ID_CODE ordering. Revised automated checks and manual results are recorded below. Combined backend/UI acceptance remains open. |
 | Goal | Define explicit typed SQL values/result metadata and a caller-owned native Protheus presentation adapter using the accepted Query/dataset. |
 | Reference | Base `8db2823`; package 001 validated working-tree artifacts are identified in its closure manifest. This is not a new release tag. |
-| Next task | Resume T01 draft review/remaining contract decisions; then T02 native binding proof. |
+| Next task | T05: validate combined real AppServer TCP/HTTP/backend execution and interactive native presentation, then close the package. |
 
 ### Preparatory maintenance
 
@@ -158,6 +158,9 @@ HTTP 406 rejection (exit 1), with no identity fallback.
 - Caller CAST remains available. Exact large decimal digits can stay textual;
   source metadata, logical definitions and wire representation stay separate.
   Automatic SX3/TOP_FIELD lookups, metadata addons and SQL rewriting remain deferred.
+- SQL NULL is a valid result and remains distinct from empty/zero/false in the
+  service, transport and dataset. Protheus owns business substitution; only
+  an explicit native-presentation conversion can reject an unrepresentable value.
 - `GetNonBlobColumns()` keeps long text and excludes binary types. LOB readers
   and versioned binary/streaming transport remain future work; no API is added now.
 - Reuse/review `HBBridgeBrowseData` before adding another presentation layer.
@@ -165,19 +168,19 @@ HTTP 406 rejection (exit 1), with no identity fallback.
 
 ### Work in order
 
-- [ ] **T01 — Define the bounded contracts.** Inventory current APIs and
+- [x] **T01 — Define the bounded contracts.** Inventory current APIs and
   identify already implemented presentation behavior. Specify typed bind
   values, NULL/empty distinctions, native/source versus caller logical schema,
   scale/range rules, compatibility/versioning and unsupported capabilities.
-- [ ] **T02 — Prove connector bindings.** Validate real MSSQL/SQLite prepared
+- [x] **T02 — Prove connector bindings.** Validate real MSSQL/SQLite prepared
   parameters with text/UTF-8/NUL, numeric/date, empty/NULL, errors and recovery.
   Unsupported types/capabilities return explicit errors. Add no unproved
   emulated binding or silent conversion.
-- [ ] **T03 — Integrate the accepted parameter/metadata contract.** Extend the
+- [x] **T03 — Integrate the accepted parameter/metadata contract.** Extend the
   common service and TLPP clients/dataset, preserving existing SQL/page calls,
   caller profile and defensive metadata snapshots. Test conversion/range errors.
-- [ ] **T04 — Complete native Protheus presentation.** Adapt the existing browse
-  path to caller-resolved schema and owned FWTemporaryTable/FWMBrowse resources.
+- [x] **T04 — Complete native Protheus presentation.** Adapt the existing browse
+  path to caller-resolved schema and owned FWTemporaryTable/native UI resources.
   Define text decode-once, NULL/type/scale policies, page traversal and cleanup
   after success, failure and UI close. Preserve existing examples and ownership.
 - [ ] **T05 — Validate and close.** Run appropriate native and real AppServer
@@ -185,6 +188,115 @@ HTTP 406 rejection (exit 1), with no identity fallback.
   three commit gates; update EN/PT docs and attributable artifacts.
 
 ### Completion criteria and prerequisites
+
+T04 continuation on 2026-10-25 adds `HBBridgePresentationSchema` and
+`HBBridgeNativeTable`. The native browse is now a local static function in
+the interactive example; a generic public native browse API is deferred.
+The existing `HBBridgeBrowseData.Browse` API remains available.
+The adapter converts an owned current-page snapshot,
+checks actual native definitions/readback and never fetches another page or
+closes the borrowed dataset/client. NULL is rejected only at this explicit
+native destination. Caller schema, generated field names, UTF-8 conversion,
+numeric roundtrip, empty/failing pages and ownership are covered by maintained
+AppServer tests. SDK observation separates numeric formatting from stored
+native values; no SET override or DEC_CREATE substitution is introduced.
+`FWGetTopInfo()` and explicit caught-object release are now source conventions.
+Final isolated AppServer compilation passed all 64 sources, zero errors/exit 0.
+Conversion passed 32 checks, actual FWTemporaryTable storage/ownership 34,
+typed dataset regression 77 and ordinary dataset regression 67, zero failures.
+The SDK probe passed five assertions and records formatting separately from
+native numeric equality. All 64 compiled source hashes still match the tree.
+See the [guide](docs/native-presentation.md) and
+[sanitized manifest](docs/validation/native.presentation.windows.json).
+`U_HBBridgeNativeBrowse()` is compiled for manual visual validation; interactive
+native browse activation/dismissal and combined backend execution remain in T05.
+The captured-error convention was verified in all 42 `catch xError` blocks,
+including older benchmark/lifecycle handlers. All three repository validators
+passed for 313 files; links passed for 102 documents, without tmp/out dependencies.
+
+T05 visual feedback on 2026-10-25 confirms the first native example opened,
+but rejects the close-to-next-page prompt and reports Flag/Day/Float column
+misalignment. That observation does not accept paging, seek, filtering or
+close behavior. Revise the local example to keep those actions in one window,
+preserve caller ownership and use FWBulk for native inserts when supported.
+Recompile/retest the revised sources and record fresh identities separately
+from the earlier T04 manifest; manual visual acceptance is still required.
+
+2026-10-26 revision: keep `BrowseNative` local to the example and the existing
+public `Browse` unchanged. Navigation/search/filters stay in one open dialog;
+page refill retains its physical table, alias, workarea and indexes. Use
+FWBulk when supported, with optional full storage verification. Keep Flag as
+logical data and index a private text shadow through `SearchFieldName()` /
+`IndexOrder()`; Day/Float retain independent bindings.
+
+The synthetic interactive fixture accepts `U_HBBridgeNativeBrowse(10000,100)`
+and defaults to 1000 rows, 13 per page. The table load accepts
+`U_HBBridgePresentationTableTest(10000)` or CLI `--native-rows=10000`, default
+1025. Neither reads ERP data. Seven visible projections include zero-padded
+`ID_CODE` C(10) for native character ordering, preserving the exact-text `ID`.
+Review corrected `Result()` repeating code 42 and added row-code checks plus
+index order from 9 to 10. Search/filter applies across the source before paging;
+this does not implement or test SQL rewriting.
+
+Supplied manual AppServer output on 2026-10-26 passed 50 browse checks and
+56 native table checks, with 1025 bulk-written rows crossing the 1024-row buffer and
+seven valid indexes. Those logs do not identify executable/RPO hashes and the
+headless browse checks do not establish interactive acceptance. Keep this
+observation separate from the subsequent isolated rerun and historical T04.
+
+The subsequent isolated run compiled 66 sources/zero errors and passed
+59 browse, 62 native-table, 32 conversion, five SDK, 77 typed and 67 ordinary
+dataset checks with zero assertion failures. The main storage fixture used
+10,000 bulk-written rows with independent full readback, including matching
+ID_CODE/ID; all compiled source hashes remained unchanged. See the
+[revision manifest](docs/validation/native.presentation.revision.windows.json)
+for identities/exit codes. Interactive widget behavior and combined actual
+AppServer-to-hbBridge typed backend acceptance remain open in T05.
+All three commit validators passed for 316 files; links passed for 102
+documents, with no tmp/out dependencies or index changes.
+
+2026-10-24 continuation after published HTTP commit `98054b45`: the
+[T01 specification](docs/typed-sql.md) fixes request/result versions,
+column-stable wire types, source/RDD/logical metadata, NULL/empty behavior,
+reserved failures and presentation ownership. Both language versions contain
+three syntactically validated JSON examples. This T01 observation is historical;
+T03 implementation follows below.
+The standalone `scripts/test-harbour-sqlite-bind.ps1` passed 252 checks/zero
+failures on Windows x64, SQLite 3.53.4. Explicit-length UTF-8/NUL, NULL,
+marker discovery, declared/empty/all-NULL metadata, reset/recovery and exact
+canonical signed int64 endpoints were proved. Exact fixed DECIMAL remains
+unsupported; native NUMERIC affinity demonstrably loses digits or scale.
+`scripts/test-harbour-mssql-bind.ps1` passed 75 checks/zero failures against
+SQL Server 16.00.1210, ODBC 18.07.0001: Unicode/NUL, NULL by type, safe integer
+and int64 bounds, DECIMAL(38,8), native DATE/BIT/FLOAT, declared nullable columns,
+empty/all-NULL metadata, independent page/count bindings, class-specific
+errors/recovery and statement/connection cleanup. This is a session-local
+temporary table proof, not service/AppServer acceptance.
+Record raw FLOAT precision 53/radix 2 and native zero decimal `.00000000`;
+version 2 adds precisionRadix and requires exact lexical zero normalization.
+The [selected connector design](docs/typed-sql-connectors.md) extends tagged
+internal RDDI_EXECUTE hashes on existing SDD-owned connections, with no raw
+handle export, second login or ABI change. Its shared-hash/dispatch behavior
+was proved during T03. See the
+[sanitized native evidence](docs/validation/sql.bind.windows.json).
+T02 is complete in this standalone Windows scope; T04/T05 remain pending.
+These continuation changes are not part of the published HTTP commit.
+
+2026-10-25 T03: `RPCRDD.QueryTyped` shares the accepted Query page plan, SQL
+mutex, lease, totals and cleanup; tagged native SDD readers retain NULL and
+column-stable exact values without an extra connection or raw handle export.
+The integration passed 133 Windows checks, zero failures, against real SQLite
+and MSSQL, including TCP/gzip HTTP/REST. Strict versioned TLPP methods preserve
+binding/metadata snapshots with no unbound fallback. An isolated AppServer
+compiled 57 sources with zero errors and passed 77 typed mock checks plus
+67 legacy checks, including stricter composed-key validation. Full native
+regression passed 777 checks, zero failures. The legacy 67-check manual result supplied
+on 2026-10-25 confirms navigation but does not identify a new RPO.
+The [integration manifest](docs/validation/typed.sql.windows.json) records final
+identities and counts. These checks do not close T04 or infer real
+AppServer-to-backend typed/presentation acceptance; that remains in T05.
+All three commit checks passed without index changes; 98 documentation files
+passed link validation. No commit or publication is included in this continuation.
 
 Each implemented capability requires native connector evidence and real
 AppServer acceptance in its recorded scope. Compile changed TLPP, keep old

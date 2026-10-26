@@ -28,6 +28,14 @@ mask remains explicit; generic conversion must not silently replace such a
 contract. Write alias-scoped conditions as `(cAlias)->(!Eof())`, keeping the
 negation inside the selected work area's expression.
 
+Use `FWGetTopInfo()` for the active Protheus DBAccess server, port, database
+and alias rather than reconstructing them from INI keys. Preserve an existing
+connection and close only one opened by the caller.
+
+Declare captured TLPP errors as variant. After handling `catch xError`, use
+`if (ValType(xError)=="O")` followed by `FreeObj(@xError)` and `endif`.
+This explicit use also lets the compiler recognize the captured variable.
+
 Source basenames separate lowercase words with dots, for example
 `hbbridge.rpc.dataset.tlpp`. Removing dots must match the lowercase class
 name `HBBridgeRPCDataSet`. This word segmentation does not change namespaces.

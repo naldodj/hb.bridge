@@ -71,13 +71,60 @@ FUNCTION HBBridgeSQLQuery( hParams, hProfiles )
 
 RETURN hb_mutexEval( s_hSQLMutex, {|| SQLQueryLocked( cSQL, cProfile, hProfiles[ cProfile ], hPage ) } )
 
-STATIC FUNCTION SQLQueryLocked( cSQL, cProfile, hProfile, hPage )
+/* Typed values are explicit; the ordinary Query/version-1 path remains available. */
+FUNCTION HBBridgeSQLQueryTyped( hParams, hProfiles )
+
+    LOCAL cNul := Chr( 0 )
+    LOCAL cProfile, cSQL, cCode, cError
+
+    LOCAL hPage := NIL, hBindings
+
+    IF ! HB_ISHASH( hParams )
+        RETURN HBBridgeError( "INVALID_TYPED_REQUEST", "A typed query requires an object." )
+    ENDIF
+    IF ! hb_HHasKey( hParams, "requestVersion" ) .OR. ! hb_HHasKey( hParams, "alias" ) .OR. ;
+        ! hb_HHasKey( hParams, "sql" ) .OR. ! hb_HHasKey( hParams, "bindings" ) .OR. ;
+        !( Len( hParams ) == 4 .OR. ( Len( hParams ) == 5 .AND. hb_HHasKey( hParams, "page" ) ) )
+        RETURN HBBridgeError( "INVALID_TYPED_REQUEST", "Typed query members are missing or unknown." )
+    ENDIF
+    IF ! HB_ISNUMERIC( hParams[ "requestVersion" ] )
+        RETURN HBBridgeError( "INVALID_TYPED_REQUEST", "requestVersion must be numeric." )
+    ENDIF
+    IF hParams[ "requestVersion" ] != 1
+        RETURN HBBridgeError( "UNSUPPORTED_REQUEST_VERSION", "The typed request version is unsupported." )
+    ENDIF
+    cProfile := hParams[ "alias" ]
+    cSQL := hParams[ "sql" ]
+    IF ! HB_ISSTRING( cProfile ) .OR. ! HB_ISSTRING( cSQL )
+        RETURN HBBridgeError( "INVALID_TYPED_REQUEST", "Profile and SQL must be strings." )
+    ENDIF
+    IF Empty( AllTrim( cProfile ) ) .OR. cNul $ cProfile .OR. ! HBBridgeTypedSQLValid( cSQL )
+        RETURN HBBridgeError( "INVALID_TYPED_REQUEST", "A typed query requires one supported SELECT statement and a nonempty profile." )
+    ENDIF
+    IF ! HB_ISHASH( hProfiles ) .OR. ! hb_HHasKey( hProfiles, cProfile )
+        RETURN HBBridgeError( "PROFILE_NOT_FOUND", "Connection profile is not configured." )
+    ENDIF
+    IF ! HBBridgeTypedBindingsValid( hParams[ "bindings" ], @cCode, @cError )
+        RETURN HBBridgeError( cCode, cError )
+    ENDIF
+    hBindings := hb_HClone( hParams[ "bindings" ] )
+    IF hb_HHasKey( hParams, "page" )
+        hPage := SQLPagePlan( hParams[ "page" ], cSQL, @cError )
+        IF hPage == NIL
+            RETURN HBBridgeError( "INVALID_PAGE", cError )
+        ENDIF
+        cSQL := hPage[ "sqlpage" ]
+    ENDIF
+
+RETURN hb_mutexEval( s_hSQLMutex, {|| SQLQueryLocked( cSQL, cProfile, hProfiles[ cProfile ], hPage, hBindings ) } )
+
+STATIC FUNCTION SQLQueryLocked( cSQL, cProfile, hProfile, hPage, hBindings )
 
     LOCAL cName, cFailure, cMessage, cAlias
 
-    LOCAL hHeader, hRows, hRow, hField, hResult, hLease
+    LOCAL hHeader, hRows, hRow, hField, hResult, hLease, hNative, hCount
 
-    LOCAL lHasNext
+    LOCAL lHasNext, lTyped := HB_ISHASH( hBindings )
 
     LOCAL nConnection, nPreviousConnection, nPreviousArea, nQueryArea, nField, nFields, nRow, nOffset
     LOCAL nTotalRows, nTotalPages
@@ -106,60 +153,88 @@ STATIC FUNCTION SQLQueryLocked( cSQL, cProfile, hProfile, hPage )
         nConnection := hLease[ "connection" ]
         cFailure := "QUERY_FAILED"
         cMessage := "Could not open or read the SQL query result."
-        /* Select zero reserves the first unused area number, not the caller's
-         * open area. Capture it before OPEN: a failed OPEN can leave an area
-         * without an assigned alias, which numeric cleanup must still own.
-         */
-        dbSelectArea( 0 )
-        nQueryArea := Select()
-        cAlias := hb_rddGetTempAlias()
-        IF ! dbUseArea( .F., "SQLMIX", cSQL, cAlias, .T., .T., NIL, nConnection )
-            Break( NIL )
-        ENDIF
-        nFields := ( cAlias )->( FCount() )
-        IF nFields == 0
-            Break( NIL )
-        ENDIF
-        IF nFields <= nOffset
-            Break( NIL )
-        ENDIF
-        FOR nField := 1 + nOffset TO nFields
-            cName := ( cAlias )->( Upper( AllTrim( FieldName( nField ) ) ) )
-            IF Empty( cName ) .OR. hb_HHasKey( hHeader, cName ) .OR. ;
-                ( nOffset > 0 .AND. ( Left( cName, 16 ) == "__HBBRIDGE_ROWNO" .OR. ":" $ cName ) )
-                cFailure := "AMBIGUOUS_COLUMN"
-                cMessage := "Query columns must have distinct names; use SQL aliases."
+        IF lTyped
+            cFailure := "STATEMENT_EXECUTE_FAILED"
+            cMessage := "Could not execute the native typed statement."
+            hNative := SQLNativeRead( cSQL, hBindings, nConnection, nOffset, ;
+                iif( hPage == NIL, 0, hPage[ "size" ] ), .F. )
+            IF ! hNative[ "success" ]
+                cFailure := hNative[ "code" ]
+                cMessage := hNative[ "error" ]
                 Break( NIL )
             ENDIF
-            hHeader[ cName ] := { "position" => nField - nOffset, ;
-                "type" => ( cAlias )->( hb_FieldType( nField ) ), ;
-                "length" => ( cAlias )->( hb_FieldLen( nField ) ), ;
-                "decimals" => ( cAlias )->( hb_FieldDec( nField ) ) }
-        NEXT
-        DO WHILE ( cAlias )->( ! Eof() )
-            IF hPage != NIL
-                IF nRow == hPage[ "size" ]
-                    lHasNext := .T.
-                    EXIT
-                ENDIF
+            hHeader := hNative[ "header" ]
+            hRows := hNative[ "rows" ]
+            nRow := hNative[ "rowCount" ]
+            lHasNext := hNative[ "hasNext" ]
+        ELSE
+            /* Select zero reserves the first unused area number, not the caller's
+             * open area. Capture it before OPEN: a failed OPEN can leave an area
+             * without an assigned alias, which numeric cleanup must still own.
+             */
+            dbSelectArea( 0 )
+            nQueryArea := Select()
+            cAlias := hb_rddGetTempAlias()
+            IF ! dbUseArea( .F., "SQLMIX", cSQL, cAlias, .T., .T., NIL, nConnection )
+                Break( NIL )
             ENDIF
-            hRow := {=>}
-            FOR EACH hField IN hHeader
-                /* Enumerate keys without an additional hb_HKeys array. */
-                cName := hField:__enumKey()
-                hRow[ cName ] := ( cAlias )->( FieldGet( hField[ "position" ] + nOffset ) )
+            nFields := ( cAlias )->( FCount() )
+            IF nFields == 0
+                Break( NIL )
+            ENDIF
+            IF nFields <= nOffset
+                Break( NIL )
+            ENDIF
+            FOR nField := 1 + nOffset TO nFields
+                cName := ( cAlias )->( Upper( AllTrim( FieldName( nField ) ) ) )
+                IF Empty( cName ) .OR. hb_HHasKey( hHeader, cName ) .OR. ;
+                    ( nOffset > 0 .AND. ( Left( cName, 16 ) == "__HBBRIDGE_ROWNO" .OR. ":" $ cName ) )
+                    cFailure := "AMBIGUOUS_COLUMN"
+                    cMessage := "Query columns must have distinct names; use SQL aliases."
+                    Break( NIL )
+                ENDIF
+                hHeader[ cName ] := { "position" => nField - nOffset, ;
+                    "type" => ( cAlias )->( hb_FieldType( nField ) ), ;
+                    "length" => ( cAlias )->( hb_FieldLen( nField ) ), ;
+                    "decimals" => ( cAlias )->( hb_FieldDec( nField ) ) }
             NEXT
-            nRow++
-            hRows[ hb_ntos( nRow ) ] := hRow
-            ( cAlias )->( dbSkip() )
-        ENDDO
-        /* Release the reader before opening the count statement on the same
-         * connection. The count helper explicitly owns its own free area.
-         */
-        ( cAlias )->( dbCloseArea() )
+            DO WHILE ( cAlias )->( ! Eof() )
+                IF hPage != NIL
+                    IF nRow == hPage[ "size" ]
+                        lHasNext := .T.
+                        EXIT
+                    ENDIF
+                ENDIF
+                hRow := {=>}
+                FOR EACH hField IN hHeader
+                    /* Enumerate keys without an additional hb_HKeys array. */
+                    cName := hField:__enumKey()
+                    hRow[ cName ] := ( cAlias )->( FieldGet( hField[ "position" ] + nOffset ) )
+                NEXT
+                nRow++
+                hRows[ hb_ntos( nRow ) ] := hRow
+                ( cAlias )->( dbSkip() )
+            ENDDO
+            /* Release the reader before opening the count statement on the same
+             * connection. The count helper explicitly owns its own free area.
+             */
+            ( cAlias )->( dbCloseArea() )
+        ENDIF
         IF hPage != NIL
             cMessage := "Could not count the SQL query result rows."
-            nTotalRows := SQLTotalRows( hPage[ "sql" ], nConnection, hProfile[ "driver" ] )
+            IF lTyped
+                hCount := SQLNativeRead( "SELECT " + iif( hProfile[ "driver" ] == "mssql", ;
+                    "COUNT_BIG(*)", "COUNT(*)" ) + " AS __HBBRIDGE_COUNT FROM (" + ;
+                    hPage[ "sql" ] + Chr( 10 ) + ") AS HBBCOUNT", hBindings, nConnection, 0, 0, .T. )
+                IF ! hCount[ "success" ]
+                    cFailure := hCount[ "code" ]
+                    cMessage := hCount[ "error" ]
+                    Break( NIL )
+                ENDIF
+                nTotalRows := hCount[ "totalRows" ]
+            ELSE
+                nTotalRows := SQLTotalRows( hPage[ "sql" ], nConnection, hProfile[ "driver" ] )
+            ENDIF
             IF nTotalRows == NIL
                 Break( NIL )
             ENDIF
@@ -170,13 +245,16 @@ STATIC FUNCTION SQLQueryLocked( cSQL, cProfile, hProfile, hPage )
                 iif( Mod( nTotalRows, hPage[ "size" ] ) == 0, 0, 1 )
         ENDIF
         hResult := { "success" => .T., "header" => hHeader, "rows" => hRows, ;
-            "rowCount" => nRow, "driver" => hProfile[ "driver" ], "resultVersion" => 1 }
+            "rowCount" => nRow, "driver" => hProfile[ "driver" ], "resultVersion" => iif( lTyped, 2, 1 ) }
         IF hPage != NIL
             hResult[ "page" ] := { "number" => hPage[ "number" ], "size" => hPage[ "size" ], ;
                 "hasNext" => lHasNext, "firstRow" => iif( nRow == 0, 0, hPage[ "begin" ] ), ;
                 "lastRow" => iif( nRow == 0, 0, hPage[ "begin" ] + nRow - 1 ) }
             hResult[ "totalRows" ] := nTotalRows
             hResult[ "totalPages" ] := nTotalPages
+        ELSEIF lTyped
+            hResult[ "totalRows" ] := nRow
+            hResult[ "totalPages" ] := iif( nRow == 0, 0, 1 )
         ENDIF
     RECOVER
         /* Driver errors can include SQL/connection strings. Return a stable
@@ -215,6 +293,53 @@ STATIC FUNCTION SQLQueryLocked( cSQL, cProfile, hProfile, hPage )
     END SEQUENCE
 
 RETURN hResult
+
+/* Native callbacks replace their local RDDINFO item with a boolean. Their
+ * caller-owned hash output remains shared and must be complete on return.
+ */
+STATIC FUNCTION SQLNativeRead( cSQL, hBindings, nConnection, nSkip, nLimit, lCount )
+
+    LOCAL hRequest := { "operation" => iif( lCount, "hbbridge.querytyped.count.v1", ;
+        "hbbridge.querytyped.v1" ), "sql" => cSQL, "bindings" => hb_HClone( hBindings ), ;
+        "skipColumns" => nSkip, "rowLimit" => nLimit, "output" => NIL }
+    LOCAL hOutput, hError
+
+    LOCAL lOK := rddInfo( RDDI_EXECUTE, hRequest, "SQLMIX", nConnection )
+
+    hOutput := hRequest[ "output" ]
+    IF HB_ISHASH( hOutput )
+        IF hb_HHasKey( hOutput, "success" ) .AND. HB_ISLOGICAL( hOutput[ "success" ] )
+            IF lOK .AND. hOutput[ "success" ]
+                IF lCount
+                    IF hb_HHasKey( hOutput, "totalRows" ) .AND. HB_ISNUMERIC( hOutput[ "totalRows" ] )
+                        IF hOutput[ "totalRows" ] >= 0 .AND. hOutput[ "totalRows" ] <= 9007199254740991 .AND. ;
+                            hOutput[ "totalRows" ] == Int( hOutput[ "totalRows" ] )
+                            RETURN hOutput
+                        ENDIF
+                    ENDIF
+                ELSEIF hb_HHasKey( hOutput, "header" ) .AND. hb_HHasKey( hOutput, "rows" ) .AND. ;
+                    hb_HHasKey( hOutput, "rowCount" ) .AND. hb_HHasKey( hOutput, "hasNext" )
+                    IF HB_ISHASH( hOutput[ "header" ] ) .AND. HB_ISHASH( hOutput[ "rows" ] ) .AND. ;
+                        HB_ISNUMERIC( hOutput[ "rowCount" ] ) .AND. HB_ISLOGICAL( hOutput[ "hasNext" ] )
+                        IF hOutput[ "rowCount" ] == Len( hOutput[ "rows" ] )
+                            RETURN hOutput
+                        ENDIF
+                    ENDIF
+                ENDIF
+            ELSEIF ! hOutput[ "success" ] .AND. hb_HHasKey( hOutput, "error" )
+                hError := hOutput[ "error" ]
+                IF HB_ISHASH( hError )
+                    IF hb_HHasKey( hError, "code" ) .AND. hb_HHasKey( hError, "message" )
+                        IF HB_ISSTRING( hError[ "code" ] ) .AND. HB_ISSTRING( hError[ "message" ] )
+                            RETURN HBBridgeError( hError[ "code" ], hError[ "message" ] )
+                        ENDIF
+                    ENDIF
+                ENDIF
+            ENDIF
+        ENDIF
+    ENDIF
+
+RETURN HBBridgeError( "STATEMENT_EXECUTE_FAILED", "The native typed reader returned an invalid result." )
 
 /* Use result ordinals rather than primary-key values. Fetch one sentinel row
  * to detect another page. The separate COUNT supplies the requested totals.
@@ -292,7 +417,7 @@ STATIC FUNCTION SQLPagePlan( hPage, cSQL, cError )
         cSQL := RTrim( Left( cSQL, Len( cSQL ) - 1 ) )
     ENDIF
     cSQLPage := "SELECT HBBPAGE.* FROM (SELECT ROW_NUMBER() OVER (ORDER BY " + cQualified + ;
-        ") AS __HBBRIDGE_ROWNO, HBBSRC.* FROM (" + cSQL + ") AS HBBSRC) AS HBBPAGE " + ;
+        ") AS __HBBRIDGE_ROWNO, HBBSRC.* FROM (" + cSQL + Chr( 10 ) + ") AS HBBSRC) AS HBBPAGE " + ;
         "WHERE HBBPAGE.__HBBRIDGE_ROWNO BETWEEN " + hb_ntos( nBegin ) + " AND " + hb_ntos( nEnd ) + ;
         " ORDER BY HBBPAGE.__HBBRIDGE_ROWNO"
 
@@ -553,7 +678,7 @@ STATIC FUNCTION SQLTotalRows( cSQL, nConnection, cDriver )
     nCountArea := 0
     nTotalRows := NIL
     cCount := iif( cDriver == "mssql", "COUNT_BIG(*)", "COUNT(*)" )
-    cCountSQL := "SELECT " + cCount + " AS QTOTAL FROM (" + cSQL + ") AS HBBCOUNT"
+    cCountSQL := "SELECT " + cCount + " AS QTOTAL FROM (" + cSQL + Chr( 10 ) + ") AS HBBCOUNT"
 
     BEGIN SEQUENCE WITH __BreakBlock()
         dbSelectArea( 0 )

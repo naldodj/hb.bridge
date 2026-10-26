@@ -1,68 +1,56 @@
-# Typed SQL and native presentation: package 002 draft
+# Typed SQL and native presentation: package 002 contract
 
 [Português](typed-sql.pt-BR.md) · [WIP](../WIP.md) · [Current SQL](milestone3-sql.md)
 
-T01 design recorded on 2026-10-23 against project base `cbe4ccf` and Harbour
-`6deac9cf3ad977ae829e5bca543d553b92dd4b6d`, with the managed ODBC patch.
-This draft is parked pending review; **T01 remains unfinished**. The
-user-prioritized hbBridge HTTP performance work takes precedence. Proposed
-service names and shapes below are review inputs, not an available API or
-connector acceptance. T02 must prove native bindings before T03 exposes them.
-Existing `RPCRDD.Query`, result version 1 and dataset calls keep working.
+**T01 specification closed on 2026-10-24**, against project base `98054b45`
+and Harbour `6deac9cf3ad977ae829e5bca543d553b92dd4b6d` with managed patches.
+T03 now implements the typed service and dataset under this bounded contract;
+the [integration evidence](validation/typed.sql.windows.json) distinguishes
+native backend/transport checks from AppServer mock checks. T04 implements
+[native presentation](native-presentation.md), with AppServer conversion and
+storage checks; combined backend/UI acceptance remains T05. Existing
+`RPCRDD.Query`, result version 1 and dataset calls remain unchanged.
 
 ## Inventory and implementation boundary
 
+The following inventory records the T01 baseline, before the T03 extension.
+
 | Component | Observed implementation | Consequence |
 | --- | --- | --- |
-| [Query service](../src/hb/services/hbbridge.query.hb) | `alias`, SQL text, optional page; SQLMIX workarea; RDD field type/length/decimals; page and separate count | No value bindings or physical-column metadata contract. |
-| [SQL leases](../src/hb/services/hbbridge.sql.pool.hb) | Per-call native connection under the shared SQL mutex; optional ODBC physical pooling | Keep ownership/restoration; prepared statements do not create persistent cursors or result caches. |
-| SDDODBC | Direct statement execution; managed patch covers UTF-8, retrieval, timeouts and pooling | No current `SQLBindParameter` path. Add/prove a bounded connector extension. |
-| SDDSQLITE3 | Prepares/steps SQL internally, without parameter binding | Preparing SQL alone does not establish bind support. |
-| `hbodbc` | Exposes prepare/execute; no bind wrapper found in the pinned contrib | It is not a ready replacement for the accepted SDDODBC path. |
-| `hbsqlit3` | Exposes native prepare/bind/step/column APIs | Useful proof/reference; not integrated into the product's SQLMIX query path. |
-| [Dataset](../src/tlpp/hbbridge.rpc.dataset.tlpp) | Named rows, defensive header/row snapshots, totals and page navigation | Reuse validation/navigation; no typed-parameter method exists yet. |
-| [BrowseData](../src/tlpp/hbbridge.browse.data.tlpp) | Current-page FWBrowse arrays, navigation, filters, Protheus-side dictionary labels/masks and cleanup | Reuse this presentation. An explicit-schema FWTemporaryTable adapter is additional work. |
+| [Query service](../src/hb/services/hbbridge.query.hb) | SQL text, optional page, SQLMIX workarea and separate count | No value bindings or physical-column metadata contract. |
+| [SQL leases](../src/hb/services/hbbridge.sql.pool.hb) | Per-call connection under the shared SQL mutex; optional ODBC physical pooling | Preserve ownership/restoration; no persistent cursor or cache is implied. |
+| SDDODBC | Direct execution; managed UTF-8/retrieval/timeouts/pooling patch | No existing `SQLBindParameter` path; prove the smallest native extension. |
+| SDDSQLITE3 | Prepares/steps SQL without binding | Preparation alone proves neither binding nor NULL fidelity. |
+| `hbodbc` | Prepare/execute wrappers; no bind wrapper in the pinned contrib | Not a ready replacement for the accepted SDDODBC path. |
+| `hbsqlit3` | Native prepare/bind/step/column wrappers | Proof/reference candidate, not Query/SQLMIX integration. |
+| [Dataset](../src/tlpp/hbbridge.rpc.dataset.tlpp) | Named rows, defensive metadata/row snapshots, totals and navigation | Reuse validation/navigation; typed methods do not exist yet. |
+| [BrowseData](../src/tlpp/hbbridge.browse.data.tlpp) | Current-page FWBrowse arrays, navigation, filters and caller-side dictionary labels/masks | Reuse the UI; explicit-schema FWTemporaryTable support is additional work. |
 
-Sources: pinned [SDDODBC](https://github.com/harbour/core/blob/6deac9cf3ad977ae829e5bca543d553b92dd4b6d/contrib/sddodbc/core.c),
+Inspected pinned sources: [SDDODBC](https://github.com/harbour/core/blob/6deac9cf3ad977ae829e5bca543d553b92dd4b6d/contrib/sddodbc/core.c),
 [SDDSQLITE3](https://github.com/harbour/core/blob/6deac9cf3ad977ae829e5bca543d553b92dd4b6d/contrib/sddsqlt3/core.c),
 [ODBC wrappers](https://github.com/harbour/core/blob/6deac9cf3ad977ae829e5bca543d553b92dd4b6d/contrib/hbodbc/odbc.c)
 and [SQLite wrappers](https://github.com/harbour/core/blob/6deac9cf3ad977ae829e5bca543d553b92dd4b6d/contrib/hbsqlit3/core.c).
-The [dependency manifest](../config/dependencies.json) and
-[patch](../config/patches/sddodbc.patch) identify the inspected inputs.
-Building a contrib does not mean that the executable links or exposes it.
+The [manifest](../config/dependencies.json) and [ODBC patch](../config/patches/sddodbc.patch)
+identify managed inputs. Building a contrib does not expose its APIs in hbBridge.
 
-Two gaps affect compatibility. Current Query validates required values but
-does not reject every unknown top-level parameter key; an added `bindings`
-key could be ignored by an old server. BrowseData currently decodes a whole
-serialized row with `DecodeUTF8(...:ToJSON())`/`FromJSON()`. T04 must replace
-that boundary with field conversion using the shared NUL-safe JSON helpers,
-preserving the accepted dataset snapshot. Neither gap is silently considered
-fixed by this document. The filter-schema fallback also assigns RDD length
-as decimals when SX3 is absent; T04 must resolve decimals from the explicit
-logical schema. Current SDDSQLITE3 does not prove general declared-column NULL
-fidelity or embedded-NUL text retrieval: mapped fields can substitute defaults
-and its text conversion is terminator-based. The expression-NULL regression
-does not establish those broader capabilities.
+Current Query can ignore unknown parameters; adding `bindings` to that service
+could execute SQL without binding. Legacy BrowseData decodes a serialized
+row; the additional T04 path converts fields individually through shared
+NUL-safe JSON helpers and uses explicit caller schema, not RDD display length. Current
+SDDSQLITE3 can substitute defaults for mapped NULLs and use terminated text
+retrieval. Expression-NULL checks do not prove nullable-column/NUL fidelity.
+The new native typed readers address these binding/metadata/NULL gaps without
+changing the existing Query/version-1 reader. T04 preserves the legacy Browse
+API and adds explicit current-page native table ownership. `BrowseNative`
+belongs to the local interactive example; a generic public native browse API
+is deferred.
 
-## Explicit, compatible entry point
+## Typed entry point and strict request
 
-Reserve **`RPCRDD.QueryTyped`**, `requestVersion: 1` and `resultVersion: 2`
-for the new contract. These are design names, not registered services today.
-A separate service makes an older server return `SERVICE_NOT_FOUND` instead
-of executing SQL after ignoring binding options. Discovery advertises the
-service/version only after integration; it must not promise driver types
-that were not proved for the selected profile. No fallback to literal SQL.
-
-Both entry points must share the existing execution, paging and cleanup core.
-Avoid a second query engine. Extend the SDD/native boundary only as required
-to pass typed buffers and preserve source/null information; T02 determines
-the viable extension from actual native tests. Its current area/open interface
-carries SQL text without a per-call bind descriptor. Keep existing
-unparameterized `RPCRDD.Query` calls on the accepted path; a proposed typed
-call with `bindings: {}` still requires version 2 guarantees. Strictly validate
-the new envelope and version before any database call. Audit old Query's ignored-key behavior separately in T03.
-
-Proposed request, **not executable against the current service**:
+Use **`RPCRDD.QueryTyped`**, `requestVersion: 1`, **`resultVersion: 2`**.
+An old server returns `SERVICE_NOT_FOUND`; never retry as unbound Query or
+interpolate SQL literals. Both entry points must share execution, paging and
+cleanup, extending the native boundary only where required.
 
 ```json
 {
@@ -80,142 +68,289 @@ Proposed request, **not executable against the current service**:
 }
 ```
 
-`bindings` is an object keyed by contiguous ordinal strings `"1"` through
-`"N"`; `{}` means no bindings. Bind in ordinal order, independent of hash
-enumeration. Use anonymous positional `?` markers, with one descriptor per
-occurrence. Named/numbered SQLite markers, output parameters, batches and
-stored-procedure contracts are outside this first version. Obtain marker
-counts/identities from the native prepared statement. Typed descriptors come
-from the caller, supplemented by native parameter metadata when available;
-SQLite does not provide declared parameter types. Do not count question marks
-in SQL strings or replace text inside literals/comments.
+This entry is registered when SQL profiles are configured. Required `params` members are
+`requestVersion`, `alias`, `sql`, `bindings`; only `page` is optional. Reject
+unknown members at each new contract level, wrong versions, empty profile/SQL,
+invalid JSON types and malformed descriptors before execution. `page` requires
+exactly `number`, `size`, `orderBy`, preserving current checked integer bounds,
+identifier/order validation and deterministic caller ordering. Existing
+transport envelope/authentication rules remain unchanged.
 
-Bindings supply **values**, never table/column names, expressions or sort
-directions. The caller resolves and validates identifiers/business predicates.
-Keep existing page/order validation. Bind the same base values independently
-to the page statement and its count statement on the same lease. Any future
-generated page markers have a separate internal mapping; they cannot displace
-caller ordinals. A parameterized query remains subject to database permissions;
-binding is not table authorization or a general SQL parser.
+`bindings` is an object with canonical contiguous ordinal keys `"1"` through
+`"N"`; `{}` means zero parameters. Bind by ordinal, not hash enumeration. Only
+anonymous positional `?` markers are allowed, one descriptor per occurrence.
+Named/numbered markers, output parameters, batches and stored procedures are
+outside version 1. Validate native prepared parameter count and, where exposed,
+native names: SQLite marker names must be null. Do not count characters or
+rewrite literals/comments. If the connector cannot establish the allowed marker
+contract, fail unsupported. Bindings supply values, never identifiers,
+expressions or sort directions. Protheus resolves tenant/company/branch,
+physical names and predicates; aliases remain opaque. Binding does not grant
+table permissions or implement a general SQL parser.
 
-Proposed TLPP additions are `OpenSQLTyped(sql, bindings[, page])` and
-`OpenPageTyped(sql, bindings, number, size, orderBy)`. Keep existing signatures
-unchanged. Retain a defensive binding snapshot for Next/PreviousPage, clear
-it on close/reopen, and never retain caller-owned mutable JSON. Unsupported
-service/version/type fails without retrying through unbound `OpenSQL`.
+For pagination, snapshot descriptors once and bind the same base values
+independently to page and count statements on the same lease. Validate native
+parameter counts for both. Generated row bounds remain checked integer
+literals, introducing no markers or ordinal shifts. This is one **input
+snapshot**, not transaction isolation: separate statements and later pages can
+observe concurrent changes. No cross-call database snapshot is promised.
 
-## Value types, NULL and range rules
+## Binding values, NULL and ranges
 
-Every descriptor requires `type` and boolean `isNull`. A null descriptor has
-`isNull: true` and no `value`; a non-null descriptor has `isNull: false` and a
-value of the required wire type. Reject missing, contradictory and unknown
-members. NULL, `""`, zero and false are different values. A typed NULL still
-needs its SQL type/required precision information at the native boundary.
+Every descriptor requires `type` and boolean `isNull`. Non-null values require
+`value`; null descriptors forbid it. Only `decimal` additionally requires
+`precision` and `scale`, including for typed NULL. Reject contradictory,
+missing and unknown members. NULL, empty string, zero and false are distinct.
 
-| Proposed type | Wire value and validation | Native proof required |
+SQL NULL is a valid result, not a reason to reject a query. Preserve it through
+the service, transport and dataset; Protheus owns any business substitution.
+Dictionary membership or a nonnullable source column does not change this:
+outer joins and expressions may still yield NULL. Adapter conversion errors
+below concern an unrepresentable native destination, not rejection of NULL
+by the query service or dataset.
+
+| Type | Required non-null wire value | Native requirement |
 | --- | --- | --- |
-| `text` | UTF-8 string with explicit byte length; preserve empty and embedded NUL | Unicode binding/retrieval on MSSQL; length-aware SQLite text. Never use terminator-only input lengths. |
-| `integer` | Integral JSON number in `[-(2^53-1), 2^53-1]`; consumer must retain the supplied integer exactly | Bind with an integer representation, with checked narrowing where applicable. Protheus producers must additionally respect their numeric precision. |
-| `int64` | Canonical signed decimal string within the signed 64-bit range | Checked native int64 parsing/binding; no intermediate double. |
-| `number` | Finite JSON number; approximate semantics | Native floating binding; no formatting through global SETs. Reject NaN/infinity. |
-| `decimal` | Plain decimal string plus integral `precision`/`scale`, with `precision >= 1` and `0 <= scale <= precision`; exact representability, no implicit rounding | Exact decimal binding and declared driver bounds. SQLite has no native fixed-decimal storage guarantee; fail unsupported unless an explicit exact mapping is proved. |
-| `boolean` | JSON true/false | Declared BIT mapping on MSSQL, 0/1 mapping on SQLite; no truthiness conversion. |
-| `date` | Valid calendar string `YYYY-MM-DD`, without timezone | Native SQL date on MSSQL; explicit ISO text convention on SQLite. Empty text is not a date or NULL. |
+| `text` | UTF-8 JSON string, including empty/NUL | Explicit byte lengths; prove Unicode binding/retrieval. |
+| `integer` | Integral JSON number in `[-9007199254740991, 9007199254740991]` | Integer binding and checked narrowing. Protheus must also retain its supplied integer exactly. |
+| `int64` | Canonical signed decimal string in `[-9223372036854775808, 9223372036854775807]` | Checked native int64 parsing/binding without intermediate double. |
+| `number` | Finite JSON number, approximate semantics | Native floating binding; reject NaN/infinity and overflow. |
+| `decimal` | Plain exact decimal string plus integer `precision >= 1`, `0 <= scale <= precision` | Driver-supported exact binding without double. SQLite fixed decimal is unsupported without a separately proved exact mapping. |
+| `boolean` | JSON true/false | Prove native BIT on MSSQL or explicit integer 0/1 input on SQLite; no truthiness coercion. |
+| `date` | Valid calendar `YYYY-MM-DD` without timezone | Prove native SQL DATE on MSSQL or explicit ISO text input on SQLite. The latter does not create a native SQLite DATE result type. |
 
-Integer strings use `-?(0|[1-9][0-9]*)`; integer zero has no minus sign.
-Decimal strings use `-?(0|[1-9][0-9]*)([.][0-9]+)?`, without whitespace,
-a plus sign or exponent; negative fractions such as `-0.5` are valid. Fractional digits
-must fit `scale`; integer digits must fit `precision - scale`, excluding the
-zero before a fractional value. Validate driver limits without rounding.
+Integer strings follow `-?(0|[1-9][0-9]*)`, without negative zero. Decimal input
+follows `-?(0|[1-9][0-9]*)([.][0-9]+)?`, without whitespace, plus sign or
+exponent. Fraction digits fit `scale`; integer digits fit `precision - scale`,
+excluding the leading zero of a fractional value. Reject negative zero and
+rounding. Check connector bounds independently. This is the contract vocabulary;
+the [connector guide](typed-sql-connectors.md) records implemented mappings and
+their limits. No arbitrary MVP payload cap is restored.
 
-Do not advertise this whole table as implemented support. T02 records each
-driver/type result, including typed NULL, unsupported outcomes and recovery.
-Timestamp/timezone, binary/LOB binding and array parameters remain deferred.
-Driver limits and installation memory policy still apply; add no old MVP
-payload cap. Exact decimal strings must not become doubles just to reuse an
-RDD field. Caller SQL CAST remains available; it cannot recover missing digits
-from approximate source values.
+## Version 2 result and stable column mapping
 
-## Result metadata and representation
+Choose one representation per column from prepared/native descriptors before
+reading rows. Keep it across all rows/pages; never infer it from the first
+non-null value. Keep keyed `header`/`rows`, uppercase unique projection names,
+contiguous positions `1..FieldCount` and existing page/totals meanings. Every
+row contains every header key; missing is malformed, while JSON null denotes
+SQL NULL exclusively. Empty/all-NULL results retain complete metadata and the
+same mapping. Duplicate normalized names are rejected.
 
-Keep version 1 untouched. Version 2 retains keyed `header`/`rows`, explicit
-positions, rowCount and existing page/totals meanings, and separates metadata:
+All groups/members shown below are required. `position` is a positive integer;
+`rdd.type` is string/null, its sizes nonnegative integers/null. Source
+`typeCode` is native integer/null; type/origin names are strings/null;
+precision/scale/lengths are nonnegative integers/null; `precisionRadix` is a
+positive integer/null and `nullable` is boolean/null. Preserve native units:
+MSSQL FLOAT may report precision 53 with radix 2; DECIMAL precision uses radix
+10. Unknown metadata is **null**, never invented zero, empty string or false.
+An inapplicable/unknown native radix of zero becomes null in version 2;
+the raw native proof may still record zero as an observation.
+`wire.kind`/`jsonType` follow the table below; encoding is `UTF-8` for strings,
+null otherwise. RDD observations never replace source definitions.
 
-| Group | Contract |
+Example service result, with textual exact DECIMAL and unknown expression
+origin metadata:
+
+```json
+{
+    "success": true,
+    "resultVersion": 2,
+    "driver": "mssql",
+    "header": {
+        "AMOUNT": {
+            "position": 1,
+            "rdd": { "type": null, "length": null, "decimals": null },
+            "source": {
+                "typeCode": 3,
+                "typeName": "decimal",
+                "precision": 12,
+                "precisionRadix": 10,
+                "scale": 2,
+                "characterLength": null,
+                "octetLength": null,
+                "nullable": true,
+                "catalog": null,
+                "schema": null,
+                "table": null,
+                "column": null,
+                "collation": null
+            },
+            "wire": { "kind": "decimal", "jsonType": "string", "encoding": "UTF-8" }
+        }
+    },
+    "rows": { "1": { "AMOUNT": "123.45" }, "2": { "AMOUNT": null } },
+    "rowCount": 2,
+    "totalRows": 2,
+    "totalPages": 1,
+    "page": { "number": 1, "size": 10, "hasNext": false, "firstRow": 1, "lastRow": 2 }
+}
+```
+
+Version 2 requires exact nonnegative safe JSON integer `totalRows`/`totalPages`;
+unpaged totals equal rowCount and 0/1 pages. `page` appears only for paginated
+requests. Row keys restart at `"1"` each page; empty firstRow/lastRow are zero.
+Hide internal pagination ordinals. No partial success if count/mapping/fetch fails.
+
+| Native source class | `wire.kind` / `jsonType` | Fixed rule |
+| --- | --- | --- |
+| Character/text with proved encoding | `text` / `string` | UTF-8, explicit lengths; preserve empty and NUL. |
+| Exact integer whose entire declared range fits safe JSON integers | `integer` / `number` | Integral finite number without lossy narrowing. |
+| Signed 64-bit integer, including SQLite declared integer-affinity columns | `int64` / `string` | All non-null rows use canonical integer strings, including small values. |
+| Exact DECIMAL/NUMERIC | `decimal` / `string` | Exact plain strings with exactly source scale digits; no exponent/negative zero. Require known precision/scale and lossless native retrieval. |
+| Native FLOAT/REAL/DOUBLE | `number` / `number` | Finite approximate value through the shared precision-preserving codec; no business scale inference. |
+| Native BIT/boolean | `boolean` / `boolean` | Only verified boolean source types; no numeric truthiness conversion. |
+| Native DATE | `date` / `string` | ISO `YYYY-MM-DD`; version 1 `YYYYMMDD` is unchanged. |
+| TIME, TIMESTAMP, timezone types, binary/BLOB | unsupported | No implicit formatting, time stripping or binary-to-text conversion. |
+
+Unsigned types outside these signed/range guarantees are unsupported. Detect
+NULL through native indicators/storage types **before** RDD default
+substitution. A Nil getter for EOF/missing field does not prove SQL NULL.
+Preserve descriptors/NULL information alongside the shared query path; do not
+force exact strings through approximate RDD numeric fields. Source FLOAT cannot
+recover missing digits; caller CAST does not restore precision absent in storage.
+Never derive decimal precision from display length or FLOAT column size.
+Native decimal text can omit the integer zero (`.00000000`); canonical wire
+text must insert it (`0.00000000`) without numeric parsing or rounding. The
+2026-10-24 connector proof motivated explicit precision radix and lexical
+zero normalization; both are implemented in the typed reader.
+
+SQLite declared text/integer/real affinity is only a mapping candidate. Check
+every non-null storage class/range against the fixed mapping; reject mixed
+incompatible classes rather than switching wire types. Integer storage in a
+REAL mapping converts only if exactly representable. Declared BOOL/DATE/DECIMAL
+is not proof of native boolean/date/fixed-decimal semantics and is unsupported
+in this bounded result contract. Undeclared expressions, unknown declarations
+and unavailable/ambiguous metadata fail explicitly, including empty/all-NULL
+results. SQLite CAST does not automatically supply a declared output type or
+cure this limitation. Never sample values or substitute version 1 semantics.
+
+## Typed failures and capability evidence
+
+The typed path uses these categories in the existing safe service error
+envelope. They do not change old Query errors:
+
+| Code | Meaning |
 | --- | --- |
-| `rdd` | Observed Harbour `type`, `length`, `decimals` when an RDD field is used; never rebrand these as SQL or SX3 definitions. |
-| `source` | Native SQL type/type name, precision, scale, character/octet lengths and nullable flag, when available. Unknown properties are explicit null, not invented zero/false. Origin table/column/collation stay unknown for expressions or unreported descriptors. |
-| `wire` | Representation (`text`, `number`, `integer`, `int64`, `decimal`, `boolean`, `date`) and UTF-8 for text. Exact int64/decimal use strings when native retrieval preserves those digits. |
-| Caller `logicalSchema` | Projection-keyed type, length, precision, scale, nullable policy, caption and picture resolved on Protheus; supplied to presentation, not inferred by the server. |
+| `INVALID_TYPED_REQUEST` | Unknown/missing members or malformed shape. |
+| `UNSUPPORTED_REQUEST_VERSION` | Unsupported requestVersion. |
+| `INVALID_BINDINGS` | Noncontiguous ordinals, missing/extra parameters or disallowed native marker names. |
+| `BINDING_RANGE_ERROR` | Invalid calendar, noncanonical/inexact value, overflow or precision/scale violation. |
+| `UNSUPPORTED_BINDING_TYPE` | Native input mapping is unavailable. |
+| `UNSUPPORTED_RESULT_TYPE` | Unknown, mixed or unsupported result mapping. |
+| `RESULT_RANGE_ERROR` | Native value cannot fit its fixed wire mapping without loss. |
+| `RESULT_NULL_UNAVAILABLE` | Native NULL fidelity cannot be established. |
+| `STATEMENT_PREPARE_FAILED` / `STATEMENT_BIND_FAILED` / `STATEMENT_EXECUTE_FAILED` / `STATEMENT_FETCH_FAILED` | Native operation failed; clean up before returning. |
 
-The exact result JSON member names/types still need T01 review. Required
-decisions include a representation stable across rows/pages (full exact int64
-columns stay textual even for small values), the version 2 date format,
-handling of native time/timestamp results, and an unknown/unsupported policy
-for SQLite empty, all-NULL or mixed-type expressions. Current version 1 dates
-serialize as `YYYYMMDD`; the ISO date input above does not change that output.
-A concrete result-envelope example remains a prerequisite for closing T01.
+Authentication, profile, connection and common service errors retain current
+categories. Diagnostics may identify stage, profile key, driver, ordinal/column
+position and sanitized native code; never echo SQL, connection strings,
+credentials or bound values. Do not expose raw driver text containing them.
+Clear partial results and permit recovery by a later valid call.
 
-Determine SQL NULL from native indicators/types **before** any RDD default
-substitution. `rows[ordinal][column] = null` means SQL NULL; every projected
-column must exist in every row. A missing key is malformed data, not NULL.
-An EOF/missing-field getter returning Nil alone cannot express the distinction;
-use field existence, current-row state and the versioned null representation.
-In version 1, preserve observed connector behavior without claiming universal
-nullable-column fidelity. Version 2 cannot claim null preservation until that
-native path is proved.
+T02 records `supportedCapabilities` as **test evidence scoped to connector,
+driver/version, platform and type/operation**, not current service advertising.
+The mapping table is allowed vocabulary, not universal support. Discovery may
+advertise QueryTyped/version only after T03 integration and cannot imply
+unproved profile-specific capabilities.
 
-Source SQL FLOAT remains approximate and has no business decimal scale.
-Display length is not SQL precision. Never use SX3 automatically, convert a
-large physical length through a 16-bit RDD field, or infer scale from current
-values. Do not silently truncate long text, narrow numeric values or replace
-NULL. Reject unsupported mappings. Keep current binary JSON rejection until
-an independently accepted binary representation exists.
+## Dataset and caller-owned logical presentation
 
-## Presentation ownership and conversion
+Use `OpenSQLTyped(sql, bindings[, page])` and
+`OpenPageTyped(sql, bindings, number, size, orderBy)` on the existing dataset,
+retaining `New(oClient)` and `SetAliasProfile(profile)` to select the profile;
+no profile positional argument is added. Existing signatures are preserved.
+The **version 2 validator** retains version 1 validation for old results.
+Validate fixed wire types, contiguous metadata/rows, nulls, totals and version
+before publishing state. Preserve defensive header/row/binding snapshots for
+Next/PreviousPage; clear on close/reopen/failure. No old OpenSQL fallback or
+reinterpretation of exact numeric strings.
+`Header()`/`FieldInfo()` return defensive nested version 2 snapshots for typed
+results. `FieldGet()` preserves wire values, including textual int64, decimal
+and date, without business conversion. With a current row and a valid
+`FieldExist()` guard, Nil means SQL NULL; EOF/missing field still requires its
+own guard. No new public IsNull method is needed for this contract.
 
-Reuse the current BrowseData page UI and dataset; add an explicit-schema path
-instead of duplicating browsing. An optional FWTemporaryTable/FWMBrowse
-adapter owns its created object, alias, rows and UI resources. Caller-supplied
-clients/datasets remain caller-owned. Build into private resources; publish
-only after schema validation and successful population. Close/delete all owned
-resources on failure, normal close and UI dismissal; never close a saved caller
-area. Restore the previous selected area.
+`logicalSchema` belongs to Protheus/presentation, not the QueryTyped request.
+Keys match projection keys; no automatic SX3, TOP_FIELD, table/branch or
+business-scale inference. Reserved adapter input:
 
-JSON text stays UTF-8 in both directions. Decode string field values once at
-the Protheus display/native-table boundary, leaving the dataset snapshot intact.
-Do not decode an entire serialized JSON document or apply `OemToAnsi()` to
-UTF-8. Retain NUL-safe parsing/snapshots. Dates, logicals and exact numeric
-strings convert only according to the explicit schema and tested native range.
+```json
+{
+    "schemaVersion": 1,
+    "fields": {
+        "AMOUNT": {
+            "type": "numeric",
+            "length": 12,
+            "decimals": 2,
+            "nullable": true,
+            "caption": "Amount",
+            "picture": "@E 999999999.99",
+            "inputFormat": null,
+            "nullPolicy": "reject",
+            "roundingPolicy": "reject"
+        }
+    }
+}
+```
 
-A native table may not represent SQL NULL for a chosen field. Default to an
-explicit unsupported-mapping error; a caller may explicitly choose a default
-plus a separate null indicator. Never substitute silently. Rounding requires
-an explicit caller policy; otherwise reject an inexact conversion. Pictures
-control presentation, not stored value precision. Arrays are allowed only at
-the SDK field-definition/browse boundaries that require them.
+Validate schemaVersion, projection membership, required field definitions and
+unknown members. Types are `character`, `numeric`, `logical`, `date`; `length`
+is a positive integer and `decimals` nonnegative, zero for nonnumeric types.
+Check SDK type-specific bounds before allocation. `nullable` records caller
+intent, without authorizing source NULL replacement. `caption`/`picture` are
+strings; pictures affect display, not stored precision. Version 1 requires
+`nullPolicy: "reject"` and `roundingPolicy: "reject"`. Defaults, separate null
+indicators and rounding modes require a later explicit adapter contract.
+Preserve NULL in the dataset even when a native table cannot represent it;
+reject unrepresentable NULL, encoding, exact numeric/range and date conversion.
+All shown field members are required. `inputFormat` is null for non-date
+targets; date targets require `"YYYY-MM-DD"` for native DATE wire strings or
+explicit `"YYYYMMDD"` for caller-declared textual dates, such as Protheus
+VARCHAR(8). Validate the calendar and source wire type; never infer these
+formats from table/field names. Use an explicit caller CAST when source
+rounding is intended; the adapter does not round automatically.
 
-## T02 proof and subsequent acceptance
+The explicit-schema native adapter decodes string fields **once**
+at the Protheus UI/native-table boundary, preserving UTF-8 snapshots/NUL-safe
+parsing. Do not decode serialized JSON or apply OemToAnsi to UTF-8. Validate
+native string capacity/NUL support and reject truncation/replacement. Exact
+numeric strings convert only under caller schema and proved SDK precision/
+range, without implicit rounding.
 
-Create reproducible native probes using the managed sources, without modifying
-an installed executable or using private credentials in fixtures. Prove actual
-MSSQL and SQLite prepare/bind/execute/fetch/close, not SQL literal substitution.
-Record source/patch/driver versions and explicit supported-type matrices.
+The native table adapter owns its FWTemporaryTable and the local browse example
+owns its UI resources. The adapter reserves its alias once and creates the
+physical table and per-field indexes on first load. Paging clears/refills the
+same storage; it never changes the bound browse's alias or workarea. Accept a
+page only after validation/population succeed. Failure invalidates/clears the
+page; final Close/Destroy deletes the owned storage. Full storage readback is
+an optional constructor diagnostic (`lVerifyStorage`, default false), not an
+unconditional second production scan. Restore the previous selected area and
+never close caller-owned clients/datasets/workareas. Arrays remain at required
+SDK boundaries; metadata and keyed records stay hashes/JSONObject. See the
+[native presentation lifecycle](native-presentation.md).
 
-- Check UTF-8 accents/supplementary characters, embedded NUL, empty/NULL,
-  integer bounds, approximate numbers, exact int64/decimal, booleans and dates.
-  Include nulls in declared columns as well as constant expressions.
-- Check quotes/question marks/comments, repeated markers, missing/extra binds,
-  invalid type/range/version and driver errors; recover with a valid request.
-- Check page/count use the same values, totals/empty pages, defensive snapshots
-  and old Query compatibility. Pagination still performs fresh statements;
-  this contract does not promise a database snapshot.
-- Verify statement/buffer lifetime until execute/fetch completes; release on
-  all error paths. Preserve connection/workarea restoration and the SQL mutex.
-- After T03/T04, compile changed TLPP and accept real TCP/HTTP and native
-  presentation, NULL/type/encoding failures and resource cleanup in T05.
+## T02 proof and implementation gates
 
-The first T02 decision is the smallest tested connector extension that keeps
-one query implementation. If exact/native semantics cannot be demonstrated,
-report the capability as unsupported and document the gap before integration.
-MEMIO result reuse is [separate future work](evolution.md#in-memory-results-between-requests).
+T01 has no remaining contract decision. Native support is an empirical T02
+gate: reproducible probes use managed dependencies, no private credentials or
+replacement of installed executables. Record prepare/bind/execute/fetch/close,
+source/patch/driver identity and scoped capabilities.
+
+- Cover allowed types, typed NULL, declared nullable columns, empty/all-NULL,
+  UTF-8 accents/supplementary characters, NUL, exact integer/decimal bounds and
+  explicit unsupported results. Constant expressions do not prove columns.
+- Check native marker counts/names, repeated anonymous markers, quotes/comments,
+  invalid descriptors/ranges, errors and subsequent valid statements.
+- Keep buffers/statements alive through fetch; release every owned resource
+  and restore connection/workarea state under the SQL mutex.
+- Prove independent page/count binding from one descriptor snapshot, stable
+  metadata across pages/empty pages, totals and no partial output.
+- T03 integrates only proved mappings into the common Query/service/TLPP path;
+  T04 adds presentation; T05 accepts real TCP/HTTP, native UI, failures and
+  cleanup while preserving old Query behavior.
+
+If minimum native semantics cannot be proved, report unsupported and record
+the gap. Never weaken the contract or announce SQLMIX binding from a standalone
+wrapper test. MEMIO reuse is
+[separate future work](evolution.md#in-memory-results-between-requests).

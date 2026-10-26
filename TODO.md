@@ -11,10 +11,14 @@ code or specifically identified evidence, not unrestricted platform acceptance.
 prerequisites and evidence. Continue there instead of reanalyzing this entire
 roadmap. Reconcile completed items here when the package closes; intermediate
 commits/publication preserve its progress. Package 001 MSSQL acceptance is complete; package 002 is typed SQL/native presentation.
-Current user priority: investigate and improve hbBridge HTTP performance with
-attributable timing/acceptance. T01 remains unfinished; its
-[typed SQL draft](docs/typed-sql.md) is parked pending review, and T02–T05 have
-not started.
+HTTP maintenance was accepted in its recorded Windows scope. The
+[typed SQL specification T01](docs/typed-sql.md) is complete as a contract;
+T02 standalone Windows native proofs passed SQLite 252/MSSQL 75 checks with
+zero failures. The [connector extension design](docs/typed-sql-connectors.md)
+is implemented in T03: shared tagged SDD dispatch, typed service and TLPP dataset.
+T04 adds explicit-schema native presentation with passing AppServer conversion/
+storage and dataset regressions. Evidence is recorded in [WIP](WIP.md);
+T05 combined real AppServer/backend/UI acceptance remains pending.
 The [2026-10-12 extension review](docs/extensions-review.md) evaluates SQLRDD,
 Duktape and CCHarbour as future packages, without adding runtime dependencies.
 

@@ -1,0 +1,157 @@
+/* Released to Public Domain. */
+#include "totvs.ch"
+
+function U_HBBridgePresentationTest()
+
+    local aNames as array
+
+    local cCode:="" as character
+    local cMessage:="" as character
+    local cOriginal:="" as character
+    local cMode:="" as character
+
+    local jHeader as json
+    local jSchema as json
+    local jRow as json
+    local jConverted as json
+    local jChecks:=JSONObject():New() as json
+    local jCases:=JSONObject():New() as json
+
+    local lOK:=.T. as logical
+    local lConverted:=.F. as logical
+
+    local nCase:=0 as numeric
+    local nCases:=0 as numeric
+    local nCheck:=0 as numeric
+    local nChecks:=0 as numeric
+
+    jHeader:=HBBridge.Tests.HBBridgePresentationFixture():Header()
+    jSchema:=HBBridge.Tests.HBBridgePresentationFixture():Schema()
+    jRow:=HBBridge.Tests.HBBridgePresentationFixture():Row()
+    cOriginal:=HBBridge.Client.HBBridgeJSON():Encode(jRow)
+    jChecks["validSchema"]:=HBBridge.Client.HBBridgePresentationSchema():Validate(jHeader,jSchema,@cCode,@cMessage)
+    lConverted:=HBBridge.Client.HBBridgePresentationSchema():ConvertRow(jHeader,jSchema,jRow,@jConverted,@cCode,@cMessage)
+    jChecks["convertRow"]:=lConverted
+    if (lConverted)
+        jChecks["textDecodeOnce"]:=jConverted["TEXT"]==DecodeUTF8(jRow["TEXT"])
+        jChecks["nativeDate"]:=ValType(jConverted["DAY"])=="D".and.DToS(jConverted["DAY"])=="20240229"
+        jChecks["exactDecimal"]:=jConverted["AMOUNT"]==123.25
+        jChecks["booleanFalsePreserved"]:=ValType(jConverted["FLAG"])=="L".and.!jConverted["FLAG"]
+        jChecks["int64AsExplicitCharacter"]:=jConverted["ID"]=="42"
+    endif
+    jChecks["wireInputUnchanged"]:=HBBridge.Client.HBBridgeJSON():Encode(jRow)==cOriginal
+    FreeObj(@jConverted)
+    FreeObj(@jHeader)
+    FreeObj(@jSchema)
+    FreeObj(@jRow)
+    jCases:FromJSON('{"unknownMember":true,"version":true,"composedMember":true,"missingProjection":true,"characterCapacity":true,"numericCapacity":true,"numericScale":true,"dateWidth":true,"logicalWidth":true,"nullPolicy":true,"roundingPolicy":true,"dateFormat":true,"unknownType":true,"wireMismatch":true,"nullableType":true}')
+    aNames:=jCases:GetNames()
+    nCases:=Len(aNames)
+    for nCase:=1 to nCases
+        cMode:=aNames[nCase]
+        jHeader:=HBBridge.Tests.HBBridgePresentationFixture():Header()
+        jSchema:=HBBridge.Tests.HBBridgePresentationFixture():Schema()
+        do case
+        case cMode=="unknownMember"
+            jSchema["extra"]:=.T.
+        case cMode=="version"
+            jSchema["schemaVersion"]:=2
+        case cMode=="composedMember"
+            jSchema["fields"]["TEXT"]:=PresentationTestOmit(jSchema["fields"]["TEXT"],"picture")
+            jSchema["fields"]["TEXT"]["caption|picture"]:=""
+        case cMode=="missingProjection"
+            jSchema["fields"]:=PresentationTestOmit(jSchema["fields"],"TEXT")
+        case cMode=="characterCapacity"
+            jSchema["fields"]["TEXT"]["length"]:=255
+        case cMode=="numericCapacity"
+            jSchema["fields"]["AMOUNT"]["length"]:=33
+        case cMode=="numericScale"
+            jSchema["fields"]["AMOUNT"]["decimals"]:=17
+        case cMode=="dateWidth"
+            jSchema["fields"]["DAY"]["length"]:=10
+        case cMode=="logicalWidth"
+            jSchema["fields"]["FLAG"]["length"]:=2
+        case cMode=="nullPolicy"
+            jSchema["fields"]["TEXT"]["nullPolicy"]:="default"
+        case cMode=="roundingPolicy"
+            jSchema["fields"]["AMOUNT"]["roundingPolicy"]:="round"
+        case cMode=="dateFormat"
+            jSchema["fields"]["DAY"]["inputFormat"]:="DD/MM/YYYY"
+        case cMode=="unknownType"
+            jSchema["fields"]["TEXT"]["type"]:="memo"
+        case cMode=="wireMismatch"
+            jSchema["fields"]["TEXT"]["type"]:="numeric"
+        case cMode=="nullableType"
+            jSchema["fields"]["TEXT"]["nullable"]:=0
+        endcase
+        jChecks["rejectSchema."+cMode]:=!HBBridge.Client.HBBridgePresentationSchema():Validate(jHeader,jSchema,@cCode,@cMessage)
+        FreeObj(@jHeader)
+        FreeObj(@jSchema)
+    next nCase
+    FWFreeArray(@aNames)
+    FreeObj(@jCases)
+    jCases:=JSONObject():New()
+    jCases:FromJSON('{"null":true,"nul":true,"tooLong":true,"numericRounding":true,"invalidDate":true,"wrongBoolean":true,"inexactInt64":true,"missingField":true,"invalidUTF8":true}')
+    aNames:=jCases:GetNames()
+    nCases:=Len(aNames)
+    for nCase:=1 to nCases
+        cMode:=aNames[nCase]
+        jHeader:=HBBridge.Tests.HBBridgePresentationFixture():Header()
+        jSchema:=HBBridge.Tests.HBBridgePresentationFixture():Schema()
+        jRow:=HBBridge.Tests.HBBridgePresentationFixture():Row()
+        do case
+        case cMode=="null"
+            jSchema["fields"]["TEXT"]["nullable"]:=.T.
+            jRow["TEXT"]:=nil
+        case cMode=="nul"
+            jRow["TEXT"]:="A"+Chr(0)+"B"
+        case cMode=="tooLong"
+            jRow["TEXT"]:=Replicate("x",21)
+        case cMode=="numericRounding"
+            jRow["FLOAT"]:=1.251
+        case cMode=="invalidDate"
+            jRow["DAY"]:="2023-02-29"
+        case cMode=="wrongBoolean"
+            jRow["FLAG"]:=1
+        case cMode=="inexactInt64"
+            jSchema["fields"]["ID"]["type"]:="numeric"
+            jRow["ID"]:="9007199254740993"
+        case cMode=="missingField"
+            jRow:=PresentationTestOmit(jRow,"TEXT")
+        case cMode=="invalidUTF8"
+            jRow["TEXT"]:=Chr(255)
+        endcase
+        jChecks["rejectRow."+cMode]:=!HBBridge.Client.HBBridgePresentationSchema():ConvertRow(;
+            jHeader,jSchema,jRow,@jConverted,@cCode,@cMessage).and.ValType(jConverted)=="U"
+        FreeObj(@jHeader)
+        FreeObj(@jSchema)
+        FreeObj(@jRow)
+    next nCase
+    FWFreeArray(@aNames)
+    FreeObj(@jCases)
+    aNames:=jChecks:GetNames()
+    nChecks:=Len(aNames)
+    for nCheck:=1 to nChecks
+        lOK:=jChecks[aNames[nCheck]].and.lOK
+        ConOut("hbBridge presentation check "+aNames[nCheck]+": "+IIf(jChecks[aNames[nCheck]],"PASS","FAILED"))
+    next nCheck
+    ConOut("hbBridge presentation checks: "+tlpp.ToStr(nChecks)+"; "+IIf(lOK,"OK","FAILED"))
+    FWFreeArray(@aNames)
+    FreeObj(@jChecks)
+return(IIf(lOK,0,1))
+
+static function PresentationTestOmit(jValue as json,cOmitted as character) as json
+
+    local aNames:=jValue:GetNames() as array
+
+    local jResult:=JSONObject():New() as json
+
+    local nName:=0 as numeric
+    local nNames:=Len(aNames) as numeric
+
+    for nName:=1 to nNames
+        if (aNames[nName]!=cOmitted)
+            jResult[aNames[nName]]:=jValue[aNames[nName]]
+        endif
+    next nName
+return(jResult)

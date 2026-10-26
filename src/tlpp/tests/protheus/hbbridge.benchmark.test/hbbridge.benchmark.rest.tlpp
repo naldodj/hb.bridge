@@ -65,6 +65,9 @@ method PostPage() class HBBridgeBenchmarkRest
     catch xError
         // Native descriptions may contain configuration or credentials.
         lSent := .F.
+        if (ValType(xError)=="O")
+            FreeObj(@xError)
+        endif
     endtry
     FreeObj(@jReply)
 
@@ -203,7 +206,7 @@ static function BenchmarkRestFrameworkReady() as logical
     catch xError
         lReady := .F.
         if (ValType(xError)=="O")
-            FreeObj(xError)
+            FreeObj(@xError)
         endif
     endtry
 
@@ -238,7 +241,7 @@ static function BenchmarkRestBasic(xAuthorization as variant) as logical
     catch xError
         lValid := .F.
         if (ValType(xError)=="O")
-            FreeObj(xError)
+            FreeObj(@xError)
         endif
     endtry
     cDecoded := ""

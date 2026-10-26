@@ -73,15 +73,15 @@ Nomes duplicados após normalização resultam em `AMBIGUOUS_COLUMN`; use aliase
 SQL distintos. Perfis desconhecidos, parâmetros inválidos, conexão ausente e
 SQL inválido têm códigos próprios. O novo contrato usa hashes Harbour e
 `JSONObject` TLPP; arrays aparecem apenas nas interfaces que o RDD nativo exige.
-O serviço atual lê `alias`, `sql` e `page` opcional. Chaves superiores
+O `RPCRDD.Query` existente lê `alias`, `sql` e `page` opcional. Chaves superiores
 desconhecidas não são rejeitadas consistentemente e podem ser ignoradas; não
-habilitam bindings nem opções de metadados. O [rascunho SQL tipado](typed-sql.pt-BR.md)
-registra essa lacuna de compatibilidade; T01 aguarda revisão enquanto o
-desempenho HTTP tem prioridade.
+habilitam bindings nem opções de metadados. Use a [entrada tipada versionada](typed-sql.pt-BR.md)
+para bindings nativos e metadados de origem/transporte; compartilha ciclo e
+paginação com este serviço. Acrescentar bindings à Query antiga não os aplica.
 
-`sql` é entregue ao conector nativo. O serviço não implementa um analisador SQL,
-controle de permissões de tabelas nem parâmetros vinculados nesta entrega.
-As permissões de acesso e execução são as da conexão configurada no SGBD.
+Query antiga entrega `sql` ao conector nativo sem bind ou parsing. As permissões
+de acesso e execução são as da conexão configurada no SGBD; a validação inicial
+tipada não é autorização de tabelas nem parser SQL geral.
 
 ## Paginação no SGBD
 

@@ -118,12 +118,20 @@ mesmo os bancos nomeados com shared-cache exigem conexões no mesmo processo.
 
 `HBBridgeBrowseData` já apresenta a página atual em arrays FWBrowse, com
 títulos/máscaras resolvidos no Protheus e temporária usada pela interface de
-filtros. Não popula tabela nativa de resultados. O
-[rascunho SQL tipado/apresentação](typed-sql.pt-BR.md) do pacote 002 inventaria
-essa implementação; T01 aguarda revisão enquanto o desempenho HTTP tem
-prioridade. Um adapter de tabela de resultados pode criar `FWTemporaryTable` no TLPP
-a partir de schema explícito, copiar páginas e retornar objeto proprietário e
-alias para `FWMBrowse`, preservando o transporte atual. Os contratos TOTVS de
+filtros. T04 do pacote 002 adiciona o
+[adapter de tabela nativa](native-presentation.pt-BR.md) por esquema explícito,
+preservando o caminho existente. Popula uma `FWTemporaryTable` pertencente ao
+chamador a partir da página atual do dataset tipado e expõe seu alias ao
+`FWBrowse` nativo. Alias, tabela física e índices de pesquisa por campo são
+criados uma vez e preservados entre páginas, limpando/preenchendo linhas.
+Conversão de esquema/valores é sempre validada; releitura completa é diagnóstico
+opcional, exercitado independentemente pelos testes nativos. Close/Destroy
+final libera o armazenamento. O dataset mantém os valores UTF-8 originais;
+páginas seguintes exigem chamadas explícitas.
+Os controles da UI solicitam essas páginas. O browse nativo é função estática
+local do exemplo de apresentação, não método público de `HBBridgeBrowseData`;
+uma API genérica de browse nativo permanece futura. O transporte existente é
+preservado. Os contratos TOTVS de
 [tabela temporária](https://tdn.totvs.com/display/framework/FWTemporaryTable)
 e [integração ao browse](https://tdn.totvs.com/display/framework/Dados%2BProtegidos%2Bno%2BBrowse)
 definem posse e APIs nativas de apresentação.
@@ -145,8 +153,9 @@ Empresa/filial/tenant, metadados de dicionário, títulos, máscaras e ações
 permanecem no chamador. Medir gravação/leitura de staging contra JSON paginado
 antes de escolher o caminho padrão.
 
-O adapter de tabela nativa populada e o serviço de materialização no servidor
-são propostas, sem implementação no serviço de query atual.
+O adapter de resultados nativos está implementado no cliente em T04;
+homologação conjunta backend/UI permanece em T05. Materialização no servidor
+continua proposta, sem implementação no serviço de query atual.
 
 <a id="resultados-em-memoria-entre-requisicoes"></a>
 

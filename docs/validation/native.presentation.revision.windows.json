@@ -1,0 +1,460 @@
+{
+  "schemaVersion": 1,
+  "recordedDate": "2026-10-26",
+  "package": "002-typed-sql-presentation",
+  "task": "T05-native-example-revision",
+  "status": "scoped-automated-regressions-passed; interactive-and-combined-backend-acceptance-open",
+  "projectBase": "98054b45a0ea040f5b6cee32f5a179cd9869bdf6",
+  "platform": "x86_64-windows",
+  "scope": "Isolated licensed AppServer compilation, real DBAccess-owned FWTemporaryTable/FWBulk over synthetic typed pages, and column codeblocks/search/filter/navigation without activating FWBrowse. No ERP table read or hbBridge network SQL query.",
+  "privateInputs": "External licensed SDK/RPO, includes and configured DBAccess endpoint. No INI content, credentials or private configuration hash retained; existing services and deployment RPOs unchanged.",
+  "command": "./scripts/test-protheus-presentation.ps1 -AppServerDirectory '<sdk>' -IniFile '<sdk-ini>' -RpoDirectory '<vendor-rpos>' -IncludeDirectory @('<totvs-includes>','<project>/includes') -NativeTables -NativeRows 10000",
+  "runStartedUTC": "2026-10-26T11:19:27.3632543Z",
+  "counts": {
+    "tlppSources": 66,
+    "presentationConversion": 32,
+    "nativeTable": 62,
+    "nativeBrowse": 59,
+    "sdkAssertions": 5,
+    "typedDataset": 77,
+    "legacyDataset": 67,
+    "failures": 0
+  },
+  "fixture": {
+    "interactiveEntry": "U_HBBridgeNativeBrowse(nRecords,nPageSize)",
+    "interactiveDefaultRows": 1000,
+    "interactiveDefaultPageSize": 13,
+    "storageDefaultRows": 1025,
+    "storageRowsTested": 10000,
+    "bulkBufferRows": 1024,
+    "writeModeObserved": "bulk",
+    "headlessNavigationRows": 12,
+    "headlessNavigationPageSize": 4,
+    "additionalSourceRows": 10000,
+    "additionalSourcePageSize": 100,
+    "publicProjections": [
+      "ID_CODE",
+      "ID",
+      "AMOUNT",
+      "TEXT",
+      "FLAG",
+      "DAY",
+      "FLOAT"
+    ],
+    "publicFieldCount": 7,
+    "physicalFieldCount": 8,
+    "indexCount": 7,
+    "code": "Visible C(10), zero-padded from the same row number as exact-text ID. Result() no longer repeats code 42. Actual index traversal verifies order from 9 to 10.",
+    "logicalSearch": "FLAG retains L storage; private C(5) True/False shadow is indexed. FieldName reads values; SearchFieldName/IndexOrder map search separately.",
+    "indexExpressionsObserved": [
+      "F000000001",
+      "F000000002",
+      "F000000003",
+      "F000000004",
+      "L000000005",
+      "DTOS(F000000006)",
+      "F000000007"
+    ],
+    "checks": "Full independent readback of all seven public fields for 10000 rows, code/index/criteria checks, alias/workarea/index reuse, selected-order survival on refill/failure/recovery, optional readback, NULL destination rejection and ownership cleanup."
+  },
+  "suppliedManualResult": {
+    "recordedDate": "2026-10-26",
+    "source": "Console excerpts supplied in conversation",
+    "nativeBrowseChecks": 50,
+    "nativeTableChecks": 56,
+    "failures": 0,
+    "nativeRows": 1025,
+    "writeMode": "bulk",
+    "executableIdentity": null,
+    "rpoIdentity": null,
+    "scope": "Dated prior source snapshot; not attributed to current compiled identities and not visual dialog acceptance."
+  },
+  "executable": {
+    "name": "appserver.exe",
+    "sha256": "A14029C4CCD8F410FF9D0CA1782D0FFFD076283393D005A39D7BD072C64440D6",
+    "tlppRPOSha256": "865185D6F5D8D499522742FD04E7907D572CECA4BC5413C5783CA1535097F1A9"
+  },
+  "inputRPO": [
+    {
+      "name": "tttm120.rpo",
+      "sha256": "6DB407B4A29349356E2A37E5F6730BD20FB2B111E6BDFCBA6DD967F788DADF02",
+      "bytes": 612926471
+    },
+    {
+      "name": "custom.rpo",
+      "sha256": "D3EF377A3440EAD09E44098E6F8C16D6CDAA4FBB0C6C4B06175A294F7045831F",
+      "bytes": 33408742
+    }
+  ],
+  "outputRPO": [
+    {
+      "name": "tttm120.rpo",
+      "sha256": "6DB407B4A29349356E2A37E5F6730BD20FB2B111E6BDFCBA6DD967F788DADF02",
+      "bytes": 612926471
+    },
+    {
+      "name": "custom.rpo",
+      "sha256": "6084395D5FD1DA497D7DD837C8FC2CD551513CAC7BBB907939ECC9DB2D395546",
+      "bytes": 33431990
+    }
+  ],
+  "compile": {
+    "sourceCount": 66,
+    "success": true,
+    "exitCode": 0,
+    "timedOut": false,
+    "stdoutSHA256": "208EA671DEAEFD154188CBD372A3B41C9C9D718F99EB7CFEE4F7D1009B275F20"
+  },
+  "tests": [
+    {
+      "program": "U_HBBridgePresentationTest",
+      "checks": 32,
+      "failures": 0,
+      "exitCode": 0,
+      "timedOut": false,
+      "success": true,
+      "summary": "hbBridge presentation checks: 32; OK",
+      "logSHA256": "EFCBCE986844B05DE0C7ADED955A9176698D72BA10E7D59903856049B318A02C"
+    },
+    {
+      "program": "U_HBBridgeTypedDataSetTest",
+      "checks": 77,
+      "failures": 0,
+      "exitCode": 0,
+      "timedOut": false,
+      "success": true,
+      "summary": "hbBridge typed dataset Protheus OK; checks=77; mock calls=33",
+      "logSHA256": "1FA1F57057FA01691590901F6597EAF640DF21AE0B642818FBB6CA258ADFD77E"
+    },
+    {
+      "program": "U_HBBridgeDataSetTest",
+      "checks": 67,
+      "failures": 0,
+      "exitCode": -4,
+      "timedOut": false,
+      "success": true,
+      "summary": "hbBridge dataset navigation Protheus OK; checks=67; mock calls=31",
+      "logSHA256": "010005F5F69C04CB47FA50944DDDF96BC876CA813609AA61E4FCC070976D858F"
+    },
+    {
+      "program": "U_HBBridgePresentationProbe",
+      "checks": 5,
+      "failures": 0,
+      "exitCode": 0,
+      "timedOut": false,
+      "success": true,
+      "summary": "hbBridge presentation SDK probe OK",
+      "logSHA256": "11F2227B7DD356E5570CF8063718362A3AA231193152E8B92AC512DAFEA81AEA"
+    },
+    {
+      "program": "U_HBBridgePresentationTableCLI",
+      "checks": 62,
+      "failures": 0,
+      "exitCode": 0,
+      "timedOut": false,
+      "success": true,
+      "summary": "hbBridge native table checks: 62; OK",
+      "logSHA256": "C6756D6AEC8CF8D5B5398C4DB86354764120A0704E1022B9000CCB05E5FABFD9"
+    },
+    {
+      "program": "U_HBBridgeNativeBrowseTest",
+      "checks": 59,
+      "failures": 0,
+      "exitCode": 0,
+      "timedOut": false,
+      "success": true,
+      "summary": "hbBridge native browse checks: 59; OK",
+      "logSHA256": "98286B7094BD87CE4F0EED9E2DC7BC2F90318DA08215133D53B592AA89B64DDB"
+    }
+  ],
+  "exitCodeInterpretation": "The ordinary dataset procedure returned -4 with the complete 67-check OK summary, an explicitly accepted legacy entry behavior in the maintained runner. All other suites and compilation returned 0.",
+  "sourceIdentityUnchangedAfterExecution": true,
+  "sources": [
+    {
+      "path": "src/tlpp/__rpo-legacy-cleanup/hbbridge.helper.tlpp",
+      "sha256": "FB0FA9C560CB5A0D4B2521E138FEFF8AB2685056EE4EFA736F043AD28DAA4A31"
+    },
+    {
+      "path": "src/tlpp/hbbridge.browse.data.tlpp",
+      "sha256": "36A3BD7BEEAB84F52197E3AE5E6BDFF5A249357C22A3673B5474936EBF6A723F"
+    },
+    {
+      "path": "src/tlpp/hbbridge.client.tlpp",
+      "sha256": "997CC6F71BEEC4ECE5599EA996288B6EAE11F6404B0814A67A501AD9D47BD963"
+    },
+    {
+      "path": "src/tlpp/hbbridge.config.tlpp",
+      "sha256": "AD4327AE66703821ED2D78B07EBA9CCAC4A001BDFA5A495E7F4658C174E906F9"
+    },
+    {
+      "path": "src/tlpp/hbbridge.http.client.tlpp",
+      "sha256": "A0E7BD9E5A9017C07DE0CFEF50456B08C821771D1257BD94FF0916160E6D0E1F"
+    },
+    {
+      "path": "src/tlpp/hbbridge.http.table.tlpp",
+      "sha256": "F078155B1CD31EB98E6FA312CC48292FA64111117EB33688C93E9D7B16A4C49E"
+    },
+    {
+      "path": "src/tlpp/hbbridge.json.tlpp",
+      "sha256": "DB48712120783EA2B1113BA3644AC05F2823BFF2E8BE7A4BE9464B8923444578"
+    },
+    {
+      "path": "src/tlpp/hbbridge.msmgetex.tlpp",
+      "sha256": "3F90D1651CBF51F6A88C3D23DCAD106C4B762659DC7C78795873AA8425F146BE"
+    },
+    {
+      "path": "src/tlpp/hbbridge.native.table.tlpp",
+      "sha256": "0BF432141468B97B0B260A3AE14A80FE5086A5382B2CE33F552AA8C61195F196"
+    },
+    {
+      "path": "src/tlpp/hbbridge.number.tools.tlpp",
+      "sha256": "4BC804E2E2FC4AE53625950835A179CBE20A33DCF7EE7F1A7571A29C31E68567"
+    },
+    {
+      "path": "src/tlpp/hbbridge.presentation.schema.tlpp",
+      "sha256": "82B31037CD5E6D092DB02EB6F476D31B982881D7AFB3DCBB6BF530610475BA1A"
+    },
+    {
+      "path": "src/tlpp/hbbridge.rpc.dataset.tlpp",
+      "sha256": "0EACC47A17BB23B48BD8470AB10F2D649048899824DE745E4B244DC6104E01E4"
+    },
+    {
+      "path": "src/tlpp/hbbridge.sql.tools.tlpp",
+      "sha256": "F43BC87DF8C858CA088894B3D9249CF13FF89E53B05224E3DE26D475B26F3567"
+    },
+    {
+      "path": "src/tlpp/hbbridge.str.tools.tlpp",
+      "sha256": "7CDE9F97F273EE55945F6D773F2CFEE7B5AD6E8E2C0DE61DFD6F0F508B99AAD6"
+    },
+    {
+      "path": "src/tlpp/hbbridge.time.tlpp",
+      "sha256": "AC8E667E1BCC83048A1B17C0E7492C5803EA7998F6D5A6DB6D0082441FC8DDD4"
+    },
+    {
+      "path": "src/tlpp/hbbridge.totvs.filter.tlpp",
+      "sha256": "173DC18E620428C32C2D5D6A191FD95B2C4169D9C373E1222625BDC2E584E743"
+    },
+    {
+      "path": "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.control.test.tlpp",
+      "sha256": "21326A9D808FD36BD3607A03F68F5723DABD12BBF7A3C4DD1EF27F8620EF2802"
+    },
+    {
+      "path": "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.controller.tlpp",
+      "sha256": "0F828FB01F9681BA369868D80FA92CF76C0B49DB742B2E827E1E538F9317353A"
+    },
+    {
+      "path": "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.example.tlpp",
+      "sha256": "9D70404FCAA668A217E39CCFF91F22442C998DC6E7F82F15D4A86C2675EFBFA0"
+    },
+    {
+      "path": "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.mock.client.tlpp",
+      "sha256": "BBA208AF99817A76F5D5E3BEDE3F200FCBF4C735435872080A7936F876653F31"
+    },
+    {
+      "path": "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.native.client.tlpp",
+      "sha256": "CB068F551A2C172C17FC59BB57D7B9780A0DCD050CA65B787A28180F9F3DCCB4"
+    },
+    {
+      "path": "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.page.tlpp",
+      "sha256": "B07E2415CC599B6C8C6412439D982E0E313F811676327587569D03FDDFE3D112"
+    },
+    {
+      "path": "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.policy.tlpp",
+      "sha256": "F5AFDB66CEE6B2630BE236C4B0F0206B7738C3EA7687772D0ECBF00E38C6951D"
+    },
+    {
+      "path": "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.protheus.entry.tlpp",
+      "sha256": "108D21EFC5617FE4DED1A41F10613FCA1C2D8730A64E672E6A76720082E3EACA"
+    },
+    {
+      "path": "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.protheus.tlpp",
+      "sha256": "0B3E56762F1E06212BF25F0F727AA8E804D8D742E769A1AB97E74E516F578CF8"
+    },
+    {
+      "path": "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.rest.test.tlpp",
+      "sha256": "F9138C9C4E22183AD90CA237D17F3C463CBB992FDF4B348518B152910D71E720"
+    },
+    {
+      "path": "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.rest.tlpp",
+      "sha256": "C5DAA8544BDA53519125EDB2398EBB60DBC84D1B6568A19A04ED8F5D2721C473"
+    },
+    {
+      "path": "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.server.client.tlpp",
+      "sha256": "B876F61BA1CB09C38665A13CBA9A371555A45E32567BFCA6E52901B514359BDA"
+    },
+    {
+      "path": "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.stats.tlpp",
+      "sha256": "193676823D7E08BF4C6508FBAC03AB6B46F9833CE4A8F08C68836B94E8DA7859"
+    },
+    {
+      "path": "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.test.entry.tlpp",
+      "sha256": "F3417FA898CD705D9AB506CFD9BED58C607DFE414D7C53DCC81086BDDD766CA4"
+    },
+    {
+      "path": "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.test.tlpp",
+      "sha256": "D3215CC07D1B6AE3C4B5B3A8CDECB688FE62A2A51A6DCED2E6EA7BF6704ADEF0"
+    },
+    {
+      "path": "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.visual.test.tlpp",
+      "sha256": "20C6BFD3CB2D2635DB23FAA59C6A24C48663DE01F8C3A1AEE7947CA1BC9D64D7"
+    },
+    {
+      "path": "src/tlpp/tests/protheus/hbbridge.browse.data.test/hbbridge.browse.data.test.sra.tlpp",
+      "sha256": "ACC6765D14ADC60B0248DEF98F319477C81FA3A7EED711A34752314EC98A3DC0"
+    },
+    {
+      "path": "src/tlpp/tests/protheus/hbbridge.browse.data.test/hbbridge.browse.data.test.sx5.tlpp",
+      "sha256": "7FBC203EEBF071C0BAF347C2521097CDBC4CCB1E83E616D702DB2FC52601CB27"
+    },
+    {
+      "path": "src/tlpp/tests/protheus/hbbridge.browse.data.test/hbbridge.browse.data.test.tlpp",
+      "sha256": "099FDD6F11F255191DE951E881FD090019F2BCCA71F612A11EFD8AF583AA7840"
+    },
+    {
+      "path": "src/tlpp/tests/protheus/hbbridge.client.lifecycle.test/hbbridge.client.lifecycle.test.entry.tlpp",
+      "sha256": "1250A454FF895358F1C2847E5FBDA8FD84E2C754809CA3AB829A91366E56B89B"
+    },
+    {
+      "path": "src/tlpp/tests/protheus/hbbridge.client.lifecycle.test/hbbridge.client.lifecycle.test.tlpp",
+      "sha256": "3A63D2ABDBAB38EC8AAEDF64DBE970DCB1921B6C7597CAF95A1362986ED679BF"
+    },
+    {
+      "path": "src/tlpp/tests/protheus/hbbridge.concurrency.test/hbbridge.concurrency.test.entry.tlpp",
+      "sha256": "4485B05D6D0517FE68290369EF7066E571D2EE3205E2E7C22ADC14C525DFA82A"
+    },
+    {
+      "path": "src/tlpp/tests/protheus/hbbridge.concurrency.test/hbbridge.concurrency.test.tlpp",
+      "sha256": "87DF3D2456BB0B2DBE3D5F8404EB7102F9E96672632AEE1E9ADB5D9A9735C3C9"
+    },
+    {
+      "path": "src/tlpp/tests/protheus/hbbridge.config.test/hbbridge.config.test.tlpp",
+      "sha256": "0D36A2C822337B98C6D4014B512489BD7D90121A31A4FE45B7AF4F279D7F5F9E"
+    },
+    {
+      "path": "src/tlpp/tests/protheus/hbbridge.connection.test/hbbridge.connection.test.tlpp",
+      "sha256": "0E57C603D4856114B7F5936CB0386B6EBAF39ADF41D53C4E10B04DB9CA042A43"
+    },
+    {
+      "path": "src/tlpp/tests/protheus/hbbridge.dataset.test/hbbridge.dataset.mock.client.tlpp",
+      "sha256": "05DBF1FDA71BB566A5EC808FE9E56B8D734EFC19D64DCCB3874E1F3FE9C81AB6"
+    },
+    {
+      "path": "src/tlpp/tests/protheus/hbbridge.dataset.test/hbbridge.dataset.test.tlpp",
+      "sha256": "080AFBE1984DFA6C9E8A4A86A07D7DE4832DFB03B9155AF04F6106F25749BB07"
+    },
+    {
+      "path": "src/tlpp/tests/protheus/hbbridge.dataset.test/hbbridge.typed.dataset.test.tlpp",
+      "sha256": "00C32CC70ABA5B9B2DD12AB110E6BE490E775DAB5C3346F1017870B334539D81"
+    },
+    {
+      "path": "src/tlpp/tests/protheus/hbbridge.failure.test/hbbridge.failure.test.entry.tlpp",
+      "sha256": "01FE1BB035C453A793A41EE8A713BD0E8A917434AE7EA2D868C3D3C7A6366982"
+    },
+    {
+      "path": "src/tlpp/tests/protheus/hbbridge.failure.test/hbbridge.failure.test.tlpp",
+      "sha256": "696003110E56633D87CFA691C6C842F6F9DD0B736A158B3A184F1E7978BD4AAF"
+    },
+    {
+      "path": "src/tlpp/tests/protheus/hbbridge.helper.test/hbbridge.helper.test.tlpp",
+      "sha256": "DEAD0DE7198619AC5E86C590596F362CF0ACD2A3BD185FA0FDAE5E0F7A43D087"
+    },
+    {
+      "path": "src/tlpp/tests/protheus/hbbridge.http.table.test/hbbridge.http.table.example.tlpp",
+      "sha256": "33BEB1B4CE6D13118D28B77545B9406FAC6EBB0151949875BB002F3AE50075EE"
+    },
+    {
+      "path": "src/tlpp/tests/protheus/hbbridge.http.table.test/hbbridge.http.table.mock.client.tlpp",
+      "sha256": "4D71FD43B6FC70B93750504CE43A6552DCC6B6880576C379CF5437A9B3897BEC"
+    },
+    {
+      "path": "src/tlpp/tests/protheus/hbbridge.http.table.test/hbbridge.http.table.test.tlpp",
+      "sha256": "2748BE835D30BEED952357F1AA05B9F0644B6C5D789A4E58AEFB14A9DA2E7912"
+    },
+    {
+      "path": "src/tlpp/tests/protheus/hbbridge.http.test/hbbridge.http.gzip.probe.tlpp",
+      "sha256": "044D085DEFF471C79C45BFF191806AFC45BCBBA2022ECF7A409005743319CE99"
+    },
+    {
+      "path": "src/tlpp/tests/protheus/hbbridge.http.test/hbbridge.http.profile.probe.tlpp",
+      "sha256": "E4C6433AABA129BBA15BD3B998EE9DD96886CF158378AC7FD24912884F0A34D0"
+    },
+    {
+      "path": "src/tlpp/tests/protheus/hbbridge.http.test/hbbridge.http.test.tlpp",
+      "sha256": "271DCE3D7708B9EB16E02F11C2344CBD9E3D5908278676A0C598045F0FA43B81"
+    },
+    {
+      "path": "src/tlpp/tests/protheus/hbbridge.integrity.test/hbbridge.integrity.test.entry.tlpp",
+      "sha256": "C16A6B934A984E9EC08D2EF9EB1F6D0049EA1935592F7984C53F88E8D90B135A"
+    },
+    {
+      "path": "src/tlpp/tests/protheus/hbbridge.integrity.test/hbbridge.integrity.test.tlpp",
+      "sha256": "CBE2EF5757346ECF528F9F37F69056DFB4324D140AA8E578B56CE740521F5F2A"
+    },
+    {
+      "path": "src/tlpp/tests/protheus/hbbridge.integrity.test/hbbridge.json.test.tlpp",
+      "sha256": "21483C9BEF091762D942F59CCB7D215A4B1CC476213E63F5B645C852103C91C1"
+    },
+    {
+      "path": "src/tlpp/tests/protheus/hbbridge.presentation.test/hbbridge.presentation.browse.client.tlpp",
+      "sha256": "F24724B3B7343477DD87C66B5F39496106E306E5ADBFE50B89EBCD976822E16D"
+    },
+    {
+      "path": "src/tlpp/tests/protheus/hbbridge.presentation.test/hbbridge.presentation.browse.entry.tlpp",
+      "sha256": "ED0488FC1C1545BC56621F13AAF787FE1652F5698114E39C399775106F8F4BBD"
+    },
+    {
+      "path": "src/tlpp/tests/protheus/hbbridge.presentation.test/hbbridge.presentation.browse.tlpp",
+      "sha256": "F3A14E5C4C21D68F599708AB7B63ADCE3230F06AE5AC8045D9FE6C2986B82BEA"
+    },
+    {
+      "path": "src/tlpp/tests/protheus/hbbridge.presentation.test/hbbridge.presentation.fixture.tlpp",
+      "sha256": "EE68D58048027C18ACAB5E25B116BFE40E3DF04FEC2B2E02DFDE63FCD7B6BE90"
+    },
+    {
+      "path": "src/tlpp/tests/protheus/hbbridge.presentation.test/hbbridge.presentation.probe.tlpp",
+      "sha256": "57B6CE61CBDC1DE5C55F23CAD649C5A6BD3C2EED4ABAE6CF18E8BE11E5B19D2C"
+    },
+    {
+      "path": "src/tlpp/tests/protheus/hbbridge.presentation.test/hbbridge.presentation.table.test.tlpp",
+      "sha256": "90E4FB7E3B21E2774224D52C5D5340BA35FC83AB223ACBD93CE0D7B81F869A9F"
+    },
+    {
+      "path": "src/tlpp/tests/protheus/hbbridge.presentation.test/hbbridge.presentation.test.tlpp",
+      "sha256": "3069F7E2235197D04E0C8A56D16E22F4F2AB1E567D39385DF639FA5228214E9E"
+    },
+    {
+      "path": "src/tlpp/tests/protheus/hbbridge.query.test/hbbridge.query.test.sqlite.tlpp",
+      "sha256": "C4A689AD6B1CF9748BC17E8D4DEA0F74C22FCC1FA2C5FF4A6836494537E3DA9A"
+    },
+    {
+      "path": "src/tlpp/tests/protheus/hbbridge.query.test/hbbridge.query.test.tlpp",
+      "sha256": "D730263BB0864A7793D8236202657B1968DE913173971CF864DEB76FFEC10FCB"
+    },
+    {
+      "path": "src/tlpp/tests/protheus/hbbridge.query.test/hbbridge.query.test.topinfo.tlpp",
+      "sha256": "EE6746311A6ED1FF0F2E7C64324972EAA576DECF1836E1BA19DE04707184EB48"
+    }
+  ],
+  "runner": {
+    "path": "scripts/test-protheus-presentation.ps1",
+    "sha256": "0F84B2D61C3D917179B80948CCC5507B4A9B4ADD574F6D00AD5B0F9B855C25FE"
+  },
+  "ui": {
+    "program": "U_HBBridgeNativeBrowse",
+    "compiled": true,
+    "activatedInAutomatedRun": false,
+    "next": "Manual widget navigation/search/filter/close and combined actual AppServer-to-hbBridge typed backend acceptance remain T05."
+  },
+  "provenance": "Disposable tmp/protheus-presentation-e6f130d038c342928f70a84bc9ae2003 and runner-created CLI logs. Reproduction needs versioned sources and explicit prerequisites, not this scratch run.",
+  "repositoryChecks": {
+    "commitValidators": [
+      "check.hb",
+      "commit.hb",
+      "3rdpatch.hb"
+    ],
+    "checkedFiles": 316,
+    "documentLinks": 102,
+    "status": "passed",
+    "indexUnchanged": true
+  }
+}

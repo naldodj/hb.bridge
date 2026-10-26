@@ -120,7 +120,7 @@ static function Browse(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as charact
                     cFieldPicture+="."+Replicate("9",nFieldDec)
                 endif
             endif
-            aAdd(aFWBrwModel,{cFieldTitle,cFieldPicture,nFieldLen,nFieldDec,1,cFieldType})
+            aAdd(aFWBrwModel,{cFieldTitle,cFieldPicture,nFieldLen,nFieldDec,if(cFieldType=="N",2,if(cFieldType=="C",1,0)),cFieldType})
         next nField
 
         nFields:=Len(aFWBrwModel)
@@ -449,7 +449,7 @@ static procedure BrowseFilter(oFWBrowse as object,aFWBrwData as array,oDataSet a
 
     local cNewFilter:=cFilterExpr as character
 
-    aNewData:=BuildCustomFilder(oDataSet,cSQL,jPage,@cNewFilter)
+    aNewData:=BrowseBuildCustomFilder(oDataSet,cSQL,jPage,@cNewFilter)
     if (ValType(aNewData)=="A")
         BrowseReleaseRows(@aFWBrwData)
         aFWBrwData:=aNewData
@@ -461,7 +461,7 @@ static procedure BrowseFilter(oFWBrowse as object,aFWBrwData as array,oDataSet a
     endif
 return
 
-static function BuildCustomFilder(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as character,jHBBridgeDataSetPage as json,cFilterExpr as character) as array
+static function BrowseBuildCustomFilder(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as character,jHBBridgeDataSetPage as json,cFilterExpr as character) as array
 
     local aField as array
     local aHeader as array
@@ -539,9 +539,9 @@ static function BuildCustomFilder(oHBBridgeDataSet as object,cHBBridgeDataSetSQL
             jFilter["__FIELD_NAME__"]:=cField
             jFilter["__OP_ADVPL__"]:="=="
             jFilter["__OP_SQL__"]:="="
-            jFilter["__REAL_VALUE__"]:=FilterGetRealValue(oHBBridgeDataSet:FieldGet(cField),aFields[nFilter][DBS_TYPE])
-            jFilter["__VALUE__"]:=FilterLiteral(jFilter["__REAL_VALUE__"],aFields[nFilter][DBS_TYPE],.F.)
-            jFilter["__SQL_VALUE__"]:=FilterLiteral(jFilter["__REAL_VALUE__"],aFields[nFilter][DBS_TYPE],.T.)
+            jFilter["__REAL_VALUE__"]:=BrowseFilterGetRealValue(oHBBridgeDataSet:FieldGet(cField),aFields[nFilter][DBS_TYPE])
+            jFilter["__VALUE__"]:=BrowseFilterLiteral(jFilter["__REAL_VALUE__"],aFields[nFilter][DBS_TYPE],.F.)
+            jFilter["__SQL_VALUE__"]:=BrowseFilterLiteral(jFilter["__REAL_VALUE__"],aFields[nFilter][DBS_TYPE],.T.)
             jCustomFilter[nFilter]:=jFilter
         next nFilter
 
@@ -574,7 +574,7 @@ static function BuildCustomFilder(oHBBridgeDataSet as object,cHBBridgeDataSetSQL
 
 return(aFWBrwData)
 
-static function FilterGetRealValue(xValue as variant,cFieldType as character) as variant
+static function BrowseFilterGetRealValue(xValue as variant,cFieldType as character) as variant
     if (__GetFieldType(cFieldType)=="D")
         DEFAULT xValue:=""
         if (ValType(xValue)=="C")
@@ -583,7 +583,8 @@ static function FilterGetRealValue(xValue as variant,cFieldType as character) as
     endif
 return(xValue)
 
-static function FilterRealValue2Str(xValue as variant,cFieldType as character) as character
+static function BrowseFilterRealValue2Str(xValue as variant,cFieldType as character) as character
+
     local cType as character
     local cStrRealValueFilter as character
 
@@ -612,8 +613,9 @@ static function FilterRealValue2Str(xValue as variant,cFieldType as character) a
     endif
 return(cStrRealValueFilter)
 
-static function FilterLiteral(xValue as variant,cFieldType as character,lSQL as logical) as character
-    local cValue:=FilterRealValue2Str(xValue,cFieldType) as character
+static function BrowseFilterLiteral(xValue as variant,cFieldType as character,lSQL as logical) as character
+
+    local cValue:=BrowseFilterRealValue2Str(xValue,cFieldType) as character
 
     cFieldType:=__GetFieldType(cFieldType)
     if (cFieldType=="N")
@@ -624,16 +626,8 @@ static function FilterLiteral(xValue as variant,cFieldType as character,lSQL as 
     elseif ((cFieldType=="D").and.(!lSQL))
         return("SToD('"+cValue+"')")
     endif
-return("'"+StrTran(cValue,"'","''")+"'")
 
-static function __GetFieldType(cFieldType as character) as character
-    cFieldType:=HBBridge.Helper.HBBridgeStrTools():StrReplaceEx(;
-        cFieldType;
-        ,{"I","N"};
-        ,{"B","N"};
-        ,{"T","C"};
-    )
-return(Left(cFieldType,1))
+return("'"+StrTran(cValue,"'","''")+"'")
 
 static procedure BrowseCallBack(oFWBrowse as object,aFWBrwData as array,oHBBridgeDataSet as object,cHBBridgeDataSetSQL as character,jHBBridgeDataSetPage as json,cOption as character,cFilterExpr as character)
 
@@ -668,6 +662,49 @@ static procedure BrowseCallBack(oFWBrowse as object,aFWBrwData as array,oHBBridg
     endif
 
 return
+
+static function BrowseNumberValid(cNumber as character) as logical
+
+    local cChar as character
+
+    local nDots as numeric
+    local nIndex as numeric
+    local nDigits as numeric
+    local nLength := Len(cNumber) as numeric
+
+    nDots := 0
+    nIndex := 1
+    nDigits := 0
+
+    if ((!Empty(cNumber)).and.(Left(cNumber,1)$"+-"))
+        nIndex++
+    endif
+
+    while (nIndex<=nLength)
+        cChar:=SubStr(cNumber,nIndex,1)
+        if (cChar==".")
+            nDots++
+            if (nDots>1)
+                return(.F.)
+            endif
+        elseif (cChar$"0123456789")
+            nDigits++
+        else
+            return(.F.)
+        endif
+        nIndex++
+    enddo
+
+return(nDigits>0)
+
+static function __GetFieldType(cFieldType as character) as character
+    cFieldType:=HBBridge.Helper.HBBridgeStrTools():StrReplaceEx(;
+        cFieldType;
+        ,{"I","N"};
+        ,{"B","N"};
+        ,{"T","C"};
+    )
+return(Left(cFieldType,1))
 
 static function __FWBrowseSeek(oFWSeek as object,oFWBrowse as object,aFWBrwData as array,oHBBridgeDataSet as object,cHBBridgeDataSetSQL as character,jHBBridgeDataSetPage as json,cFilterExpr as character) as numeric
 
@@ -736,34 +773,3 @@ static function __FWBrowseSeek(oFWSeek as object,oFWBrowse as object,aFWBrwData 
     endif
 
 return(1)
-
-static function BrowseNumberValid(cNumber as character) as logical
-    local cChar as character
-
-    local nDots as numeric
-    local nIndex as numeric
-    local nDigits as numeric
-    local nLength := Len(cNumber) as numeric
-
-    nDots := 0
-    nIndex := 1
-    nDigits := 0
-
-    if ((!Empty(cNumber)).and.(Left(cNumber,1)$"+-"))
-        nIndex++
-    endif
-    while (nIndex<=nLength)
-        cChar:=SubStr(cNumber,nIndex,1)
-        if (cChar==".")
-            nDots++
-            if (nDots>1)
-                return(.F.)
-            endif
-        elseif (cChar$"0123456789")
-            nDigits++
-        else
-            return(.F.)
-        endif
-        nIndex++
-    enddo
-return(nDigits>0)

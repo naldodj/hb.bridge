@@ -328,6 +328,9 @@ static function LifecycleNativeMethods() as json
             oProbe:CloseConnection()
         catch xError
             jMethods["probeCloseFailed"] := .T.
+            if (ValType(xError)=="O")
+                FreeObj(@xError)
+            endif
         endtry
         FreeObj(@oProbe)
     endif

@@ -32,6 +32,8 @@ FUNCTION HBBridgeBuiltinRegistry( hSQLProfiles )
         hSQLProfiles := hb_HClone( hSQLProfiles )
         Builtin( hRegistry, "RPCRDD.Query", "H", "service.call", { "rddsql", "sddsqlt3", "sddodbc" }, ;
             {| x | HBBridgeSQLQuery( x, hSQLProfiles ) } )
+        Builtin( hRegistry, "RPCRDD.QueryTyped", "H", "service.call", { "rddsql", "sddsqlt3", "sddodbc" }, ;
+            {| x | HBBridgeSQLQueryTyped( x, hSQLProfiles ) } )
     ENDIF
 
 RETURN HBBridgeRegistrySeal( hRegistry )

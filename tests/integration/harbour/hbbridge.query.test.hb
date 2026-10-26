@@ -209,7 +209,10 @@ PROCEDURE M3SQLTests( nFailures, nChecks )
                 "native NETIO and Protheus TCP share paginated SQL results", @nFailures, @nChecks )
             M6SQLNetworkFailures( hHost, pConnection, @nFailures, @nChecks )
             hResult := netio_FuncExec( pConnection, "HBBridge.Call", "Service.List" )
-            M1Assert( Len( hResult[ "services" ] ) == 7 .AND. ! ( "DSN=" $ hb_jsonEncode( hResult ) ), ;
+            M1Assert( Len( hResult[ "services" ] ) == 8 .AND. ;
+                AScan( hResult[ "services" ], {| hService | hService[ "name" ] == "RPCRDD.Query" } ) > 0 .AND. ;
+                AScan( hResult[ "services" ], {| hService | hService[ "name" ] == "RPCRDD.QueryTyped" } ) > 0 .AND. ;
+                ! ( "DSN=" $ hb_jsonEncode( hResult ) ), ;
                 "SQL service is discoverable without profile credentials", @nFailures, @nChecks )
         RECOVER USING oError
             cError := "Unexpected error"

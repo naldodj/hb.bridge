@@ -37,3 +37,4 @@ src/c/hbbridge.utf8.c
 src/c/hbbridge.json.c
 src/c/hbbridge.decoder.c
 src/c/hbbridge.compressor.c
+src/c/hbbridge.sql.binding.c

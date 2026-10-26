@@ -1,0 +1,531 @@
+/* Released to Public Domain. */
+#include "totvs.ch"
+
+namespace HBBridge.Client
+
+// The caller owns logical metadata. This class neither queries SX3 nor
+// changes the UTF-8/wire snapshots held by HBBridgeRPCDataSet.
+class HBBridgePresentationSchema
+
+    static method Validate(jHeader as json,jLogicalSchema as json,cCode as character,cMessage as character) as logical
+    static method ConvertRow(jHeader as json,jLogicalSchema as json,jRow as json,jConverted as json,cCode as character,cMessage as character) as logical
+
+endclass
+
+static method Validate(jHeader,jLogicalSchema,cCode,cMessage) class HBBridgePresentationSchema
+
+    local aNames as array
+
+    local cName:="" as character
+    local cPosition:="" as character
+    local cNul:=Chr(0) as character
+
+    local jField as json
+    local jPositions as json
+
+    local lValid:=.T. as logical
+
+    local nField:=0 as numeric
+    local nFields:=0 as numeric
+
+    cCode:=""
+    cMessage:=""
+    if (!PresentationMembers(jLogicalSchema,"|schemaVersion|fields|",2))
+        return(PresentationFailure("INVALID_LOGICAL_SCHEMA","Logical schema requires schemaVersion and fields.",@cCode,@cMessage))
+    endif
+    if ((ValType(jLogicalSchema["schemaVersion"])!="N").or.(jLogicalSchema["schemaVersion"]!=1).or.;
+        (ValType(jLogicalSchema["fields"])!="J").or.(ValType(jHeader)!="J"))
+        return(PresentationFailure("INVALID_LOGICAL_SCHEMA","Logical schema version or projection is invalid.",@cCode,@cMessage))
+    endif
+    // GetNames is the SDK enumeration boundary. Records remain keyed JSON.
+    aNames:=jHeader:GetNames()
+    nFields:=Len(aNames)
+    jPositions:=JSONObject():New()
+    if (PresentationCount(jLogicalSchema["fields"])!=nFields)
+        lValid:=PresentationFailure("INVALID_LOGICAL_SCHEMA","Logical fields must match the complete projection.",@cCode,@cMessage)
+    endif
+    for nField:=1 to nFields
+        if (!lValid)
+            exit
+        endif
+        cName:=aNames[nField]
+        if (Empty(cName).or.(cNul $ cName).or.!jLogicalSchema["fields"]:HasProperty(cName))
+            lValid:=PresentationFailure("INVALID_LOGICAL_SCHEMA","Logical fields must match the complete projection.",@cCode,@cMessage)
+            exit
+        endif
+        jField:=jHeader[cName]
+        if (!PresentationMetadata(jField,nFields))
+            lValid:=PresentationFailure("INVALID_PRESENTATION_METADATA","Presentation requires explicit version 2 column metadata.",@cCode,@cMessage)
+            exit
+        endif
+        cPosition:=tlpp.ToStr(jField["position"])
+        if (jPositions:HasProperty(cPosition))
+            lValid:=PresentationFailure("INVALID_PRESENTATION_METADATA","Column positions must be unique and contiguous.",@cCode,@cMessage)
+            exit
+        endif
+        jPositions[cPosition]:=.T.
+        if (!PresentationField(jLogicalSchema["fields"][cName],jField,@cCode,@cMessage))
+            lValid:=.F.
+            exit
+        endif
+    next nField
+    FWFreeArray(@aNames)
+    FreeObj(@jPositions)
+
+return(lValid)
+
+static method ConvertRow(jHeader,jLogicalSchema,jRow,jConverted,cCode,cMessage) class HBBridgePresentationSchema
+
+    local aNames as array
+
+    local cName:="" as character
+
+    local jPending as json
+
+    local lValid:=.T. as logical
+
+    local nField:=0 as numeric
+    local nFields:=0 as numeric
+
+    local xConverted as variant
+
+    jConverted:=nil
+    if (!HBBridgePresentationSchema():Validate(jHeader,jLogicalSchema,@cCode,@cMessage))
+        return(.F.)
+    endif
+    if ((ValType(jRow)!="J").or.(PresentationCount(jRow)!=PresentationCount(jHeader)))
+        return(PresentationFailure("INVALID_PRESENTATION_ROW","A row must contain every projected field exactly once.",@cCode,@cMessage))
+    endif
+    jPending:=JSONObject():New()
+    aNames:=jHeader:GetNames()
+    nFields:=Len(aNames)
+    for nField:=1 to nFields
+        cName:=aNames[nField]
+        if (!jRow:HasProperty(cName))
+            lValid:=PresentationFailure("INVALID_PRESENTATION_ROW","A row is missing a projected field.",@cCode,@cMessage)
+            exit
+        endif
+        if (!PresentationValue(jRow[cName],jHeader[cName],jLogicalSchema["fields"][cName],;
+            @xConverted,@cCode,@cMessage))
+            lValid:=.F.
+            exit
+        endif
+        jPending[cName]:=xConverted
+    next nField
+    FWFreeArray(@aNames)
+    if (lValid)
+        jConverted:=jPending
+    else
+        FreeObj(@jPending)
+    endif
+
+return(lValid)
+
+static function PresentationFailure(cFailure as character,cText as character,cCode as character,cMessage as character) as logical
+
+    cCode:=cFailure
+    cMessage:=cText
+
+return(.F.)
+
+static function PresentationCount(jValue as json) as numeric
+
+    local aNames as array
+
+    local nCount:=0 as numeric
+
+    if (ValType(jValue)=="J")
+        aNames:=jValue:GetNames()
+        nCount:=Len(aNames)
+        FWFreeArray(@aNames)
+    endif
+
+return(nCount)
+
+static function PresentationMembers(jValue as json,cAllowed as character,nExpected as numeric) as logical
+
+    local aNames as array
+
+    local cName:="" as character
+
+    local lValid:=.F. as logical
+
+    local nName:=0 as numeric
+    local nNames:=0 as numeric
+
+    if (ValType(jValue)!="J")
+        return(.F.)
+    endif
+    aNames:=jValue:GetNames()
+    nNames:=Len(aNames)
+    lValid:=(nNames==nExpected)
+    for nName:=1 to nNames
+        cName:=aNames[nName]
+        if (("|" $ cName).or.!("|"+cName+"|" $ cAllowed))
+            lValid:=.F.
+            exit
+        endif
+    next nName
+    FWFreeArray(@aNames)
+
+return(lValid)
+
+static function PresentationInteger(xValue as variant,nMinimum as numeric,nMaximum as numeric) as logical
+
+    if (ValType(xValue)!="N")
+        return(.F.)
+    endif
+    if (!(xValue>=nMinimum).or.!(xValue<=nMaximum))
+        return(.F.)
+    endif
+
+return(xValue==Int(xValue))
+
+static function PresentationMetadata(jField as json,nFields as numeric) as logical
+
+    local cKind:="" as character
+
+    local jWire as json
+
+    if (!PresentationMembers(jField,"|position|rdd|source|wire|",4))
+        return(.F.)
+    endif
+    if (!PresentationInteger(jField["position"],1,nFields).or.;
+        (ValType(jField["rdd"])!="J").or.(ValType(jField["source"])!="J"))
+        return(.F.)
+    endif
+    jWire:=jField["wire"]
+    if (!PresentationMembers(jWire,"|kind|jsonType|encoding|",3))
+        return(.F.)
+    endif
+    if ((ValType(jWire["kind"])!="C").or.(ValType(jWire["jsonType"])!="C"))
+        return(.F.)
+    endif
+    cKind:=jWire["kind"]
+    if (("|" $ cKind).or.Empty(cKind))
+        return(.F.)
+    endif
+    if (("|"+cKind+"|") $ "|text|int64|decimal|date|")
+        return((jWire["jsonType"]=="string").and.(ValType(jWire["encoding"])=="C").and.(jWire["encoding"]=="UTF-8"))
+    endif
+    if ((cKind=="integer").or.(cKind=="number"))
+        return((jWire["jsonType"]=="number").and.(ValType(jWire["encoding"])=="U"))
+    endif
+    if (cKind=="boolean")
+        return((jWire["jsonType"]=="boolean").and.(ValType(jWire["encoding"])=="U"))
+    endif
+
+return(.F.)
+
+static function PresentationField(jField as json,jMetadata as json,cCode as character,cMessage as character) as logical
+
+    local cType:="" as character
+    local cKind:=jMetadata["wire"]["kind"] as character
+    local cNul:=Chr(0) as character
+
+    if (!PresentationMembers(jField,"|type|length|decimals|nullable|caption|picture|inputFormat|nullPolicy|roundingPolicy|",9))
+        return(PresentationFailure("INVALID_LOGICAL_SCHEMA","A logical field has missing or unknown members.",@cCode,@cMessage))
+    endif
+    if ((ValType(jField["type"])!="C").or.(ValType(jField["nullable"])!="L").or.;
+        (ValType(jField["caption"])!="C").or.(ValType(jField["picture"])!="C").or.;
+        (ValType(jField["nullPolicy"])!="C").or.(ValType(jField["roundingPolicy"])!="C"))
+        return(PresentationFailure("INVALID_LOGICAL_SCHEMA","Logical field member types are invalid.",@cCode,@cMessage))
+    endif
+    if ((jField["nullPolicy"]!="reject").or.(jField["roundingPolicy"]!="reject").or.;
+        (cNul $ jField["caption"]).or.(cNul $ jField["picture"]))
+        return(PresentationFailure("INVALID_LOGICAL_SCHEMA","Version 1 requires reject policies and NUL-free display metadata.",@cCode,@cMessage))
+    endif
+    cType:=jField["type"]
+    if (("|" $ cType).or.Empty(cType).or.!("|"+cType+"|" $ "|character|numeric|logical|date|"))
+        return(PresentationFailure("UNSUPPORTED_PRESENTATION_TYPE","Only character, numeric, logical and date targets are supported.",@cCode,@cMessage))
+    endif
+    if (!PresentationInteger(jField["length"],1,9007199254740991).or.;
+        !PresentationInteger(jField["decimals"],0,9007199254740991))
+        return(PresentationFailure("INVALID_LOGICAL_SCHEMA","Logical length and decimals must be exact nonnegative bounds.",@cCode,@cMessage))
+    endif
+    if ((cType!="numeric").and.(jField["decimals"]!=0))
+        return(PresentationFailure("INVALID_LOGICAL_SCHEMA","Only numeric targets may define decimals.",@cCode,@cMessage))
+    endif
+    // Native presentation profile, not a SQL/wire payload ceiling:
+    // https://tdn.totvs.com/display/tec/DBCreate
+    // https://tdn.totvs.com/display/framework/SDK+Microsiga+Protheus
+    if ((cType=="character").and.(jField["length"]>254))
+        return(PresentationFailure("PRESENTATION_RANGE_ERROR","A native character field supports at most 254 bytes.",@cCode,@cMessage))
+    endif
+    if ((cType=="numeric").and.((jField["length"]>32).or.(jField["decimals"]>16).or.;
+        ((jField["decimals"]>0).and.(jField["length"]<jField["decimals"]+2))))
+        return(PresentationFailure("PRESENTATION_RANGE_ERROR","The native numeric width or scale is unsupported.",@cCode,@cMessage))
+    endif
+    if (((cType=="date").and.(jField["length"]!=8)).or.((cType=="logical").and.(jField["length"]!=1)))
+        return(PresentationFailure("INVALID_LOGICAL_SCHEMA","Native date and logical lengths must be 8 and 1 respectively.",@cCode,@cMessage))
+    endif
+    if (cType=="date")
+        if ((ValType(jField["inputFormat"])!="C").or.;
+            !((jField["inputFormat"]=="YYYY-MM-DD").or.(jField["inputFormat"]=="YYYYMMDD")))
+            return(PresentationFailure("INVALID_LOGICAL_SCHEMA","A date target requires an explicit supported inputFormat.",@cCode,@cMessage))
+        endif
+        if (!((cKind=="date").or.(cKind=="text")).or.;
+            ((cKind=="date").and.(jField["inputFormat"]!="YYYY-MM-DD")))
+            return(PresentationFailure("PRESENTATION_TYPE_MISMATCH","A date target requires a compatible date or text wire column.",@cCode,@cMessage))
+        endif
+    elseif (ValType(jField["inputFormat"])!="U")
+        return(PresentationFailure("INVALID_LOGICAL_SCHEMA","Only date targets may define inputFormat.",@cCode,@cMessage))
+    endif
+    if ((cType=="character").and.!("|"+cKind+"|" $ "|text|int64|decimal|date|"))
+        return(PresentationFailure("PRESENTATION_TYPE_MISMATCH","A character target requires a string wire column.",@cCode,@cMessage))
+    endif
+    if ((cType=="numeric").and.!("|"+cKind+"|" $ "|integer|number|int64|decimal|"))
+        return(PresentationFailure("PRESENTATION_TYPE_MISMATCH","A numeric target requires a numeric wire column.",@cCode,@cMessage))
+    endif
+    if ((cType=="logical").and.(cKind!="boolean"))
+        return(PresentationFailure("PRESENTATION_TYPE_MISMATCH","A logical target requires a boolean wire column.",@cCode,@cMessage))
+    endif
+
+return(.T.)
+
+static function PresentationValue(xValue as variant,jMetadata as json,jField as json,xConverted as variant,cCode as character,cMessage as character) as logical
+
+    local cDate:="" as character
+    local cDecoded:="" as character
+    local cKind:=jMetadata["wire"]["kind"] as character
+    local cType:=jField["type"] as character
+    local cNul:=Chr(0) as character
+
+    local dValue as date
+
+    local xError as variant
+
+    xConverted:=nil
+    if (ValType(xValue)=="U")
+        return(PresentationFailure("PRESENTATION_NULL_REJECTED","SQL NULL remains in the dataset and cannot be stored by this presentation contract.",@cCode,@cMessage))
+    endif
+    if ((ValType(xValue)=="C").and.(cNul $ xValue))
+        return(PresentationFailure("PRESENTATION_RANGE_ERROR","A native field cannot preserve embedded NUL.",@cCode,@cMessage))
+    endif
+    if (!PresentationWireValue(xValue,jMetadata))
+        return(PresentationFailure("PRESENTATION_TYPE_MISMATCH","A value does not match its declared wire representation.",@cCode,@cMessage))
+    endif
+    do case
+    case cType=="character"
+        if (ValType(xValue)!="C")
+            return(PresentationFailure("PRESENTATION_TYPE_MISMATCH","A string wire value is required.",@cCode,@cMessage))
+        endif
+        try
+            cDecoded:=DecodeUTF8(xValue)
+            if (EncodeUTF8(cDecoded)!=xValue)
+                return(PresentationFailure("PRESENTATION_ENCODING_ERROR","The native codepage cannot preserve this UTF-8 value.",@cCode,@cMessage))
+            endif
+        catch xError
+            if (ValType(xError)=="O")
+                FreeObj(@xError)
+            endif
+            return(PresentationFailure("PRESENTATION_ENCODING_ERROR","The native codepage cannot decode this UTF-8 value.",@cCode,@cMessage))
+        endtry
+        if (Len(cDecoded)>jField["length"])
+            return(PresentationFailure("PRESENTATION_RANGE_ERROR","A decoded value exceeds the logical character length.",@cCode,@cMessage))
+        endif
+        xConverted:=cDecoded
+    case cType=="logical"
+        if (ValType(xValue)!="L")
+            return(PresentationFailure("PRESENTATION_TYPE_MISMATCH","A boolean wire value is required.",@cCode,@cMessage))
+        endif
+        xConverted:=xValue
+    case cType=="date"
+        if (ValType(xValue)!="C")
+            return(PresentationFailure("PRESENTATION_TYPE_MISMATCH","A date or declared textual date is required.",@cCode,@cMessage))
+        endif
+        cDate:=xValue
+        if (jField["inputFormat"]=="YYYY-MM-DD")
+            if ((Len(cDate)!=10).or.(SubStr(cDate,5,1)!="-").or.(SubStr(cDate,8,1)!="-"))
+                return(PresentationFailure("PRESENTATION_DATE_ERROR","A date value does not match YYYY-MM-DD.",@cCode,@cMessage))
+            endif
+            cDate:=Left(cDate,4)+SubStr(cDate,6,2)+Right(cDate,2)
+        endif
+        if ((Len(cDate)!=8).or.!PresentationDigits(cDate).or.(Left(cDate,4)=="0000"))
+            return(PresentationFailure("PRESENTATION_DATE_ERROR","A date value does not match its declared calendar format.",@cCode,@cMessage))
+        endif
+        dValue:=StoD(cDate)
+        if (DToS(dValue)!=cDate)
+            return(PresentationFailure("PRESENTATION_DATE_ERROR","A date value is outside the supported calendar.",@cCode,@cMessage))
+        endif
+        xConverted:=dValue
+    case cType=="numeric"
+        return(PresentationNumeric(xValue,cKind,jField,@xConverted,@cCode,@cMessage))
+    endcase
+
+return(.T.)
+
+static function PresentationWireValue(xValue as variant,jMetadata as json) as logical
+
+    local cKind:=jMetadata["wire"]["kind"] as character
+    local cCanonical:="" as character
+    local cDigits:="" as character
+    local cLimit:="9223372036854775807" as character
+
+    local nInteger:=0 as numeric
+    local nScale:=0 as numeric
+    local nLength:=0 as numeric
+    local nMaximum:=1.7976931348623157*(10**308) as numeric
+
+    do case
+    case cKind=="text"
+        return(ValType(xValue)=="C")
+    case cKind=="boolean"
+        return(ValType(xValue)=="L")
+    case cKind=="number"
+        return((ValType(xValue)=="N").and.(xValue==xValue).and.(xValue>=-nMaximum).and.(xValue<=nMaximum))
+    case cKind=="integer"
+        return(PresentationInteger(xValue,-9007199254740991,9007199254740991))
+    case cKind=="date"
+        if (ValType(xValue)!="C")
+            return(.F.)
+        endif
+        if ((Len(xValue)!=10).or.(SubStr(xValue,5,1)!="-").or.(SubStr(xValue,8,1)!="-"))
+            return(.F.)
+        endif
+        cDigits:=Left(xValue,4)+SubStr(xValue,6,2)+Right(xValue,2)
+        return(PresentationDigits(cDigits).and.(Left(cDigits,4)!="0000").and.(DToS(StoD(cDigits))==cDigits))
+    case (cKind=="int64").or.(cKind=="decimal")
+        if (!PresentationCanonical(xValue,@cCanonical,@nInteger,@nScale))
+            return(.F.)
+        endif
+        if (cKind=="decimal")
+            if (!PresentationInteger(jMetadata["source"]["precision"],1,9007199254740991).or.;
+                !PresentationInteger(jMetadata["source"]["scale"],0,jMetadata["source"]["precision"]))
+                return(.F.)
+            endif
+            return((nScale==jMetadata["source"]["scale"]).and.;
+                (nInteger<=jMetadata["source"]["precision"]-jMetadata["source"]["scale"]))
+        endif
+        if (nScale!=0)
+            return(.F.)
+        endif
+        cDigits:=xValue
+        if (Left(cDigits,1)=="-")
+            cDigits:=SubStr(cDigits,2)
+            cLimit:="9223372036854775808"
+        endif
+        nLength:=Len(cDigits)
+        return((nLength<19).or.((nLength==19).and.(cDigits<=cLimit)))
+    endcase
+
+return(.F.)
+
+// Normalize only after strict lexical validation. No Val, floating-point
+// arithmetic, implicit rounding or locale inference is used for this step.
+static function PresentationCanonical(xValue as variant,cCanonical as character,nInteger as numeric,nScale as numeric) as logical
+
+    local cWhole:="" as character
+    local cFraction:="" as character
+    local cValue:="" as character
+
+    local lNegative:=.F. as logical
+
+    local nDot:=0 as numeric
+
+    cCanonical:=""
+    nInteger:=0
+    nScale:=0
+    if (ValType(xValue)!="C")
+        return(.F.)
+    endif
+    cValue:=xValue
+    lNegative:=(Left(cValue,1)=="-")
+    if (lNegative)
+        cValue:=SubStr(cValue,2)
+    endif
+    nDot:=At(".",cValue)
+    if (nDot>0)
+        cWhole:=Left(cValue,nDot-1)
+        cFraction:=SubStr(cValue,nDot+1)
+        if (!PresentationDigits(cFraction))
+            return(.F.)
+        endif
+    else
+        cWhole:=cValue
+    endif
+    if (!PresentationDigits(cWhole).or.((Len(cWhole)>1).and.(Left(cWhole,1)=="0")))
+        return(.F.)
+    endif
+    nInteger:=if(cWhole=="0",0,Len(cWhole))
+    nScale:=Len(cFraction)
+    // Each iteration shortens this local fraction; its length is mutable.
+    do while (!Empty(cFraction).and.(Right(cFraction,1)=="0"))
+        cFraction:=Left(cFraction,Len(cFraction)-1)
+    enddo
+    cCanonical:=cWhole
+    if (!Empty(cFraction))
+        cCanonical+="."+cFraction
+    endif
+    if (lNegative)
+        if (cCanonical=="0")
+            return(.F.)
+        endif
+        cCanonical:="-"+cCanonical
+    endif
+
+return(.T.)
+
+static function PresentationNumeric(xValue as variant,cKind as character,jField as json,xConverted as variant,cCode as character,cMessage as character) as logical
+
+    local cExact:="" as character
+    local cRendered:="" as character
+    local cRoundTrip:="" as character
+
+    local nInteger:=0 as numeric
+    local nScale:=0 as numeric
+    local nValue:=0 as numeric
+    local nLength:=jField["length"] as numeric
+    local nDecimals:=jField["decimals"] as numeric
+
+    local xError as variant
+
+    if ((cKind=="decimal").or.(cKind=="int64"))
+        if (!PresentationCanonical(xValue,@cExact,@nInteger,@nScale))
+            return(PresentationFailure("PRESENTATION_TYPE_MISMATCH","An exact numeric wire value is not canonical.",@cCode,@cMessage))
+        endif
+        nValue:=Val(xValue)
+    else
+        nValue:=xValue
+    endif
+    // Explicit fixed formatting is the contract check, independent of SET
+    // DECIMALS/FIXED. Width/scale were bounded before this SDK allocation.
+    try
+        cRendered:=AllTrim(Str(nValue,nLength,nDecimals))
+    catch xError
+        if (ValType(xError)=="O")
+            FreeObj(@xError)
+        endif
+        return(PresentationFailure("PRESENTATION_RANGE_ERROR","The native numeric formatter cannot represent this value.",@cCode,@cMessage))
+    endtry
+    if (!PresentationCanonical(cRendered,@cRoundTrip,@nInteger,@nScale))
+        return(PresentationFailure("PRESENTATION_RANGE_ERROR","A numeric value exceeds the native field capacity.",@cCode,@cMessage))
+    endif
+    if ((cKind=="decimal").or.(cKind=="int64"))
+        if (cExact!=cRoundTrip)
+            return(PresentationFailure("PRESENTATION_RANGE_ERROR","An exact numeric value cannot be converted without loss or rounding.",@cCode,@cMessage))
+        endif
+    elseif (Val(cRendered)!=nValue)
+        return(PresentationFailure("PRESENTATION_RANGE_ERROR","A numeric value requires rounding under the logical schema.",@cCode,@cMessage))
+    endif
+    xConverted:=nValue
+
+return(.T.)
+
+static function PresentationDigits(cValue as character) as logical
+
+    local nCode:=0 as numeric
+    local nIndex:=0 as numeric
+    local nLength:=Len(cValue) as numeric
+
+    if (nLength==0)
+        return(.F.)
+    endif
+    for nIndex:=1 to nLength
+        nCode:=Asc(SubStr(cValue,nIndex,1))
+        if ((nCode<48).or.(nCode>57))
+            return(.F.)
+        endif
+    next nIndex
+
+return(.T.)

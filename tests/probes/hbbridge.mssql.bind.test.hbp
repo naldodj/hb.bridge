@@ -1,0 +1,6 @@
+-main=MSSQLBindTests
+-gtstd
+hbbridge.mssql.bind.test.hb
+hbbridge.mssql.bind.native.c
+../../hbbridge.hbm
+{win}-lodbc32

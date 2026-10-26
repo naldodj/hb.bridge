@@ -2,6 +2,28 @@
 
 [Português](README.pt-BR.md)
 
+## Isolated native Protheus presentation
+
+`test-protheus-presentation.ps1` receives explicit `-AppServerDirectory`,
+`-IniFile`, `-RpoDirectory` and `-IncludeDirectory` prerequisites. Pass include
+directories as a PowerShell array, for example `@('<totvs>', '<project>/includes')`.
+It copies the licensed SDK/RPOs into a fresh disposable workspace, compiles all
+current TLPP sources and runs conversion plus typed/ordinary dataset regressions.
+`-NativeTables` also runs SDK observations, actual FWTemporaryTable storage/
+cleanup and native example navigation/column callbacks without opening its
+window, against the configured DBAccess endpoint. It does not activate
+the native browse, replace deployment files or stop existing services. Sources and
+RPOs are hashed; local `result.json` records exact outcomes without INI content.
+See [the guide and manual UI fixture](../docs/native-presentation.md).
+
+`-NativeRows 10000` sets the main synthetic storage load (default 1025),
+through `U_HBBridgePresentationTableCLI --native-rows=10000`. Small paging cases
+retain two rows followed by one. The interactive example is separate:
+`U_HBBridgeNativeBrowse(10000,100)` sets source size and page size; its defaults
+are 1000/13. Both sources are generated fixtures, not ERP-table queries.
+
+## HTTP response probes
+
 HTTP response maintenance: `test-harbour-http-send.ps1` reproduces native
 partial-send/deadline/stop checks without database credentials.
 `test-protheus-http-gzip.ps1` uses an explicit external SDK/INI/includes and a
@@ -249,6 +271,64 @@ reuse/session-isolation test in separate processes; `-Pooling` defaults to
 `-HTTPListenBacklog <positive integer>` selects the isolated concurrency host's
 queue request. These overrides do not modify private INIs. See
 [pooling acceptance](../docs/acceptance.md#odbc-physical-reuse-on-2026-10-15).
+
+## Native SQL binding proofs (T02)
+
+```powershell
+./scripts/test-harbour-sqlite-bind.ps1
+./scripts/test-harbour-mssql-bind.ps1 -Config '<private-ini>' -Profile '<alias>'
+```
+
+Both runners use managed Harbour dependencies and create disposable run
+directories with build logs, sanitized results and source/binary receipts.
+SQLite uses an in-memory database. The initial MSSQL proof is Windows-only,
+requires a configured SQL Server ODBC driver and uses a session-local `#temp`
+table, dropped before disconnect; it does not alter application tables.
+Only the private configuration path and explicit alias are supplied on the
+command line. Credentials and native diagnostic text are not recorded.
+
+These are native prepare/bind/fetch/metadata/cleanup proofs. They do not expose
+QueryTyped, validate SQLMIX integration, or establish AppServer acceptance.
+Exact SQLite fixed DECIMAL remains unsupported. See the
+[contract](../docs/typed-sql.md), [connector decision](../docs/typed-sql-connectors.md)
+and [sanitized evidence](../docs/validation/sql.bind.windows.json).
+
+## Managed typed SQL integration (T03)
+
+```powershell
+# SQLite native hook, shared service and TCP/gzip HTTP/REST.
+./scripts/test-hbbridge-typed-sql.ps1
+
+# Add the explicitly selected private MSSQL profile.
+./scripts/test-hbbridge-typed-sql.ps1 -Config '<private-ini>' -Profile '<alias>'
+```
+
+The runner prepares the managed ODBC, SQLite and HTTP libraries, builds the
+versioned fixture and runs an owned child process with a 120-second default
+execution budget (`-TimeoutSeconds` accepts 10..600). `-Config` and `-Profile`
+are optional together; they select a private existing INI/profile without
+copying credentials into the report. SQLite uses a disposable file fixture; MSSQL
+queries use explicit inputs without changing application tables.
+
+The Windows run on 2026-10-25 passed **133 checks, zero failures**: 111 native
+SDD/shared-service checks and 22 TCP/gzip HTTP/REST checks across SQLite and
+MSSQL. It verifies `RDDI_EXECUTE` shared-hash output, string/Query compatibility,
+native bindings, NULL versus empty/missing, exact int64/decimal values,
+UTF-8/NUL, fixed metadata, pagination/count, explicit rejections and recovery.
+The real wire checks use Harbour consumers, not AppServer. Native Protheus
+presentation, Linux and other driver combinations require separate acceptance.
+
+Fresh `tmp/typed-sql-<id>/` output contains `build.log`, `console.log`,
+`result.json` and a source/binary/dependency `receipt.json`. All are disposable;
+reproduction uses maintained sources/scripts and managed dependencies. The
+runner rejects inconsistent check totals, nonboolean/failing checks, missing
+SQLite execution or a requested MSSQL profile that was not exercised.
+
+`prepare-odbc.ps1` also invokes `prepare-sqlite.ps1` before cache reuse. Both
+managed connector receipts fingerprint native helpers, patch and library;
+helper changes trigger rebuilding. See [dependencies](../docs/dependencies.md)
+and [connector scope](../docs/typed-sql-connectors.md). The T02 probes above
+remain standalone evidence and do not replace these integration checks.
 
 ## MSSQL time and memory baseline
 

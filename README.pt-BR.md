@@ -578,9 +578,29 @@ representáveis pelo contrato JSON/TLPP. A paginação limita as linhas recebida
 e materializadas pela ponte; páginas profundas ainda podem custar ordenação
 e varredura no banco. O [contrato do Marco 3](docs/milestone3-sql.pt-BR.md) detalha
 gramática de ordenação, tipos, nulos, erros e o ciclo de conexão/área.
-Parâmetros vinculados, cursores, transações, cancelamento e transferência
+Cursores, transações, cancelamento e transferência
 incremental de BLOBs continuam no TODO; perfis MSSQL já oferecem timeouts
 nativos opcionais de login e statement ODBC.
+
+T03 do pacote 002 adiciona `RPCRDD.QueryTyped` e métodos `OpenSQLTyped` /
+`OpenPageTyped` ao dataset, com bindings nativos posicionais, metadados de
+origem/transporte versão 2 e NULL preservado. Int64/decimal exatos permanecem
+strings; escala de negócio continua explícita no chamador. Checks nativos
+Windows SQLite/MSSQL e TCP/HTTP gzip têm evidência separada dos testes com mock
+no AppServer. T04 adiciona adapter de tabela nativa com esquema explícito do
+chamador e exemplo local de browse, com checks reais de conversão/armazenamento
+AppServer. Carregamentos preenchem a mesma tabela nativa física, área, alias e
+índices de pesquisa; releitura completa após gravação é diagnóstico opcional.
+Uma API pública genérica de browse nativo permanece futura.
+O exemplo sintético aceita `U_HBBridgeNativeBrowse(10000,100)` para quantidade/
+tamanho da página (padrões 1000/13). O `ID_CODE` visível com zeros à esquerda
+preserva a sequência numérica no índice nativo caractere; o `ID` original
+permanece texto exato. A fixture de armazenamento aceita
+`U_HBBridgePresentationTableTest(10000)` (padrão 1025). Essas fixtures não
+consultam tabelas do ERP. UI interativa
+e homologação AppServer/backend conjunta permanecem em T05. Veja o
+[guia de apresentação nativa](docs/native-presentation.pt-BR.md), [contrato tipado](docs/typed-sql.pt-BR.md),
+[limites dos conectores](docs/typed-sql-connectors.pt-BR.md) e [WIP](WIP.pt-BR.md).
 
 ### Reutilização de conexões SQL
 

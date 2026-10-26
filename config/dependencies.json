@@ -14,7 +14,11 @@
         },
         "odbcPatch": {
             "path": "config/patches/sddodbc.patch",
-            "sha256": "bdb3c8d901a553cfabdf09cf20537521f4c39d872e7bdf172b0ad5d913e9d751"
+            "sha256": "be457e2fab570fee95ee4130204e0bb115ac095d37443f9b8755f48cc67c3903"
+        },
+        "sqlitePatch": {
+            "path": "config/patches/sddsqlt3.patch",
+            "sha256": "6afa53f3d1ef2fe921f62af20f903029e283a850e98fd0def9a46232ffbe8691"
         }
     },
     "zig": {

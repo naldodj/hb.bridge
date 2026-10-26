@@ -176,6 +176,9 @@ method Handle(cContent) class HBBridgeBenchmarkController
             endif
         catch xError
             jResponse := BenchmarkControllerError(self:cInstance, cRequestID, "RUNTIME_EXCEPTION")
+            if (ValType(xError)=="O")
+                FreeObj(@xError)
+            endif
         endtry
         self:lRunning := .F.
     endif

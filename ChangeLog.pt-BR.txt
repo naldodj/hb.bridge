@@ -6,6 +6,67 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Adicionar cobertura de integridade para JSON UTF-8 e MSSQL)"
  */
 
+2026-10-26 11:23 UTC naldodj (Revisar browse nativo indexado e fixtures configuráveis)
+  * Manter BrowseNative como exemplo static local, preservando Browse público.
+    Manter paginação/pesquisa/filtro na mesma janela e preservar tabela nativa
+    física, alias, área e índices entre preenchimentos da página atual.
+  % Selecionar FWBulk para destinos nativos compatíveis com buffer de 1024 linhas;
+    preservar alternativa por registro conforme capacidade e releitura completa
+    opcional. Indexar lógico por auxiliar textual privado sem alterar valores L.
+  + Expor mapas SearchFieldName/IndexOrder e quantidades sintéticas configuráveis.
+    Browse mantém 1000 linhas, 13 por página; tabela mantém padrão de 1025 linhas.
+    Adicionar ID_CODE C(10) visível para ordenar caracteres; manter ID textual exato.
+  ! Derivar ID_CODE de Result() do ID da linha, sem repetir código 42.
+    Conferir sete vínculos de colunas, ordem indexada de 9 para 10, pesquisa/filtro
+    por prefixo de Code e índice selecionado após recarga/falha/recuperação.
+  ; Saída AppServer fornecida: browse 50/tabela 56 aprovados; bulk 1025 linhas.
+    Reexecução isolada posterior: 66 fontes/zero erros, browse 59/tabela 62,
+    conversão 32/SDK 5/tipado 77/comum 67 checks, sem falhas de asserção;
+    releitura independente de 10000 linhas por bulk. Registrar identidades finais
+    dos fontes/RPOs em docs/validation/native.presentation.revision.windows.json.
+    UI interativa e homologação conjunta AppServer/backend permanecem em T05.
+
+2026-10-25 18:53 UTC naldodj (Adicionar apresentação nativa Protheus explícita)
+  + Concluir T04 do pacote 002 com HBBridgePresentationSchema, HBBridgeNativeTable
+    e HBBridgeBrowseData.BrowseNative, preservando a API Browse existente.
+    Validar esquema e valores da página atual antes de alocar tabela nativa;
+    conferir estrutura/leitura após commit antes de publicar o resultado.
+  + Decodificar cada texto próprio uma vez; preservar dataset UTF-8/cliente
+    emprestados. Rejeitar NULL/NUL nativos, perda de precisão/codificação e
+    arredondamento implícito; manter decimal/int64 exatos em destino caractere.
+  + Mapear projeções para nomes nativos gerados. Manter paginação explícita,
+    liberar páginas antigas/com falha e restaurar área anterior, incluindo Nil.
+    Separar posse de tabela/UI e reter falha de exclusão para nova tentativa.
+  * Usar FWGetTopInfo para conexão DBAccess ativa. Exigir catch xError variant
+    com ValType e FreeObj por referência; alinhar os 42 blocos, incluindo
+    benchmark/ciclo de vida antigos. Registrar as convenções em EN/PT.
+  + Versionar runner SDK/RPO isolado, fixtures de conversão/armazenamento,
+    sonda SDK, exemplo visual nativo manual e manifesto sanitizado.
+  ; AppServer isolado real: 64 fontes/zero erros; conversão 32/0, tabela nativa
+    34/0, asserções SDK 5/0, regressões dos datasets tipado/comum 77/67,
+    zero falhas. Hashes compilados iguais aos da árvore final. FWMBrowse
+    interativo e homologação conjunta AppServer/backend permanecem em T05.
+
+2026-10-25 12:30 UTC naldodj (Integrar valores SQL tipados e metadados nativos)
+  + Concluir contratos T01 e registrar provas Windows independentes T02:
+    SQLite 252/0, MSSQL 75/0. Separar esquema nativo/origem/lógico.
+  + Adicionar RPCRDD.QueryTyped, requisição versão 1/resultado versão 2, por
+    hashes RDDI_EXECUTE identificados nas conexões pertencentes aos SDDs.
+    Compartilhar mutex SQL, lease, paginação/contagem, liberação e restauração.
+  + Vincular valores nativamente; preservar NULL, UTF-8/NUL, int64 assinado
+    exato e DECIMAL MSSQL textual, metadados e limites explícitos de suporte.
+    Manter Query/versão 1 existente e rejeitar fallback sem bind.
+  + Adicionar OpenSQLTyped/OpenPageTyped e validação estrita da versão 2,
+    cópias defensivas de metadados/bindings e reuso nas páginas seguintes.
+  ! Rejeitar projeções paginadas ambíguas renomeadas pelo SQLite e chaves
+    compostas inválidas; encerrar comentário final antes dos wrappers SQL.
+  + Compilar extensões SQLite/ODBC por patches fixados e hashes dos helpers;
+    versionar probes/runners e evidências sanitizadas com documentação EN/PT.
+  ; Backend/TCP/HTTP gzip/REST tipados: 133/0; regressão nativa: 777/0.
+    Registrar compilação TLPP/mock isolados e identidades finais em
+    docs/validation/typed.sql.windows.json. Homologação tipada AppServer/backend/
+    UI permanece T05; apresentação nativa permanece T04.
+
 2026-10-24 09:35 UTC naldodj (Melhorar envio HTTP e exigir gzip no benchmark)
   % Resolver delimitador de cabeçalho uma vez por worker e passá-lo ao parser;
     manter buscas por bytes no loop de leitura, trace e parser. Combinar

@@ -1,0 +1,27 @@
+--- a/sddsqlt3/core.c
++++ b/sddsqlt3/core.c
+@@ -365,6 +365,9 @@
+    return errCode;
+ }
+
++#include "hbbridge.sql.typed.h"
++#include "hbbridge.sqlite.typed.c"
++
+ static HB_ERRCODE sqlite3Execute( SQLDDCONNECTION * pConnection, PHB_ITEM pItem )
+ {
+    sqlite3 *  pDb = ( ( SDDCONN * ) pConnection->pSDDConn )->pDb;
+@@ -377,6 +380,14 @@
+
+    sqlite3_mutex_enter( pMtx );
+ #endif
++   if( HB_IS_HASH( pItem ) )
++   {
++      HB_BOOL success = HBBridgeSQLiteTypedExecute( pDb, pItem );
++#if SQLITE_VERSION_NUMBER >= 3006004
++      sqlite3_mutex_leave( pMtx );
++#endif
++      return success ? HB_SUCCESS : HB_FAILURE;
++   }
+    if( sqlite3_get_table( pDb, S_HB_ITEMGETSTR( pItem, &hStatement, NULL ), &pResult, &iRow, &iCol, NULL ) != SQLITE_OK )
+    {
+       HB_ERRCODE errCode;

@@ -71,6 +71,12 @@
   `xFilial` e nomes físicos; serviços/addons recebem entradas explícitas.
   Aliases SQL são chaves opacas, sem dedução de contexto ERP. A biblioteca TLPP
   não pode impor perfil de banco demonstrativo.
+- Obtenha a configuração ativa de conexão DBAccess por `FWGetTopInfo()` em vez
+  de reconstruir servidor/porta/banco/alias por chaves INI. Preserve conexões
+  existentes e feche somente a conexão aberta pelo próprio chamador.
+- Nos blocos TLPP `catch xError`, utilize o valor capturado e, após tratá-lo,
+  libere objetos com `if (ValType(xError)=="O"); FreeObj(@xError); endif`.
+  Declare a variável como variant; o compilador precisa reconhecer seu uso.
 - Reutilize o `hbhttpd` nativo para HTTP/REST e administração web pelo núcleo
   comum de serviços. Explicite dependências e capacidades habilitadas;
   `-hblib` é modo de compilação, não uma contrib Harbour separada.

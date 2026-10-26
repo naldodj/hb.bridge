@@ -77,13 +77,14 @@ Unknown profiles, malformed inputs, missing connections and invalid SQL have
 identified errors. Harbour hashes/TLPP JSONObject implement the contract;
 arrays appear only at native RDD API boundaries.
 
-The current service reads alias/sql/optional page. Unknown top-level keys are
+The existing `RPCRDD.Query` reads alias/sql/optional page. Unknown top-level keys are
 not consistently rejected and may be ignored; they do not enable bindings or
-metadata options. The [typed SQL draft](typed-sql.md) records this compatibility
-gap; T01 remains pending review while HTTP performance has priority.
-SQL is passed to the native connector. This delivery has no SQL parser,
-table authorization or bound parameters; database permissions are those of the
-configured connection.
+metadata options. Use the separate versioned [typed SQL entry](typed-sql.md)
+for native bindings and source/wire metadata; it shares lifecycle and pagination
+with this service. Never add bindings to old Query expecting them to be applied.
+Old Query passes SQL to its native connector without binding or parsing.
+Database permissions remain those of the configured connection; the typed
+admission guard is neither table authorization nor a general SQL parser.
 
 ## Database-side pagination
 

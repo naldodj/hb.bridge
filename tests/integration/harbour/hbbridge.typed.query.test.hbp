@@ -1,0 +1,6 @@
+-main=TypedQueryTests
+-gtstd
+-ohbbridge.typed.query.test
+hbbridge.typed.query.test.hb
+hbbridge.http.test.hb
+../../../hbbridge.hbm

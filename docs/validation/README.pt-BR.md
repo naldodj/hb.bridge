@@ -22,6 +22,10 @@ Os resumos JSON mantêm identidades/contagens sanitizadas do momento da mediçã
 - [Revisão das convenções de fonte](source.standards.windows.json).
 - [Controles do benchmark e regressão numérica JSON dos addons](benchmark.controls.windows.json).
 - [Envio de respostas HTTP, gzip e validação do cliente Windows](http.response.windows.json).
+- [Bindings nativos SQLite/MSSQL e metadados declarados dos resultados](sql.bind.windows.json).
+- [Serviço SQL tipado, TCP/HTTP gzip e contrato do dataset no AppServer](typed.sql.windows.json).
+- [Conversão, armazenamento e posse da apresentação nativa no AppServer](native.presentation.windows.json).
+- [Browse nativo revisado, FWBulk, ordenação ID_CODE e carga de 10.000 linhas](native.presentation.revision.windows.json).
 
 Essas identidades descrevem o snapshot datado, não o checkout atual. Menções
 históricas a `tmp/...` registram onde a saída foi gravada, sem garantir sua
@@ -40,6 +44,8 @@ mantidas. Cada runner cria suas próprias pastas de trabalho da rodada atual:
 ./scripts/build-hbbridge.ps1
 ./scripts/test-hbbridge.ps1
 ./scripts/test-harbour-thread-state.ps1
+./scripts/test-harbour-sqlite-bind.ps1
+./scripts/test-hbbridge-typed-sql.ps1
 ./tests/unit/scripts/clean.artifacts.test.ps1
 ./scripts/check-doc-links.ps1
 ./scripts/commit-check.ps1
@@ -51,6 +57,8 @@ de teste anterior é entrada:
 
 ```powershell
 ./scripts/test-hbbridge-mssql.ps1 -Config '<ini-privado>' -Profile '<alias>'
+./scripts/test-harbour-mssql-bind.ps1 -Config '<ini-privado>' -Profile '<alias>'
+./scripts/test-hbbridge-typed-sql.ps1 -Config '<ini-privado>' -Profile '<alias>'
 ./scripts/test-hbbridge-mssql.ps1 -Config '<ini-privado>' -Profile '<alias>' -Integrity
 ./scripts/test-hbbridge-mssql.ps1 -Config '<ini-privado>' -Profile '<alias>' -Failures `
     -FailureODBCDriver 'ODBC Driver 18 for SQL Server'

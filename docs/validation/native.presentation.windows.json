@@ -1,0 +1,300 @@
+{
+  "schemaVersion": 1,
+  "recordedDate": "2026-10-25",
+  "package": "002-typed-sql-presentation",
+  "task": "T04",
+  "status": "implemented-and-scoped-regressions-passed",
+  "projectBase": "98054b45a0ea040f5b6cee32f5a179cd9869bdf6",
+  "platform": "x86_64-windows",
+  "scope": "Actual isolated AppServer conversion and real DBAccess-owned FWTemporaryTable storage/cleanup over deterministic typed mock pages. Dataset regressions use the real JSONObject and dataset code. Interactive FWMBrowse and combined hbBridge/backend execution remain T05.",
+  "privateInputs": "External licensed SDK/RPO, include paths and configured DBAccess endpoint. No INI content, credentials or private configuration hash retained. Existing services and production RPOs were not changed.",
+  "command": "& ./scripts/test-protheus-presentation.ps1 -AppServerDirectory '<sdk>' -IniFile '<sdk-ini>' -RpoDirectory '<vendor-rpos>' -IncludeDirectory @('<totvs-includes>','<project>/includes') -NativeTables",
+  "counts": {
+    "tlppSources": 64,
+    "presentationConversion": 32,
+    "nativeTable": 34,
+    "sdkAssertions": 5,
+    "typedDataset": 77,
+    "legacyDataset": 67,
+    "failures": 0
+  },
+  "executable": {
+    "name": "appserver.exe",
+    "sha256": "A14029C4CCD8F410FF9D0CA1782D0FFFD076283393D005A39D7BD072C64440D6",
+    "tlppRPOSha256": "865185D6F5D8D499522742FD04E7907D572CECA4BC5413C5783CA1535097F1A9"
+  },
+  "inputRPO": [
+    {
+      "name": "tttm120.rpo",
+      "sha256": "6DB407B4A29349356E2A37E5F6730BD20FB2B111E6BDFCBA6DD967F788DADF02",
+      "bytes": 612926471
+    },
+    {
+      "name": "custom.rpo",
+      "sha256": "83736D2B503F8AFC59A3861A6FBAE6556D3C2032C0B281BDCFA1762B2B4F122D",
+      "bytes": 33036502
+    }
+  ],
+  "outputRPO": [
+    {
+      "name": "tttm120.rpo",
+      "sha256": "6DB407B4A29349356E2A37E5F6730BD20FB2B111E6BDFCBA6DD967F788DADF02",
+      "bytes": 612926471
+    },
+    {
+      "name": "custom.rpo",
+      "sha256": "26EEA9B9C7E06AED9488F46E4FA0292311A2D4460ED7C430B9BB1218381EC5F3",
+      "bytes": 33057014
+    }
+  ],
+  "compile": {
+    "sourceCount": 64,
+    "success": true,
+    "exitCode": 0,
+    "timedOut": false,
+    "stdoutSHA256": "FC95924981F09AB41EA1D92FC15A878FC83BDF88D4E222DACF3099502B7CF6C6"
+  },
+  "tests": [
+    {
+      "program": "U_HBBridgePresentationTest",
+      "checks": 32,
+      "failures": 0,
+      "exitCode": 0,
+      "timedOut": false,
+      "success": true,
+      "summary": "hbBridge presentation checks: 32; OK",
+      "logSHA256": "BDCDE926DC08D00FCE976F13D3B87732C2DF96A45B4053B3F15A86E029EE960A"
+    },
+    {
+      "program": "U_HBBridgeTypedDataSetTest",
+      "checks": 77,
+      "failures": 0,
+      "exitCode": 0,
+      "timedOut": false,
+      "success": true,
+      "summary": "hbBridge typed dataset Protheus OK; checks=77; mock calls=33",
+      "logSHA256": "844F27FAD57DE3B83487222D845BCBE0FA520658C4767B7F8DBC210960A48AA4"
+    },
+    {
+      "program": "U_HBBridgeDataSetTest",
+      "checks": 67,
+      "failures": 0,
+      "exitCode": -4,
+      "timedOut": false,
+      "success": true,
+      "summary": "hbBridge dataset navigation Protheus OK; checks=67; mock calls=31",
+      "logSHA256": "96770F0B6477A280737C1859EA0701C7273E0A1D78E131633FC31606E0612F23"
+    },
+    {
+      "program": "U_HBBridgePresentationProbe",
+      "checks": 5,
+      "failures": 0,
+      "exitCode": 0,
+      "timedOut": false,
+      "success": true,
+      "summary": "hbBridge presentation SDK probe OK",
+      "logSHA256": "98756702D54CF29ECCD5D0B66BD6C60648322998B570836F201FBCCEC584F675"
+    },
+    {
+      "program": "U_HBBridgePresentationTableTest",
+      "checks": 34,
+      "failures": 0,
+      "exitCode": 0,
+      "timedOut": false,
+      "success": true,
+      "summary": "hbBridge native table checks: 34; OK",
+      "logSHA256": "DA3F702DF3B856E299097AB015ACAAF897B1D7539791E0B09C3C2601378DE89E"
+    }
+  ],
+  "legacyExit": "The existing procedure entry returns -4 without a numeric CLI return. Accepted only with the exact 67-check OK summary, no timeout; all new function entries return 0.",
+  "sourceIdentityUnchangedAfterExecution": true,
+  "compiledSourceSHA256": {
+    "src/tlpp/__rpo-legacy-cleanup/hbbridge.helper.tlpp": "FB0FA9C560CB5A0D4B2521E138FEFF8AB2685056EE4EFA736F043AD28DAA4A31",
+    "src/tlpp/hbbridge.browse.data.tlpp": "71CF190BA1621DA4CE197E06FA2EEA7C45292BE96723943378223B36408CEBC5",
+    "src/tlpp/hbbridge.client.tlpp": "997CC6F71BEEC4ECE5599EA996288B6EAE11F6404B0814A67A501AD9D47BD963",
+    "src/tlpp/hbbridge.config.tlpp": "AD4327AE66703821ED2D78B07EBA9CCAC4A001BDFA5A495E7F4658C174E906F9",
+    "src/tlpp/hbbridge.http.client.tlpp": "A0E7BD9E5A9017C07DE0CFEF50456B08C821771D1257BD94FF0916160E6D0E1F",
+    "src/tlpp/hbbridge.http.table.tlpp": "F078155B1CD31EB98E6FA312CC48292FA64111117EB33688C93E9D7B16A4C49E",
+    "src/tlpp/hbbridge.json.tlpp": "DB48712120783EA2B1113BA3644AC05F2823BFF2E8BE7A4BE9464B8923444578",
+    "src/tlpp/hbbridge.msmgetex.tlpp": "3F90D1651CBF51F6A88C3D23DCAD106C4B762659DC7C78795873AA8425F146BE",
+    "src/tlpp/hbbridge.native.table.tlpp": "6884DDCF2497C33C418CDE7258A274AC89A68CA091005928253CB02074AA838B",
+    "src/tlpp/hbbridge.number.tools.tlpp": "4BC804E2E2FC4AE53625950835A179CBE20A33DCF7EE7F1A7571A29C31E68567",
+    "src/tlpp/hbbridge.presentation.schema.tlpp": "82B31037CD5E6D092DB02EB6F476D31B982881D7AFB3DCBB6BF530610475BA1A",
+    "src/tlpp/hbbridge.rpc.dataset.tlpp": "0EACC47A17BB23B48BD8470AB10F2D649048899824DE745E4B244DC6104E01E4",
+    "src/tlpp/hbbridge.sql.tools.tlpp": "F43BC87DF8C858CA088894B3D9249CF13FF89E53B05224E3DE26D475B26F3567",
+    "src/tlpp/hbbridge.str.tools.tlpp": "7CDE9F97F273EE55945F6D773F2CFEE7B5AD6E8E2C0DE61DFD6F0F508B99AAD6",
+    "src/tlpp/hbbridge.time.tlpp": "AC8E667E1BCC83048A1B17C0E7492C5803EA7998F6D5A6DB6D0082441FC8DDD4",
+    "src/tlpp/hbbridge.totvs.filter.tlpp": "173DC18E620428C32C2D5D6A191FD95B2C4169D9C373E1222625BDC2E584E743",
+    "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.control.test.tlpp": "21326A9D808FD36BD3607A03F68F5723DABD12BBF7A3C4DD1EF27F8620EF2802",
+    "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.controller.tlpp": "0F828FB01F9681BA369868D80FA92CF76C0B49DB742B2E827E1E538F9317353A",
+    "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.example.tlpp": "9D70404FCAA668A217E39CCFF91F22442C998DC6E7F82F15D4A86C2675EFBFA0",
+    "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.mock.client.tlpp": "BBA208AF99817A76F5D5E3BEDE3F200FCBF4C735435872080A7936F876653F31",
+    "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.native.client.tlpp": "CB068F551A2C172C17FC59BB57D7B9780A0DCD050CA65B787A28180F9F3DCCB4",
+    "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.page.tlpp": "B07E2415CC599B6C8C6412439D982E0E313F811676327587569D03FDDFE3D112",
+    "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.policy.tlpp": "F5AFDB66CEE6B2630BE236C4B0F0206B7738C3EA7687772D0ECBF00E38C6951D",
+    "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.protheus.entry.tlpp": "108D21EFC5617FE4DED1A41F10613FCA1C2D8730A64E672E6A76720082E3EACA",
+    "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.protheus.tlpp": "0B3E56762F1E06212BF25F0F727AA8E804D8D742E769A1AB97E74E516F578CF8",
+    "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.rest.test.tlpp": "F9138C9C4E22183AD90CA237D17F3C463CBB992FDF4B348518B152910D71E720",
+    "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.rest.tlpp": "C5DAA8544BDA53519125EDB2398EBB60DBC84D1B6568A19A04ED8F5D2721C473",
+    "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.server.client.tlpp": "B876F61BA1CB09C38665A13CBA9A371555A45E32567BFCA6E52901B514359BDA",
+    "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.stats.tlpp": "193676823D7E08BF4C6508FBAC03AB6B46F9833CE4A8F08C68836B94E8DA7859",
+    "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.test.entry.tlpp": "F3417FA898CD705D9AB506CFD9BED58C607DFE414D7C53DCC81086BDDD766CA4",
+    "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.test.tlpp": "D3215CC07D1B6AE3C4B5B3A8CDECB688FE62A2A51A6DCED2E6EA7BF6704ADEF0",
+    "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.visual.test.tlpp": "20C6BFD3CB2D2635DB23FAA59C6A24C48663DE01F8C3A1AEE7947CA1BC9D64D7",
+    "src/tlpp/tests/protheus/hbbridge.browse.data.test/hbbridge.browse.data.test.sra.tlpp": "ACC6765D14ADC60B0248DEF98F319477C81FA3A7EED711A34752314EC98A3DC0",
+    "src/tlpp/tests/protheus/hbbridge.browse.data.test/hbbridge.browse.data.test.sx5.tlpp": "7FBC203EEBF071C0BAF347C2521097CDBC4CCB1E83E616D702DB2FC52601CB27",
+    "src/tlpp/tests/protheus/hbbridge.browse.data.test/hbbridge.browse.data.test.tlpp": "099FDD6F11F255191DE951E881FD090019F2BCCA71F612A11EFD8AF583AA7840",
+    "src/tlpp/tests/protheus/hbbridge.client.lifecycle.test/hbbridge.client.lifecycle.test.entry.tlpp": "1250A454FF895358F1C2847E5FBDA8FD84E2C754809CA3AB829A91366E56B89B",
+    "src/tlpp/tests/protheus/hbbridge.client.lifecycle.test/hbbridge.client.lifecycle.test.tlpp": "3A63D2ABDBAB38EC8AAEDF64DBE970DCB1921B6C7597CAF95A1362986ED679BF",
+    "src/tlpp/tests/protheus/hbbridge.concurrency.test/hbbridge.concurrency.test.entry.tlpp": "4485B05D6D0517FE68290369EF7066E571D2EE3205E2E7C22ADC14C525DFA82A",
+    "src/tlpp/tests/protheus/hbbridge.concurrency.test/hbbridge.concurrency.test.tlpp": "87DF3D2456BB0B2DBE3D5F8404EB7102F9E96672632AEE1E9ADB5D9A9735C3C9",
+    "src/tlpp/tests/protheus/hbbridge.config.test/hbbridge.config.test.tlpp": "0D36A2C822337B98C6D4014B512489BD7D90121A31A4FE45B7AF4F279D7F5F9E",
+    "src/tlpp/tests/protheus/hbbridge.connection.test/hbbridge.connection.test.tlpp": "0E57C603D4856114B7F5936CB0386B6EBAF39ADF41D53C4E10B04DB9CA042A43",
+    "src/tlpp/tests/protheus/hbbridge.dataset.test/hbbridge.dataset.mock.client.tlpp": "05DBF1FDA71BB566A5EC808FE9E56B8D734EFC19D64DCCB3874E1F3FE9C81AB6",
+    "src/tlpp/tests/protheus/hbbridge.dataset.test/hbbridge.dataset.test.tlpp": "080AFBE1984DFA6C9E8A4A86A07D7DE4832DFB03B9155AF04F6106F25749BB07",
+    "src/tlpp/tests/protheus/hbbridge.dataset.test/hbbridge.typed.dataset.test.tlpp": "00C32CC70ABA5B9B2DD12AB110E6BE490E775DAB5C3346F1017870B334539D81",
+    "src/tlpp/tests/protheus/hbbridge.failure.test/hbbridge.failure.test.entry.tlpp": "01FE1BB035C453A793A41EE8A713BD0E8A917434AE7EA2D868C3D3C7A6366982",
+    "src/tlpp/tests/protheus/hbbridge.failure.test/hbbridge.failure.test.tlpp": "696003110E56633D87CFA691C6C842F6F9DD0B736A158B3A184F1E7978BD4AAF",
+    "src/tlpp/tests/protheus/hbbridge.helper.test/hbbridge.helper.test.tlpp": "DEAD0DE7198619AC5E86C590596F362CF0ACD2A3BD185FA0FDAE5E0F7A43D087",
+    "src/tlpp/tests/protheus/hbbridge.http.table.test/hbbridge.http.table.example.tlpp": "33BEB1B4CE6D13118D28B77545B9406FAC6EBB0151949875BB002F3AE50075EE",
+    "src/tlpp/tests/protheus/hbbridge.http.table.test/hbbridge.http.table.mock.client.tlpp": "4D71FD43B6FC70B93750504CE43A6552DCC6B6880576C379CF5437A9B3897BEC",
+    "src/tlpp/tests/protheus/hbbridge.http.table.test/hbbridge.http.table.test.tlpp": "2748BE835D30BEED952357F1AA05B9F0644B6C5D789A4E58AEFB14A9DA2E7912",
+    "src/tlpp/tests/protheus/hbbridge.http.test/hbbridge.http.gzip.probe.tlpp": "044D085DEFF471C79C45BFF191806AFC45BCBBA2022ECF7A409005743319CE99",
+    "src/tlpp/tests/protheus/hbbridge.http.test/hbbridge.http.profile.probe.tlpp": "E4C6433AABA129BBA15BD3B998EE9DD96886CF158378AC7FD24912884F0A34D0",
+    "src/tlpp/tests/protheus/hbbridge.http.test/hbbridge.http.test.tlpp": "271DCE3D7708B9EB16E02F11C2344CBD9E3D5908278676A0C598045F0FA43B81",
+    "src/tlpp/tests/protheus/hbbridge.integrity.test/hbbridge.integrity.test.entry.tlpp": "C16A6B934A984E9EC08D2EF9EB1F6D0049EA1935592F7984C53F88E8D90B135A",
+    "src/tlpp/tests/protheus/hbbridge.integrity.test/hbbridge.integrity.test.tlpp": "CBE2EF5757346ECF528F9F37F69056DFB4324D140AA8E578B56CE740521F5F2A",
+    "src/tlpp/tests/protheus/hbbridge.integrity.test/hbbridge.json.test.tlpp": "21483C9BEF091762D942F59CCB7D215A4B1CC476213E63F5B645C852103C91C1",
+    "src/tlpp/tests/protheus/hbbridge.presentation.test/hbbridge.presentation.browse.tlpp": "11AF8282315DBB8DF14394C6BFDEBC619BBDC4419596D0E99580F08FDA8341BE",
+    "src/tlpp/tests/protheus/hbbridge.presentation.test/hbbridge.presentation.fixture.tlpp": "6A6948FFB2593F0134EF988C463DFAAF32C93F35A45EFF6E700D0D5FCE82F39B",
+    "src/tlpp/tests/protheus/hbbridge.presentation.test/hbbridge.presentation.probe.tlpp": "57B6CE61CBDC1DE5C55F23CAD649C5A6BD3C2EED4ABAE6CF18E8BE11E5B19D2C",
+    "src/tlpp/tests/protheus/hbbridge.presentation.test/hbbridge.presentation.table.test.tlpp": "CF7D2372838B94C807DF32496863BEF267AFAD73BF616D618F68A901B71A7847",
+    "src/tlpp/tests/protheus/hbbridge.presentation.test/hbbridge.presentation.test.tlpp": "3069F7E2235197D04E0C8A56D16E22F4F2AB1E567D39385DF639FA5228214E9E",
+    "src/tlpp/tests/protheus/hbbridge.query.test/hbbridge.query.test.sqlite.tlpp": "C4A689AD6B1CF9748BC17E8D4DEA0F74C22FCC1FA2C5FF4A6836494537E3DA9A",
+    "src/tlpp/tests/protheus/hbbridge.query.test/hbbridge.query.test.tlpp": "D730263BB0864A7793D8236202657B1968DE913173971CF864DEB76FFEC10FCB",
+    "src/tlpp/tests/protheus/hbbridge.query.test/hbbridge.query.test.topinfo.tlpp": "EE6746311A6ED1FF0F2E7C64324972EAA576DECF1836E1BA19DE04707184EB48"
+  },
+  "harnessSHA256": {
+    "scripts/test-protheus-presentation.ps1": "C9D02B8384ED236C2D837C96990C441C9B2E6D4FC8D1ECC22706715C7ECC603E",
+    "scripts/prepare-totvs-sources.ps1": "013D2FA90DC3881DB5CB28B080F94447ED9B1EE3652067ACC7FB9ED6582DC9B7",
+    "scripts/run-protheus-cli.ps1": "026B9521801A1EAB9D26FF08ED64F3601AC3D0767E5FD19588E8F35D96AEFFCC"
+  },
+  "harnessNote": "The versioned runner verified all 64 compiled source hashes after execution; the same check passed again before this manifest was updated. PowerShell syntax validation passed.",
+  "sdkObservations": {
+    "success": true,
+    "checks": {
+      "utf8DecodeEncodeRoundtrip": true,
+      "fixedScaleTrailingZero": true,
+      "zeroScaleZero": true,
+      "numericType": true,
+      "strExplicitScaleIndependentOfSetDecimals": true
+    },
+    "numericCases": {
+      "decimalSmall": {
+        "input": "0.0000000000000001",
+        "output": "0.00000000",
+        "nativeType": "N",
+        "roundtrip": false
+      },
+      "decimalSixteenDigits": {
+        "input": "12345678901234.56",
+        "output": "12345678901234.60",
+        "nativeType": "N",
+        "roundtrip": false
+      },
+      "decimalSeventeenDigits": {
+        "input": "123456789012345.67",
+        "output": "123456789012345.00",
+        "nativeType": "N",
+        "roundtrip": false
+      },
+      "decimalEighteenDigits": {
+        "input": "1234567890123456.78",
+        "output": "1234567890123456.00",
+        "nativeType": "N",
+        "roundtrip": false
+      },
+      "decimalScaledZero": {
+        "input": "0.0000",
+        "output": "0.0000",
+        "nativeType": "N",
+        "roundtrip": true
+      },
+      "decimalTrailingZeros": {
+        "input": "1.2300",
+        "output": "1.2300",
+        "nativeType": "N",
+        "roundtrip": true
+      },
+      "integerSafeMaximum": {
+        "input": "9007199254740991",
+        "output": "9007199254740991",
+        "nativeType": "N",
+        "roundtrip": true
+      },
+      "integerAboveBinary64": {
+        "input": "9007199254740993",
+        "output": "9007199254740992",
+        "nativeType": "N",
+        "roundtrip": false
+      },
+      "int64Maximum": {
+        "input": "9223372036854775807",
+        "output": "9223372036854775808",
+        "nativeType": "N",
+        "roundtrip": false
+      },
+      "int64Minimum": {
+        "input": "-9223372036854775808",
+        "output": "-9223372036854775808",
+        "nativeType": "N",
+        "roundtrip": true
+      }
+    },
+    "nulDecodedLength": 1,
+    "nativeTable": {
+      "status": "OBSERVED",
+      "code": "",
+      "scope": "Owned FWTemporaryTable only; no ERP table is read or changed.",
+      "readback": {
+        "characterLength": 254,
+        "characterExactAfterPadding": true,
+        "numericWideType": "N",
+        "numericWide": "0.12345679",
+        "numericWideExact": false,
+        "numericWideNativeEqualsInput": true,
+        "numericAmountType": "N",
+        "numericAmount": "1234567890.12",
+        "numericAmountExact": true,
+        "numericAmountNativeEqualsInput": true,
+        "dateExact": true,
+        "logicalType": "L",
+        "logicalExact": true
+      },
+      "created": true,
+      "deleted": true,
+      "areaRestored": true,
+      "connectionClosed": true
+    },
+    "interpretation": "Str formatting and native equality are separate observations. N32,16 readback compares equal to its native input even when formatting rounds; this does not establish exact decimal storage. Presentation rejects values failing its lexical roundtrip. DecodeUTF8 truncates NUL in this SDK; the native destination rejects NUL while the dataset retains it."
+  },
+  "ui": {
+    "program": "U_HBBridgeNativeBrowse",
+    "compiled": true,
+    "executed": false,
+    "next": "T05 manual interactive activation/dismissal, paging, captions/masks and ownership; combined actual AppServer TCP/HTTP/backend typed calls."
+  },
+  "provenance": "Disposable tmp/protheus-presentation-09d9b5ae9b894e75841e7ca2fc6369ff and runner-created CLI logs. Reproduction uses versioned sources; these paths are not retention or build prerequisites.",
+  "repositoryChecks": {
+    "commitValidators": [
+      "check.hb",
+      "commit.hb",
+      "3rdpatch.hb"
+    ],
+    "checkedFiles": 313,
+    "documentLinks": 102,
+    "catchXErrorBlocks": 42,
+    "status": "passed",
+    "indexUnchanged": true
+  }
+}

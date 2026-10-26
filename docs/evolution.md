@@ -117,12 +117,19 @@ even named shared-cache memory databases require connections in the same process
 
 `HBBridgeBrowseData` already presents the current page through FWBrowse arrays,
 with Protheus-side labels/masks and a temporary table used by its filter UI.
-It does not populate a native result table. Package 002's
-[typed SQL/presentation draft](typed-sql.md) inventories this implementation;
-T01 remains pending review while HTTP performance has priority.
-A result-table adapter can create `FWTemporaryTable` in TLPP from an
-explicit schema and copy paginated rows, returning the owning object and alias
-for `FWMBrowse`. This retains the existing transport. The TOTVS
+Package 002 T04 adds the explicit-schema
+[native table adapter](native-presentation.md), preserving that existing path.
+It populates a caller-owned `FWTemporaryTable` from the current typed dataset
+page and exposes its alias to a native `FWBrowse`. The alias, physical table
+and per-field search indexes are created once and retained through page reloads
+by clearing/refilling rows. Schema/value conversion is always checked; full
+storage readback is an opt-in diagnostic, independently exercised by native
+tests. Final Close/Destroy releases the storage. The dataset retains its
+original UTF-8 values; later pages
+require explicit requests from the UI controls. The native browse is a local
+static function in the presentation example, not a public `HBBridgeBrowseData`
+method; a generic native browse API is deferred. This retains the existing
+transport. The TOTVS
 [temporary table contract](https://tdn.totvs.com/display/framework/FWTemporaryTable)
 and [browse integration](https://tdn.totvs.com/display/framework/Dados%2BProtegidos%2Bno%2BBrowse)
 define the native ownership and presentation APIs.
@@ -144,8 +151,9 @@ connection/cursor contract. Company/branch/tenant rules, dictionary metadata,
 captions, masks and actions remain with the caller. Benchmark staging writes
 and reads against paginated JSON before choosing the default path.
 
-The populated native result-table adapter and server materialization service
-are proposals, not implemented capabilities of the current query service.
+The native result-table adapter is implemented client-side in T04; combined
+backend/UI acceptance remains T05. Server materialization is still a proposal,
+not a capability of the current query service.
 
 ## In-memory results between requests
 

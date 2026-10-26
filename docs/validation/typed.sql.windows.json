@@ -1,0 +1,587 @@
+{
+  "schemaVersion": 1,
+  "recordedDate": "2026-10-25",
+  "package": "002-typed-sql-presentation",
+  "task": "T03",
+  "status": "implemented-and-scoped-regressions-passed",
+  "projectBase": "98054b45a0ea040f5b6cee32f5a179cd9869bdf6",
+  "platform": "x86_64-windows",
+  "privateInputs": "MSSQL configuration/credentials and licensed SDK/RPO are external. No INI content, secret or private configuration hash is retained.",
+  "scope": "Real SQLite/MSSQL native service and Harbour TCP/gzip HTTP consumers; isolated actual AppServer JSONObject/mock dataset execution. These are separate scopes, not combined AppServer/backend or UI acceptance.",
+  "commands": [
+    "pwsh -NoProfile -File ./scripts/test-hbbridge-typed-sql.ps1 -Config <private-ini> -Profile <explicit-alias>",
+    "pwsh -NoProfile -File ./scripts/test-hbbridge.ps1",
+    "Compile current src/tlpp into a dedicated licensed AppServer RPO; run U_HBBridgeTypedDataSetTest and U_HBBridgeDataSetTest through scripts/run-protheus-cli.ps1"
+  ],
+  "counts": {
+    "typedNativeAndWire": 133,
+    "nativeRegression": 777,
+    "tlppSources": 57,
+    "typedAppServerMock": 77,
+    "legacyAppServerMock": 67,
+    "failures": 0
+  },
+  "native": {
+    "schemaVersion": 1,
+    "scope": "Real managed SDD hook, common QueryTyped service, TCP and gzip HTTP; no AppServer acceptance",
+    "success": true,
+    "exitCode": 0,
+    "platform": "x86_64-windows",
+    "compiler": "zig",
+    "compilerVersion": "0.16.0",
+    "harbourRevision": "6deac9cf3ad977ae829e5bca543d553b92dd4b6d",
+    "mssqlRequested": true,
+    "executableSHA256": "3E7E407C86AE8130EF47002CF2DC85FC94E7E97D981AB4B6564D5BFC43AD945E",
+    "dependenciesSHA256": "D460744BF51A9E74DC0F3ABCFA446265CC332D9A152C386BE0005BFD6FF554C2",
+    "managedReceiptSHA256": {
+      ".deps/odbc/receipt.json": "9C55AB4B6740B874594F9F9988FC671BEFE9AE71066EB6E12410AABB25141F6F",
+      ".deps/sqlite/receipt.json": "F7A83AA9BFE0EEBA0A3E5636F950E3D224589F16B723ABE93B7B5A9DEDB1B3CE",
+      ".deps/http/receipt.json": "3A3770C74F669B6AFFE761FC9CCB3155484E2253C51ADEB5A22A8812AFE7B975"
+    },
+    "sourceSHA256": {
+      "tests/integration/harbour/hbbridge.typed.query.test.hb": "D5658FB8A75309DE12D3472DE1D9B1802A42FAB5C88224FE59CCCECB05AFB375",
+      "tests/integration/harbour/hbbridge.http.test.hb": "F65EE8FBF7D77B149D44266CA61A623E30EA4FE2DE05E6E9F81C9507D2F2A108",
+      "tests/integration/harbour/hbbridge.typed.query.test.hbp": "875B428F10C9628D4C80082C2F36B3DF78230F2538435E292A5820B52C49F002",
+      "scripts/test-hbbridge-typed-sql.ps1": "79CF28AB39BC014C3250BDA5B98F58E71F046F656622772D31DEA4879B80B252",
+      "src/c/hbbridge.sql.typed.h": "6E43EBEE909E6AA8579EB1152C8FEFAFA3FC8300BFC7808CDC24B0F2E9BA9AEF",
+      "src/c/hbbridge.sql.binding.c": "BA29B3C83B73A03BCC1B7A60D74BEF329859F5DD47F1F9212E1E010AC7E125A3",
+      "src/c/hbbridge.sqlite.typed.c": "F8E78BED2CB1ADC61178E01CDFA03746493AA2A84DD529C741FBACB96A99248B",
+      "src/c/hbbridge.odbc.typed.c": "841BC251EA645593155A094F8A436F112D2DA9471F0900C978891ADEF2B22E35",
+      "src/hb/services/hbbridge.query.hb": "98E9529FB3B33493143019BC4F706769BCE766CFC43D5853DEF9E7E934053085",
+      "src/hb/services/hbbridge.services.hb": "F78449901B21BC925428D5EC216E9C34A5396A9CE22F70F293F72C742A85DF57",
+      "hbbridge.hbm": "440ADFD0DA5E6D13EC34CA306755167C80627635D8F1FBA8C9B841D2B2174DED"
+    },
+    "resultSHA256": "1D0D33556569355AD7BA8121EEE05B98A76FC9ABDA696FF449A71A0A65616CB9",
+    "result": {
+      "schemaVersion": 1,
+      "suite": "typed.sql.integration.v1",
+      "scope": "Real managed SDD hook, common service, TCP and gzip HTTP; no AppServer acceptance",
+      "checks": {
+        "guard.batch.print": true,
+        "guard.batch.return": true,
+        "guard.batch.checkpoint": true,
+        "guard.batch.reconfigure": true,
+        "guard.batch.shutdown": true,
+        "guard.batch.if": true,
+        "guard.batch.throw": true,
+        "guard.batch.cursor": true,
+        "sqlite.profile": true,
+        "sqlite.connect": true,
+        "sqlite.fixtureCreate": true,
+        "sqlite.fixtureInsert": true,
+        "sqlite.unsupportedFixture": true,
+        "sqlite.mixedFixture": true,
+        "sqlite.invalidUTF8Fixture": true,
+        "sqlite.hook.booleanReturn": true,
+        "sqlite.hook.sharedHashOutputSurvives": true,
+        "sqlite.hook.inputSnapshotUnchanged": true,
+        "sqlite.hook.unknownHashRejects": true,
+        "sqlite.hook.unknownHashSafeFailure": true,
+        "sqlite.hook.successAfterUnknownHash": true,
+        "sqlite.hook.nativeCountMismatch": true,
+        "sqlite.hook.plainStringCompatibility": true,
+        "sqlite.oldQueryCompatibility": true,
+        "sqlite.noParameters": true,
+        "sqlite.unpagedTotalsAndVersion": true,
+        "sqlite.integerAlwaysText": true,
+        "sqlite.exactSigned64Endpoints": true,
+        "sqlite.unicodeAndNulExact": true,
+        "sqlite.nullDistinctFromEmptyAndMissing": true,
+        "sqlite.fixedWireMetadata": true,
+        "sqlite.unknownMetadataRemainsNull": true,
+        "sqlite.nulAndUnicodeBinding": true,
+        "sqlite.requestIsImmutable": true,
+        "sqlite.emptyTextBinding": true,
+        "sqlite.typedNullBinding": true,
+        "sqlite.int64MinimumBinding": true,
+        "sqlite.integerAndNumberBindings": true,
+        "sqlite.nativeMarkerDiscoveryIgnoresQuotedAndCommentText": true,
+        "sqlite.booleanConventionBinding": true,
+        "sqlite.dateConventionBinding": true,
+        "sqlite.allNullKeepsDeclaredMetadata": true,
+        "sqlite.emptyKeepsDeclaredMetadata": true,
+        "sqlite.boundPageAndCount": true,
+        "sqlite.generatedOrdinalHidden": true,
+        "sqlite.pageAndBindingsSnapshotUnchanged": true,
+        "sqlite.secondPageStableMetadata": true,
+        "sqlite.beyondLastKeepsTotalsAndMetadata": true,
+        "sqlite.reject.namedMarker": true,
+        "sqlite.reject.numberedMarker": true,
+        "sqlite.reject.missingBinding": true,
+        "sqlite.reject.extraBinding": true,
+        "sqlite.reject.ordinalGap": true,
+        "sqlite.reject.int64Overflow": true,
+        "sqlite.reject.int64NegativeZero": true,
+        "sqlite.reject.integerFraction": true,
+        "sqlite.reject.integerUnsafe": true,
+        "sqlite.reject.invalidUTF8Binding": true,
+        "sqlite.reject.invalidDate": true,
+        "sqlite.reject.unknownEmptyExpression": true,
+        "sqlite.reject.unsupportedEmptyDeclared": true,
+        "sqlite.reject.unsupportedAllNullDeclared": true,
+        "sqlite.reject.mixedStorage": true,
+        "sqlite.reject.invalidUTF8Result": true,
+        "sqlite.reject.multipleStatements": true,
+        "sqlite.fixedDecimalNullUnsupported": true,
+        "sqlite.unknownRequestMember": true,
+        "sqlite.unsupportedVersion": true,
+        "sqlite.duplicateProjectionUnpaged": true,
+        "sqlite.duplicateProjectionPaged": true,
+        "sqlite.reservedProjectionPaged": true,
+        "sqlite.pagedTrailingComment": true,
+        "sqlite.pagedTrailingCommentWithLF": true,
+        "sqlite.oldQueryTrailingComment": true,
+        "sqlite.recoveryAfterFailures": true,
+        "sqlite.callerConnectionAndAreaPreserved": true,
+        "sqlite.allServiceLeasesReleased": true,
+        "sqlite.wire.nativePrerequisite": true,
+        "sqlite.wire.listeners": true,
+        "sqlite.wire.tcp.exactResultAndMetadata": true,
+        "sqlite.wire.http.gzip": true,
+        "sqlite.wire.http.exactResultAndMetadata": true,
+        "sqlite.wire.rest.gzip": true,
+        "sqlite.wire.rest.exactResultAndMetadata": true,
+        "sqlite.wire.structuredFailure": true,
+        "sqlite.wire.recoveryAfterFailure": true,
+        "sqlite.wire.httpStopped": true,
+        "sqlite.wire.tcpStopped": true,
+        "mssql.privateConfiguration": true,
+        "mssql.profileDriver": true,
+        "mssql.poolingPolicy": true,
+        "mssql.registerHookProfile": true,
+        "mssql.acquireHookLease": true,
+        "mssql.hook.booleanReturn": true,
+        "mssql.hook.sharedHashOutputSurvives": true,
+        "mssql.hook.inputSnapshotUnchanged": true,
+        "mssql.hook.unknownHashRejects": true,
+        "mssql.hook.unknownHashSafeFailure": true,
+        "mssql.hook.successAfterUnknownHash": true,
+        "mssql.hook.nativeCountMismatch": true,
+        "mssql.hook.plainStringCompatibility": true,
+        "mssql.releaseHookLease": true,
+        "mssql.int64.maximum": true,
+        "mssql.int64.minimum": true,
+        "mssql.int64.aboveBinary64": true,
+        "mssql.unicodeAndNul": true,
+        "mssql.exactDecimalBindingAndResult": true,
+        "mssql.decimalSourceMetadata": true,
+        "mssql.decimalZeroCanonicalization": true,
+        "mssql.nativeDate": true,
+        "mssql.nativeBoolean": true,
+        "mssql.nullDistinctFromEmpty": true,
+        "mssql.boundPageAndCount": true,
+        "mssql.pagedTrailingComment": true,
+        "mssql.pagedTrailingCommentWithLF": true,
+        "mssql.emptyPageKeepsTotals": true,
+        "mssql.emptyBinaryUnsupported": true,
+        "mssql.recoveryAfterFailure": true,
+        "mssql.noLeasesAndCallerRestored": true,
+        "mssql.wire.nativePrerequisite": true,
+        "mssql.wire.listeners": true,
+        "mssql.wire.tcp.exactResultAndMetadata": true,
+        "mssql.wire.http.gzip": true,
+        "mssql.wire.http.exactResultAndMetadata": true,
+        "mssql.wire.rest.gzip": true,
+        "mssql.wire.rest.exactResultAndMetadata": true,
+        "mssql.wire.structuredFailure": true,
+        "mssql.wire.recoveryAfterFailure": true,
+        "mssql.wire.httpStopped": true,
+        "mssql.wire.tcpStopped": true,
+        "sqlite.disconnect": true,
+        "caller.connectionRestored": true,
+        "caller.noActiveLeases": true
+      },
+      "checkCount": 133,
+      "failureCount": 0,
+      "sqlite": {
+        "status": "executed"
+      },
+      "mssql": {
+        "status": "executed"
+      },
+      "success": true
+    }
+  },
+  "managedConnectors": {
+    "odbc": {
+      "harbourRevision": "6deac9cf3ad977ae829e5bca543d553b92dd4b6d",
+      "patchSha256": "BE457E2FAB570FEE95EE4130204E0BB115AC095D37443F9B8755F48CC67C3903",
+      "sourceHashes": {
+        "src/c/hbbridge.odbc.typed.c": "841BC251EA645593155A094F8A436F112D2DA9471F0900C978891ADEF2B22E35",
+        "src/c/hbbridge.sql.typed.h": "6E43EBEE909E6AA8579EB1152C8FEFAFA3FC8300BFC7808CDC24B0F2E9BA9AEF"
+      },
+      "librarySha256": "CE231CB6CF3FAA1F4A47BB1A60F478E5327623B0B0894CE15221F55B2452468C",
+      "platform": "win",
+      "compiler": "zig"
+    },
+    "sqlite": {
+      "harbourRevision": "6deac9cf3ad977ae829e5bca543d553b92dd4b6d",
+      "patchSha256": "6AFA53F3D1EF2FE921F62AF20F903029E283A850E98FD0DEF9A46232FFBE8691",
+      "sourceHashes": {
+        "src/c/hbbridge.sqlite.typed.c": "F8E78BED2CB1ADC61178E01CDFA03746493AA2A84DD529C741FBACB96A99248B",
+        "src/c/hbbridge.sql.typed.h": "6E43EBEE909E6AA8579EB1152C8FEFAFA3FC8300BFC7808CDC24B0F2E9BA9AEF"
+      },
+      "librarySha256": "69AD3921E41B09B7762A2EDBD1B05490657FD4970C6E58F1BA7F60C1DD94DE46",
+      "platform": "win",
+      "compiler": "zig"
+    },
+    "http": {
+      "harbourRevision": "6deac9cf3ad977ae829e5bca543d553b92dd4b6d",
+      "patchSha256": "8734B9860E809F4DBC598304C011B607FDCFA53C58D1DCD72569DF4317CE81A9",
+      "libraryHashes": {
+        "hbhttpd": "DBC456D90FCE21143FC3BBDA5FF5FBAC1D41F21861F423845D241302543B5062",
+        "hbtcpio": "8EEA0B98BE79E11140D1C49496FF117CA43E4B89276D69AF7B8CB3981B0E8BB8"
+      }
+    }
+  },
+  "regression": {
+    "artifactRoot": "tmp/tests-53cc37a421384e1aa8a9e239a894040c",
+    "checkCount": 777,
+    "failureCount": 0,
+    "exitCode": 0,
+    "executableSHA256": "276BCB99E25DA485D52C80BCB5BA8FFEFE8DAD6F9F17102D8D1BFE4433B94BF0",
+    "resultLogSHA256": "9C18EF653062CDA51F068D2A110DF1565996260EB3F103132E98FF8882A477DF"
+  },
+  "appServer": {
+    "schemaVersion": 1,
+    "createdUTC": "2026-10-25T12:31:23.3020343Z",
+    "validationDate": "2026-10-25",
+    "scope": "Isolated AppServer compilation and JSONObject/mock dataset execution; no TCP/HTTP backend or UI acceptance",
+    "status": "passed",
+    "artifactRoot": "tmp/typed-dataset-appserver-final-f649ed1e85064426ac586ef6f57501a2",
+    "externalSDKChanged": false,
+    "existingServicesStopped": false,
+    "sourceIdentityUnchangedAfterExecution": true,
+    "executable": {
+      "name": "appserver.exe",
+      "sha256": "A14029C4CCD8F410FF9D0CA1782D0FFFD076283393D005A39D7BD072C64440D6",
+      "tlppRPOSha256": "865185D6F5D8D499522742FD04E7907D572CECA4BC5413C5783CA1535097F1A9"
+    },
+    "inputRPO": [
+      {
+        "name": "tttm120.rpo",
+        "sha256": "6DB407B4A29349356E2A37E5F6730BD20FB2B111E6BDFCBA6DD967F788DADF02",
+        "bytes": 612926471
+      },
+      {
+        "name": "custom.rpo",
+        "sha256": "1D217200BF005CB66CFAD5C2EDA3C92DE585632B9B11B70CDF0349D14DE683B4",
+        "bytes": 32940230
+      }
+    ],
+    "outputRPO": [
+      {
+        "name": "tttm120.rpo",
+        "sha256": "6DB407B4A29349356E2A37E5F6730BD20FB2B111E6BDFCBA6DD967F788DADF02",
+        "bytes": 612926471
+      },
+      {
+        "name": "custom.rpo",
+        "sha256": "82447017B23CB83EBC8F1B74FE7588027426023D22147A94966E28B6E06E7362",
+        "bytes": 32940230
+      }
+    ],
+    "sources": [
+      {
+        "path": "src/tlpp/__rpo-legacy-cleanup/hbbridge.helper.tlpp",
+        "sha256": "FB0FA9C560CB5A0D4B2521E138FEFF8AB2685056EE4EFA736F043AD28DAA4A31"
+      },
+      {
+        "path": "src/tlpp/hbbridge.browse.data.tlpp",
+        "sha256": "3557640F70D0FF6008C04F7EF51590775CE876579BCA709A658A4E2648784F49"
+      },
+      {
+        "path": "src/tlpp/hbbridge.client.tlpp",
+        "sha256": "997CC6F71BEEC4ECE5599EA996288B6EAE11F6404B0814A67A501AD9D47BD963"
+      },
+      {
+        "path": "src/tlpp/hbbridge.config.tlpp",
+        "sha256": "AD4327AE66703821ED2D78B07EBA9CCAC4A001BDFA5A495E7F4658C174E906F9"
+      },
+      {
+        "path": "src/tlpp/hbbridge.http.client.tlpp",
+        "sha256": "A0E7BD9E5A9017C07DE0CFEF50456B08C821771D1257BD94FF0916160E6D0E1F"
+      },
+      {
+        "path": "src/tlpp/hbbridge.http.table.tlpp",
+        "sha256": "F078155B1CD31EB98E6FA312CC48292FA64111117EB33688C93E9D7B16A4C49E"
+      },
+      {
+        "path": "src/tlpp/hbbridge.json.tlpp",
+        "sha256": "DB48712120783EA2B1113BA3644AC05F2823BFF2E8BE7A4BE9464B8923444578"
+      },
+      {
+        "path": "src/tlpp/hbbridge.msmgetex.tlpp",
+        "sha256": "3F90D1651CBF51F6A88C3D23DCAD106C4B762659DC7C78795873AA8425F146BE"
+      },
+      {
+        "path": "src/tlpp/hbbridge.number.tools.tlpp",
+        "sha256": "4BC804E2E2FC4AE53625950835A179CBE20A33DCF7EE7F1A7571A29C31E68567"
+      },
+      {
+        "path": "src/tlpp/hbbridge.rpc.dataset.tlpp",
+        "sha256": "0EACC47A17BB23B48BD8470AB10F2D649048899824DE745E4B244DC6104E01E4"
+      },
+      {
+        "path": "src/tlpp/hbbridge.sql.tools.tlpp",
+        "sha256": "F43BC87DF8C858CA088894B3D9249CF13FF89E53B05224E3DE26D475B26F3567"
+      },
+      {
+        "path": "src/tlpp/hbbridge.str.tools.tlpp",
+        "sha256": "7CDE9F97F273EE55945F6D773F2CFEE7B5AD6E8E2C0DE61DFD6F0F508B99AAD6"
+      },
+      {
+        "path": "src/tlpp/hbbridge.time.tlpp",
+        "sha256": "AC8E667E1BCC83048A1B17C0E7492C5803EA7998F6D5A6DB6D0082441FC8DDD4"
+      },
+      {
+        "path": "src/tlpp/hbbridge.totvs.filter.tlpp",
+        "sha256": "173DC18E620428C32C2D5D6A191FD95B2C4169D9C373E1222625BDC2E584E743"
+      },
+      {
+        "path": "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.control.test.tlpp",
+        "sha256": "21326A9D808FD36BD3607A03F68F5723DABD12BBF7A3C4DD1EF27F8620EF2802"
+      },
+      {
+        "path": "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.controller.tlpp",
+        "sha256": "A21275042E7B9A2B0A2017F3AA1601C9D55880EDA42AFBFB687301181C77A02F"
+      },
+      {
+        "path": "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.example.tlpp",
+        "sha256": "9D70404FCAA668A217E39CCFF91F22442C998DC6E7F82F15D4A86C2675EFBFA0"
+      },
+      {
+        "path": "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.mock.client.tlpp",
+        "sha256": "BBA208AF99817A76F5D5E3BEDE3F200FCBF4C735435872080A7936F876653F31"
+      },
+      {
+        "path": "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.native.client.tlpp",
+        "sha256": "CB068F551A2C172C17FC59BB57D7B9780A0DCD050CA65B787A28180F9F3DCCB4"
+      },
+      {
+        "path": "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.page.tlpp",
+        "sha256": "B07E2415CC599B6C8C6412439D982E0E313F811676327587569D03FDDFE3D112"
+      },
+      {
+        "path": "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.policy.tlpp",
+        "sha256": "F5AFDB66CEE6B2630BE236C4B0F0206B7738C3EA7687772D0ECBF00E38C6951D"
+      },
+      {
+        "path": "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.protheus.entry.tlpp",
+        "sha256": "4D04D857DDD0F4F5C421E40B2286EC8278EE718958D6E38B2F3A8A817C8078C1"
+      },
+      {
+        "path": "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.protheus.tlpp",
+        "sha256": "8DEDA13770BDA4E766DA5E560648F307726F7948D3D095D858C2465E5B0B69A2"
+      },
+      {
+        "path": "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.rest.test.tlpp",
+        "sha256": "F9138C9C4E22183AD90CA237D17F3C463CBB992FDF4B348518B152910D71E720"
+      },
+      {
+        "path": "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.rest.tlpp",
+        "sha256": "33229A23ED63E02488EBE1D302CE2DE9A89EB10F36300B949F96871D7EC3B012"
+      },
+      {
+        "path": "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.server.client.tlpp",
+        "sha256": "B876F61BA1CB09C38665A13CBA9A371555A45E32567BFCA6E52901B514359BDA"
+      },
+      {
+        "path": "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.stats.tlpp",
+        "sha256": "193676823D7E08BF4C6508FBAC03AB6B46F9833CE4A8F08C68836B94E8DA7859"
+      },
+      {
+        "path": "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.test.entry.tlpp",
+        "sha256": "F3417FA898CD705D9AB506CFD9BED58C607DFE414D7C53DCC81086BDDD766CA4"
+      },
+      {
+        "path": "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.test.tlpp",
+        "sha256": "E616E8E181AEE1360FBF322860D7160583CF88EA5BA75BF7FE3932CD701DAFBF"
+      },
+      {
+        "path": "src/tlpp/tests/protheus/hbbridge.benchmark.test/hbbridge.benchmark.visual.test.tlpp",
+        "sha256": "20C6BFD3CB2D2635DB23FAA59C6A24C48663DE01F8C3A1AEE7947CA1BC9D64D7"
+      },
+      {
+        "path": "src/tlpp/tests/protheus/hbbridge.browse.data.test/hbbridge.browse.data.test.sra.tlpp",
+        "sha256": "ACC6765D14ADC60B0248DEF98F319477C81FA3A7EED711A34752314EC98A3DC0"
+      },
+      {
+        "path": "src/tlpp/tests/protheus/hbbridge.browse.data.test/hbbridge.browse.data.test.sx5.tlpp",
+        "sha256": "7FBC203EEBF071C0BAF347C2521097CDBC4CCB1E83E616D702DB2FC52601CB27"
+      },
+      {
+        "path": "src/tlpp/tests/protheus/hbbridge.browse.data.test/hbbridge.browse.data.test.tlpp",
+        "sha256": "099FDD6F11F255191DE951E881FD090019F2BCCA71F612A11EFD8AF583AA7840"
+      },
+      {
+        "path": "src/tlpp/tests/protheus/hbbridge.client.lifecycle.test/hbbridge.client.lifecycle.test.entry.tlpp",
+        "sha256": "1250A454FF895358F1C2847E5FBDA8FD84E2C754809CA3AB829A91366E56B89B"
+      },
+      {
+        "path": "src/tlpp/tests/protheus/hbbridge.client.lifecycle.test/hbbridge.client.lifecycle.test.tlpp",
+        "sha256": "EDF5BD7D3F989CC7BAACBE142E10DE434A8D2A5C63E3DC54AFB50F6FC96AF574"
+      },
+      {
+        "path": "src/tlpp/tests/protheus/hbbridge.concurrency.test/hbbridge.concurrency.test.entry.tlpp",
+        "sha256": "4485B05D6D0517FE68290369EF7066E571D2EE3205E2E7C22ADC14C525DFA82A"
+      },
+      {
+        "path": "src/tlpp/tests/protheus/hbbridge.concurrency.test/hbbridge.concurrency.test.tlpp",
+        "sha256": "87DF3D2456BB0B2DBE3D5F8404EB7102F9E96672632AEE1E9ADB5D9A9735C3C9"
+      },
+      {
+        "path": "src/tlpp/tests/protheus/hbbridge.config.test/hbbridge.config.test.tlpp",
+        "sha256": "0D36A2C822337B98C6D4014B512489BD7D90121A31A4FE45B7AF4F279D7F5F9E"
+      },
+      {
+        "path": "src/tlpp/tests/protheus/hbbridge.connection.test/hbbridge.connection.test.tlpp",
+        "sha256": "0E57C603D4856114B7F5936CB0386B6EBAF39ADF41D53C4E10B04DB9CA042A43"
+      },
+      {
+        "path": "src/tlpp/tests/protheus/hbbridge.dataset.test/hbbridge.dataset.mock.client.tlpp",
+        "sha256": "05DBF1FDA71BB566A5EC808FE9E56B8D734EFC19D64DCCB3874E1F3FE9C81AB6"
+      },
+      {
+        "path": "src/tlpp/tests/protheus/hbbridge.dataset.test/hbbridge.dataset.test.tlpp",
+        "sha256": "080AFBE1984DFA6C9E8A4A86A07D7DE4832DFB03B9155AF04F6106F25749BB07"
+      },
+      {
+        "path": "src/tlpp/tests/protheus/hbbridge.dataset.test/hbbridge.typed.dataset.test.tlpp",
+        "sha256": "00C32CC70ABA5B9B2DD12AB110E6BE490E775DAB5C3346F1017870B334539D81"
+      },
+      {
+        "path": "src/tlpp/tests/protheus/hbbridge.failure.test/hbbridge.failure.test.entry.tlpp",
+        "sha256": "01FE1BB035C453A793A41EE8A713BD0E8A917434AE7EA2D868C3D3C7A6366982"
+      },
+      {
+        "path": "src/tlpp/tests/protheus/hbbridge.failure.test/hbbridge.failure.test.tlpp",
+        "sha256": "696003110E56633D87CFA691C6C842F6F9DD0B736A158B3A184F1E7978BD4AAF"
+      },
+      {
+        "path": "src/tlpp/tests/protheus/hbbridge.helper.test/hbbridge.helper.test.tlpp",
+        "sha256": "DEAD0DE7198619AC5E86C590596F362CF0ACD2A3BD185FA0FDAE5E0F7A43D087"
+      },
+      {
+        "path": "src/tlpp/tests/protheus/hbbridge.http.table.test/hbbridge.http.table.example.tlpp",
+        "sha256": "33BEB1B4CE6D13118D28B77545B9406FAC6EBB0151949875BB002F3AE50075EE"
+      },
+      {
+        "path": "src/tlpp/tests/protheus/hbbridge.http.table.test/hbbridge.http.table.mock.client.tlpp",
+        "sha256": "4D71FD43B6FC70B93750504CE43A6552DCC6B6880576C379CF5437A9B3897BEC"
+      },
+      {
+        "path": "src/tlpp/tests/protheus/hbbridge.http.table.test/hbbridge.http.table.test.tlpp",
+        "sha256": "2748BE835D30BEED952357F1AA05B9F0644B6C5D789A4E58AEFB14A9DA2E7912"
+      },
+      {
+        "path": "src/tlpp/tests/protheus/hbbridge.http.test/hbbridge.http.gzip.probe.tlpp",
+        "sha256": "044D085DEFF471C79C45BFF191806AFC45BCBBA2022ECF7A409005743319CE99"
+      },
+      {
+        "path": "src/tlpp/tests/protheus/hbbridge.http.test/hbbridge.http.profile.probe.tlpp",
+        "sha256": "E4C6433AABA129BBA15BD3B998EE9DD96886CF158378AC7FD24912884F0A34D0"
+      },
+      {
+        "path": "src/tlpp/tests/protheus/hbbridge.http.test/hbbridge.http.test.tlpp",
+        "sha256": "271DCE3D7708B9EB16E02F11C2344CBD9E3D5908278676A0C598045F0FA43B81"
+      },
+      {
+        "path": "src/tlpp/tests/protheus/hbbridge.integrity.test/hbbridge.integrity.test.entry.tlpp",
+        "sha256": "C16A6B934A984E9EC08D2EF9EB1F6D0049EA1935592F7984C53F88E8D90B135A"
+      },
+      {
+        "path": "src/tlpp/tests/protheus/hbbridge.integrity.test/hbbridge.integrity.test.tlpp",
+        "sha256": "CBE2EF5757346ECF528F9F37F69056DFB4324D140AA8E578B56CE740521F5F2A"
+      },
+      {
+        "path": "src/tlpp/tests/protheus/hbbridge.integrity.test/hbbridge.json.test.tlpp",
+        "sha256": "21483C9BEF091762D942F59CCB7D215A4B1CC476213E63F5B645C852103C91C1"
+      },
+      {
+        "path": "src/tlpp/tests/protheus/hbbridge.query.test/hbbridge.query.test.sqlite.tlpp",
+        "sha256": "C4A689AD6B1CF9748BC17E8D4DEA0F74C22FCC1FA2C5FF4A6836494537E3DA9A"
+      },
+      {
+        "path": "src/tlpp/tests/protheus/hbbridge.query.test/hbbridge.query.test.tlpp",
+        "sha256": "D730263BB0864A7793D8236202657B1968DE913173971CF864DEB76FFEC10FCB"
+      },
+      {
+        "path": "src/tlpp/tests/protheus/hbbridge.query.test/hbbridge.query.test.topinfo.tlpp",
+        "sha256": "EE6746311A6ED1FF0F2E7C64324972EAA576DECF1836E1BA19DE04707184EB48"
+      }
+    ],
+    "compile": {
+      "sourceCount": 57,
+      "errors": 0,
+      "exitCode": 0,
+      "timedOut": false,
+      "success": true,
+      "elapsedMs": 18746.4384,
+      "log": "compile.stdout.log",
+      "logSha256": "D31B448EBE9758759877BBBD2F0F04C250FBB54EB76E5AFC09413699BE3BBE32"
+    },
+    "tests": [
+      {
+        "program": "U_HBBridgeTypedDataSetTest",
+        "checks": 77,
+        "failures": 0,
+        "mockCalls": 33,
+        "exitCode": 0,
+        "timedOut": false,
+        "success": true,
+        "summary": "hbBridge typed dataset Protheus OK; checks=77; mock calls=33",
+        "log": "tmp/protheus-cli-501aa03ca0b54b30b00097b4769dfdf7/console.log",
+        "logSha256": "4FF53EDB14FD86C12433F091237EC4C34978E5750E6D94BE870EAAFF41FAF619"
+      },
+      {
+        "program": "U_HBBridgeDataSetTest",
+        "checks": 67,
+        "failures": 0,
+        "mockCalls": 31,
+        "exitCode": -4,
+        "timedOut": false,
+        "success": true,
+        "summary": "hbBridge dataset navigation Protheus OK; checks=67; mock calls=31",
+        "log": "tmp/protheus-cli-bc750ef8da5e4256a9f50eb936fb8e87/console.log",
+        "logSha256": "1DFC6A345169B1DD741A0BB5D7EEA157B3E140AD960CFD746A77190F0BA54DFC"
+      }
+    ],
+    "notes": [
+      "Legacy U_HBBridgeDataSetTest is a procedure; exit -4 accepted only with exact 67-check success summary.",
+      "One typed PASS line is interrupted by an AppServer startup INFO line; the complete 77-check aggregate returns OK/exit 0.",
+      "Private INI content and credentials are excluded. Temporary artifact paths are provenance only."
+    ]
+  },
+  "manualLegacyObservation": {
+    "recordedDate": "2026-10-25",
+    "checks": 67,
+    "mockCalls": 31,
+    "failures": 0,
+    "source": "Supplied console summary",
+    "identity": "Compiled source/RPO identity not supplied; not attributed to the final automated RPO."
+  },
+  "limitations": [
+    "T04 native presentation and T05 combined actual AppServer/backend/UI acceptance remain pending.",
+    "No general SQL parser, ERP dictionary inference, business NULL substitution or automatic business rounding.",
+    "MSSQL top-level CTE pagination is unsupported; base SQL must be valid inside a derived table.",
+    "SQLite typed results require supported declared text/integer/real metadata; exact fixed decimal, undeclared expressions, DATE/BOOL and binary results are unsupported.",
+    "TIME/TIMESTAMP, unsigned extensions, binary/LOB transport, Linux/other drivers and allocation/driver-close fault injection are not accepted by this run.",
+    "SQL mutex and per-call lease ownership remain; page/count calls are not a cross-statement or cross-request snapshot.",
+    "Historical tmp paths identify disposable output only; reproduced tests need maintained sources and explicit external prerequisites, not prior tmp runs."
+  ],
+  "repositoryChecks": {
+    "commitValidators": [
+      "check.hb",
+      "commit.hb",
+      "3rdpatch.hb read-only"
+    ],
+    "status": "passed",
+    "checkedFiles": 300,
+    "documentationFiles": 98,
+    "documentationLinks": "passed",
+    "indexChanged": false,
+    "committed": false,
+    "published": false
+  }
+}

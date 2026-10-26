@@ -6,10 +6,14 @@
 decisões, pré-requisitos e evidências. Continue por ele, sem reanalisar todo
 este roadmap. Concilie itens concluídos aqui ao encerrar o pacote;
 commits/publicações intermediários preservam seu progresso. Pacote 001: MSSQL real.
-Prioridade atual do usuário: investigar/melhorar o desempenho HTTP do hbBridge
-com tempos e homologação atribuíveis. T01 permanece inacabada; o
-[rascunho SQL tipado](docs/typed-sql.pt-BR.md) aguarda revisão, e T02–T05 não
-foram iniciadas.
+A manutenção HTTP foi homologada no escopo Windows registrado. A
+[especificação SQL tipada T01](docs/typed-sql.pt-BR.md) foi concluída como
+contrato; T02 concluiu provas nativas Windows independentes com SQLite 252/
+MSSQL 75 checks, zero falhas. O [desenho dos conectores](docs/typed-sql-connectors.pt-BR.md)
+foi implementado em T03: despacho SDD identificado, serviço tipado e dataset TLPP.
+T04 adiciona apresentação nativa por esquema explícito, com checks AppServer
+de conversão/armazenamento e regressões dos datasets aprovados. Evidências no
+[WIP](WIP.pt-BR.md); homologação conjunta AppServer/backend/UI real T05 pendente.
 A [análise de extensões de 2026-10-12](docs/extensions-review.pt-BR.md) avalia
 SQLRDD, Duktape e CCHarbour para pacotes futuros, sem novas dependências runtime.
 

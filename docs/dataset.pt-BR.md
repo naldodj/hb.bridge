@@ -92,6 +92,58 @@ Cada campo de `orderBy` deve existir na projeção SQL. Se a consulta usa
 `TOP`/`LIMIT`, o chamador também deve selecionar esse subconjunto de forma
 determinística; ordenar páginas externas não estabiliza um subconjunto sem ordem.
 
+## Consultas tipadas e NULL
+
+`OpenSQLTyped(sql, bindings[, page])` e
+`OpenPageTyped(sql, bindings, number, size, orderBy)` chamam `RPCRDD.QueryTyped`
+com requisição versão 1 e exigem resultado versão 2. Compartilham perfil,
+cliente, cópias de metadados e navegação com as consultas comuns. O erro
+`SERVICE_NOT_FOUND` de servidor antigo permanece visível, sem fallback sem bind.
+
+```advpl
+jBindings := JSONObject():New()
+jBinding := JSONObject():New()
+jBinding["type"] := "integer"
+jBinding["isNull"] := .F.
+jBinding["value"] := 10
+jBindings["1"] := jBinding
+oDataSet:SetAliasProfile(cProfile)
+if oDataSet:OpenPageTyped(cSQL, jBindings, 1, 100, "ID ASC")
+    while oDataSet:MoreToRead()
+        // FieldGet preserves the declared wire representation.
+        xAmount := oDataSet:FieldGet("AMOUNT")
+        oDataSet:Skip()
+    enddo
+endif
+oDataSet:Close()
+FreeObj(@jBindings)
+```
+
+O chamador fornece SQL com marcadores anônimos `?` para valores e bindings por
+ordinais contíguos; objeto vazio representa ausência de parâmetros. As cópias
+dos bindings são mantidas para páginas seguintes independentemente de mutações
+do chamador/cliente. `Header()`/`FieldInfo()` expõem os grupos `source`, `rdd`
+e `wire`; atributos desconhecidos continuam null. Precisão e base da origem
+não definem escala de negócio. Veja o [contrato e mapeamentos](typed-sql.pt-BR.md).
+
+`FieldGet()` preserva texto UTF-8, int64/decimal exatos textuais, DATE ISO,
+números aproximados e lógicos. NULL SQL permanece `Nil`, sem substituição por
+vazio, zero ou falso. Verifique `!Eof()` e `FieldExist(name)` antes de interpretar
+Nil, pois campo ausente e EOF também devolvem Nil. Substituição de negócio
+pertence ao Protheus. Decodifique texto uma vez na apresentação, mantendo o
+dataset UTF-8; limites de NULL/precisão de tabela nativa não alteram a consulta.
+
+O [adapter de apresentação nativa](native-presentation.pt-BR.md) implementa essa
+fronteira explícita com esquema do chamador, FWTemporaryTable da página atual e
+liberação própria, sem prefetch nem fechamento do dataset/cliente emprestados.
+
+O validador tipado rejeita metadados inválidos/ausentes, tipos mistos, strings
+exatas não canônicas e versões/totais inconsistentes antes de publicar estado.
+Falha de página limpa o resultado anterior e não repete automaticamente.
+O [registro Windows](validation/typed.sql.windows.json) distingue testes de
+backend/TCP/HTTP gzip nativos de testes reais JSONObject/mock no AppServer.
+Homologação AppServer/backend e apresentação nativa permanecem em T05.
+
 ## Aceite manual do dataset em 2026-10-13
 
 `U_HBBridgeDataSetTest()` passou em **67 checks, zero falhas e 31 chamadas

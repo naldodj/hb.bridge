@@ -1,0 +1,10 @@
+/* Released to Public Domain. */
+#include "totvs.ch"
+
+// Global U_ entries keep AppServer -run and direct test calls independent
+// of the example's namespace. Implementation/helpers stay in that module.
+function U_HBBridgeNativeBrowse(nRecords,nPageSize)
+return(HBBridge.Examples.U_HBBridgeNativeBrowse(nRecords,nPageSize))
+
+function U_HBBridgeNativeBrowseTest()
+return(HBBridge.Examples.U_HBBridgeNativeBrowseTest())

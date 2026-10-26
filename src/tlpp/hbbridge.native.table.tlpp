@@ -1,0 +1,680 @@
+/* Released to Public Domain. */
+#include "totvs.ch"
+
+namespace HBBridge.Client
+
+// Owns one native page only. The dataset/client and their UTF-8 values remain
+// caller-owned. No query, cursor movement or dictionary lookup occurs here.
+class HBBridgeNativeTable
+
+    private data cAlias as character
+    private data cErrorCode as character
+    private data cErrorMessage as character
+    private data cWriteMode as character
+
+    private data jSchema as json
+    private data jFields as json
+    private data jColumns as json
+    private data jIndexes as json
+
+    private data lReady as logical
+    private data lVerifyStorage as logical
+
+    private data nRows as numeric
+
+    private data oDataSet as object
+    private data oTable as object
+
+    public method New(oDataSet as object,jLogicalSchema as json,lVerifyStorage as logical) as object
+    public method LoadCurrentPage() as logical
+    public method Alias() as character
+    public method FieldName(cProjection as character) as character
+    public method SearchFieldName(cProjection as character) as character
+    public method IndexOrder(cProjection as character) as numeric
+    public method FieldCount() as numeric
+    public method ProjectionName(nPosition as numeric) as character
+    public method Schema() as json
+    public method IsOpen() as logical
+    public method RowCount() as numeric
+    public method WriteMode() as character
+    public method ClearPage() as logical
+    public method Close() as logical
+    public method Destroy() as logical
+    public method ErrorCode() as character
+    public method ErrorMessage() as character
+
+endclass
+
+method New(oDataSet,jLogicalSchema,lVerifyStorage) class HBBridgeNativeTable
+
+    local cJSON:="" as character
+
+    self:cAlias:=GetNextAlias()
+    self:cErrorCode:=""
+    self:cErrorMessage:=""
+    self:cWriteMode:=""
+    self:jSchema:=JSONObject():New()
+    self:jFields:=nil
+    self:jColumns:=nil
+    self:jIndexes:=nil
+    self:lReady:=.F.
+    self:lVerifyStorage:=(ValType(lVerifyStorage)=="L").and.lVerifyStorage
+    self:nRows:=0
+    self:oDataSet:=oDataSet
+    self:oTable:=nil
+    if (ValType(jLogicalSchema)=="J")
+        cJSON:=HBBridgeJSON():Encode(jLogicalSchema)
+    endif
+    if (Empty(cJSON).or.!HBBridgeJSON():Parse(cJSON,self:jSchema))
+        self:cErrorCode:="INVALID_LOGICAL_SCHEMA"
+        self:cErrorMessage:="A native table requires an explicit logical schema."
+    endif
+
+return(self)
+
+method LoadCurrentPage() class HBBridgeNativeTable
+
+    // FWTemporaryTable/DbStruct/FWBulk require positional arrays.
+    local aFields as array
+    local aActual as array
+
+    local cAlias:=self:cAlias as character
+    local cCode:="" as character
+    local cMessage:="" as character
+    local cField:="" as character
+    local cNative:="" as character
+    local cSearch:="" as character
+    local cType:="" as character
+    local cRowKey:="" as character
+    local cWriteMode:="" as character
+    local cTableName:="" as character
+    local cIndex:="" as character
+    local cIndexDigits:="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ" as character
+
+    local jHeader as json
+    local jRows as json
+    local jConverted as json
+    local jDefinition as json
+    local jFields:=JSONObject():New() as json
+    local jColumns:=JSONObject():New() as json
+    local jIndexes:=JSONObject():New() as json
+    local jWriteColumns:=JSONObject():New() as json
+    local jIndex as json
+    local jPositions:=JSONObject():New() as json
+    local jRow as json
+
+    local lOK:=.F. as logical
+    local lClean:=.T. as logical
+    local lBulk:=.F. as logical
+    local lCreated:=.F. as logical
+
+    local nPreviousArea:=Select() as numeric
+    local nFields:=0 as numeric
+    local nWriteFields:=0 as numeric
+    local nField:=0 as numeric
+    local nRows:=0 as numeric
+    local nRow:=0 as numeric
+    local nPosition:=0 as numeric
+    local nOrder:=0 as numeric
+
+    local oPending as object
+
+    local xError as variant
+
+    if (Select(cAlias)>0)
+        nOrder:=(cAlias)->(IndexOrd())
+    endif
+    // Invalidate the result while retaining the same physical table/workarea.
+    // A bound table browse must not have its alias deleted/reopened on paging.
+    if (!self:ClearPage())
+        FreeObj(@jFields)
+        FreeObj(@jColumns)
+        FreeObj(@jIndexes)
+        FreeObj(@jWriteColumns)
+        FreeObj(@jPositions)
+        return(.F.)
+    endif
+    self:cErrorCode:=""
+    self:cErrorMessage:=""
+    try
+        cCode:="INVALID_PRESENTATION_METADATA"
+        cMessage:="A native table requires an open typed dataset."
+        if (ValType(self:oDataSet)!="O".or.ValType(self:jSchema)!="J")
+            throw cCode
+        endif
+        jHeader:=self:oDataSet:Header()
+        nFields:=self:oDataSet:FieldCount()
+        nRows:=self:oDataSet:RowCount()
+        if (nFields<1.or.nFields>999999999)
+            throw cCode
+        endif
+        if (!HBBridgePresentationSchema():Validate(jHeader,self:jSchema,@cCode,@cMessage))
+            throw cCode
+        endif
+        jRows:=self:oDataSet:GetRows()
+        for nRow:=1 to nRows
+            cRowKey:=tlpp.ToStr(nRow)
+            if (!HBBridgePresentationSchema():ConvertRow(jHeader,self:jSchema,;
+                jRows[cRowKey],@jConverted,@cCode,@cMessage))
+                throw cCode
+            endif
+            jRows[cRowKey]:=jConverted
+            jConverted:=nil
+        next nRow
+        aFields:=Array(nFields)
+        for nField:=1 to nFields
+            cField:=self:oDataSet:FieldName(nField)
+            jDefinition:=self:jSchema["fields"][cField]
+            cType:=NativeTableType(jDefinition["type"])
+            cNative:="F"+StrZero(nField,9)
+            jFields[cField]:=cNative
+            jColumns[cNative]:=cField
+            jWriteColumns[cNative]:=cField
+            aFields[nField]:={cNative,cType,jDefinition["length"],jDefinition["decimals"]}
+            cSearch:=cNative
+            if (cType=="L")
+                // FWTemporaryTable skips indexes on logical fields. Keep the
+                // real value logical and index a private native text shadow.
+                cSearch:="L"+StrZero(nField,9)
+                AAdd(aFields,{cSearch,"C",5,0})
+                jWriteColumns[cSearch]:=cField
+            endif
+            jIndex:=JSONObject():New()
+            jIndex["field"]:=cSearch
+            jIndex["order"]:=nField
+            jIndexes[cField]:=jIndex
+            jIndex:=nil
+        next nField
+        nWriteFields:=Len(aFields)
+        cCode:="PRESENTATION_CREATE_FAILED"
+        cMessage:="Could not create the native result table."
+        if (ValType(self:oTable)=="O")
+            oPending:=self:oTable
+        else
+            lCreated:=.T.
+            oPending:=FWTemporaryTable():New(cAlias,aFields)
+            for nField:=1 to nFields
+                // FWTemporaryTable index names have at most two characters.
+                cIndex:=NativeTableIndexName(nField,cIndexDigits)
+                if (Empty(cIndex))
+                    cCode:="PRESENTATION_INDEX_UNSUPPORTED"
+                    cMessage:="The native index namespace cannot represent every search field."
+                    throw cCode
+                endif
+                cField:=self:oDataSet:FieldName(nField)
+                oPending:AddIndex(cIndex,{jIndexes[cField]["field"]})
+            next nField
+            oPending:Create()
+        endif
+        if (Select(cAlias)==0)
+            throw cCode
+        endif
+        aActual:=(cAlias)->(DbStruct())
+        if (Len(aActual)!=nWriteFields)
+            cCode:="PRESENTATION_STORAGE_MISMATCH"
+            cMessage:="The native table changed the physical field count."
+            throw cCode
+        endif
+        for nField:=1 to nWriteFields
+            nPosition:=(cAlias)->(FieldPos(aFields[nField][1]))
+            if (nPosition<1)
+                throw cCode
+            endif
+            jPositions[aFields[nField][1]]:=nPosition
+            if (aActual[nPosition][2]!=aFields[nField][2].or.;
+                aActual[nPosition][3]!=aFields[nField][3].or.;
+                aActual[nPosition][4]!=aFields[nField][4])
+                cCode:="PRESENTATION_STORAGE_MISMATCH"
+                cMessage:="The native table changed a requested field definition."
+                throw cCode
+            endif
+        next nField
+        for nField:=1 to nFields
+            // IndexOrder is an explicit map, never an assumed browse column
+            // ordinal after a silently skipped unsupported field.
+            cField:=self:oDataSet:FieldName(nField)
+            cIndex:=Upper(StrTran(AllTrim((cAlias)->(IndexKey(nField)))," ",""))
+            cSearch:=jIndexes[cField]["field"]
+            if (cIndex!=cSearch.and.cIndex!="DTOS("+cSearch+")")
+                cCode:="PRESENTATION_INDEX_UNSUPPORTED"
+                cMessage:="The native table did not create a requested search index."
+                throw cCode
+            endif
+        next nField
+        cCode:="PRESENTATION_WRITE_FAILED"
+        cMessage:="Could not populate the native result table."
+        if (nRows>0)
+            lBulk:=FWBulk():CanBulk()
+            if (lBulk)
+                cTableName:=oPending:GetTableNameForTCFunctions()
+                if (!NativeTableBulk(cTableName,aFields,jRows,jWriteColumns,nRows))
+                    throw cCode
+                endif
+                cWriteMode:="bulk"
+                TCRefresh(cTableName)
+            else
+                cWriteMode:="record"
+                for nRow:=1 to nRows
+                    jRow:=jRows[tlpp.ToStr(nRow)]
+                    (cAlias)->(DbAppend(.F.))
+                    if ((cAlias)->(NetErr()))
+                        throw cCode
+                    endif
+                    for nField:=1 to nWriteFields
+                        cField:=jWriteColumns[aFields[nField][1]]
+                        nPosition:=jPositions[aFields[nField][1]]
+                        (cAlias)->(FieldPut(nPosition,NativeTableWriteValue(jRow[cField],aFields[nField][2])))
+                    next nField
+                    (cAlias)->(DbCommit())
+                    (cAlias)->(DbUnlock())
+                next nRow
+            endif
+        endif
+        // Full readback is opt-in diagnostic validation, not a second
+        // production traversal. Native integration tests verify stored rows.
+        if (self:lVerifyStorage)
+            if (!NativeTableVerify(cAlias,aFields,jRows,jWriteColumns,jPositions,nRows))
+                cCode:="PRESENTATION_STORAGE_MISMATCH"
+                cMessage:="The native table did not preserve a converted value."
+                throw cCode
+            endif
+        endif
+        (cAlias)->(DbSetOrder(nOrder))
+        (cAlias)->(DbGoTop())
+        if (lCreated)
+            self:oTable:=oPending
+        endif
+        oPending:=nil
+        FreeObj(@self:jFields)
+        FreeObj(@self:jColumns)
+        FreeObj(@self:jIndexes)
+        self:jFields:=jFields
+        jFields:=nil
+        self:jColumns:=jColumns
+        jColumns:=nil
+        self:jIndexes:=jIndexes
+        jIndexes:=nil
+        self:nRows:=nRows
+        self:cWriteMode:=cWriteMode
+        self:lReady:=.T.
+        lOK:=.T.
+    catch xError
+        self:cErrorCode:=if(Empty(cCode),"PRESENTATION_FAILED",cCode)
+        self:cErrorMessage:=if(Empty(cMessage),"Could not build the native presentation.",cMessage)
+        if (ValType(xError)=="O")
+            FreeObj(@xError)
+        endif
+    endtry
+    if (!lOK)
+        if (lCreated.and.ValType(oPending)=="O")
+            lClean:=NativeTableDelete(@oPending,cAlias)
+            if (!lClean)
+                self:oTable:=oPending
+                self:cErrorCode:="PRESENTATION_CLOSE_FAILED"
+                self:cErrorMessage:="Could not release the unpublished native result table."
+            endif
+        elseif (ValType(self:oTable)=="O")
+            // Do not publish a partial refill; preserve the empty bound alias.
+            lClean:=self:ClearPage()
+            oPending:=nil
+        endif
+    endif
+    if (Select(cAlias)>0)
+        (cAlias)->(DbSetOrder(nOrder))
+    endif
+    if (Select()!=nPreviousArea)
+        DbSelectArea(if(nPreviousArea>0,nPreviousArea,nil))
+    endif
+
+    FWFreeArray(@aFields)
+    FWFreeArray(@aActual)
+
+    FreeObj(@jHeader)
+    FreeObj(@jRows)
+    FreeObj(@jConverted)
+    FreeObj(@jFields)
+    FreeObj(@jColumns)
+    FreeObj(@jIndexes)
+    FreeObj(@jWriteColumns)
+    FreeObj(@jIndex)
+    FreeObj(@jPositions)
+
+return(lOK.and.lClean)
+
+method ClearPage() class HBBridgeNativeTable
+
+    local lOK:=.T. as logical
+
+    local nPreviousArea:=Select() as numeric
+    local nOrder:=0 as numeric
+
+    local xError as variant
+
+    self:lReady:=.F.
+    self:nRows:=0
+    self:cWriteMode:=""
+    if (ValType(self:oTable)=="O")
+        try
+            if (Empty(self:cAlias).or.Select(self:cAlias)==0)
+                throw "PRESENTATION_STORAGE_CLOSED"
+            endif
+            nOrder:=(self:cAlias)->(IndexOrd())
+            // Clear rows without deleting/recreating the alias or its indexes.
+            self:oTable:Zap()
+            (self:cAlias)->(DbSetOrder(nOrder))
+            (self:cAlias)->(DbGoTop())
+            if ((self:cAlias)->(!Eof()))
+                throw "PRESENTATION_CLEAR_FAILED"
+            endif
+        catch xError
+            lOK:=.F.
+            self:cErrorCode:="PRESENTATION_CLEAR_FAILED"
+            self:cErrorMessage:="Could not clear the native current-page table."
+            if (ValType(xError)=="O")
+                FreeObj(@xError)
+            endif
+        endtry
+    endif
+    if (Select()!=nPreviousArea)
+        DbSelectArea(if(nPreviousArea>0,nPreviousArea,nil))
+    endif
+
+return(lOK)
+
+method Close() class HBBridgeNativeTable
+
+    local lOK:=.T. as logical
+
+    local nPreviousArea:=if((Alias()!=self:cAlias),Select(),0) as numeric
+
+    self:lReady:=.F.
+    self:cWriteMode:=""
+    if (ValType(self:oTable)=="O")
+        lOK:=NativeTableDelete(@self:oTable,self:cAlias)
+    endif
+    if (Select()!=nPreviousArea)
+        DbSelectArea(if(nPreviousArea>0,nPreviousArea,nil))
+    endif
+    if (lOK)
+        if (!Empty(self:cAlias).and.(Select(self:cAlias)>0))
+            (self:cAlias)->(dbCloseArea())
+        endif
+        self:nRows:=0
+        FreeObj(@self:jFields)
+        FreeObj(@self:jColumns)
+        FreeObj(@self:jIndexes)
+    else
+        self:cErrorCode:="PRESENTATION_CLOSE_FAILED"
+        self:cErrorMessage:="Could not release the native result table."
+    endif
+
+return(lOK)
+
+method Destroy() class HBBridgeNativeTable
+
+    local lOK:=self:Close() as logical
+    if (lOK)
+        self:cAlias:=""
+        FreeObj(@self:jSchema)
+        self:oDataSet:=nil
+    endif
+
+return(lOK)
+
+method Alias() class HBBridgeNativeTable
+return(if(self:IsOpen(),self:cAlias,""))
+
+method FieldName(cProjection) class HBBridgeNativeTable
+    if (self:IsOpen().and.ValType(self:jFields)=="J")
+        if (self:jFields:HasProperty(cProjection))
+            return(self:jFields[cProjection])
+        endif
+    endif
+return("")
+
+method SearchFieldName(cProjection) class HBBridgeNativeTable
+    if (self:IsOpen().and.ValType(self:jIndexes)=="J")
+        if (self:jIndexes:HasProperty(cProjection))
+            return(self:jIndexes[cProjection]["field"])
+        endif
+    endif
+return("")
+
+method IndexOrder(cProjection) class HBBridgeNativeTable
+    if (self:IsOpen().and.ValType(self:jIndexes)=="J")
+        if (self:jIndexes:HasProperty(cProjection))
+            return(self:jIndexes[cProjection]["order"])
+        endif
+    endif
+return(0)
+
+method IsOpen() class HBBridgeNativeTable
+return(self:lReady.and.!Empty(self:cAlias).and.Select(self:cAlias)>0)
+
+method FieldCount() class HBBridgeNativeTable
+
+    local aNames as array
+
+    local nCount:=0 as numeric
+
+    if (self:IsOpen())
+        aNames:=self:jColumns:GetNames()
+        nCount:=Len(aNames)
+        FWFreeArray(@aNames)
+    endif
+return(nCount)
+
+method ProjectionName(nPosition) class HBBridgeNativeTable
+    if (self:IsOpen().and.ValType(nPosition)=="N")
+        if (nPosition>=1.and.nPosition==Int(nPosition))
+            if (nPosition<=999999999)
+                if (self:jColumns:HasProperty("F"+StrZero(nPosition,9)))
+                    return(self:jColumns["F"+StrZero(nPosition,9)])
+                endif
+            endif
+        endif
+    endif
+return("")
+
+method Schema() class HBBridgeNativeTable
+
+    local jSnapshot:=JSONObject():New() as json
+
+    if (ValType(self:jSchema)=="J")
+        HBBridgeJSON():Parse(HBBridgeJSON():Encode(self:jSchema),jSnapshot)
+    endif
+return(jSnapshot)
+
+method RowCount() class HBBridgeNativeTable
+return(if(self:IsOpen(),self:nRows,0))
+
+method WriteMode() class HBBridgeNativeTable
+return(if(self:IsOpen(),self:cWriteMode,""))
+
+method ErrorCode() class HBBridgeNativeTable
+return(self:cErrorCode)
+
+method ErrorMessage() class HBBridgeNativeTable
+return(self:cErrorMessage)
+
+static function NativeTableType(cType as character) as character
+    do case
+    case cType=="character"
+        return("C")
+    case cType=="numeric"
+        return("N")
+    case cType=="logical"
+        return("L")
+    case cType=="date"
+        return("D")
+    endcase
+return("")
+
+static function NativeTableSame(xStored as variant,xExpected as variant,cType as character,nLength as numeric) as logical
+    if (ValType(xStored)!=ValType(xExpected))
+        return(.F.)
+    endif
+    if (cType=="C")
+        // Native fixed-width characters are space padded, never truncated.
+        return(xStored==PadR(xExpected,nLength))
+    endif
+return(xStored==xExpected)
+
+static function NativeTableWriteValue(xValue as variant,cNativeType as character) as variant
+    if (cNativeType=="C".and.ValType(xValue)=="L")
+        return(if(xValue,"True","False"))
+    endif
+return(xValue)
+
+static function NativeTableIndexName(nPosition as numeric,cDigits as character) as character
+
+    local nRadix:=Len(cDigits) as numeric
+    local nValue:=0 as numeric
+
+    if (nPosition<1.or.nPosition>nRadix*nRadix)
+        return("")
+    endif
+    nValue:=nPosition%(nRadix*nRadix)
+
+return(SubStr(cDigits,Int(nValue/nRadix)+1,1)+SubStr(cDigits,nValue%nRadix+1,1))
+
+static function NativeTableVerify(cAlias as character,aFields as array,jRows as json,jColumns as json,jPositions as json,nRows as numeric) as logical
+
+    local cField:="" as character
+
+    local jRow as json
+
+    local nFields:=Len(aFields) as numeric
+    local nField:=0 as numeric
+    local nRow:=0 as numeric
+    local nPosition:=0 as numeric
+
+    local xStored as variant
+
+    (cAlias)->(DbSetOrder(0))
+    (cAlias)->(DbGoTop())
+    (cAlias)->(DbSkip(0))
+    for nRow:=1 to nRows
+        if ((cAlias)->(Eof()))
+            return(.F.)
+        endif
+        jRow:=jRows[tlpp.ToStr(nRow)]
+        for nField:=1 to nFields
+            cField:=jColumns[aFields[nField][1]]
+            nPosition:=jPositions[aFields[nField][1]]
+            xStored:=(cAlias)->(FieldGet(nPosition))
+            if (!NativeTableSame(xStored,NativeTableWriteValue(jRow[cField],aFields[nField][2]),aFields[nField][2],aFields[nField][3]))
+                return(.F.)
+            endif
+        next nField
+        (cAlias)->(DbSkip())
+    next nRow
+
+return((cAlias)->(Eof()))
+
+static function NativeTableBulk(cTableName as character,aFields as array,jRows as json,jColumns as json,nRows as numeric) as logical
+
+    // FWBulk requires one positional values array in SetFields order. Only the
+    // current row is staged here; the class owns its bounded internal buffer.
+    local aValues as array
+
+    local cField:="" as character
+
+    local jRow as json
+
+    local lOK:=.F. as logical
+    local lClosed:=.F. as logical
+
+    local nFields:=Len(aFields) as numeric
+    local nField:=0 as numeric
+    local nRow:=0 as numeric
+
+    local oBulk as object
+
+    local xError as variant
+
+    try
+        oBulk:=FWBulk():New(cTableName,1024)
+        // Only already validated native values enter the bulk. Option 1
+        // formats decimals to the declared scale; readback rejects any loss.
+        oBulk:SetOption(1)
+        oBulk:SetFields(aFields)
+        for nRow:=1 to nRows
+            jRow:=jRows[tlpp.ToStr(nRow)]
+            aValues:=Array(nFields)
+            for nField:=1 to nFields
+                cField:=jColumns[aFields[nField][1]]
+                aValues[nField]:=NativeTableWriteValue(jRow[cField],aFields[nField][2])
+            next nField
+            // True covers both queued data and an automatic buffer flush.
+            if (!oBulk:AddData(aValues))
+                throw "PRESENTATION_WRITE_FAILED"
+            endif
+        next nRow
+        if (!oBulk:Flush())
+            throw "PRESENTATION_WRITE_FAILED"
+        endif
+        if (!oBulk:Close())
+            throw "PRESENTATION_WRITE_FAILED"
+        endif
+        lClosed:=.T.
+        lOK:=.T.
+    catch xError
+        if (ValType(xError)=="O")
+            FreeObj(@xError)
+        endif
+    endtry
+    if (ValType(oBulk)=="O")
+        try
+            // Close also flushes cached data. After a failed operation, never
+            // retry that buffer; destroy it and let the owner delete the table.
+            oBulk:Destroy()
+        catch xError
+            lOK:=.F.
+            if (ValType(xError)=="O")
+                FreeObj(@xError)
+            endif
+        endtry
+        try
+            // Release the object even when its explicit cleanup raised.
+            FreeObj(@oBulk)
+        catch xError
+            lOK:=.F.
+            if (ValType(xError)=="O")
+                FreeObj(@xError)
+            endif
+        endtry
+    endif
+    FWFreeArray(@aValues)
+
+return(lOK.and.lClosed)
+
+static function NativeTableDelete(oTable as object,cAlias as character) as logical
+
+    local lOK:=.T. as logical
+
+    local xResult as variant
+    local xError as variant
+
+    try
+        xResult:=oTable:Delete()
+        if (!Empty(cAlias).and.Select(cAlias)>0)
+            (cAlias)->(dbCloseArea())
+        endif
+        if (ValType(xResult)=="L")
+            lOK:=xResult
+        endif
+        if (!Empty(cAlias).and.Select(cAlias)>0)
+            lOK:=.F.
+        endif
+        if (lOK)
+            FreeObj(@oTable)
+        endif
+    catch xError
+        lOK:=.F.
+        if (ValType(xError)=="O")
+            FreeObj(@xError)
+        endif
+    endtry
+
+return(lOK)

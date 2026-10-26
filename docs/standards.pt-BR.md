@@ -30,6 +30,14 @@ exigida continua explícita; a conversão genérica não pode substituir esse
 contrato silenciosamente. Escreva condições por alias como `(cAlias)->(!Eof())`,
 mantendo a negação dentro da expressão da área selecionada.
 
+Use `FWGetTopInfo()` para obter servidor, porta, banco e alias DBAccess ativos
+no Protheus, em vez de reconstruí-los por chaves INI. Preserve conexão existente
+e feche apenas uma conexão aberta pelo chamador.
+
+Declare erros TLPP capturados como variant. Após tratar `catch xError`, use
+`if (ValType(xError)=="O")`, seguido de `FreeObj(@xError)` e `endif`.
+Esse uso explícito também permite ao compilador reconhecer a variável capturada.
+
 Os fontes separam palavras minúsculas por pontos, como
 `hbbridge.rpc.dataset.tlpp`. Remover os pontos deve produzir o nome da classe
 `HBBridgeRPCDataSet` em minúsculas. Isso não muda os namespaces.

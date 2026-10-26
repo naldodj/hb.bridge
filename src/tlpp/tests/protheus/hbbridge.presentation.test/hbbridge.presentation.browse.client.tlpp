@@ -1,0 +1,351 @@
+/* Released to Public Domain. */
+#include "totvs.ch"
+
+namespace HBBridge.Tests
+
+// Local UI fixture, not an SQL parser or a production query service. Criteria
+// are typed, allowlisted data and run across all fixture rows before paging.
+// Without criteria, only the requested page is generated.
+class HBBridgePresentationBrowseClient
+
+    private data cError as character
+
+    private data jFilters as json
+    private data jSearch as json
+
+    private data nFilters as numeric
+    private data nCalls as numeric
+    private data nRecords as numeric
+
+    public method New(nRecords as numeric) as object
+    public method CallService(cService as character,jParams as json) as json
+    public method AddFilter(cField as character,cOperator as character,cValue as character) as logical
+    public method SetSearch(cField as character,cValue as character) as logical
+    public method ClearFilters()
+    public method ErrorMessage() as character
+    public method CallCount() as numeric
+    public method Close()
+
+endclass
+
+method New(nRecords) class HBBridgePresentationBrowseClient
+
+    DEFAULT nRecords:=1000
+    self:jFilters:=JSONObject():New()
+    self:jSearch:=JSONObject():New()
+    self:nFilters:=0
+    self:nCalls:=0
+    self:nRecords:=0
+    self:cError:=""
+    if (ValType(nRecords)!="N")
+        self:cError:="The native browse fixture record count must be a positive integer."
+    elseif (nRecords<1.or.nRecords!=Int(nRecords))
+        self:cError:="The native browse fixture record count must be a positive integer."
+    else
+        self:nRecords:=nRecords
+    endif
+return(self)
+
+method CallService(cService,jParams) class HBBridgePresentationBrowseClient
+
+    local cText:="a"+Chr(195)+Chr(167)+Chr(195)+Chr(163)+"o " as character
+
+    local dFirstDay:=SToD("20240220") as date
+
+    local jResult:=JSONObject():New() as json
+    local jRows:=JSONObject():New() as json
+    local jPage:=JSONObject():New() as json
+    local jRow as json
+
+    local lMatch as logical
+    local lSearch:=.F. as logical
+
+    local nPage:=1 as numeric
+    local nSize:=4 as numeric
+    local nRow:=0 as numeric
+    local nFilter:=0 as numeric
+    local nTotal:=0 as numeric
+    local nCopied:=0 as numeric
+    local nFirst:=0 as numeric
+    local nLast:=0 as numeric
+    local nTotalPages:=0 as numeric
+
+    self:nCalls++
+    if (self:nRecords<1)
+        jResult["success"]:=.F.
+        jResult["code"]:="INVALID_FIXTURE_SIZE"
+        jResult["error"]:="The native browse fixture record count must be a positive integer."
+        FreeObj(@jRows)
+        FreeObj(@jPage)
+        return(jResult)
+    endif
+    if (cService!="RPCRDD.QueryTyped".or.ValType(jParams)!="J")
+        jResult["success"]:=.F.
+        jResult["code"]:="FIXTURE_SERVICE_REQUIRED"
+        jResult["error"]:="The native browse fixture requires a typed query."
+        FreeObj(@jRows)
+        FreeObj(@jPage)
+        return(jResult)
+    endif
+    if (jParams:HasProperty("page"))
+        nPage:=jParams["page"]["number"]
+        nSize:=jParams["page"]["size"]
+    endif
+    nFirst:=(nPage-1)*nSize+1
+    nLast:=nFirst+nSize-1
+    lSearch:=self:jSearch:HasProperty("field")
+    if (self:nFilters==0.and.!lSearch)
+        nTotal:=self:nRecords
+        for nRow:=nFirst to Min(nLast,nTotal)
+            nCopied++
+            jRows[tlpp.ToStr(nCopied)]:=PresentationBrowseRow(nRow,dFirstDay,cText)
+        next nRow
+    else
+        for nRow:=1 to self:nRecords
+            jRow:=PresentationBrowseRow(nRow,dFirstDay,cText)
+            lMatch:=.T.
+            if (lSearch)
+                lMatch:=PresentationBrowseMatches(jRow,self:jSearch)
+            endif
+            for nFilter:=1 to self:nFilters
+                if (!lMatch)
+                    exit
+                endif
+                lMatch:=PresentationBrowseMatches(jRow,self:jFilters[tlpp.ToStr(nFilter)])
+            next nFilter
+            if (lMatch)
+                nTotal++
+                if (nTotal>=nFirst.and.nTotal<=nLast)
+                    nCopied++
+                    jRows[tlpp.ToStr(nCopied)]:=jRow
+                    jRow:=nil
+                endif
+            endif
+            FreeObj(@jRow)
+        next nRow
+    endif
+    nTotalPages:=Int(nTotal/nSize)+IIf((nTotal%nSize)>0,1,0)
+    jPage["number"]:=nPage
+    jPage["size"]:=nSize
+    jPage["hasNext"]:=nPage<nTotalPages
+    jPage["firstRow"]:=IIf(nCopied>0,nFirst,0)
+    jPage["lastRow"]:=IIf(nCopied>0,nFirst+nCopied-1,0)
+    jResult["success"]:=.T.
+    jResult["resultVersion"]:=2
+    jResult["driver"]:="mssql"
+    jResult["header"]:=HBBridgePresentationFixture():Header()
+    jResult["rows"]:=jRows
+    jResult["rowCount"]:=nCopied
+    jResult["totalRows"]:=nTotal
+    jResult["totalPages"]:=nTotalPages
+    jResult["page"]:=jPage
+
+return(jResult)
+
+method AddFilter(cField,cOperator,cValue) class HBBridgePresentationBrowseClient
+
+    local jCriterion as json
+
+    self:cError:=""
+    jCriterion:=PresentationBrowseCriterion(cField,cOperator,cValue,@self:cError)
+    if (ValType(jCriterion)!="J")
+        return(.F.)
+    endif
+    self:nFilters++
+    self:jFilters[tlpp.ToStr(self:nFilters)]:=jCriterion
+
+return(.T.)
+
+method SetSearch(cField,cValue) class HBBridgePresentationBrowseClient
+
+    local cOperator:="equal" as character
+
+    local jCriterion as json
+
+    self:cError:=""
+    if (Empty(cValue))
+        FreeObj(@self:jSearch)
+        self:jSearch:=JSONObject():New()
+        return(.T.)
+    endif
+    if (Upper(cField)=="ID_CODE".or.Upper(cField)=="ID".or.Upper(cField)=="TEXT")
+        cOperator:="contains"
+    endif
+    jCriterion:=PresentationBrowseCriterion(cField,cOperator,cValue,@self:cError)
+    if (ValType(jCriterion)!="J")
+        return(.F.)
+    endif
+    FreeObj(@self:jSearch)
+    self:jSearch:=jCriterion
+
+return(.T.)
+
+method ClearFilters() class HBBridgePresentationBrowseClient
+    FreeObj(@self:jFilters)
+    FreeObj(@self:jSearch)
+    self:jFilters:=JSONObject():New()
+    self:jSearch:=JSONObject():New()
+    self:nFilters:=0
+    self:cError:=""
+return
+
+method ErrorMessage() class HBBridgePresentationBrowseClient
+return(self:cError)
+
+method CallCount() class HBBridgePresentationBrowseClient
+return(self:nCalls)
+
+method Close() class HBBridgePresentationBrowseClient
+    FreeObj(@self:jFilters)
+    FreeObj(@self:jSearch)
+return
+
+static function PresentationBrowseRow(nIdentifier as numeric,dFirstDay as date,cText as character) as json
+
+    local cDate:=DToS(dFirstDay+nIdentifier) as character
+
+    local jRow:=HBBridgePresentationFixture():Row() as json
+
+    jRow["ID_CODE"]:=StrZero(nIdentifier,10)
+    jRow["ID"]:=tlpp.ToStr(nIdentifier)
+    jRow["AMOUNT"]:=AllTrim(Str(100+nIdentifier+0.25,12,2))
+    jRow["TEXT"]:=cText+tlpp.ToStr(nIdentifier)
+    jRow["FLAG"]:=(nIdentifier%2)==0
+    jRow["DAY"]:=Left(cDate,4)+"-"+SubStr(cDate,5,2)+"-"+Right(cDate,2)
+    jRow["FLOAT"]:=nIdentifier+0.5
+
+return(jRow)
+
+static function PresentationBrowseCriterion(cField as character,cOperator as character,cValue as character,cError as character) as json
+
+    local cDate:="" as character
+    local cCharacter:="" as character
+
+    local dValue as date
+
+    local jCriterion as json
+
+    local lValid:=.T. as logical
+
+    local nCharacter:=0 as numeric
+    local nLength:=0 as numeric
+    local nDots:=0 as numeric
+    local nDigits:=0 as numeric
+
+    local xValue as variant
+
+    cField:=Upper(AllTrim(cField))
+    cOperator:=Lower(AllTrim(cOperator))
+    if (("|"$cField).or.!("|"+cField+"|"$"|ID_CODE|ID|AMOUNT|TEXT|FLAG|DAY|FLOAT|"))
+        cError:="Select a fixture field."
+        return(nil)
+    endif
+    if (("|"$cOperator).or.!("|"+cOperator+"|"$"|equal|different|contains|starts with|greater|at least|less|at most|"))
+        cError:="Select an allowed comparison operator."
+        return(nil)
+    endif
+    if (Chr(0)$cValue)
+        cError:="The filter value cannot contain NUL."
+        return(nil)
+    endif
+    do case
+    case cField=="ID_CODE".or.cField=="ID".or.cField=="TEXT"
+        xValue:=Lower(cValue)
+    case cField=="AMOUNT".or.cField=="FLOAT"
+        cValue:=AllTrim(cValue)
+        if ((","$cValue).and.!("."$cValue))
+            cValue:=StrTran(cValue,",",".")
+        endif
+        nLength:=Len(cValue)
+        for nCharacter:=1 to nLength
+            cCharacter:=SubStr(cValue,nCharacter,1)
+            if (cCharacter==".")
+                nDots++
+            elseif (cCharacter$"0123456789")
+                nDigits++
+            elseif (!(nCharacter==1.and.cCharacter$"+-"))
+                lValid:=.F.
+            endif
+        next nCharacter
+        lValid:=lValid.and.nDigits>0.and.nDots<=1
+        xValue:=Val(cValue)
+    case cField=="DAY"
+        cDate:=StrTran(AllTrim(cValue),"-","")
+        if ("/"$cDate)
+            dValue:=CToD(cDate)
+            lValid:=!Empty(dValue)
+        else
+            dValue:=SToD(cDate)
+            lValid:=!Empty(dValue).and.Len(cDate)==8.and.DToS(dValue)==cDate
+        endif
+        xValue:=DToS(dValue)
+    case cField=="FLAG"
+        cValue:=Lower(AllTrim(cValue))
+        lValid:=!("|"$cValue).and.("|"+cValue+"|"$"|true|false|.t.|.f.|.y.|.n.|1|0|yes|no|")
+        xValue:=("|"+cValue+"|"$"|true|.t.|.y.|1|yes|")
+    otherwise
+        xValue:=cValue
+    endcase
+    if ((cField!="ID_CODE".and.cField!="ID".and.cField!="TEXT").and.(cOperator=="contains".or.cOperator=="starts with"))
+        lValid:=.F.
+    endif
+    if (cField=="FLAG".and.cOperator!="equal".and.cOperator!="different")
+        lValid:=.F.
+    endif
+    if (!lValid)
+        cError:="Enter a value and comparison compatible with the selected field."
+        return(nil)
+    endif
+    jCriterion:=JSONObject():New()
+    jCriterion["field"]:=cField
+    jCriterion["operator"]:=cOperator
+    jCriterion["value"]:=xValue
+
+return(jCriterion)
+
+static function PresentationBrowseMatches(jRow as json,jCriterion as json) as logical
+
+    local cField:="" as character
+    local cOperator:="" as character
+
+    local xActual as variant
+    local xExpected as variant
+
+    if (!jCriterion:HasProperty("field"))
+        return(.T.)
+    endif
+    cField:=jCriterion["field"]
+    cOperator:=jCriterion["operator"]
+    xExpected:=jCriterion["value"]
+    do case
+    case cField=="TEXT"
+        xActual:=Lower(DecodeUTF8(jRow[cField]))
+    case cField=="ID"
+        xActual:=jRow[cField]
+    case cField=="AMOUNT"
+        xActual:=Val(jRow[cField])
+    case cField=="DAY"
+        xActual:=StrTran(jRow[cField],"-","")
+    otherwise
+        xActual:=jRow[cField]
+    endcase
+    do case
+    case cOperator=="equal"
+        return(xActual==xExpected)
+    case cOperator=="different"
+        return(xActual!=xExpected)
+    case cOperator=="contains"
+        return(xExpected$xActual)
+    case cOperator=="starts with"
+        return(Left(xActual,Len(xExpected))==xExpected)
+    case cOperator=="greater"
+        return(xActual>xExpected)
+    case cOperator=="at least"
+        return(xActual>=xExpected)
+    case cOperator=="less"
+        return(xActual<xExpected)
+    case cOperator=="at most"
+        return(xActual<=xExpected)
+    endcase
+
+return(.F.)

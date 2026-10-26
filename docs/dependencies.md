@@ -32,6 +32,7 @@ local edits are preserved. Existing developer checkouts are untouched.
 | `.deps/hb_compile/out/linux/` | Linux native Harbour installation. |
 | `.deps/http/` | Isolated hbhttpd/hbtcpio preparation and checked patch/build receipt. |
 | `.deps/odbc/` | Isolated SDDODBC preparation and checked patch/build receipt. |
+| `.deps/sqlite/` | Isolated SDDSQLite3 typed-reader preparation and checked patch/build receipt. |
 | `.hbcommit/` | Maintenance sources; uses the same compiled `hbrun`. |
 | `out/` | Generated product/addons; rebuilt from maintained sources/scripts. |
 | `tmp/` | Fully disposable work directories and logs; never a prerequisite. |
@@ -99,13 +100,29 @@ It builds only SDDODBC and installs its library/metadata into the selected
 managed Harbour installation. Windows uses native ODBC libraries; Linux
 requires unixODBC development headers and libraries.
 
-Bootstrap prepares this connector after Harbour, including when the base
-toolchain is reused. Product builds and both Harbour test launchers also
-prepare it before linking. `.deps/odbc/receipt.json` records the Harbour
-revision, patch SHA256 and installed library SHA256; unchanged matching
-artifacts are reused. `./scripts/prepare-odbc.ps1 -ForceBuild` rebuilds only
-this staged connector. Acceptance results remain separate from compilation;
-the patch and successful build alone do not certify all drivers or Linux.
+The managed ODBC and SQLite patches also provide the tagged `RDDI_EXECUTE`
+branch used by `RPCRDD.QueryTyped`, preserving the existing string/Query path.
+Native readers execute on the current SDD-owned connection and share the
+ordinary SQL lease/mutex; no second login or raw-handle export is introduced.
+The [SQLite patch](../config/patches/sddsqlt3.patch) is pinned by
+`harbour.sqlitePatch` and prepared by
+[prepare-sqlite.ps1](../scripts/prepare-sqlite.ps1). ODBC preparation invokes
+it before checking its own cache. Both patches copy the project-owned
+[shared helpers](../src/c/hbbridge.sql.typed.h) and their respective
+[ODBC](../src/c/hbbridge.odbc.typed.c)/
+[SQLite](../src/c/hbbridge.sqlite.typed.c) reader into disposable staged sources.
+
+Bootstrap prepares these connectors after Harbour, including when the base
+toolchain is reused. Product builds and Harbour test launchers prepare them
+before linking. `.deps/odbc/receipt.json` and `.deps/sqlite/receipt.json`
+record the Harbour revision, patch SHA256, native helper source hashes,
+platform/compiler and installed library SHA256. Changed helpers invalidate
+cache reuse alongside patch/library changes.
+`./scripts/prepare-odbc.ps1 -ForceBuild` rebuilds both staged connectors;
+`./scripts/prepare-sqlite.ps1 -ForceBuild` rebuilds SQLite alone. Acceptance
+remains separate from compilation: reviewed patches and successful builds do
+not certify every driver, Linux or AppServer. See the
+[typed connector integration and evidence](typed-sql-connectors.md).
 
 Plain HTTP requires no OpenSSL SDK. Direct HTTPS is an optional build with
 `HB_HTTP_TLS=1`, **hbssl**, the target OpenSSL SDK/runtime and

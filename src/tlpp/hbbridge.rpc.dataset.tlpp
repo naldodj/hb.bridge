@@ -10,8 +10,8 @@ Released to Public Domain.
 --------------------------------------------------------------------------------------
 */
 
+#include "totvs.ch"
 #include "parmtype.ch"
-#include "tlpp-core.th"
 
 namespace HBBridge.RDD
 
@@ -25,6 +25,9 @@ class HBBridgeRPCDataSet
 
     private data jResult as json
     private data jFieldNames as json
+    private data jBindings as json
+
+    private data lTyped as logical
 
     private data nRowIndex as numeric
     private data nTotalRows as numeric
@@ -34,7 +37,9 @@ class HBBridgeRPCDataSet
 
     public method New(oClient as object) as object
     public method OpenSQL(cSql as character,jPage as json) as logical
+    public method OpenSQLTyped(cSql as character,jBindings as json,jPage as json) as logical
     public method OpenPage(cSql as character,nPage as numeric,nSize as numeric,cOrderBy as character) as logical
+    public method OpenPageTyped(cSql as character,jBindings as json,nPage as numeric,nSize as numeric,cOrderBy as character) as logical
     public method PreviousPage() as logical
     public method HasPreviousPage() as logical
     public method NextPage() as logical
@@ -63,6 +68,8 @@ class HBBridgeRPCDataSet
     public method GetAliasProfile() as character
     public method SetAliasProfile(cAliasProfile) as character
 
+    private method OpenRequest(cSql as character,jPage as json,jBindings as json,lTyped as logical) as logical
+
 endclass
 
 method New(oClient) class HBBridgeRPCDataSet
@@ -73,6 +80,8 @@ method New(oClient) class HBBridgeRPCDataSet
     endif
     self:jResult:=nil
     self:jFieldNames:=nil
+    self:jBindings:=nil
+    self:lTyped:=.F.
     self:nRowIndex:=0
     self:nTotalRows:=0
     self:nTotalFields:=0
@@ -86,16 +95,33 @@ return(self)
 
 method OpenSQL(cSql,jPage) class HBBridgeRPCDataSet
 
+    paramtype 1 var cSql as character
+    paramtype 2 var jPage as json optional
+
+return(self:OpenRequest(cSql,jPage,nil,.F.))
+
+method OpenSQLTyped(cSql,jBindings,jPage) class HBBridgeRPCDataSet
+
+    paramtype 1 var cSql as character
+    paramtype 3 var jPage as json optional
+
+return(self:OpenRequest(cSql,jPage,jBindings,.T.))
+
+method OpenRequest(cSql,jPage,jBindings,lTyped) class HBBridgeRPCDataSet
+
     local aNames as array
 
     local cRowKey:="" as character
     local cPosition:="" as character
     local cFieldName:="" as character
     local cAliasProfile:=self:cAliasProfile as character
+    local cBindings:="" as character
+    local cFailure:="" as character
 
     local jParams:=JSONObject():New() as json
     local jResponse as json
     local jFieldNames as json
+    local jRequestBindings as json
 
     local lValid:=.F. as logical
 
@@ -110,6 +136,41 @@ method OpenSQL(cSql,jPage) class HBBridgeRPCDataSet
 
     self:Close()
     self:cAliasProfile:=cAliasProfile
+    if (lTyped)
+        if (Empty(AllTrim(cSql)).or.Empty(AllTrim(cAliasProfile)).or.;
+            (Chr(0) $ cSql).or.(Chr(0) $ cAliasProfile))
+            self:cErrorCode:="INVALID_TYPED_REQUEST"
+            self:cErrorMessage:="Typed SQL requires a nonempty profile and SQL without NUL."
+            FreeObj(@jParams)
+            return(.F.)
+        endif
+        if (!DataSetTypedBindings(jBindings,@cFailure))
+            self:cErrorCode:=cFailure
+            self:cErrorMessage:="Typed SQL bindings do not match the declared value contract."
+            FreeObj(@jParams)
+            return(.F.)
+        endif
+        if (ValType(jPage)=="J")
+            if (!DataSetTypedPage(jPage))
+                self:cErrorCode:="INVALID_PAGE"
+                self:cErrorMessage:="Page requires valid exact bounds and a column-only orderBy."
+                FreeObj(@jParams)
+                return(.F.)
+            endif
+        endif
+        // Keep immutable bytes independently of caller/client JSON objects.
+        cBindings:=HBBridge.Client.HBBridgeJSON():Encode(jBindings)
+        jRequestBindings:=JSONObject():New()
+        if (!HBBridge.Client.HBBridgeJSON():Parse(cBindings,jRequestBindings))
+            self:cErrorCode:="INVALID_BINDINGS"
+            self:cErrorMessage:="Typed SQL bindings could not be copied without loss."
+            FreeObj(@jRequestBindings)
+            FreeObj(@jParams)
+            return(.F.)
+        endif
+        jParams["requestVersion"]:=1
+        jParams["bindings"]:=jRequestBindings
+    endif
     if (ValType(jPage)=="J")
         lValid:=jPage:HasProperty("number").and.jPage:HasProperty("size").and.jPage:HasProperty("orderBy")
         if (lValid)
@@ -132,7 +193,7 @@ method OpenSQL(cSql,jPage) class HBBridgeRPCDataSet
     if (ValType(jPage)=="J")
         jParams["page"]:=jPage
     endif
-    jResponse:=self:oClient:CallService("RPCRDD.Query",jParams)
+    jResponse:=self:oClient:CallService(IIf(lTyped,"RPCRDD.QueryTyped","RPCRDD.Query"),jParams)
     FreeObj(@jParams)
 
     if (ValType(jResponse)!="J")
@@ -181,7 +242,7 @@ method OpenSQL(cSql,jPage) class HBBridgeRPCDataSet
     endif
     if (lValid)
         lValid:=(;
-            (jResponse["resultVersion"]==1);
+            (jResponse["resultVersion"]==IIf(lTyped,2,1));
             .and. (jResponse["rowCount"]>=0);
             .and. (jResponse["rowCount"]==Int(jResponse["rowCount"]));
         )
@@ -320,6 +381,16 @@ method OpenSQL(cSql,jPage) class HBBridgeRPCDataSet
         return(.F.)
     endif
 
+    if (lTyped)
+        if (!DataSetTypedResult(jResponse,jPage,jFieldNames))
+            self:cErrorCode:="INVALID_RESULT"
+            self:cErrorMessage:="Typed SQL result does not match the version 2 dataset contract."
+            FreeObj(@jFieldNames)
+            FreeObj(@jResponse)
+            return(.F.)
+        endif
+    endif
+
     // Own the complete response so nested JSON objects retain their lifetime.
     self:jResult:=jResponse
     self:jFieldNames:=jFieldNames
@@ -328,6 +399,11 @@ method OpenSQL(cSql,jPage) class HBBridgeRPCDataSet
     self:nRowIndex:=IIf(self:nTotalRows>0,1,0)
     self:cAliasProfile:=cAliasProfile
     self:cSql:=cSql
+    self:lTyped:=lTyped
+    if (lTyped)
+        self:jBindings:=JSONObject():New()
+        HBBridge.Client.HBBridgeJSON():Parse(cBindings,self:jBindings)
+    endif
     if (ValType(jPage)=="J")
         self:cOrderBy:=jPage["orderBy"]
     endif
@@ -356,10 +432,33 @@ method OpenPage(cSql,nPage,nSize,cOrderBy) class HBBridgeRPCDataSet
 
 return(lOpened)
 
+method OpenPageTyped(cSql,jBindings,nPage,nSize,cOrderBy) class HBBridgeRPCDataSet
+
+    local jPage:=JSONObject():New() as json
+
+    local lOpened:=.F. as logical
+
+    paramtype 1 var cSql as character
+    paramtype 3 var nPage as numeric
+    paramtype 4 var nSize as numeric
+    paramtype 5 var cOrderBy as character
+
+    jPage["number"]:=nPage
+    jPage["size"]:=nSize
+    jPage["orderBy"]:=cOrderBy
+    lOpened:=self:OpenSQLTyped(cSql,jBindings,jPage)
+    FreeObj(@jPage)
+
+return(lOpened)
+
 method PreviousPage() class HBBridgeRPCDataSet
 
     local cSql as character
     local cOrderBy as character
+
+    local jBindings as json
+
+    local lOpened:=.F. as logical
 
     local nPage as numeric
     local nSize as numeric
@@ -372,6 +471,14 @@ method PreviousPage() class HBBridgeRPCDataSet
     cOrderBy:=self:cOrderBy
     nPage:=(self:PageNumber()-1)
     nSize:=self:PageSize()
+
+    if (self:lTyped)
+        jBindings:=JSONObject():New()
+        HBBridge.Client.HBBridgeJSON():Parse(HBBridge.Client.HBBridgeJSON():Encode(self:jBindings),jBindings)
+        lOpened:=self:OpenPageTyped(cSql,jBindings,nPage,nSize,cOrderBy)
+        FreeObj(@jBindings)
+        return(lOpened)
+    endif
 
 return(self:OpenPage(cSql,nPage,nSize,cOrderBy))
 
@@ -390,6 +497,10 @@ method NextPage() class HBBridgeRPCDataSet
     local cSql as character
     local cOrderBy as character
 
+    local jBindings as json
+
+    local lOpened:=.F. as logical
+
     local nPage as numeric
     local nSize as numeric
 
@@ -401,6 +512,14 @@ method NextPage() class HBBridgeRPCDataSet
     cOrderBy:=self:cOrderBy
     nPage:=(self:PageNumber()+1)
     nSize:=self:PageSize()
+
+    if (self:lTyped)
+        jBindings:=JSONObject():New()
+        HBBridge.Client.HBBridgeJSON():Parse(HBBridge.Client.HBBridgeJSON():Encode(self:jBindings),jBindings)
+        lOpened:=self:OpenPageTyped(cSql,jBindings,nPage,nSize,cOrderBy)
+        FreeObj(@jBindings)
+        return(lOpened)
+    endif
 
 return(self:OpenPage(cSql,nPage,nSize,cOrderBy))
 
@@ -602,9 +721,12 @@ method Close() class HBBridgeRPCDataSet
 
     local jResponse:=self:jResult as json
     local jFieldNames:=self:jFieldNames as json
+    local jBindings:=self:jBindings as json
 
     self:jResult:=nil
     self:jFieldNames:=nil
+    self:jBindings:=nil
+    self:lTyped:=.F.
     self:nRowIndex:=0
     self:nTotalRows:=0
     self:nTotalFields:=0
@@ -619,6 +741,10 @@ method Close() class HBBridgeRPCDataSet
 
     if (ValType(jFieldNames)=="J")
         FreeObj(@jFieldNames)
+    endif
+
+    if (ValType(jBindings)=="J")
+        FreeObj(@jBindings)
     endif
 
 return
@@ -644,3 +770,576 @@ method SetAliasProfile(cAliasProfile) class HBBridgeRPCDataSet
     endif
     self:cAliasProfile:=cAliasProfile
 return(cLastAliasProfile)
+
+// JSONObject enumeration requires GetNames(). Keep records keyed and allocate
+// each native names array once per validation boundary, not once per lookup.
+static function DataSetTypedMembers(jValue as json,cAllowed as character,nExpected as numeric) as logical
+
+    local aNames as array
+
+    local lValid:=.T. as logical
+
+    local nName:=0 as numeric
+    local nNames:=0 as numeric
+
+    if (ValType(jValue)!="J")
+        return(.F.)
+    endif
+    aNames:=jValue:GetNames()
+    nNames:=Len(aNames)
+    lValid:=(nNames==nExpected)
+    for nName:=1 to nNames
+        if (("|" $ aNames[nName]).or.!("|"+aNames[nName]+"|" $ cAllowed))
+            lValid:=.F.
+            exit
+        endif
+    next
+    aNames:=nil
+
+return(lValid)
+
+static function DataSetTypedInteger(xValue as variant,nMinimum as numeric,nMaximum as numeric) as logical
+
+    if (ValType(xValue)!="N")
+        return(.F.)
+    endif
+    if (!(xValue>=nMinimum).or.!(xValue<=nMaximum))
+        return(.F.)
+    endif
+
+return(xValue==Int(xValue))
+
+static function DataSetTypedNumber(xValue as variant) as logical
+
+    local nMaximum:=1.7976931348623157*(10**308) as numeric
+
+    if (ValType(xValue)!="N")
+        return(.F.)
+    endif
+
+return((xValue==xValue).and.(xValue>=-nMaximum).and.(xValue<=nMaximum))
+
+static function DataSetTypedDigits(cValue as character) as logical
+
+    local nPosition:=0 as numeric
+    local nLength:=Len(cValue) as numeric
+    local nCode:=0 as numeric
+
+    if (nLength==0)
+        return(.F.)
+    endif
+    for nPosition:=1 to nLength
+        nCode:=Asc(SubStr(cValue,nPosition,1))
+        if ((nCode<48).or.(nCode>57))
+            return(.F.)
+        endif
+    next
+
+return(.T.)
+
+static function DataSetTypedInt64(xValue as variant) as logical
+
+    local cDigits:="" as character
+    local cLimit:="9223372036854775807" as character
+
+    local lNegative:=.F. as logical
+
+    local nLength:=0 as numeric
+
+    if (ValType(xValue)!="C")
+        return(.F.)
+    endif
+    cDigits:=xValue
+    lNegative:=(Left(cDigits,1)=="-")
+    if (lNegative)
+        cDigits:=SubStr(cDigits,2)
+        cLimit:="9223372036854775808"
+    endif
+    nLength:=Len(cDigits)
+    if (!DataSetTypedDigits(cDigits).or.(nLength>19))
+        return(.F.)
+    endif
+    if ((nLength>1).and.(Left(cDigits,1)=="0"))
+        return(.F.)
+    endif
+    if (lNegative.and.(cDigits=="0"))
+        return(.F.)
+    endif
+
+return((nLength<19).or.(cDigits<=cLimit))
+
+static function DataSetTypedDecimal(xValue as variant,nPrecision as numeric,nScale as numeric,lResult as logical) as logical
+
+    local cDigits:="" as character
+    local cInteger:="" as character
+    local cFraction:="" as character
+
+    local lNegative:=.F. as logical
+
+    local nDot:=0 as numeric
+    local nInteger:=0 as numeric
+    local nFraction:=0 as numeric
+
+    if (ValType(xValue)!="C")
+        return(.F.)
+    endif
+    if (!DataSetTypedInteger(nPrecision,1,9007199254740991).or.;
+        !DataSetTypedInteger(nScale,0,nPrecision))
+        return(.F.)
+    endif
+    cDigits:=xValue
+    lNegative:=(Left(cDigits,1)=="-")
+    if (lNegative)
+        cDigits:=SubStr(cDigits,2)
+    endif
+    nDot:=At(".",cDigits)
+    if (nDot>0)
+        cInteger:=Left(cDigits,nDot-1)
+        cFraction:=SubStr(cDigits,nDot+1)
+        if (!DataSetTypedDigits(cFraction))
+            return(.F.)
+        endif
+    else
+        cInteger:=cDigits
+    endif
+    if (!DataSetTypedDigits(cInteger))
+        return(.F.)
+    endif
+    nInteger:=Len(cInteger)
+    nFraction:=Len(cFraction)
+    if ((nInteger>1).and.(Left(cInteger,1)=="0"))
+        return(.F.)
+    endif
+    if (cInteger=="0")
+        nInteger:=0
+    endif
+    if ((nInteger>nPrecision-nScale).or.(nFraction>nScale))
+        return(.F.)
+    endif
+    if (lResult.and.(nFraction!=nScale))
+        return(.F.)
+    endif
+    if (lNegative.and.Empty(StrTran(cInteger+cFraction,"0","")))
+        return(.F.)
+    endif
+
+return(.T.)
+
+static function DataSetTypedDate(xValue as variant) as logical
+
+    local cDate:="" as character
+
+    if (ValType(xValue)!="C")
+        return(.F.)
+    endif
+    if ((Len(xValue)!=10).or.(SubStr(xValue,5,1)!="-").or.(SubStr(xValue,8,1)!="-"))
+        return(.F.)
+    endif
+    cDate:=Left(xValue,4)+SubStr(xValue,6,2)+Right(xValue,2)
+    if (!DataSetTypedDigits(cDate).or.(Left(cDate,4)=="0000"))
+        return(.F.)
+    endif
+
+return(DToS(StoD(cDate))==cDate)
+
+static function DataSetTypedBindings(jBindings as json,cFailure as character) as logical
+
+    local aNames as array
+
+    local cKey:="" as character
+    local cType:="" as character
+    local cMembers:="" as character
+
+    local jBinding as json
+
+    local lNull:=.F. as logical
+
+    local nBinding:=0 as numeric
+    local nBindings:=0 as numeric
+    local nMembers:=0 as numeric
+    local nMaximum:=9007199254740991 as numeric
+
+    local xValue as variant
+
+    cFailure:="INVALID_BINDINGS"
+    if (ValType(jBindings)!="J")
+        return(.F.)
+    endif
+    aNames:=jBindings:GetNames()
+    nBindings:=Len(aNames)
+    aNames:=nil
+    for nBinding:=1 to nBindings
+        cKey:=tlpp.ToStr(nBinding)
+        if (!jBindings:HasProperty(cKey))
+            return(.F.)
+        endif
+        jBinding:=jBindings[cKey]
+        if (ValType(jBinding)!="J")
+            return(.F.)
+        endif
+        if (!jBinding:HasProperty("type").or.!jBinding:HasProperty("isNull"))
+            return(.F.)
+        endif
+        if ((ValType(jBinding["type"])!="C").or.(ValType(jBinding["isNull"])!="L"))
+            return(.F.)
+        endif
+        cType:=jBinding["type"]
+        if (!((cType=="text").or.(cType=="integer").or.(cType=="int64").or.;
+            (cType=="number").or.(cType=="decimal").or.(cType=="boolean").or.(cType=="date")))
+            cFailure:="UNSUPPORTED_BINDING_TYPE"
+            return(.F.)
+        endif
+        lNull:=jBinding["isNull"]
+        cMembers:="|type|isNull|"
+        nMembers:=2
+        if (!lNull)
+            cMembers+="value|"
+            nMembers++
+        endif
+        if (cType=="decimal")
+            cMembers+="precision|scale|"
+            nMembers+=2
+        endif
+        if (!DataSetTypedMembers(jBinding,cMembers,nMembers))
+            return(.F.)
+        endif
+        if (cType=="decimal")
+            if (!DataSetTypedInteger(jBinding["precision"],1,nMaximum))
+                cFailure:="BINDING_RANGE_ERROR"
+                return(.F.)
+            endif
+            if (!DataSetTypedInteger(jBinding["scale"],0,jBinding["precision"]))
+                cFailure:="BINDING_RANGE_ERROR"
+                return(.F.)
+            endif
+        endif
+        if (lNull)
+            loop
+        endif
+        xValue:=jBinding["value"]
+        do case
+        case cType=="text"
+            if (ValType(xValue)!="C")
+                return(.F.)
+            endif
+        case cType=="boolean"
+            if (ValType(xValue)!="L")
+                return(.F.)
+            endif
+        otherwise
+            cFailure:="BINDING_RANGE_ERROR"
+            do case
+            case cType=="integer"
+                if (!DataSetTypedInteger(xValue,-nMaximum,nMaximum))
+                    return(.F.)
+                endif
+            case cType=="int64"
+                if (!DataSetTypedInt64(xValue))
+                    return(.F.)
+                endif
+            case cType=="number"
+                if (!DataSetTypedNumber(xValue))
+                    return(.F.)
+                endif
+            case cType=="decimal"
+                if (!DataSetTypedDecimal(xValue,jBinding["precision"],jBinding["scale"],.F.))
+                    return(.F.)
+                endif
+            case cType=="date"
+                if (!DataSetTypedDate(xValue))
+                    return(.F.)
+                endif
+            endcase
+        endcase
+        cFailure:="INVALID_BINDINGS"
+    next
+
+return(.T.)
+
+static function DataSetTypedPage(jPage as json) as logical
+
+    local cOrder:="" as character
+    local cToken:="" as character
+    local cColumn:="" as character
+    local cDirection:="" as character
+    local cChar:="" as character
+
+    local nMaximum:=9007199254740991 as numeric
+    local nComma:=0 as numeric
+    local nSpace:=0 as numeric
+    local nChar:=0 as numeric
+    local nLength:=0 as numeric
+
+    if (!DataSetTypedMembers(jPage,"|number|size|orderBy|",3))
+        return(.F.)
+    endif
+    if (!DataSetTypedInteger(jPage["number"],1,nMaximum).or.;
+        !DataSetTypedInteger(jPage["size"],1,nMaximum-1))
+        return(.F.)
+    endif
+    if (jPage["number"]>Int((nMaximum-1)/jPage["size"]))
+        return(.F.)
+    endif
+    if ((jPage["number"]*jPage["size"]+1)>nMaximum)
+        return(.F.)
+    endif
+    if (ValType(jPage["orderBy"])!="C")
+        return(.F.)
+    endif
+    cOrder:=AllTrim(jPage["orderBy"])
+    if (Empty(cOrder))
+        return(.F.)
+    endif
+    do while !Empty(cOrder)
+        nComma:=At(",",cOrder)
+        cToken:=AllTrim(IIf(nComma==0,cOrder,Left(cOrder,nComma-1)))
+        nSpace:=At(" ",cToken)
+        cColumn:=IIf(nSpace==0,cToken,Left(cToken,nSpace-1))
+        cDirection:=IIf(nSpace==0,"ASC",Upper(AllTrim(SubStr(cToken,nSpace+1))))
+        if (Empty(cColumn).or.!((cDirection=="ASC").or.(cDirection=="DESC")))
+            return(.F.)
+        endif
+        nLength:=Len(cColumn)
+        for nChar:=1 to nLength
+            cChar:=Upper(SubStr(cColumn,nChar,1))
+            if (!(cChar $ "ABCDEFGHIJKLMNOPQRSTUVWXYZ_"))
+                if ((nChar==1).or.!(cChar $ "0123456789"))
+                    return(.F.)
+                endif
+            endif
+        next
+        if (nComma==0)
+            exit
+        endif
+        cOrder:=AllTrim(SubStr(cOrder,nComma+1))
+        if (Empty(cOrder))
+            return(.F.)
+        endif
+    enddo
+
+return(.T.)
+
+static function DataSetTypedMetadata(jField as json) as logical
+
+    local aNames as array
+
+    local cKey:="" as character
+    local cType:="" as character
+    local cJSONType:="" as character
+
+    local jGroup as json
+
+    local nName:=0 as numeric
+    local nNames:=0 as numeric
+    local nMaximum:=9007199254740991 as numeric
+
+    local xValue as variant
+
+    if (!DataSetTypedMembers(jField,"|position|rdd|source|wire|",4))
+        return(.F.)
+    endif
+    jGroup:=jField["rdd"]
+    if (!DataSetTypedMembers(jGroup,"|type|length|decimals|",3))
+        return(.F.)
+    endif
+    if (!(ValType(jGroup["type"]) $ "CU"))
+        return(.F.)
+    endif
+    if ((ValType(jGroup["length"])!="U").and.;
+        !DataSetTypedInteger(jGroup["length"],0,nMaximum))
+        return(.F.)
+    endif
+    if ((ValType(jGroup["decimals"])!="U").and.;
+        !DataSetTypedInteger(jGroup["decimals"],0,nMaximum))
+        return(.F.)
+    endif
+    jGroup:=jField["source"]
+    if (!DataSetTypedMembers(jGroup,;
+        "|typeCode|typeName|precision|precisionRadix|scale|characterLength|octetLength|nullable|catalog|schema|table|column|collation|",13))
+        return(.F.)
+    endif
+    aNames:=jGroup:GetNames()
+    nNames:=Len(aNames)
+    for nName:=1 to nNames
+        cKey:=aNames[nName]
+        xValue:=jGroup[cKey]
+        if (ValType(xValue)=="U")
+            loop
+        endif
+        do case
+        case cKey=="typeCode"
+            if (!DataSetTypedInteger(xValue,-nMaximum,nMaximum))
+                aNames:=nil
+                return(.F.)
+            endif
+        case cKey=="precisionRadix"
+            if (!DataSetTypedInteger(xValue,1,nMaximum))
+                aNames:=nil
+                return(.F.)
+            endif
+        case ("|"+cKey+"|") $ "|precision|scale|characterLength|octetLength|"
+            if (!DataSetTypedInteger(xValue,0,nMaximum))
+                aNames:=nil
+                return(.F.)
+            endif
+        case cKey=="nullable"
+            if (ValType(xValue)!="L")
+                aNames:=nil
+                return(.F.)
+            endif
+        otherwise
+            if (ValType(xValue)!="C")
+                aNames:=nil
+                return(.F.)
+            endif
+        endcase
+    next
+    aNames:=nil
+    jGroup:=jField["wire"]
+    if (!DataSetTypedMembers(jGroup,"|kind|jsonType|encoding|",3))
+        return(.F.)
+    endif
+    if ((ValType(jGroup["kind"])!="C").or.(ValType(jGroup["jsonType"])!="C"))
+        return(.F.)
+    endif
+    cType:=jGroup["kind"]
+    cJSONType:=jGroup["jsonType"]
+    if ((cType=="text").or.(cType=="int64").or.(cType=="decimal").or.(cType=="date"))
+        if ((cJSONType!="string").or.(ValType(jGroup["encoding"])!="C"))
+            return(.F.)
+        endif
+        if (jGroup["encoding"]!="UTF-8")
+            return(.F.)
+        endif
+    elseif ((cType=="integer").or.(cType=="number"))
+        if ((cJSONType!="number").or.(ValType(jGroup["encoding"])!="U"))
+            return(.F.)
+        endif
+    elseif (cType=="boolean")
+        if ((cJSONType!="boolean").or.(ValType(jGroup["encoding"])!="U"))
+            return(.F.)
+        endif
+    else
+        return(.F.)
+    endif
+    if (cType=="decimal")
+        jGroup:=jField["source"]
+        if (!DataSetTypedInteger(jGroup["precision"],1,nMaximum))
+            return(.F.)
+        endif
+        if (!DataSetTypedInteger(jGroup["scale"],0,jGroup["precision"]))
+            return(.F.)
+        endif
+        if ((ValType(jGroup["precisionRadix"])!="N").or.(jGroup["precisionRadix"]!=10))
+            return(.F.)
+        endif
+    endif
+
+return(.T.)
+
+static function DataSetTypedValue(xValue as variant,jField as json) as logical
+
+    local cType:=jField["wire"]["kind"] as character
+
+    if (ValType(xValue)=="U")
+        // NULL may result from a join even when the source is nonnullable.
+        return(.T.)
+    endif
+    do case
+    case cType=="text"
+        return(ValType(xValue)=="C")
+    case cType=="integer"
+        return(DataSetTypedInteger(xValue,-9007199254740991,9007199254740991))
+    case cType=="int64"
+        return(DataSetTypedInt64(xValue))
+    case cType=="decimal"
+        return(DataSetTypedDecimal(xValue,jField["source"]["precision"],jField["source"]["scale"],.T.))
+    case cType=="number"
+        return(DataSetTypedNumber(xValue))
+    case cType=="boolean"
+        return(ValType(xValue)=="L")
+    case cType=="date"
+        return(DataSetTypedDate(xValue))
+    endcase
+
+return(.F.)
+
+static function DataSetTypedResult(jResult as json,jPage as json,jFieldNames as json) as logical
+
+    local aNames as array
+
+    local cField:="" as character
+    local cKey:="" as character
+    local cMembers:="|success|resultVersion|driver|header|rows|rowCount|totalRows|totalPages|" as character
+    local cNul:=Chr(0) as character
+
+    local jRow as json
+
+    local nMembers:=8 as numeric
+    local nFields:=0 as numeric
+    local nField:=0 as numeric
+    local nRows:=0 as numeric
+    local nRow:=0 as numeric
+    local nMaximum:=9007199254740991 as numeric
+
+    if (ValType(jPage)=="J")
+        cMembers+="page|"
+        nMembers++
+    endif
+    if (!DataSetTypedMembers(jResult,cMembers,nMembers))
+        return(.F.)
+    endif
+    if (ValType(jResult["driver"])!="C")
+        return(.F.)
+    endif
+    if (Empty(jResult["driver"]).or.(cNul $ jResult["driver"]))
+        return(.F.)
+    endif
+    if (!DataSetTypedInteger(jResult["rowCount"],0,nMaximum))
+        return(.F.)
+    endif
+    nRows:=jResult["rowCount"]
+    aNames:=jResult["rows"]:GetNames()
+    nRow:=Len(aNames)
+    aNames:=nil
+    if (nRow!=nRows)
+        return(.F.)
+    endif
+    aNames:=jFieldNames:GetNames()
+    nFields:=Len(aNames)
+    aNames:=nil
+    for nField:=1 to nFields
+        cField:=jFieldNames[tlpp.ToStr(nField)]
+        if (Empty(cField).or.(cField!=Upper(AllTrim(cField))).or.(cNul $ cField))
+            return(.F.)
+        endif
+        if (!DataSetTypedMetadata(jResult["header"][cField]))
+            return(.F.)
+        endif
+    next
+    if (ValType(jPage)=="J")
+        if (!DataSetTypedMembers(jResult["page"],"|number|size|hasNext|firstRow|lastRow|",5))
+            return(.F.)
+        endif
+    endif
+    for nRow:=1 to nRows
+        cKey:=tlpp.ToStr(nRow)
+        jRow:=jResult["rows"][cKey]
+        aNames:=jRow:GetNames()
+        nField:=Len(aNames)
+        aNames:=nil
+        if (nField!=nFields)
+            return(.F.)
+        endif
+        for nField:=1 to nFields
+            cField:=jFieldNames[tlpp.ToStr(nField)]
+            if (!jRow:HasProperty(cField))
+                return(.F.)
+            endif
+            if (!DataSetTypedValue(jRow[cField],jResult["header"][cField]))
+                return(.F.)
+            endif
+        next
+    next
+
+return(.T.)

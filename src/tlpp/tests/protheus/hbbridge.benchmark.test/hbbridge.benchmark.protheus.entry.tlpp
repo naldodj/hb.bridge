@@ -100,7 +100,7 @@ function U_HBBridgeBenchmarkJob(cRequestJSON, cCompany, cBranch, cCredentialSect
         lFailed := .T.
         cResult := BenchmarkJobFailure(cCode)
         if (ValType(xError)=="O")
-            FreeObj(xError)
+            FreeObj(@xError)
         endif
     endtry
     // RpcClearEnv may need the connection opened while preparing the context.
@@ -112,6 +112,9 @@ function U_HBBridgeBenchmarkJob(cRequestJSON, cCompany, cBranch, cCredentialSect
             if !lFailed
                 cResult := BenchmarkJobFailure("ENVIRONMENT_CLOSE_FAILED")
                 lFailed := .T.
+            endif
+            if (ValType(xError)=="O")
+                FreeObj(@xError)
             endif
         endtry
     endif
@@ -126,6 +129,9 @@ function U_HBBridgeBenchmarkJob(cRequestJSON, cCompany, cBranch, cCredentialSect
         catch xError
             if !lFailed
                 cResult := BenchmarkJobFailure("CONNECTION_CLOSE_FAILED")
+            endif
+            if (ValType(xError)=="O")
+                FreeObj(@xError)
             endif
         endtry
     endif

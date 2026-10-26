@@ -400,9 +400,27 @@ query, adding database work; older paged replies may report unknown totals.
 No arbitrary row ceiling applies; ordinals must remain exact JSON/TLPP
 integers. Pagination limits bridge rows but deep pages may still sort/scan
 extensively. The [contract](docs/milestone3-sql.md) details order grammar,
-types/nulls, errors and lifecycle. Bound parameters, cursors, transactions,
+types/nulls, errors and lifecycle. Cursors, transactions,
 cancellation and incremental BLOBs remain pending; optional native ODBC login
 and statement timeouts are available in MSSQL profiles.
+
+Package 002 T03 adds `RPCRDD.QueryTyped` and dataset methods `OpenSQLTyped` /
+`OpenPageTyped`, with positional native bindings, version-2 source/wire metadata
+and preserved NULL. Exact int64/decimal values remain strings; caller business
+scale stays explicit. Windows native SQLite/MSSQL and TCP/gzip HTTP checks are
+recorded separately from AppServer mock tests. T04 adds an explicit caller-schema
+native table adapter and a local browse example, with actual AppServer
+conversion/storage checks. Page loads refill the same physical native table,
+workarea, alias and search indexes; full post-write readback is opt-in diagnosis.
+A generic public native browse API remains deferred.
+The synthetic example accepts `U_HBBridgeNativeBrowse(10000,100)` for source
+size/page size (defaults 1000/13). Its visible zero-padded `ID_CODE` preserves
+numeric sequence under native character indexing; the original `ID` remains
+exact text. The storage fixture accepts `U_HBBridgePresentationTableTest(10000)`
+(default 1025). These fixtures do not query ERP tables.
+Interactive UI and combined AppServer/backend acceptance remain T05. See the
+[native presentation guide](docs/native-presentation.md), [typed contract](docs/typed-sql.md),
+[connector limits](docs/typed-sql-connectors.md) and [WIP](WIP.md).
 
 ### SQL connection reuse
 

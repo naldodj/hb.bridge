@@ -1,0 +1,209 @@
+/* Released to Public Domain. */
+#include "totvs.ch"
+
+// SDK evidence only: observations do not authorize silent adapter coercion.
+function U_HBBridgePresentationProbe()
+
+    local aCases as array
+
+    local cKey := "", cText := "", cFormatted := "" as character
+    local cUTF8 := "A" + Chr(195) + Chr(167) + Chr(195) + Chr(163) + "o" as character
+    local cLocal := "", cNul := Chr(0) as character
+
+    local jChecks := JSONObject():New() as json
+    local jMatrix := JSONObject():New() as json
+    local jRow as json
+    local jReport := JSONObject():New() as json
+    local jCases := JSONObject():New() as json
+
+    local lOK := .T. as logical
+
+    local nCase := 0, nCases := 0, nWidth := 0, nScale := 0, nValue := 0 as numeric
+
+    cLocal := DecodeUTF8(cUTF8, "cp1252")
+    jChecks["utf8DecodeEncodeRoundtrip"] := EncodeUTF8(cLocal, "cp1252") == cUTF8
+    // NUL behavior is an observation, never a requirement that would permit
+    // this native presentation profile to silently truncate the input.
+    jChecks["fixedScaleTrailingZero"] := AllTrim(Str(Val("1.2300"), 32, 4)) == "1.2300"
+    jChecks["zeroScaleZero"] := AllTrim(Str(Val("0"), 32, 0)) == "0"
+    jChecks["numericType"] := ValType(Val("1.23")) == "N"
+    jChecks["strExplicitScaleIndependentOfSetDecimals"] := AllTrim(Str(Val("1.23"), 32, 4)) == "1.2300"
+
+    // Arrays are used only by the native GetNames() enumeration boundary.
+    jCases["decimalSmall"] := "0.0000000000000001"
+    jCases["decimalSixteenDigits"] := "12345678901234.56"
+    jCases["decimalSeventeenDigits"] := "123456789012345.67"
+    jCases["decimalEighteenDigits"] := "1234567890123456.78"
+    jCases["decimalScaledZero"] := "0.0000"
+    jCases["decimalTrailingZeros"] := "1.2300"
+    jCases["integerSafeMaximum"] := "9007199254740991"
+    jCases["integerAboveBinary64"] := "9007199254740993"
+    jCases["int64Maximum"] := "9223372036854775807"
+    jCases["int64Minimum"] := "-9223372036854775808"
+    aCases := jCases:GetNames()
+    nCases := Len(aCases)
+    for nCase := 1 to nCases
+        cKey := aCases[nCase]
+        cText := jCases[cKey]
+        nValue := Val(cText)
+        nScale := if("." $ cText, Len(cText) - At(".", cText), 0)
+        cFormatted := AllTrim(Str(nValue, 32, nScale))
+        jRow := JSONObject():New()
+        jRow["input"] := cText
+        jRow["output"] := cFormatted
+        jRow["nativeType"] := ValType(nValue)
+        jRow["roundtrip"] := cFormatted == cText
+        jMatrix[cKey] := jRow
+    next nCase
+    FWFreeArray(@aCases)
+    FreeObj(@jCases)
+    // Explicit widths/scales, including overflow stars and intentional rounding.
+    jCases := JSONObject():New()
+    nValue := Val("-12345.678901234567")
+    for nWidth := 1 to 32
+        jRow := JSONObject():New()
+        for nScale := 0 to 16
+            jRow[tlpp.ToStr(nScale)] := Str(nValue, nWidth, nScale)
+        next nScale
+        jCases[tlpp.ToStr(nWidth)] := jRow
+    next nWidth
+    aCases := jChecks:GetNames()
+    nCases := Len(aCases)
+    for nCase := 1 to nCases
+        lOK := lOK .and. jChecks[aCases[nCase]]
+    next nCase
+    FWFreeArray(@aCases)
+    jReport["schemaVersion"] := 1
+    jReport["success"] := lOK
+    jReport["scope"] := "Native SDK observations; no ERP tables and no precision inferred from DEC_CREATE."
+    jReport["checks"] := jChecks
+    jReport["numericCases"] := jMatrix
+    jReport["nulDecodedLength"] := Len(DecodeUTF8("A" + cNul + "B", "cp1252"))
+    jReport["widthScaleMatrix"] := jCases
+    jReport["nativeTable"] := PresentationProbeTable(cLocal)
+    MemoWrite("\presentation.sdk.probe.json", jReport:ToJSON())
+    ConOut("hbBridge presentation SDK checks: " + jChecks:ToJSON())
+    ConOut("hbBridge presentation SDK numeric cases: " + jMatrix:ToJSON())
+    ConOut("hbBridge presentation SDK native table: " + jReport["nativeTable"]:ToJSON())
+    ConOut("hbBridge presentation SDK probe " + if(lOK, "OK", "FAILED"))
+    FreeObj(@jReport)
+
+return if(lOK, 0, 1)
+
+static function PresentationProbeTable(cText as character) as json
+
+    local aFields := {{"TEXTVAL", "C", 254, 0}, {"WIDEVAL", "N", 32, 16}, ;
+        {"AMOUNT", "N", 16, 2}, {"DAYVAL", "D", 8, 0}, {"FLAGVAL", "L", 1, 0}} as array
+    local aTopInfo as array
+
+    local cAlias := "", cStage := "CONFIGURATION" as character
+    local cServer := "", cDatabase := "", cProfile := "" as character
+
+    local jReport := JSONObject():New() as json
+    local jReadback := JSONObject():New() as json
+
+    local lOwned := .F., lCreated := .F., lDeleted := .F. as logical
+
+    local nArea := Select(), nConnection := -1, nPort := 0 as numeric
+
+    local oTable as object
+
+    local xError as variant
+
+    jReport["status"] := "PREREQUISITE_UNAVAILABLE"
+    jReport["code"] := "DBACCESS_CONFIGURATION_REQUIRED"
+    jReport["scope"] := "Owned FWTemporaryTable only; no ERP table is read or changed."
+    try
+        if !TCIsConnected()
+            aTopInfo := FWGetTopInfo()
+            if ValType(aTopInfo) != "A" .or. Len(aTopInfo) < 5
+                throw "The active DBAccess configuration is incomplete."
+            endif
+            cServer := aTopInfo[1]
+            nPort := aTopInfo[3]
+            cDatabase := aTopInfo[4]
+            cProfile := aTopInfo[5]
+            FWFreeArray(@aTopInfo)
+            if Empty(cServer) .or. Empty(cDatabase) .or. Empty(cProfile) .or. nPort < 1
+                throw "The private DBAccess configuration is incomplete."
+            endif
+            cStage := "CONNECTION"
+            nConnection := TCLink(cDatabase + "/" + cProfile, cServer, nPort)
+            if nConnection < 0
+                throw "The private DBAccess connection could not be opened."
+            endif
+            lOwned := .T.
+        endif
+        cStage := "CREATE"
+        cAlias := GetNextAlias()
+        oTable := FWTemporaryTable():New(cAlias, aFields)
+        oTable:Create()
+        cAlias := oTable:GetAlias()
+        lCreated := Select(cAlias) > 0
+        if !lCreated
+            throw "The owned temporary table did not open."
+        endif
+        cStage := "POPULATE"
+        (cAlias)->(DbAppend(.F.))
+        if (cAlias)->(!DbInInsert())
+            throw "The owned temporary row could not be appended."
+        endif
+        (cAlias)->(FieldPut(1, cText))
+        (cAlias)->(FieldPut(2, Val("0.1234567890123456")))
+        (cAlias)->(FieldPut(3, Val("1234567890.12")))
+        (cAlias)->(FieldPut(4, SToD("20240229")))
+        (cAlias)->(FieldPut(5, .T.))
+        (cAlias)->(DbCommit())
+        (cAlias)->(DbGoTop())
+        cStage := "READBACK"
+        jReadback["characterLength"] := (cAlias)->(Len(FieldGet(1)))
+        jReadback["characterExactAfterPadding"] := (cAlias)->(FieldGet(1)) == PadR(cText, 254)
+        jReadback["numericWideType"] := (cAlias)->(ValType(FieldGet(2)))
+        jReadback["numericWide"] := AllTrim((cAlias)->(Str(FieldGet(2), 32, 16)))
+        jReadback["numericWideExact"] := jReadback["numericWide"] == "0.1234567890123456"
+        jReadback["numericWideNativeEqualsInput"] := (cAlias)->(FieldGet(2)) == Val("0.1234567890123456")
+        jReadback["numericAmountType"] := (cAlias)->(ValType(FieldGet(3)))
+        jReadback["numericAmount"] := AllTrim((cAlias)->(Str(FieldGet(3), 16, 2)))
+        jReadback["numericAmountExact"] := jReadback["numericAmount"] == "1234567890.12"
+        jReadback["numericAmountNativeEqualsInput"] := (cAlias)->(FieldGet(3)) == Val("1234567890.12")
+        jReadback["dateExact"] := (cAlias)->(DToS(FieldGet(4))) == "20240229"
+        jReadback["logicalType"] := (cAlias)->(ValType(FieldGet(5)))
+        jReadback["logicalExact"] := (cAlias)->(FieldGet(5)) == .T.
+        jReport["status"] := "OBSERVED"
+        jReport["code"] := ""
+        jReport["readback"] := jReadback
+    catch xError
+        jReport["code"] := "SDK_PROBE_" + cStage
+        if cStage != "CONFIGURATION" .and. cStage != "CONNECTION"
+            jReport["status"] := "UNSUPPORTED_OR_FAILED"
+        endif
+        if ValType(xError) == "O"
+            FreeObj(@xError)
+        endif
+    endtry
+    try
+        if ValType(oTable) == "O"
+            oTable:Delete()
+            lDeleted := Select(cAlias) == 0
+            FreeObj(@oTable)
+        endif
+    catch xError
+        jReport["cleanupCode"] := "TEMPORARY_TABLE_CLEANUP_FAILED"
+        if ValType(xError) == "O"
+            FreeObj(@xError)
+        endif
+    endtry
+    if Select() != nArea
+        DbSelectArea(IIf(nArea > 0, nArea, Nil))
+    endif
+    if lOwned
+        TCUnlink(nConnection)
+    endif
+    jReport["created"] := lCreated
+    jReport["deleted"] := lDeleted
+    jReport["areaRestored"] := Select() == nArea
+    jReport["connectionClosed"] := !lOwned .or. !TCIsConnected(nConnection)
+    FWFreeArray(@aFields)
+    FWFreeArray(@aTopInfo)
+
+return jReport

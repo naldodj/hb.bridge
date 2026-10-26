@@ -1058,7 +1058,7 @@ static function BenchmarkSeries(oClient as object, cProfile as character, cSQL a
     catch xError
         jSeries["failureCategory"] := "RUNTIME_EXCEPTION"
         if (ValType(xError)=="O")
-            FreeObj(xError)
+            FreeObj(@xError)
         endif
     endtry
     if ValType(oDataSet) == "O"
@@ -1068,7 +1068,7 @@ static function BenchmarkSeries(oClient as object, cProfile as character, cSQL a
             jSeries["success"] := .F.
             jSeries["failureCategory"] := "RUNTIME_EXCEPTION"
             if (ValType(xError)=="O")
-                FreeObj(xError)
+                FreeObj(@xError)
             endif
         endtry
         FreeObj(@oDataSet)
@@ -1204,7 +1204,7 @@ static function BenchmarkIteration(oDataSet as object, oClient as object, cSQL a
     catch xError
         cFailure := "RUNTIME_EXCEPTION"
         if (ValType(xError)=="O")
-            FreeObj(xError)
+            FreeObj(@xError)
         endif
     endtry
     try
@@ -1212,7 +1212,7 @@ static function BenchmarkIteration(oDataSet as object, oClient as object, cSQL a
     catch xError
         cFailure := "RUNTIME_EXCEPTION"
         if (ValType(xError)=="O")
-            FreeObj(xError)
+            FreeObj(@xError)
         endif
     endtry
     nCurrent := HBBridge.Client.HBBridgeTime():HBBridgeTimeMs()

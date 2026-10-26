@@ -1,5 +1,5 @@
 /* Released to Public Domain. */
-#include "tlpp-core.th"
+#include "totvs.ch"
 
 namespace HBBridge.Tests
 
@@ -7,6 +7,7 @@ class HBBridgeDataSetMockClient
 
     private data jResponses as json
     private data jRequests as json
+    private data jServices as json
 
     private data nResponses as numeric
     private data nCalls as numeric
@@ -16,6 +17,7 @@ class HBBridgeDataSetMockClient
     public method CallService(cService as character, jParams as json) as json
     public method CallCount() as numeric
     public method Request(nCall as numeric) as json
+    public method Service(nCall as numeric) as character
     public method Close()
 
 endclass
@@ -24,6 +26,7 @@ method New() class HBBridgeDataSetMockClient
 
     self:jResponses := JSONObject():New()
     self:jRequests := JSONObject():New()
+    self:jServices := JSONObject():New()
     self:nResponses := 0
     self:nCalls := 0
 
@@ -33,7 +36,7 @@ method Queue(jResponse) class HBBridgeDataSetMockClient
 
     self:nResponses++
     // Store serialized fixtures so each call transfers a fresh owned result.
-    self:jResponses[tlpp.ToStr(self:nResponses)] := jResponse:ToJSON()
+    self:jResponses[tlpp.ToStr(self:nResponses)] := HBBridge.Client.HBBridgeJSON():Encode(jResponse)
 
 return
 
@@ -47,9 +50,10 @@ method CallService(cService, jParams) class HBBridgeDataSetMockClient
 
     self:nCalls++
     cKey := tlpp.ToStr(self:nCalls)
-    self:jRequests[cKey] := jParams:ToJSON()
-    if cService == "RPCRDD.Query" .and. self:jResponses:HasProperty(cKey)
-        jResponse:FromJSON(self:jResponses[cKey])
+    self:jRequests[cKey] := HBBridge.Client.HBBridgeJSON():Encode(jParams)
+    self:jServices[cKey] := cService
+    if (cService == "RPCRDD.Query" .or. cService == "RPCRDD.QueryTyped") .and. self:jResponses:HasProperty(cKey)
+        HBBridge.Client.HBBridgeJSON():Parse(self:jResponses[cKey], jResponse)
     else
         jResponse["success"] := .F.
         jResponse["code"] := "MOCK_RESPONSE_MISSING"
@@ -71,23 +75,38 @@ method Request(nCall) class HBBridgeDataSetMockClient
     cKey := tlpp.ToStr(nCall)
 
     if self:jRequests:HasProperty(cKey)
-        jRequest:FromJSON(self:jRequests[cKey])
+        HBBridge.Client.HBBridgeJSON():Parse(self:jRequests[cKey], jRequest)
     endif
 
 return(jRequest)
+
+method Service(nCall) class HBBridgeDataSetMockClient
+
+    local cKey:=tlpp.ToStr(nCall) as character
+
+    if (self:jServices:HasProperty(cKey))
+        return(self:jServices[cKey])
+    endif
+
+return("")
 
 method Close() class HBBridgeDataSetMockClient
 
     local jResponses := self:jResponses as json
     local jRequests := self:jRequests as json
+    local jServices := self:jServices as json
 
     self:jResponses := Nil
     self:jRequests := Nil
+    self:jServices := Nil
     if ValType(jResponses) $ "JO"
         FreeObj(@jResponses)
     endif
     if ValType(jRequests) $ "JO"
         FreeObj(@jRequests)
+    endif
+    if ValType(jServices) $ "JO"
+        FreeObj(@jServices)
     endif
 
 return

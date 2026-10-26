@@ -22,6 +22,10 @@ The JSON summaries retain sanitized identities/counts at measurement time:
 - [Source conventions review](source.standards.windows.json).
 - [Benchmark controls and addon numeric JSON regression](benchmark.controls.windows.json).
 - [HTTP response sending, gzip and Windows client validation](http.response.windows.json).
+- [Native SQLite/MSSQL bindings and declared result metadata](sql.bind.windows.json).
+- [Typed SQL service, TCP/gzip HTTP and AppServer dataset contracts](typed.sql.windows.json).
+- [AppServer native presentation conversion, storage and ownership](native.presentation.windows.json).
+- [Revised native browse, FWBulk, ID_CODE ordering and 10,000-row storage](native.presentation.revision.windows.json).
 
 These identities describe the dated source snapshot, not today's checkout.
 Historical `tmp/...` mentions in older records identify where output was written;
@@ -40,6 +44,8 @@ entry points. Every runner creates its current scratch directories itself:
 ./scripts/build-hbbridge.ps1
 ./scripts/test-hbbridge.ps1
 ./scripts/test-harbour-thread-state.ps1
+./scripts/test-harbour-sqlite-bind.ps1
+./scripts/test-hbbridge-typed-sql.ps1
 ./tests/unit/scripts/clean.artifacts.test.ps1
 ./scripts/check-doc-links.ps1
 ./scripts/commit-check.ps1
@@ -51,6 +57,8 @@ and explicit alias; no prior test directory is an input:
 
 ```powershell
 ./scripts/test-hbbridge-mssql.ps1 -Config '<private-ini>' -Profile '<alias>'
+./scripts/test-harbour-mssql-bind.ps1 -Config '<private-ini>' -Profile '<alias>'
+./scripts/test-hbbridge-typed-sql.ps1 -Config '<private-ini>' -Profile '<alias>'
 ./scripts/test-hbbridge-mssql.ps1 -Config '<private-ini>' -Profile '<alias>' -Integrity
 ./scripts/test-hbbridge-mssql.ps1 -Config '<private-ini>' -Profile '<alias>' -Failures `
     -FailureODBCDriver 'ODBC Driver 18 for SQL Server'

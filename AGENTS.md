@@ -71,6 +71,12 @@
   branch, `xFilial` and physical table names; services/addons receive explicit
   inputs. SQL aliases are opaque keys, never automatic ERP context resolvers.
   The TLPP library must not force a demo database profile.
+- Obtain active Protheus DBAccess connection settings through `FWGetTopInfo()`
+  instead of reconstructing server/port/database/alias from INI keys. Preserve
+  an existing connection and close only a connection opened by the caller.
+- In TLPP `catch xError` blocks, consume the captured value and release an
+  object with `if (ValType(xError)=="O"); FreeObj(@xError); endif` after handling
+  it. Keep the variable declared as variant; the compiler must see its use.
 - Reuse native `hbhttpd` for HTTP/REST and web administration through the
   shared service core. Keep runtime dependencies and enabled capabilities
   explicit; `-hblib` is a build mode, not a separate Harbour contrib.

@@ -185,6 +185,9 @@ static method Page(cRequestJSON) class HBBridgeBenchmarkProtheus
         endif
     catch xError
         lCleanupOK := .F.
+        if (ValType(xError)=="O")
+            FreeObj(@xError)
+        endif
     endtry
     try
         // Rejected input never reserved or changed a work area. In particular,
@@ -196,6 +199,9 @@ static method Page(cRequestJSON) class HBBridgeBenchmarkProtheus
         endif
     catch xError
         lCleanupOK := .F.
+        if (ValType(xError)=="O")
+            FreeObj(@xError)
+        endif
     endtry
     if !lCleanupOK
         FreeObj(@jResult)
