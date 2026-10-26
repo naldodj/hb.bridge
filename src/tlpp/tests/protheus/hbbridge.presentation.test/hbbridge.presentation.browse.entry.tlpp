@@ -8,3 +8,6 @@ return(HBBridge.Examples.U_HBBridgeNativeBrowse(nRecords,nPageSize))
 
 function U_HBBridgeNativeBrowseTest()
 return(HBBridge.Examples.U_HBBridgeNativeBrowseTest())
+
+function U_HBBridgeNativeBrowseSX5(cProfile,cTransport,nPageSize)
+return(HBBridge.Examples.U_HBBridgeNativeBrowseSX5(cProfile,cTransport,nPageSize))

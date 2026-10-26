@@ -261,6 +261,12 @@ Use `OpenSQLTyped(sql, bindings[, page])` and
 retaining `New(oClient)` and `SetAliasProfile(profile)` to select the profile;
 no profile positional argument is added. Existing signatures are preserved.
 The **version 2 validator** retains version 1 validation for old results.
+TLPP call inputs (SQL, profile and text binding values) use the caller's
+AppServer encoding. The production TCP/HTTP clients encode the complete JSON
+request into UTF-8 once; do not pre-encode individual binding strings. A value
+reused from a UTF-8 result must first cross the caller's decode boundary.
+This input convention does not change the UTF-8 wire contract or response
+snapshots: `FieldGet()` retains wire text until explicit presentation conversion.
 Validate fixed wire types, contiguous metadata/rows, nulls, totals and version
 before publishing state. Preserve defensive header/row/binding snapshots for
 Next/PreviousPage; clear on close/reopen/failure. No old OpenSQL fallback or

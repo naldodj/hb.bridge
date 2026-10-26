@@ -418,7 +418,11 @@ size/page size (defaults 1000/13). Its visible zero-padded `ID_CODE` preserves
 numeric sequence under native character indexing; the original `ID` remains
 exact text. The storage fixture accepts `U_HBBridgePresentationTableTest(10000)`
 (default 1025). These fixtures do not query ERP tables.
-Interactive UI and combined AppServer/backend acceptance remain T05. See the
+T05 adds `U_HBBridgeNativeBrowseSX5("MSSQL/pData","TCP",100)` for a real
+read-only SX5 query, also available over HTTP. Protheus resolves its table,
+branch and dictionary schema. Actual MSSQL TCP/gzip HTTP/AppServer/native
+storage passed 83 integration checks; interactive SX5 acceptance remains open.
+See the
 [native presentation guide](docs/native-presentation.md), [typed contract](docs/typed-sql.md),
 [connector limits](docs/typed-sql-connectors.md) and [WIP](WIP.md).
 

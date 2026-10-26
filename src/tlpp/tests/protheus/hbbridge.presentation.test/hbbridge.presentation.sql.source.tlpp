@@ -1,0 +1,514 @@
+/* Released to Public Domain. */
+#include "totvs.ch"
+
+namespace HBBridge.Examples
+
+// Example-owned criteria controller. SQL, order, logical fields and the base
+// bindings come from trusted Protheus code; this class owns no SQL transport.
+class HBBridgePresentationSQLSource
+
+    private data cSQL as character
+    private data cOrderBy as character
+    private data cError as character
+
+    private data jFields as json
+    private data jBindings as json
+    private data jFilters as json
+    private data jSearch as json
+
+    private data lConfigured as logical
+
+    private data nBindings as numeric
+    private data nFilters as numeric
+
+    public method New(cSQL as character,cOrderBy as character,jLogicalSchema as json,jBindings as json) as object
+    public method Query() as json
+    public method AddFilter(cField as character,cOperator as character,cValue as character) as logical
+    public method SetSearch(cField as character,cValue as character) as logical
+    public method ClearFilters()
+    public method ErrorMessage() as character
+    public method Close()
+
+endclass
+
+method New(cSQL,cOrderBy,jLogicalSchema,jBindings) class HBBridgePresentationSQLSource
+
+    local aNames as array
+
+    local cField:="" as character
+    local cKey:="" as character
+    local cType:="" as character
+    local cNul:=Chr(0) as character
+
+    local jField as json
+
+    local nField:=0 as numeric
+    local nFields:=0 as numeric
+    local nBinding:=0 as numeric
+
+    self:cSQL:=""
+    self:cOrderBy:=""
+    self:cError:="The SQL presentation source is not configured."
+    self:jFields:=JSONObject():New()
+    self:jBindings:=nil
+    self:jFilters:=JSONObject():New()
+    self:jSearch:=JSONObject():New()
+    self:lConfigured:=.F.
+    self:nBindings:=0
+    self:nFilters:=0
+    if (ValType(cSQL)!="C".or.ValType(cOrderBy)!="C".or.;
+        ValType(jLogicalSchema)!="J".or.ValType(jBindings)!="J")
+        return(self)
+    endif
+    if (Empty(AllTrim(cSQL)).or.Empty(AllTrim(cOrderBy)).or.;
+        (cNul$cSQL).or.(cNul$cOrderBy))
+        return(self)
+    endif
+    if (!jLogicalSchema:HasProperty("fields"))
+        return(self)
+    endif
+    if (ValType(jLogicalSchema["fields"])!="J")
+        return(self)
+    endif
+    if (Left(HBBridge.Client.HBBridgeJSON():Encode(jLogicalSchema["fields"]),1)!="{".or.;
+        Left(HBBridge.Client.HBBridgeJSON():Encode(jBindings),1)!="{")
+        return(self)
+    endif
+    aNames:=jLogicalSchema["fields"]:GetNames()
+    nFields:=Len(aNames)
+    for nField:=1 to nFields
+        cField:=aNames[nField]
+        cKey:=Upper(cField)
+        if (!PresentationSQLIdentifier(cField).or.self:jFields:HasProperty(cKey))
+            exit
+        endif
+        jField:=jLogicalSchema["fields"][cField]
+        if (ValType(jField)!="J")
+            exit
+        endif
+        if (!jField:HasProperty("type").or.!jField:HasProperty("decimals"))
+            exit
+        endif
+        if (ValType(jField["type"])!="C".or.ValType(jField["decimals"])!="N")
+            exit
+        endif
+        cType:=jField["type"]
+        if (!(cType=="character".or.cType=="numeric".or.cType=="logical".or.cType=="date"))
+            exit
+        endif
+        if (jField["decimals"]<0.or.jField["decimals"]!=Int(jField["decimals"]))
+            exit
+        endif
+        self:jFields[cKey]:=PresentationSQLCopy(jField)
+        if (ValType(self:jFields[cKey])!="J")
+            exit
+        endif
+    next nField
+    FWFreeArray(@aNames)
+    if (nFields<1.or.nField<=nFields)
+        return(self)
+    endif
+    aNames:=jBindings:GetNames()
+    self:nBindings:=Len(aNames)
+    FWFreeArray(@aNames)
+    for nBinding:=1 to self:nBindings
+        cKey:=tlpp.ToStr(nBinding)
+        if (!jBindings:HasProperty(cKey))
+            return(self)
+        endif
+        if (ValType(jBindings[cKey])!="J")
+            return(self)
+        endif
+    next nBinding
+    self:jBindings:=PresentationSQLCopy(jBindings)
+    if (ValType(self:jBindings)!="J")
+        return(self)
+    endif
+    self:cSQL:=AllTrim(cSQL)
+    if (Right(self:cSQL,1)==";")
+        self:cSQL:=RTrim(Left(self:cSQL,Len(self:cSQL)-1))
+    endif
+    if (Empty(self:cSQL))
+        return(self)
+    endif
+    self:cOrderBy:=AllTrim(cOrderBy)
+    self:cError:=""
+    self:lConfigured:=.T.
+
+return(self)
+
+method Query() class HBBridgePresentationSQLSource
+
+    local cPredicate:="" as character
+    local cSQL:=self:cSQL as character
+
+    local jQuery as json
+    local jBindings as json
+    local jCriterion as json
+
+    local nBinding:=self:nBindings as numeric
+    local nFilter:=0 as numeric
+
+    if (!self:lConfigured)
+        return(nil)
+    endif
+    jBindings:=PresentationSQLCopy(self:jBindings)
+    if (ValType(jBindings)!="J")
+        self:cError:="Could not copy the trusted SQL bindings."
+        return(nil)
+    endif
+    for nFilter:=1 to self:nFilters
+        jCriterion:=self:jFilters[tlpp.ToStr(nFilter)]
+        nBinding++
+        jBindings[tlpp.ToStr(nBinding)]:=PresentationSQLCopy(jCriterion["binding"])
+        if (!Empty(cPredicate))
+            cPredicate+=" AND "
+        endif
+        cPredicate+=jCriterion["sql"]
+    next nFilter
+    if (self:jSearch:HasProperty("sql"))
+        nBinding++
+        jBindings[tlpp.ToStr(nBinding)]:=PresentationSQLCopy(self:jSearch["binding"])
+        if (!Empty(cPredicate))
+            cPredicate+=" AND "
+        endif
+        cPredicate+=self:jSearch["sql"]
+    endif
+    if (!Empty(cPredicate))
+        // End a possible trailing line comment before closing the derived table.
+        // No user value is interpolated into this trusted SQL fragment.
+        cSQL:="SELECT * FROM ("+cSQL+Chr(10)+") HBBR_SOURCE WHERE "+cPredicate
+    endif
+    jQuery:=JSONObject():New()
+    jQuery["sql"]:=cSQL
+    jQuery["bindings"]:=jBindings
+    jQuery["orderBy"]:=self:cOrderBy
+
+return(jQuery)
+
+method AddFilter(cField,cOperator,cValue) class HBBridgePresentationSQLSource
+
+    local jCriterion as json
+
+    if (!self:lConfigured)
+        return(.F.)
+    endif
+    self:cError:=""
+    jCriterion:=PresentationSQLCriterion(self:jFields,cField,cOperator,cValue,@self:cError)
+    if (ValType(jCriterion)!="J")
+        return(.F.)
+    endif
+    self:nFilters++
+    self:jFilters[tlpp.ToStr(self:nFilters)]:=jCriterion
+
+return(.T.)
+
+method SetSearch(cField,cValue) class HBBridgePresentationSQLSource
+
+    local cOperator:="equal" as character
+    local cKey:="" as character
+
+    local jCriterion as json
+
+    if (!self:lConfigured)
+        return(.F.)
+    endif
+    self:cError:=""
+    if (ValType(cValue)!="C".or.ValType(cField)!="C")
+        self:cError:="Supply a mapped field and a plain search value."
+        return(.F.)
+    endif
+    if (Len(cValue)==0)
+        FreeObj(@self:jSearch)
+        self:jSearch:=JSONObject():New()
+        return(.T.)
+    endif
+    cKey:=Upper(AllTrim(cField))
+    if (self:jFields:HasProperty(cKey))
+        if (self:jFields[cKey]["type"]=="character")
+            cOperator:="contains"
+        endif
+    endif
+    jCriterion:=PresentationSQLCriterion(self:jFields,cField,cOperator,cValue,@self:cError)
+    if (ValType(jCriterion)!="J")
+        return(.F.)
+    endif
+    FreeObj(@self:jSearch)
+    self:jSearch:=jCriterion
+
+return(.T.)
+
+method ClearFilters() class HBBridgePresentationSQLSource
+    if (self:lConfigured)
+        FreeObj(@self:jFilters)
+        FreeObj(@self:jSearch)
+        self:jFilters:=JSONObject():New()
+        self:jSearch:=JSONObject():New()
+        self:nFilters:=0
+        self:cError:=""
+    endif
+return
+
+method ErrorMessage() class HBBridgePresentationSQLSource
+return(self:cError)
+
+method Close() class HBBridgePresentationSQLSource
+    FreeObj(@self:jFields)
+    FreeObj(@self:jBindings)
+    FreeObj(@self:jFilters)
+    FreeObj(@self:jSearch)
+    self:cSQL:=""
+    self:cOrderBy:=""
+    self:cError:="The SQL presentation source is closed."
+    self:nBindings:=0
+    self:nFilters:=0
+    self:lConfigured:=.F.
+return
+
+static function PresentationSQLCopy(jValue as json) as json
+
+    local jCopy:=JSONObject():New() as json
+
+    if (!HBBridge.Client.HBBridgeJSON():Parse(HBBridge.Client.HBBridgeJSON():Encode(jValue),jCopy))
+        FreeObj(@jCopy)
+        return(nil)
+    endif
+
+return(jCopy)
+
+static function PresentationSQLIdentifier(cValue as character) as logical
+
+    local cCharacter:="" as character
+
+    local nPosition:=0 as numeric
+    local nLength:=Len(cValue) as numeric
+
+    if (nLength<1)
+        return(.F.)
+    endif
+    for nPosition:=1 to nLength
+        cCharacter:=Upper(SubStr(cValue,nPosition,1))
+        if (!(cCharacter$"ABCDEFGHIJKLMNOPQRSTUVWXYZ_"))
+            if (nPosition==1.or.!(cCharacter$"0123456789"))
+                return(.F.)
+            endif
+        endif
+    next nPosition
+
+return(.T.)
+
+static function PresentationSQLCriterion(jFields as json,cField as character,cOperator as character,cValue as character,cError as character) as json
+
+    local cType:="" as character
+    local cComparison:="" as character
+    local cSQL:="" as character
+
+    local jBinding:=JSONObject():New() as json
+    local jCriterion as json
+
+    local lValid:=.T. as logical
+
+    if (ValType(cField)!="C".or.ValType(cOperator)!="C".or.ValType(cValue)!="C")
+        cError:="Supply a mapped field, comparison and plain value."
+        FreeObj(@jBinding)
+        return(nil)
+    endif
+    cField:=Upper(AllTrim(cField))
+    cOperator:=Lower(AllTrim(cOperator))
+    if (!PresentationSQLIdentifier(cField).or.!jFields:HasProperty(cField))
+        cError:="Select a mapped SQL projection."
+        FreeObj(@jBinding)
+        return(nil)
+    endif
+    if (Chr(0)$cValue)
+        cError:="The filter value cannot contain NUL."
+        FreeObj(@jBinding)
+        return(nil)
+    endif
+    do case
+    case cOperator=="equal"
+        cComparison:="="
+    case cOperator=="different"
+        cComparison:="<>"
+    case cOperator=="greater"
+        cComparison:=">"
+    case cOperator=="at least"
+        cComparison:=">="
+    case cOperator=="less"
+        cComparison:="<"
+    case cOperator=="at most"
+        cComparison:="<="
+    case cOperator=="contains".or.cOperator=="starts with"
+        cComparison:="LIKE"
+    otherwise
+        cError:="Select an allowed comparison operator."
+        FreeObj(@jBinding)
+        return(nil)
+    endcase
+    cType:=jFields[cField]["type"]
+    jBinding["isNull"]:=.F.
+    do case
+    case cType=="character"
+        if (!(cOperator=="equal".or.cOperator=="different".or.;
+            cOperator=="contains".or.cOperator=="starts with"))
+            lValid:=.F.
+        else
+            if (cComparison=="LIKE")
+                // Escape the escape character first; later replacements must
+                // retain their new single escape prefix unchanged.
+                cValue:=StrTran(cValue,"~","~~")
+                cValue:=StrTran(cValue,"%","~%")
+                cValue:=StrTran(cValue,"_","~_")
+                cValue:=StrTran(cValue,"[","~[")
+                cValue:=StrTran(cValue,"]","~]")
+                cValue+= "%"
+                if (cOperator=="contains")
+                    cValue:="%"+cValue
+                endif
+            endif
+            jBinding["type"]:="text"
+            // Both production clients encode the complete request once.
+            // Keep caller-native text here, including in defensive copies.
+            jBinding["value"]:=cValue
+        endif
+    case cType=="numeric"
+        if (cComparison=="LIKE")
+            lValid:=.F.
+        else
+            lValid:=PresentationSQLNumber(cValue,jFields[cField]["decimals"],jBinding)
+        endif
+    case cType=="date"
+        if (cComparison=="LIKE")
+            lValid:=.F.
+        else
+            cValue:=AllTrim(cValue)
+            lValid:=PresentationSQLDate(cValue)
+            if (lValid)
+                jBinding["type"]:="date"
+                jBinding["value"]:=cValue
+            endif
+        endif
+    case cType=="logical"
+        cValue:=Lower(AllTrim(cValue))
+        lValid:=(cOperator=="equal".or.cOperator=="different").and.;
+            ((cValue=="true").or.(cValue=="false").or.(cValue=="1").or.(cValue=="0").or.;
+            (cValue==".t.").or.(cValue==".f.").or.(cValue=="yes").or.(cValue=="no"))
+        if (lValid)
+            jBinding["type"]:="boolean"
+            jBinding["value"]:=(cValue=="true".or.cValue=="1".or.cValue==".t.".or.cValue=="yes")
+        endif
+    otherwise
+        lValid:=.F.
+    endcase
+    if (!lValid)
+        cError:="Enter a value and comparison compatible with the selected projection."
+        FreeObj(@jBinding)
+        return(nil)
+    endif
+    cSQL:="HBBR_SOURCE.["+cField+"] "+cComparison+" ?"
+    if (cComparison=="LIKE")
+        cSQL+=" ESCAPE '~'"
+    endif
+    jCriterion:=JSONObject():New()
+    jCriterion["sql"]:=cSQL
+    jCriterion["binding"]:=jBinding
+
+return(jCriterion)
+
+static function PresentationSQLNumber(cValue as character,nDecimals as numeric,jBinding as json) as logical
+
+    local cDigits:="" as character
+    local cCharacter:="" as character
+    local cLimit:="9223372036854775807" as character
+
+    local lNegative:=.F. as logical
+    local lValid:=.T. as logical
+
+    local nPosition:=0 as numeric
+    local nLength:=0 as numeric
+    local nDot:=0 as numeric
+    local nValue:=0 as numeric
+    local nMaximum:=1.7976931348623157*(10**308) as numeric
+
+    local xError as variant
+
+    cValue:=AllTrim(cValue)
+    lNegative:=(Left(cValue,1)=="-")
+    if (lNegative.or.Left(cValue,1)=="+")
+        cValue:=SubStr(cValue,2)
+    endif
+    nLength:=Len(cValue)
+    if (nLength<1)
+        return(.F.)
+    endif
+    for nPosition:=1 to nLength
+        cCharacter:=SubStr(cValue,nPosition,1)
+        if (cCharacter==".")
+            if (nDot>0.or.nPosition==1.or.nPosition==nLength)
+                return(.F.)
+            endif
+            nDot:=nPosition
+        elseif (!(cCharacter$"0123456789"))
+            return(.F.)
+        endif
+    next nPosition
+    if (nDecimals==0)
+        if (nDot>0)
+            return(.F.)
+        endif
+        cDigits:=cValue
+        do while Len(cDigits)>1.and.Left(cDigits,1)=="0"
+            cDigits:=SubStr(cDigits,2)
+        enddo
+        if (lNegative)
+            cLimit:="9223372036854775808"
+        endif
+        nLength:=Len(cDigits)
+        if (nLength>19.or.(nLength==19.and.cDigits>cLimit))
+            return(.F.)
+        endif
+        jBinding["type"]:="int64"
+        jBinding["value"]:=if(lNegative.and.cDigits!="0","-","")+cDigits
+        return(.T.)
+    endif
+    // Numeric targets with fractional scale use explicitly approximate native
+    // number bindings; the controller does not infer ERP rounding or CASTs.
+    try
+        nValue:=Val(if(lNegative,"-","")+cValue)
+        lValid:=(nValue==nValue).and.(nValue>=-nMaximum).and.(nValue<=nMaximum)
+    catch xError
+        lValid:=.F.
+        if (ValType(xError)=="O")
+            FreeObj(@xError)
+        endif
+    endtry
+    if (lValid.and.nValue==0)
+        lValid:=Empty(StrTran(StrTran(cValue,"0",""),".",""))
+    endif
+    if (lValid)
+        jBinding["type"]:="number"
+        jBinding["value"]:=nValue
+    endif
+
+return(lValid)
+
+static function PresentationSQLDate(cValue as character) as logical
+
+    local cDigits:="" as character
+
+    local nPosition:=0 as numeric
+
+    if (Len(cValue)!=10.or.SubStr(cValue,5,1)!="-".or.SubStr(cValue,8,1)!="-")
+        return(.F.)
+    endif
+    cDigits:=Left(cValue,4)+SubStr(cValue,6,2)+Right(cValue,2)
+    if (Left(cDigits,4)=="0000")
+        return(.F.)
+    endif
+    for nPosition:=1 to 8
+        if (!(SubStr(cDigits,nPosition,1)$"0123456789"))
+            return(.F.)
+        endif
+    next nPosition
+
+return(DToS(SToD(cDigits))==cDigits)

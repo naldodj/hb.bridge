@@ -151,9 +151,11 @@ function U_HBBridgePresentationTableTest(nRecords)
         jChecks["dbaccessConnected"]:=TCIsConnected()
         oDataSet:SetAliasProfile("presentation/mock")
         jResponse:=HBBridge.Tests.HBBridgePresentationFixture():Result(1,2,3)
+        jResponse["header"]["TEXT"]["source"]["column"]:="RA_NOME"
         oClient:Queue(jResponse)
         FreeObj(@jResponse)
         jResponse:=HBBridge.Tests.HBBridgePresentationFixture():Result(2,1,3)
+        jResponse["header"]["TEXT"]["source"]["column"]:="RA_APELIDO"
         oClient:Queue(jResponse)
         FreeObj(@jResponse)
         jChecks["typedFixtureOpen"]:=oDataSet:OpenPageTyped("SELECT fixture",jBindings,1,2,"ID ASC")
@@ -161,6 +163,9 @@ function U_HBBridgePresentationTableTest(nRecords)
         // This small fixture opts into production storage verification. The
         // configurable larger fixture is independently traversed below.
         oNative:=HBBridge.Client.HBBridgeNativeTable():New(oDataSet,jSchema,.T.)
+        jChecks["unpublishedProjectionName"]:=Empty(oNative:ProjectionName("F000000004"))
+        jChecks["unpublishedSourceFieldName"]:=Empty(oNative:SourceFieldName("TEXT"))
+        jChecks["unpublishedSourceCaption"]:=Empty(oNative:SourceFieldCaption("TEXT"))
         jSchema["fields"]["TEXT"]["length"]:=1
         nArea:=Select()
         lOpened:=oNative:LoadCurrentPage()
@@ -175,6 +180,18 @@ function U_HBBridgePresentationTableTest(nRecords)
             jChecks["projectionOrder"]:=oNative:ProjectionName(2)=="ID".and.oNative:ProjectionName(7)=="FLOAT"
             jChecks["nativeCodeMatchesIdentifier"]:=RTrim((cAlias)->(FieldGet(FieldPos(oNative:FieldName("ID_CODE")))))=="0000000001"
             jChecks["generatedFieldNames"]:=Len(oNative:FieldName("TEXT"))==10.and.oNative:FieldName("missing")==""
+            jChecks["nativeToProjectionName"]:=oNative:ProjectionName(oNative:FieldName("TEXT"))=="TEXT"
+            jChecks["projectedNameIdentity"]:=oNative:ProjectionName("TEXT")=="TEXT"
+            jChecks["projectionToSourceName"]:=oNative:SourceFieldName("TEXT")=="RA_NOME"
+            jChecks["nativeToSourceName"]:=oNative:SourceFieldName(oNative:FieldName("TEXT"))=="RA_NOME"
+            jChecks["nativeSourceCaption"]:=oNative:SourceFieldCaption(oNative:FieldName("TEXT"))=="Text"
+            jChecks["projectedSourceCaption"]:=oNative:SourceFieldCaption("TEXT")=="Text"
+            jChecks["unknownSourceCaption"]:=Empty(oNative:SourceFieldCaption("missing"))
+            jChecks["unknownSourceIsEmpty"]:=Empty(oNative:SourceFieldName("AMOUNT")).and.Empty(oNative:SourceFieldName("missing"))
+            jChecks["unknownProjectionIsEmpty"]:=Empty(oNative:ProjectionName("missing")).and.Empty(oNative:ProjectionName(nil))
+            jChecks["privateSearchFieldNotProjected"]:=Empty(oNative:ProjectionName(oNative:SearchFieldName("FLAG"))).and.;
+                Empty(oNative:SourceFieldName(oNative:SearchFieldName("FLAG"))).and.;
+                Empty(oNative:SourceFieldCaption(oNative:SearchFieldName("FLAG")))
             jChecks["utf8DecodedIntoNativeField"]:=RTrim((cAlias)->(FieldGet(FieldPos(oNative:FieldName("TEXT")))))==;
                 DecodeUTF8("a"+Chr(195)+Chr(167)+Chr(195)+Chr(163)+"o")
             jChecks["exactNativeAmount"]:=(cAlias)->(FieldGet(FieldPos(oNative:FieldName("AMOUNT"))))==123.25
@@ -212,10 +229,12 @@ function U_HBBridgePresentationTableTest(nRecords)
         endif
         jChecks["noImplicitPageRequest"]:=oClient:CallCount()==1.and.oDataSet:PageNumber()==1.and.oDataSet:FieldGet("ID")=="1"
         jChecks["explicitNextPage"]:=oDataSet:NextPage()
+        jChecks["sourceNameRetainsAcceptedPage"]:=oNative:SourceFieldName("TEXT")=="RA_NOME"
         cPreviousAlias:=cAlias
         nPreviousWorkArea:=Select(cAlias)
         lOpened:=oNative:LoadCurrentPage()
         jChecks["nextNativePage"]:=lOpened.and.oNative:RowCount()==1
+        jChecks["sourceNameFollowsRefill"]:=oNative:SourceFieldName("TEXT")=="RA_APELIDO"
         jChecks["refreshKeepsNativeAlias"]:=oNative:Alias()==cPreviousAlias
         jChecks["refreshKeepsNativeWorkArea"]:=Select(cPreviousAlias)==nPreviousWorkArea
         jChecks["refreshKeepsSelectedIndex"]:=(cPreviousAlias)->(IndexOrd())==2
@@ -250,6 +269,8 @@ function U_HBBridgePresentationTableTest(nRecords)
         cAlias:=oNative:Alias()
         jChecks["closeReleasesAlias"]:=oNative:Close().and.Select(cAlias)==0.and.!oNative:IsOpen()
         jChecks["closeIdempotent"]:=oNative:Close()
+        jChecks["closeClearsNameLookups"]:=Empty(oNative:SourceFieldName("TEXT")).and.Empty(oNative:ProjectionName("F000000004"))
+        jChecks["closeClearsSourceCaption"]:=Empty(oNative:SourceFieldCaption("TEXT"))
         jChecks["closeClearsWriteMode"]:=Empty(oNative:WriteMode())
         jChecks["datasetRemainsOwnedByCaller"]:=oDataSet:FieldCount()==7.and.oDataSet:FieldGet("ID")=="3"
         jChecks["destroy"]:=oNative:Destroy()

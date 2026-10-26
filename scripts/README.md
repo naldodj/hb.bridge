@@ -22,6 +22,39 @@ retain two rows followed by one. The interactive example is separate:
 `U_HBBridgeNativeBrowse(10000,100)` sets source size and page size; its defaults
 are 1000/13. Both sources are generated fixtures, not ERP-table queries.
 
+To add actual hbBridge SQL integration, first keep a fresh owned typed-SQL
+fixture serving in one terminal:
+
+```powershell
+./scripts/test-hbbridge-typed-sql.ps1 -Config '<private-ini>' `
+    -Profile '<mssql-alias>' -Serve -ServeSeconds 1200
+```
+
+Wait for the printed fresh `endpoints.json` path, then run in another terminal:
+
+```powershell
+./scripts/test-protheus-presentation.ps1 -AppServerDirectory '<sdk>' `
+    -IniFile '<sdk-ini>' -RpoDirectory '<vendor-rpos>' `
+    -IncludeDirectory @('<totvs-includes>', '<project>/includes') `
+    -NativeTables -HBBridgeEndpointsFile '<fresh-endpoints.json>'
+```
+
+`-HBBridgeEndpointsFile` requires `-NativeTables` and adds
+`U_HBBridgePresentationSQLTest`: actual MSSQL SELECT over five constant
+`VALUES` rows, TCP and gzip HTTP, typed dataset and owned native temporary
+table. It does not read/write ERP tables. The runner copies the fresh endpoint
+configuration only into its newly owned INI; deployment INIs remain untouched.
+The endpoint JSON contains a private temporary HTTP token: keep it local,
+not in Git or published evidence. The serving fixture stops at its bounded
+lifetime or on `stop.request` in that fresh run directory. Reproduce with a
+fresh run rather than retaining tmp endpoints.
+
+The interactive `U_HBBridgeNativeBrowseSX5('<profile>','TCP',100)` or HTTP variant
+instead reads actual SX5 data in an already prepared Protheus company/branch
+context. Its source definition resolves dictionary/table/branch in Protheus.
+This manual UI step is separate from automated SQL constant-row acceptance;
+see [the native guide](../docs/native-presentation.md#read-real-sx5-data-in-the-native-browse).
+
 ## HTTP response probes
 
 HTTP response maintenance: `test-harbour-http-send.ps1` reproduces native
@@ -309,6 +342,17 @@ execution budget (`-TimeoutSeconds` accepts 10..600). `-Config` and `-Profile`
 are optional together; they select a private existing INI/profile without
 copying credentials into the report. SQLite uses a disposable file fixture; MSSQL
 queries use explicit inputs without changing application tables.
+
+`-Serve` runs the integration checks first, then retains fresh owned loopback
+TCP/HTTP listeners for an external consumer. `-ServeSeconds` accepts 1..1800
+and defaults to 120; it bounds the serving phase separately from the initial
+`-TimeoutSeconds` test budget. Pass an explicit private MSSQL config/profile
+for the AppServer presentation test. When ready, the runner prints the local
+`endpoints.json` path; it includes profile, ports and a private HTTP token.
+Do not export that file as acceptance evidence. Stop by creating `stop.request`
+in its fresh run directory or allow the serving deadline to expire. The
+fixture records `serve.result.json` and checks owned listeners/SQL leases
+were released. See the [AppServer consumer commands](#isolated-native-protheus-presentation).
 
 The Windows run on 2026-10-25 passed **133 checks, zero failures**: 111 native
 SDD/shared-service checks and 22 TCP/gzip HTTP/REST checks across SQLite and

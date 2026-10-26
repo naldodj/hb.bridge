@@ -7,7 +7,8 @@ param(
     [Parameter(Mandatory)][string[]] $IncludeDirectory,
     [string] $Environment = 'PROTHEUS',
     [switch] $NativeTables,
-    [ValidateRange(1, 2147483647)][int] $NativeRows = 1025
+    [ValidateRange(1, 2147483647)][int] $NativeRows = 1025,
+    [string] $HBBridgeEndpointsFile
 )
 $ErrorActionPreference = 'Stop'
 foreach ($directory in $IncludeDirectory) {
@@ -25,15 +26,28 @@ $dataRoot = Join-Path $runRoot 'data'
 $iniSource = [IO.Path]::GetFullPath($IniFile)
 $utf8 = [Text.UTF8Encoding]::new($false)
 $receiptPath = Join-Path $runRoot 'result.json'
+$endpoints = $null
+if ($HBBridgeEndpointsFile) {
+    if (-not $NativeTables) { throw 'HBBridgeEndpointsFile requires -NativeTables.' }
+    $endpoints = Get-Content -LiteralPath $HBBridgeEndpointsFile -Raw | ConvertFrom-Json
+    if ($endpoints.schemaVersion -ne 1 -or $endpoints.backend -ne 'mssql' -or
+        $endpoints.host -ne '127.0.0.1' -or [string]::IsNullOrWhiteSpace($endpoints.profile) -or
+        $endpoints.tcpPort -lt 1 -or $endpoints.tcpPort -gt 65535 -or
+        $endpoints.httpPort -lt 1 -or $endpoints.httpPort -gt 65535 -or
+        $endpoints.httpToken -notmatch '^[A-F0-9]{64}$') {
+        throw 'Use the fresh MSSQL endpoint file from test-hbbridge-typed-sql.ps1 -Serve.'
+    }
+}
 $receipt = [ordered]@{
     schemaVersion = 1
     createdUTC = [DateTime]::UtcNow.ToString('o')
-    scope = 'Isolated AppServer presentation contract tests; native tables only when explicitly requested; no interactive UI or hbBridge/backend acceptance'
+    scope = 'Isolated AppServer presentation tests; optional actual MSSQL TCP/gzip HTTP when explicit fresh endpoints are supplied; no interactive UI acceptance'
     status = 'preparing'
     sourceRoot = $projectRoot
     runRoot = $runRoot
     privateIni = 'server/appserver.ini; credentials not exported'
     nativeRows = if ($NativeTables) { $NativeRows } else { $null }
+    realSQLRequested = [bool]$endpoints
     executable = $null
     inputRPO = @()
     outputRPO = @()
@@ -152,6 +166,17 @@ try {
             foreach ($setting in $sections[$section].GetEnumerator()) { $ini.Add($setting.Key + '=' + $setting.Value) }
         }
     }
+    if ($null -ne $endpoints) {
+        $ini.Add('[hbBridge]')
+        $ini.Add('Host=127.0.0.1')
+        $ini.Add('Port=' + $endpoints.tcpPort)
+        $ini.Add('TimeoutMs=30000')
+        $ini.Add('SQLProfile=' + $endpoints.profile)
+        $ini.Add('HTTPURL=http://127.0.0.1:' + $endpoints.httpPort)
+        $ini.Add('HTTPToken=' + $endpoints.httpToken)
+        $ini.Add('HTTPAcceptEncoding=gzip')
+        $ini.Add('HTTPTimeoutSeconds=30')
+    }
     $ini.Add('[TDS]')
     $ini.Add('AllowApplyPatch=*')
     $ini.Add('AllowEdit=*')
@@ -182,6 +207,7 @@ try {
     if (-not $receipt.compile.success) { throw 'Isolated TLPP compilation did not pass; inspect owned compile logs.' }
     $programs = @('U_HBBridgePresentationTest', 'U_HBBridgeTypedDataSetTest', 'U_HBBridgeDataSetTest')
     if ($NativeTables) { $programs += @('U_HBBridgePresentationProbe', 'U_HBBridgePresentationTableCLI', 'U_HBBridgeNativeBrowseTest') }
+    if ($null -ne $endpoints) { $programs += 'U_HBBridgePresentationSQLTest' }
     foreach ($program in $programs) {
         $arguments = @()
         if ($program -eq 'U_HBBridgePresentationTableCLI') { $arguments = @('--native-rows=' + $NativeRows) }
@@ -192,6 +218,7 @@ try {
             'U_HBBridgePresentationTableTest' { 'hbBridge native table checks: \d+; OK' }
             'U_HBBridgePresentationTableCLI' { 'hbBridge native table checks: \d+; OK' }
             'U_HBBridgeNativeBrowseTest' { 'hbBridge native browse checks: \d+; OK' }
+            'U_HBBridgePresentationSQLTest' { 'hbBridge real presentation checks: \d+; OK' }
             'U_HBBridgePresentationProbe' { 'hbBridge presentation SDK probe OK' }
             'U_HBBridgeTypedDataSetTest' { 'hbBridge typed dataset Protheus OK; checks=77; mock calls=\d+' }
             default { 'hbBridge dataset navigation Protheus OK; checks=67; mock calls=31' }

@@ -3,8 +3,9 @@
 [Português](README.pt-BR.md) · [Typed SQL contract](../../../../../docs/typed-sql.md)
 
 T04 separates presentation conversion from native table and UI acceptance.
-The tests in this directory use caller-supplied logical fields; they do not
-resolve SX3, TOP_FIELD, company, branch or physical SQL tables.
+The conversion and synthetic tests use caller-supplied logical fields without
+ERP dictionary/context resolution. The separate real SX5 example resolves
+those Protheus details in its own definition; the native adapter stays generic.
 
 The deterministic fixture uses the actual `JSONObject`, dataset and schema
 implementation with the existing dataset mock client. Its assertions cover
@@ -31,6 +32,30 @@ indexed seek after refill and recovery without replacing the browse source.
 Inspect `WriteMode()` to identify the actual write path; compilation or a
 record-only profile does not establish bulk acceptance. See the guide for
 LIB/DBAccess requirements.
+
+The native name APIs keep source identity separate from a SQL alias:
+
+| API | Meaning |
+| --- | --- |
+| `FieldName("DESCRIPTION")` | Generated native value field `F...` |
+| `ProjectionName(nPosition)` or `ProjectionName(cNative)` | Projected key, such as `DESCRIPTION`; projected-key input also returns that key |
+| `SourceFieldName(cNative)` or `SourceFieldName("DESCRIPTION")` | Accepted source-column metadata, such as `X5_DESCRI`, or empty when unknown/computed |
+| `SourceFieldCaption(cNative)` or `SourceFieldCaption("DESCRIPTION")` | Caller-supplied logical-schema caption; renamed from `FieldCaption()` |
+
+Source metadata is captured from the accepted page, not read later from a
+borrowed dataset. Unknown/private logical-shadow/closed-page mappings are
+empty. Captions do not perform an SX3 lookup. When ODBC reports the base column
+for `X5_DESCRI AS DESCRIPTION`, the Protheus caller can use:
+
+```advpl
+cField := oNative:SourceFieldName(oNative:FieldName("DESCRIPTION"))
+if !Empty(cField)
+    cTitle := GetSX3Cache(cField,"X3_TITULO")
+endif
+```
+
+The adapter never queries SX3 or guesses missing origin; see the
+[mapping contract](../../../../../docs/native-presentation.md#current-page-table-and-browse).
 
 UI dismissal and `FWBrowse` behavior require a separate visual run. A passing
 conversion fixture does not prove native storage, database cleanup, encoding
@@ -106,8 +131,8 @@ a generic public native browse API remains deferred. Page navigation, search
 and filter actions stay inside the same open browse. Closing it ends the
 example without asking to open another page. Neither table adapter nor UI
 prefetches pages. `SetAlias()` binds once; callbacks refill the same indexed
-native table and refresh the widget. Eight buttons provide First, Previous,
-Next, Last, Refresh, Add filter, Clear filters and Close;
+native table and refresh the widget. Nine buttons provide First, Previous,
+Next, Last, Refresh, Add filter, Clear filters, View and Close;
 search and typed Field/Operator/Value filters apply before page selection in
 the [companion fixture client](hbbridge.presentation.browse.client.tlpp), with
 Clear filters to remove both filters and search. They do not implement
@@ -120,6 +145,55 @@ dates, masks, Flag/Day/Float alignment, ID_CODE sequence, page
 transitions, search, filters, selected area and normal/cancel close. This
 visual fixture is independent of a running hbBridge service; combined backend
 acceptance remains separate in T05.
+
+## Actual SQL and real SX5 examples
+
+The synthetic entries above do not read a business table. For actual SX5 data
+inside the same native browse, run from an already prepared Protheus company/
+branch context, such as FWWebEx:
+
+```advpl
+U_HBBridgeNativeBrowseSX5("MSSQL/pData","TCP",100)
+U_HBBridgeNativeBrowseSX5("MSSQL/pData","HTTP",100)
+```
+
+`U_HBBridgeNativeBrowseSX5([cProfile], [cTransport], [nPageSize])` defaults to
+TCP and 100 rows per page. Supply the hbBridge profile for the intended database
+or configure `[hbBridge] SQLProfile` in the active AppServer INI; there is no
+demo fallback. Client configuration supplies endpoints and authorization;
+the HTTP route requests gzip.
+
+[`HBBridgePresentationSX5:Definition()`](hbbridge.presentation.sx5.tlpp) resolves
+the physical table with `RetSQLName`, the branch with `xFilial` and character
+widths with `TamSX3`, all in Protheus. Its five-column SELECT returns `BRANCH`,
+`TABLE_CODE`, `ITEM_CODE`, `DESCRIPTION` and `RECNO`, with immutable bound
+undeleted/current-branch predicates and RECNO as the final ordering tie-breaker.
+It performs no SX5 writes. This is a real query, not the seven-column fixture.
+
+[`HBBridgePresentationSQLSource`](hbbridge.presentation.sql.source.tlpp)
+provides the local dialog with a `Query()` result containing trusted SQL,
+order and bindings. Search/filter names come from the actual logical schema.
+Allowed criteria append typed parameters without interpolating values into
+SQL; LIKE wildcards/escape characters and quotes stay literal input. Integer,
+ISO date and logical criteria use int64 text, date and boolean bindings;
+fractional native numbers use approximate numeric bindings. This example
+keeps text inputs in the AppServer encoding; clients encode the complete
+request into UTF-8 once. Do not pre-encode each binding value. The
+controller is not a new public generic browse API or general SQL parser.
+
+`U_HBBridgePresentationSQLTest()` is the separate headless real integration
+test: MSSQL SELECT over five constant `VALUES` rows supplies the seven fixture
+projections through actual TCP/gzip HTTP clients, typed dataset and native
+temporary storage. It exercises types, paging, bound criteria, empty/failure
+recovery and cleanup without reading/writing ERP tables. To run, start a fresh
+`test-hbbridge-typed-sql.ps1 -Config '<private-ini>' -Profile '<mssql-alias>'
+-Serve -ServeSeconds 1200` process, then pass its printed fresh endpoint file
+to `test-protheus-presentation.ps1 -NativeTables -HBBridgeEndpointsFile
+'<fresh-endpoints.json>'`, together with the SDK/INI/RPO/include arguments.
+See the [full commands and ownership rules](../../../../../docs/native-presentation.md#reproduce-validation).
+Keep `endpoints.json` private: it includes the temporary HTTP token. This
+AppServer run modifies only its new owned INI. Real constant-row checks remain
+separate from manual SX5 visual acceptance.
 
 ## Recorded validation
 
@@ -141,3 +215,14 @@ verify each ID_CODE against ID, index order across 9/10, Code search/prefix
 filter and selected-index retention on refill/failure/recovery. See the
 [revision manifest](../../../../../docs/validation/native.presentation.revision.windows.json)
 for attributed identities and exit codes. It does not activate the UI.
+
+T05 real-query validation on **2026-10-26** compiled **69 sources** with zero
+errors and passed **83 actual MSSQL TCP/gzip HTTP → AppServer dataset/native
+storage checks** plus the six regression suites above. The fresh native host
+passed **133 backend/transport checks** and stopped both listeners without
+active leases. The integration SELECT executes in MSSQL over constant rows;
+it checks actual transport, Unicode input encoding once, paging/criteria and
+native storage, without reading ERP data. See the
+[real SQL manifest](../../../../../docs/validation/native.presentation.sql.windows.json).
+The SX5 entry is compiled; manual visual acceptance with actual SX5 records
+over both transports remains open.

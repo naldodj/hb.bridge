@@ -1,0 +1,265 @@
+/* Released to Public Domain. */
+#include "totvs.ch"
+
+// Real MSSQL -> TCP/gzip HTTP -> typed dataset -> owned DBAccess table.
+// SQL constant rows exercise the server, not a queued/mock client response.
+function U_HBBridgePresentationSQLTest()
+
+    local aNames as array
+    local aTopInfo as array
+
+    local cProfile:=GetPvProfString("hbBridge","SQLProfile","",GetSrvIniName()) as character
+    local cSQL:=PresentationSQLFixture() as character
+    local cRoute:="" as character
+    local cPrefix:="" as character
+    local cAlias:="" as character
+    local cPreviousAlias:="" as character
+    local cWireText:="a"+Chr(195)+Chr(167)+Chr(195)+Chr(163)+"o" as character
+    local cNativeText:=DecodeUTF8(cWireText) as character
+    local cSnapshot:="" as character
+    local cField:="" as character
+
+    local jBindings as json
+    local jSchema as json
+    local jQuery as json
+    local jInfo as json
+    local jChecks:=JSONObject():New() as json
+    local jIDs:=JSONObject():New() as json
+    local jPositions:=JSONObject():New() as json
+
+    local lOK:=.T. as logical
+    local lOwned:=.F. as logical
+    local lPage:=.F. as logical
+
+    local nArea:=Select() as numeric
+    local nConnection:=-1 as numeric
+    local nTransport:=0 as numeric
+    local nPage:=0 as numeric
+    local nRead:=0 as numeric
+    local nID:=0 as numeric
+    local nCheck:=0 as numeric
+    local nChecks:=0 as numeric
+    local nField:=0 as numeric
+    local nFields:=0 as numeric
+
+    local oClient as object
+    local oDataSet as object
+    local oNative as object
+    local oSource as object
+
+    local xError as variant
+
+    jIDs:FromJSON('{"1":1,"2":2,"3":9,"4":10,"5":11}')
+    try
+        if (Empty(cProfile))
+            throw "EXPLICIT_SQL_PROFILE_REQUIRED"
+        endif
+        if (!TCIsConnected())
+            aTopInfo:=FWGetTopInfo()
+            if (ValType(aTopInfo)!="A")
+                throw "DBACCESS_CONFIGURATION_REQUIRED"
+            endif
+            if (Len(aTopInfo)<5)
+                throw "DBACCESS_CONFIGURATION_REQUIRED"
+            endif
+            nConnection:=TCLink(aTopInfo[4]+"/"+aTopInfo[5],aTopInfo[1],aTopInfo[3])
+            FWFreeArray(@aTopInfo)
+            if (nConnection<0)
+                throw "DBACCESS_CONNECTION_FAILED"
+            endif
+            lOwned:=.T.
+        endif
+        for nTransport:=1 to 2
+            cRoute:=if(nTransport==1,"tcp","http")
+            cPrefix:=cRoute+"."
+            if (nTransport==1)
+                oClient:=HBBridge.Client.HBBridgeClient():New()
+            else
+                oClient:=HBBridge.Client.HBBridgeHTTPClient():New(nil,nil,nil,"gzip",.T.)
+            endif
+            oDataSet:=HBBridge.RDD.HBBridgeRPCDataSet():New(oClient)
+            oDataSet:SetAliasProfile(cProfile)
+            jSchema:=HBBridge.Tests.HBBridgePresentationFixture():Schema()
+            jBindings:=JSONObject():New()
+            jBindings["1"]:={"type":"integer","isNull":.F.,"value":1}
+            oSource:=HBBridge.Examples.HBBridgePresentationSQLSource():New(cSQL,"ID_CODE ASC",jSchema,jBindings)
+            jBindings["1"]["value"]:=99
+            jSchema["fields"]["TEXT"]["length"]:=1
+            jQuery:=oSource:Query()
+            jChecks[cPrefix+"sourceBindingSnapshot"]:=jQuery["bindings"]["1"]["value"]==1
+            FreeObj(@jQuery)
+            FreeObj(@jSchema)
+            jSchema:=HBBridge.Tests.HBBridgePresentationFixture():Schema()
+            oNative:=HBBridge.Client.HBBridgeNativeTable():New(oDataSet,jSchema,.T.)
+            nRead:=0
+            cPreviousAlias:=""
+            for nPage:=1 to 3
+                lPage:=PresentationSQLOpen(oDataSet,oSource,nPage)
+                jChecks[cPrefix+"page"+tlpp.ToStr(nPage)]:=lPage
+                if (!lPage)
+                    ConOut("hbBridge real presentation service failure: "+oDataSet:ErrorCode())
+                    throw "REAL_QUERY_FAILED"
+                endif
+                jChecks[cPrefix+"totals"+tlpp.ToStr(nPage)]:=oDataSet:TotalRows()==5.and.oDataSet:TotalPages()==3
+                jChecks[cPrefix+"native"+tlpp.ToStr(nPage)]:=oNative:LoadCurrentPage()
+                if (!oNative:IsOpen())
+                    ConOut("hbBridge real presentation native failure: "+oNative:ErrorCode())
+                    throw "REAL_NATIVE_LOAD_FAILED"
+                endif
+                cAlias:=oNative:Alias()
+                if (Empty(cPreviousAlias))
+                    cPreviousAlias:=cAlias
+                endif
+                jChecks[cPrefix+"alias"+tlpp.ToStr(nPage)]:=cAlias==cPreviousAlias
+                nFields:=oNative:FieldCount()
+                for nField:=1 to nFields
+                    cField:=oNative:ProjectionName(nField)
+                    jPositions[cField]:=(cAlias)->(FieldPos(oNative:FieldName(cField)))
+                next nField
+                (cAlias)->(DbSetOrder(oNative:IndexOrder("ID_CODE")))
+                (cAlias)->(DbGoTop())
+                do while (cAlias)->(!Eof())
+                    nRead++
+                    nID:=jIDs[tlpp.ToStr(nRead)]
+                    jChecks[cPrefix+"row"+tlpp.ToStr(nRead)]:=;
+                        RTrim((cAlias)->(FieldGet(jPositions["ID_CODE"])))==StrZero(nID,10).and.;
+                        RTrim((cAlias)->(FieldGet(jPositions["ID"])))==tlpp.ToStr(nID).and.;
+                        (cAlias)->(FieldGet(jPositions["AMOUNT"]))==nID+0.25.and.;
+                        RTrim((cAlias)->(FieldGet(jPositions["TEXT"])))==cNativeText.and.;
+                        (cAlias)->(FieldGet(jPositions["FLAG"]))==((nID%2)==1).and.;
+                        DToS((cAlias)->(FieldGet(jPositions["DAY"])))=="20240229".and.;
+                        (cAlias)->(FieldGet(jPositions["FLOAT"]))==nID+0.5
+                    (cAlias)->(DbSkip())
+                enddo
+                jChecks[cPrefix+"wireUTF8"+tlpp.ToStr(nPage)]:=oDataSet:FieldGet("TEXT")==cWireText
+            next nPage
+            jChecks[cPrefix+"allFiveRows"]:=nRead==5
+            jInfo:=oDataSet:FieldInfo("AMOUNT")
+            jChecks[cPrefix+"sourceDecimalMetadata"]:=jInfo["wire"]["kind"]=="decimal".and.jInfo["source"]["scale"]==2
+            FreeObj(@jInfo)
+            jChecks[cPrefix+"randomPreviousPage"]:=PresentationSQLOpen(oDataSet,oSource,2).and.;
+                oDataSet:FieldGet("ID")=="9".and.oNative:LoadCurrentPage().and.oNative:Alias()==cPreviousAlias
+            jChecks[cPrefix+"numericFilter"]:=oSource:AddFilter("AMOUNT","at least","10.25").and.;
+                PresentationSQLOpen(oDataSet,oSource,1).and.oDataSet:TotalRows()==2.and.oDataSet:FieldGet("ID")=="10"
+            jChecks[cPrefix+"logicalAndFilter"]:=oSource:AddFilter("FLAG","equal","true").and.;
+                PresentationSQLOpen(oDataSet,oSource,1).and.oDataSet:TotalRows()==1.and.oDataSet:FieldGet("ID")=="11"
+            jChecks[cPrefix+"dateAndFilter"]:=oSource:AddFilter("DAY","equal","2024-02-29").and.;
+                PresentationSQLOpen(oDataSet,oSource,1).and.oDataSet:TotalRows()==1
+            jChecks[cPrefix+"unicodeSearch"]:=oSource:SetSearch("TEXT",cNativeText).and.;
+                PresentationSQLOpen(oDataSet,oSource,1).and.oDataSet:TotalRows()==1
+            jQuery:=oSource:Query()
+            jChecks[cPrefix+"textBindingUsesCallerEncoding"]:=jQuery["bindings"]["5"]["value"]=="%"+cNativeText+"%"
+            cSnapshot:=HBBridge.Client.HBBridgeJSON():Encode(jQuery)
+            FreeObj(@jQuery)
+            jChecks[cPrefix+"rejectFieldExpression"]:=!oSource:AddFilter("ID];DROP TABLE x--","equal","1")
+            jChecks[cPrefix+"rejectNumericExpression"]:=!oSource:AddFilter("AMOUNT","equal","1+1")
+            jChecks[cPrefix+"rejectNul"]:=!oSource:SetSearch("TEXT","a"+Chr(0)+"b")
+            jQuery:=oSource:Query()
+            jChecks[cPrefix+"invalidCriteriaKeepState"]:=HBBridge.Client.HBBridgeJSON():Encode(jQuery)==cSnapshot
+            FreeObj(@jQuery)
+            oSource:ClearFilters()
+            jChecks[cPrefix+"literalQuoteIsBound"]:=oSource:SetSearch("TEXT","' OR 1=1 --").and.;
+                PresentationSQLOpen(oDataSet,oSource,1).and.oDataSet:TotalRows()==0
+            jChecks[cPrefix+"emptyNativePage"]:=oNative:LoadCurrentPage().and.oNative:RowCount()==0.and.oNative:Alias()==cPreviousAlias
+            oSource:ClearFilters()
+            jChecks[cPrefix+"literalWildcardIsBound"]:=oSource:SetSearch("TEXT","%").and.;
+                PresentationSQLOpen(oDataSet,oSource,1).and.oDataSet:TotalRows()==0
+            oSource:ClearFilters()
+            jChecks[cPrefix+"recoveryAfterEmpty"]:=PresentationSQLOpen(oDataSet,oSource,1).and.;
+                oNative:LoadCurrentPage().and.oNative:RowCount()==2.and.oNative:Alias()==cPreviousAlias
+            jBindings["1"]["value"]:=1
+            jChecks[cPrefix+"invalidSQL"]:=!oDataSet:OpenSQLTyped("SELECT ID FROM hbbridge_missing_t05_fixture WHERE ID>=?",jBindings)
+            jChecks[cPrefix+"failureInvalidatesNative"]:=!oNative:LoadCurrentPage().and.!oNative:IsOpen().and.;
+                (cPreviousAlias)->(LastRec())==0
+            jChecks[cPrefix+"recoveryAfterFailure"]:=PresentationSQLOpen(oDataSet,oSource,1).and.;
+                oNative:LoadCurrentPage().and.oNative:Alias()==cPreviousAlias
+            if (nTransport==2)
+                jChecks[cPrefix+"gzipRequiredAndAccepted"]:=oClient:AcceptEncoding()=="gzip, identity;q=0".and.oClient:StatusCode()==200
+            endif
+            jChecks[cPrefix+"nativeCleanup"]:=oNative:Destroy().and.Select(cPreviousAlias)==0
+            if (!jChecks[cPrefix+"nativeCleanup"])
+                throw "NATIVE_TABLE_CLEANUP_FAILED"
+            endif
+            FreeObj(@oNative)
+            oDataSet:Close()
+            FreeObj(@oDataSet)
+            oSource:Close()
+            FreeObj(@oSource)
+            if (nTransport==1)
+                oClient:Close()
+            endif
+            FreeObj(@oClient)
+            FreeObj(@jBindings)
+            FreeObj(@jSchema)
+        next nTransport
+    catch xError
+        jChecks["unexpectedRuntimeFailure"]:=.F.
+        ConOut("hbBridge real presentation test failed; inspect the owned local log.")
+        if (ValType(xError)=="O")
+            FreeObj(@xError)
+        endif
+    endtry
+    if (ValType(oNative)=="O")
+        jChecks["finalNativeCleanup"]:=oNative:Destroy()
+        if (jChecks["finalNativeCleanup"])
+            FreeObj(@oNative)
+        endif
+    endif
+    if (ValType(oDataSet)=="O")
+        oDataSet:Close()
+        FreeObj(@oDataSet)
+    endif
+    if (ValType(oSource)=="O")
+        oSource:Close()
+        FreeObj(@oSource)
+    endif
+    if (ValType(oClient)=="O")
+        if (cRoute=="tcp")
+            oClient:Close()
+        endif
+        FreeObj(@oClient)
+    endif
+    FreeObj(@jSchema)
+    FreeObj(@jBindings)
+    FreeObj(@jQuery)
+    FreeObj(@jInfo)
+    FreeObj(@jIDs)
+    FreeObj(@jPositions)
+    FWFreeArray(@aTopInfo)
+    if (lOwned)
+        TCUnlink(nConnection)
+    endif
+    if (Select()!=nArea)
+        DbSelectArea(if(nArea>0,nArea,nil))
+    endif
+    aNames:=jChecks:GetNames()
+    nChecks:=Len(aNames)
+    for nCheck:=1 to nChecks
+        lOK:=jChecks[aNames[nCheck]].and.lOK
+        ConOut("hbBridge real presentation check "+aNames[nCheck]+": "+if(jChecks[aNames[nCheck]],"PASS","FAILED"))
+    next nCheck
+    ConOut("hbBridge real presentation checks: "+tlpp.ToStr(nChecks)+"; "+if(lOK,"OK","FAILED"))
+    FWFreeArray(@aNames)
+    FreeObj(@jChecks)
+
+return(if(lOK,0,1))
+
+static function PresentationSQLOpen(oDataSet as object,oSource as object,nPage as numeric) as logical
+
+    local jQuery:=oSource:Query() as json
+
+    local lOpened:=.F. as logical
+
+    if (ValType(jQuery)=="J")
+        lOpened:=oDataSet:OpenPageTyped(jQuery["sql"],jQuery["bindings"],nPage,2,jQuery["orderBy"])
+    endif
+    FreeObj(@jQuery)
+
+return(lOpened)
+
+static function PresentationSQLFixture() as character
+return("SELECT RIGHT(REPLICATE('0',10)+CAST(V.ID AS VARCHAR(10)),10) AS ID_CODE, "+;
+    "CAST(V.ID AS BIGINT) AS ID, CAST(V.ID+0.25 AS DECIMAL(12,2)) AS AMOUNT, "+;
+    "CAST(N'a'+NCHAR(231)+NCHAR(227)+N'o' AS NVARCHAR(20)) AS TEXT, "+;
+    "CAST(V.ID%2 AS BIT) AS FLAG, CAST('2024-02-29' AS DATE) AS DAY, "+;
+    "CAST(V.ID+0.5 AS FLOAT) AS FLOAT FROM (VALUES(1),(2),(9),(10),(11)) V(ID) WHERE V.ID>=?")

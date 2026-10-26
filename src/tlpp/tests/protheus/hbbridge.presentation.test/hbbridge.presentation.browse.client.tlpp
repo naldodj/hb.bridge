@@ -19,6 +19,7 @@ class HBBridgePresentationBrowseClient
 
     public method New(nRecords as numeric) as object
     public method CallService(cService as character,jParams as json) as json
+    public method Query() as json
     public method AddFilter(cField as character,cOperator as character,cValue as character) as logical
     public method SetSearch(cField as character,cValue as character) as logical
     public method ClearFilters()
@@ -141,6 +142,16 @@ method CallService(cService,jParams) class HBBridgePresentationBrowseClient
     jResult["page"]:=jPage
 
 return(jResult)
+
+method Query() class HBBridgePresentationBrowseClient
+
+    local jQuery:=JSONObject():New() as json
+
+    jQuery["sql"]:="SELECT fixture"
+    jQuery["bindings"]:=JSONObject():New()
+    jQuery["orderBy"]:="ID ASC"
+
+return(jQuery)
 
 method AddFilter(cField,cOperator,cValue) class HBBridgePresentationBrowseClient
 

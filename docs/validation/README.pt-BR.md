@@ -26,6 +26,7 @@ Os resumos JSON mantêm identidades/contagens sanitizadas do momento da mediçã
 - [Serviço SQL tipado, TCP/HTTP gzip e contrato do dataset no AppServer](typed.sql.windows.json).
 - [Conversão, armazenamento e posse da apresentação nativa no AppServer](native.presentation.windows.json).
 - [Browse nativo revisado, FWBulk, ordenação ID_CODE e carga de 10.000 linhas](native.presentation.revision.windows.json).
+- [MSSQL TCP/HTTP gzip real até apresentação tipada/nativa AppServer](native.presentation.sql.windows.json).
 
 Essas identidades descrevem o snapshot datado, não o checkout atual. Menções
 históricas a `tmp/...` registram onde a saída foi gravada, sem garantir sua

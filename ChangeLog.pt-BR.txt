@@ -6,6 +6,25 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Adicionar cobertura de integridade para JSON UTF-8 e MSSQL)"
  */
 
+2026-10-26 17:07 UTC naldodj (Validar apresentação nativa com consultas MSSQL reais)
+  + Adicionar exemplo somente leitura U_HBBridgeNativeBrowseSX5 na mesma janela
+    local, com TCP/HTTP/perfil/tamanho da página configuráveis. Protheus resolve
+    tabela física, filial atual, larguras do dicionário e ordem determinística.
+  + Adicionar origem SQL do exemplo com filtros/pesquisa parametrizados conforme
+    esquema. Preservar predicados base imutáveis e vincular valores literais;
+    não promover BrowseNative público genérico nem adicionar reescrita de SQL.
+  ! Manter textos dos bindings na codificação do chamador: clientes codificam
+    a requisição completa em UTF-8 uma vez. Conferir pesquisa Unicode real para
+    detectar dupla codificação; preservar resultados UTF-8.
+  + Servir fixture SQL nativa nova com prazo e passar endpoints privados somente
+    ao INI AppServer isolado novo. Adicionar checks MSSQL TCP/HTTP gzip ->
+    dataset tipado -> FWTemporaryTable reais, sem atualizar tabelas ERP.
+  ; AppServer isolado final: 69 fontes/zero erros; 83 asserções de integração
+    real e regressões 32/77/67/5/62/59 aprovadas. Regressão nativa de backend/
+    transporte: 133/0; listeners próprios encerrados sem leases ativos.
+    Registrar identidades em docs/validation/native.presentation.sql.windows.json.
+    Aceite visual SX5 interativo continua em T05; não encerrar o pacote.
+
 2026-10-26 11:23 UTC naldodj (Revisar browse nativo indexado e fixtures configuráveis)
   * Manter BrowseNative como exemplo static local, preservando Browse público.
     Manter paginação/pesquisa/filtro na mesma janela e preservar tabela nativa

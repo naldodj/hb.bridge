@@ -1,5 +1,6 @@
 /* Released to Public Domain. */
 #include "totvs.ch"
+#include "parmtype.ch"
 
 namespace HBBridge.Client
 
@@ -15,6 +16,7 @@ class HBBridgeNativeTable
     private data jSchema as json
     private data jFields as json
     private data jColumns as json
+    private data jSourceFields as json
     private data jIndexes as json
 
     private data lReady as logical
@@ -29,10 +31,12 @@ class HBBridgeNativeTable
     public method LoadCurrentPage() as logical
     public method Alias() as character
     public method FieldName(cProjection as character) as character
+    public method SourceFieldName(cProjection as character) as character
+    public method SourceFieldCaption(cProjection as character) as character
     public method SearchFieldName(cProjection as character) as character
     public method IndexOrder(cProjection as character) as numeric
     public method FieldCount() as numeric
-    public method ProjectionName(nPosition as numeric) as character
+    public method ProjectionName(xPosition as variant) as character
     public method Schema() as json
     public method IsOpen() as logical
     public method RowCount() as numeric
@@ -49,6 +53,10 @@ method New(oDataSet,jLogicalSchema,lVerifyStorage) class HBBridgeNativeTable
 
     local cJSON:="" as character
 
+    paramtype 1 var oDataSet as object
+    paramtype 2 var jLogicalSchema as json optional
+    paramtype 3 var lVerifyStorage as logical optional default .F.
+
     self:cAlias:=GetNextAlias()
     self:cErrorCode:=""
     self:cErrorMessage:=""
@@ -56,9 +64,10 @@ method New(oDataSet,jLogicalSchema,lVerifyStorage) class HBBridgeNativeTable
     self:jSchema:=JSONObject():New()
     self:jFields:=nil
     self:jColumns:=nil
+    self:jSourceFields:=nil
     self:jIndexes:=nil
     self:lReady:=.F.
-    self:lVerifyStorage:=(ValType(lVerifyStorage)=="L").and.lVerifyStorage
+    self:lVerifyStorage:=((ValType(lVerifyStorage)=="L").and.(lVerifyStorage))
     self:nRows:=0
     self:oDataSet:=oDataSet
     self:oTable:=nil
@@ -97,6 +106,7 @@ method LoadCurrentPage() class HBBridgeNativeTable
     local jDefinition as json
     local jFields:=JSONObject():New() as json
     local jColumns:=JSONObject():New() as json
+    local jSourceFields:=JSONObject():New() as json
     local jIndexes:=JSONObject():New() as json
     local jWriteColumns:=JSONObject():New() as json
     local jIndex as json
@@ -129,6 +139,7 @@ method LoadCurrentPage() class HBBridgeNativeTable
     if (!self:ClearPage())
         FreeObj(@jFields)
         FreeObj(@jColumns)
+        FreeObj(@jSourceFields)
         FreeObj(@jIndexes)
         FreeObj(@jWriteColumns)
         FreeObj(@jPositions)
@@ -169,6 +180,9 @@ method LoadCurrentPage() class HBBridgeNativeTable
             cNative:="F"+StrZero(nField,9)
             jFields[cField]:=cNative
             jColumns[cNative]:=cField
+            // Snapshot declared origin with this accepted page. The borrowed
+            // dataset can later be reopened independently of native storage.
+            jSourceFields[cField]:=jHeader[cField]["source"]["column"]
             jWriteColumns[cNative]:=cField
             aFields[nField]:={cNative,cType,jDefinition["length"],jDefinition["decimals"]}
             cSearch:=cNative
@@ -287,11 +301,14 @@ method LoadCurrentPage() class HBBridgeNativeTable
         oPending:=nil
         FreeObj(@self:jFields)
         FreeObj(@self:jColumns)
+        FreeObj(@self:jSourceFields)
         FreeObj(@self:jIndexes)
         self:jFields:=jFields
         jFields:=nil
         self:jColumns:=jColumns
         jColumns:=nil
+        self:jSourceFields:=jSourceFields
+        jSourceFields:=nil
         self:jIndexes:=jIndexes
         jIndexes:=nil
         self:nRows:=nRows
@@ -334,6 +351,7 @@ method LoadCurrentPage() class HBBridgeNativeTable
     FreeObj(@jConverted)
     FreeObj(@jFields)
     FreeObj(@jColumns)
+    FreeObj(@jSourceFields)
     FreeObj(@jIndexes)
     FreeObj(@jWriteColumns)
     FreeObj(@jIndex)
@@ -402,6 +420,7 @@ method Close() class HBBridgeNativeTable
         self:nRows:=0
         FreeObj(@self:jFields)
         FreeObj(@self:jColumns)
+        FreeObj(@self:jSourceFields)
         FreeObj(@self:jIndexes)
     else
         self:cErrorCode:="PRESENTATION_CLOSE_FAILED"
@@ -425,6 +444,7 @@ method Alias() class HBBridgeNativeTable
 return(if(self:IsOpen(),self:cAlias,""))
 
 method FieldName(cProjection) class HBBridgeNativeTable
+    paramtype 1 var cProjection as character
     if (self:IsOpen().and.ValType(self:jFields)=="J")
         if (self:jFields:HasProperty(cProjection))
             return(self:jFields[cProjection])
@@ -432,7 +452,37 @@ method FieldName(cProjection) class HBBridgeNativeTable
     endif
 return("")
 
+method SourceFieldName(cProjection) class HBBridgeNativeTable
+
+    local cName:="" as character
+
+    paramtype 1 var cProjection as character
+    cName:=self:ProjectionName(cProjection)
+    if (!Empty(cName).and.ValType(self:jSourceFields)=="J")
+        if (self:jSourceFields:HasProperty(cName))
+            if (ValType(self:jSourceFields[cName])=="C")
+                return(self:jSourceFields[cName])
+            endif
+        endif
+    endif
+
+return("")
+
+method SourceFieldCaption(cProjection) class HBBridgeNativeTable
+
+    local cName:="" as character
+
+    paramtype 1 var cProjection as character
+    cName:=self:ProjectionName(cProjection)
+    // An exposed projection belongs to the accepted, validated schema.
+    if (!Empty(cName))
+        return(self:jSchema["fields"][cName]["caption"])
+    endif
+
+return("")
+
 method SearchFieldName(cProjection) class HBBridgeNativeTable
+    paramtype 1 var cProjection as character
     if (self:IsOpen().and.ValType(self:jIndexes)=="J")
         if (self:jIndexes:HasProperty(cProjection))
             return(self:jIndexes[cProjection]["field"])
@@ -441,6 +491,7 @@ method SearchFieldName(cProjection) class HBBridgeNativeTable
 return("")
 
 method IndexOrder(cProjection) class HBBridgeNativeTable
+    paramtype 1 var cProjection as character
     if (self:IsOpen().and.ValType(self:jIndexes)=="J")
         if (self:jIndexes:HasProperty(cProjection))
             return(self:jIndexes[cProjection]["order"])
@@ -462,14 +513,23 @@ method FieldCount() class HBBridgeNativeTable
         nCount:=Len(aNames)
         FWFreeArray(@aNames)
     endif
+
 return(nCount)
 
-method ProjectionName(nPosition) class HBBridgeNativeTable
-    if (self:IsOpen().and.ValType(nPosition)=="N")
-        if (nPosition>=1.and.nPosition==Int(nPosition))
-            if (nPosition<=999999999)
-                if (self:jColumns:HasProperty("F"+StrZero(nPosition,9)))
-                    return(self:jColumns["F"+StrZero(nPosition,9)])
+method ProjectionName(xPosition) class HBBridgeNativeTable
+
+    if (self:IsOpen())
+        if (ValType(xPosition)=="C")
+            if (self:jColumns:HasProperty(xPosition))
+                return(self:jColumns[xPosition])
+            endif
+            if (self:jFields:HasProperty(xPosition))
+                return(xPosition)
+            endif
+        elseif (ValType(xPosition)=="N")
+            if (xPosition>=1.and.xPosition==Int(xPosition).and.xPosition<=999999999)
+                if (self:jColumns:HasProperty("F"+StrZero(xPosition,9)))
+                    return(self:jColumns["F"+StrZero(xPosition,9)])
                 endif
             endif
         endif
@@ -483,6 +543,7 @@ method Schema() class HBBridgeNativeTable
     if (ValType(self:jSchema)=="J")
         HBBridgeJSON():Parse(HBBridgeJSON():Encode(self:jSchema),jSnapshot)
     endif
+
 return(jSnapshot)
 
 method RowCount() class HBBridgeNativeTable

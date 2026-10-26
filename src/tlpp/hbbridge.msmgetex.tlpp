@@ -24,10 +24,10 @@ Released to Public Domain.
 namespace HBBridge.Client
 
 class HBBridgeMsMGetEx
-    static method ViewData(cAlias as character,nRecNo as numeric,cTitle as character,aButtons as array,aAcho as array) as variant
+    static method ViewData(cAlias as character,nRecNo as numeric,cTitle as character,aButtons as array,aAcho as array,oNativeTable as object) as variant
 end class
 
-static method ViewData(cAlias,nRecNo,cTitle,aButtons,aAcho) class HBBridgeMsMGetEx
+static method ViewData(cAlias,nRecNo,cTitle,aButtons,aAcho,oNativeTable) class HBBridgeMsMGetEx
 
     local aFields as array
     local adbStruct as array
@@ -45,12 +45,16 @@ static method ViewData(cAlias,nRecNo,cTitle,aButtons,aAcho) class HBBridgeMsMGet
     local cSVFilAnt as character
     local cFieldFil as character
     local cX3Relacao as character
+    local cFieldNative as character
 
     local jAcho as json
 
     local lAcho as logical
     local lMsMGet as logical
     local lProperty:=.T. as logical
+    local lNativeTable as logical
+    local lHasFieldNative as logical
+
     local lMVCOMBOBOX as logical
     local l__MVCOMBOBOX as logical
 
@@ -75,10 +79,12 @@ static method ViewData(cAlias,nRecNo,cTitle,aButtons,aAcho) class HBBridgeMsMGet
     paramtype 3 var cTitle as character
     paramtype 4 var aButtons as array optional
     paramtype 5 var aAcho as array optional
+    paramtype 6 var oNativeTable as object optional
 
     SaveInter()
 
         lAcho:=(!Empty(aAcho))
+        lNativeTable:=((ValType(oNativeTable)=="O").and.(GetClassName(oNativeTable)=="HBBRIDGE.CLIENT.HBBRIDGENATIVETABLE"))
 
         l__MVCOMBOBOX:=(type("__MVCOMBOBOX")=="L")
         if (l__MVCOMBOBOX)
@@ -126,6 +132,12 @@ static method ViewData(cAlias,nRecNo,cTitle,aButtons,aAcho) class HBBridgeMsMGet
                 if ((lAcho).and.(!jAcho:HasProperty(cField)))
                     loop
                 endif
+                if (lNativeTable)
+                    cFieldNative:=oNativeTable:SourceFieldName(cField)
+                    lHasFieldNative:=(!Empty(cFieldNative))
+                else
+                    lHasFieldNative:=.F.
+                endif
                 aAdd(aFields,cField)
                 nATField:=Len(aFields)
                 cVar:=("M->"+cField)
@@ -139,42 +151,97 @@ static method ViewData(cAlias,nRecNo,cTitle,aButtons,aAcho) class HBBridgeMsMGet
                 endif
                 private &(cVar):=xValue as variant
                 aAdd(aFieldsNoSX3,Array(18))
-                aFieldsNoSX3[nATField][1]:=GetSX3Cache(cField,"X3_TITULO")//-> titulo
+                if (lNativeTable)
+                    aFieldsNoSX3[nATField][1]:=oNativeTable:SourceFieldCaption(cField)//-> titulo
+                    if ((Empty(aFieldsNoSX3[nATField][1])).and.(lHasFieldNative))
+                        aFieldsNoSX3[nATField][1]:=GetSX3Cache(cFieldNative,"X3_TITULO")//-> titulo
+                    endif
+                else
+                    aFieldsNoSX3[nATField][1]:=GetSX3Cache(cField,"X3_TITULO")//-> titulo
+                endif
                 DEFAULT aFieldsNoSX3[nATField][1]:=cField
                 aFieldsNoSX3[nATField][2]:=cField//-> campo
-                aFieldsNoSX3[nATField][3]:=GetSX3Cache(cField,"X3_TIPO")//-> tipo
+                if ((lNativeTable).and.(lHasFieldNative))
+                    aFieldsNoSX3[nATField][3]:=GetSX3Cache(cFieldNative,"X3_TIPO")//-> tipo
+                else
+                    aFieldsNoSX3[nATField][3]:=GetSX3Cache(cField,"X3_TIPO")//-> tipo
+                endif
                 DEFAULT aFieldsNoSX3[nATField][3]:=adbStruct[nField][DBS_TYPE]
                 if (aFieldsNoSX3[nATField][3]<>adbStruct[nField][DBS_TYPE])
                     aFieldsNoSX3[nATField][3]:=adbStruct[nField][DBS_TYPE]
                 endif
-                aFieldsNoSX3[nATField][4]:=GetSX3Cache(cField,"X3_TAMANHO")//-> tamanho
+                if ((lNativeTable).and.(lHasFieldNative))
+                    aFieldsNoSX3[nATField][4]:=GetSX3Cache(cFieldNative,"X3_TAMANHO")//-> tamanho
+                else
+                    aFieldsNoSX3[nATField][4]:=GetSX3Cache(cField,"X3_TAMANHO")//-> tamanho
+                endif
                 DEFAULT aFieldsNoSX3[nATField][4]:=adbStruct[nField][DBS_LEN]
                 if (aFieldsNoSX3[nATField][4]<>adbStruct[nField][DBS_LEN])
                     aFieldsNoSX3[nATField][4]:=adbStruct[nField][DBS_LEN]
                 endif
-                aFieldsNoSX3[nATField][5]:=GetSX3Cache(cField,"X3_DECIMAL")//-> decimal
+                if ((lNativeTable).and.(lHasFieldNative))
+                    aFieldsNoSX3[nATField][5]:=GetSX3Cache(cFieldNative,"X3_DECIMAL")//-> decimal
+                else
+                    aFieldsNoSX3[nATField][5]:=GetSX3Cache(cField,"X3_DECIMAL")//-> decimal
+                endif
                 DEFAULT aFieldsNoSX3[nATField][5]:=adbStruct[nField][DBS_DEC]
-                aFieldsNoSX3[nATField][6]:=GetSX3Cache(cField,"X3_PICTURE")//-> picture
+                if ((lNativeTable).and.(lHasFieldNative))
+                    aFieldsNoSX3[nATField][6]:=GetSX3Cache(cFieldNative,"X3_PICTURE")//-> picture
+                else
+                    aFieldsNoSX3[nATField][6]:=GetSX3Cache(cField,"X3_PICTURE")//-> picture
+                endif
                 DEFAULT aFieldsNoSX3[nATField][6]:=""
-                aFieldsNoSX3[nATField][7]:=GetSX3Cache(cField,"X3_VALID")//-> valid
+                if ((lNativeTable).and.(lHasFieldNative))
+                    aFieldsNoSX3[nATField][7]:=GetSX3Cache(cFieldNative,"X3_VALID")//-> valid
+                else
+                    aFieldsNoSX3[nATField][7]:=GetSX3Cache(cField,"X3_VALID")//-> valid
+                endif
                 DEFAULT aFieldsNoSX3[nATField][7]:="allWaysTrue()"
                 aFieldsNoSX3[nATField][8]:=.F.//-> obrigat
-                aFieldsNoSX3[nATField][9]:=GetSX3Cache(cField,"X3_NIVEL")//-> nivel
+                if ((lNativeTable).and.(lHasFieldNative))
+                    aFieldsNoSX3[nATField][9]:=GetSX3Cache(cFieldNative,"X3_NIVEL")//-> nivel
+                else
+                    aFieldsNoSX3[nATField][9]:=GetSX3Cache(cField,"X3_NIVEL")//-> nivel
+                endif
                 DEFAULT aFieldsNoSX3[nATField][9]:=0
-                aFieldsNoSX3[nATField][10]:=GetSX3Cache(cField,"X3_RELACAO")//-> inicializador padrao
+                if ((lNativeTable).and.(lHasFieldNative))
+                    aFieldsNoSX3[nATField][10]:=GetSX3Cache(cFieldNative,"X3_RELACAO")//-> inicializador padrao
+                else
+                    aFieldsNoSX3[nATField][10]:=GetSX3Cache(cField,"X3_RELACAO")//-> inicializador padrao
+                endif
                 DEFAULT aFieldsNoSX3[nATField][10]:=getValType(adbStruct[nField][DBS_TYPE])
-                aFieldsNoSX3[nATField][11]:=GetSX3Cache(cField,"X3_F3")//-> F3
+                if ((lNativeTable).and.(lHasFieldNative))
+                    aFieldsNoSX3[nATField][11]:=GetSX3Cache(cFieldNative,"X3_F3")//-> F3
+                else
+                    aFieldsNoSX3[nATField][11]:=GetSX3Cache(cField,"X3_F3")//-> F3
+                endif
                 DEFAULT aFieldsNoSX3[nATField][11]:=""
-                aFieldsNoSX3[nATField][12]:=GetSX3Cache(cField,"X3_WHEN")//-> when
+                if ((lNativeTable).and.(lHasFieldNative))
+                    aFieldsNoSX3[nATField][12]:=GetSX3Cache(cFieldNative,"X3_WHEN")//-> when
+                else
+                    aFieldsNoSX3[nATField][12]:=GetSX3Cache(cField,"X3_WHEN")//-> when
+                endif
                 DEFAULT aFieldsNoSX3[nATField][12]:=""
                 aFieldsNoSX3[nATField][13]:=.T.//-> visual
                 aFieldsNoSX3[nATField][14]:=.F.//-> chave
-                aFieldsNoSX3[nATField][15]:=GetSX3Cache(cField,"X3_CBOX") //-> box
+                if ((lNativeTable).and.(lHasFieldNative))
+                    aFieldsNoSX3[nATField][15]:=GetSX3Cache(cFieldNative,"X3_CBOX") //-> box
+                else
+                    aFieldsNoSX3[nATField][15]:=GetSX3Cache(cField,"X3_CBOX") //-> box
+                endif
                 DEFAULT aFieldsNoSX3[nATField][15]:=""
-                aFieldsNoSX3[nATField][16]:=GetSX3Cache(cField,"X3_FOLDER")//-> folder
+                if ((lNativeTable).and.(lHasFieldNative))
+                    aFieldsNoSX3[nATField][16]:=GetSX3Cache(cFieldNative,"X3_FOLDER")//-> folder
+                else
+                    aFieldsNoSX3[nATField][16]:=GetSX3Cache(cField,"X3_FOLDER")//-> folder
+                endif
                 DEFAULT aFieldsNoSX3[nATField][16]:=""
                 aFieldsNoSX3[nATField][17]:=.T.//-> nao alteravel
-                aFieldsNoSX3[nATField][18]:=GetSX3Cache(cField,"X3_PICTVAR")//-> pictvar
+                if ((lNativeTable).and.(lHasFieldNative))
+                    aFieldsNoSX3[nATField][18]:=GetSX3Cache(cFieldNative,"X3_PICTVAR")//-> pictvar
+                else
+                    aFieldsNoSX3[nATField][18]:=GetSX3Cache(cField,"X3_PICTVAR")//-> pictvar
+                endif
                 DEFAULT aFieldsNoSX3[nATField][18]:=""
             next nField
 

@@ -22,10 +22,10 @@ is inferred. See [closure, exact artifacts and limitations](docs/acceptance.md#p
 | --- | --- |
 | ID | `002-typed-sql-presentation` |
 | Opened / updated | 2026-10-21 / 2026-10-26 |
-| Status | T01–T04 validated in their recorded scopes. T05 local native presentation now retains indexed storage between pages, uses FWBulk when supported and exposes configurable synthetic data with ID_CODE ordering. Revised automated checks and manual results are recorded below. Combined backend/UI acceptance remains open. |
+| Status | T01–T04 validated in their recorded scopes. T05 actual MSSQL → TCP/gzip HTTP → AppServer typed dataset → native storage passed. The real SX5 browse is compiled for interactive acceptance; T05 remains open. |
 | Goal | Define explicit typed SQL values/result metadata and a caller-owned native Protheus presentation adapter using the accepted Query/dataset. |
 | Reference | Base `8db2823`; package 001 validated working-tree artifacts are identified in its closure manifest. This is not a new release tag. |
-| Next task | T05: validate combined real AppServer TCP/HTTP/backend execution and interactive native presentation, then close the package. |
+| Next task | T05: homologate the real SX5 browse in an active Protheus company/branch over TCP and HTTP, including search/filter, paging and close; review remaining scoped criteria before package closure. |
 
 ### Preparatory maintenance
 
@@ -254,6 +254,36 @@ for identities/exit codes. Interactive widget behavior and combined actual
 AppServer-to-hbBridge typed backend acceptance remain open in T05.
 All three commit validators passed for 316 files; links passed for 102
 documents, with no tmp/out dependencies or index changes.
+
+2026-10-26 real SELECT continuation after `6945aa5`: add
+`U_HBBridgeNativeBrowseSX5(cProfile,cTransport,nPageSize)`, default TCP, 100 per page,
+over the same local dialog. Protheus resolves RetSQLName/xFilial/TamSX3 and
+the five-column schema, immutable branch/deleted bindings and RECNO tie-breaker.
+An example-owned SQL source supplies SQL/bindings/order and parameterized
+typed criteria; filter fields come from the current schema. No automatic ERP
+resolution moves into hbBridge and no generic public BrowseNative is promoted.
+
+Fresh isolated MSSQL hosting plus actual TCP/gzip HTTP/AppServer/native storage
+passed **83 real integration checks**. A SELECT over five constant VALUES rows
+exercises seven projections, independent native value checks, paging/totals,
+Unicode input/output, exact decimal metadata, bound numeric/logical/date/text
+filters, literal quote/wildcard input, failures/recovery and cleanup. This
+executes real SQL without reading/updating ERP tables. TLPP inputs retain the
+caller encoding; clients encode the complete JSON once. Results stay UTF-8
+until explicit presentation conversion. The new Unicode search assertion
+prevents double encoding of individual input bindings.
+
+The final isolated run compiled **69 sources**, zero errors, and retained
+32/77/67/5/62/59 conversion/dataset/SDK/native table/browse checks with zero
+assertion failures, plus the 83 real checks. All compiled hashes matched after
+execution. Native backend/transport regression passed **133 checks**; the
+owned serving fixture stopped both listeners with no active leases. See the
+[real SQL presentation manifest](docs/validation/native.presentation.sql.windows.json).
+The automated SELECT and interactive SX5 query have distinct acceptance:
+the latter still needs manual visual execution in the prepared Protheus
+environment. Existing deployment INI/RPOs and services were not replaced.
+All three validators passed for 320 files and links for 102 documents; the
+index was not changed during this continuation.
 
 2026-10-24 continuation after published HTTP commit `98054b45`: the
 [T01 specification](docs/typed-sql.md) fixes request/result versions,

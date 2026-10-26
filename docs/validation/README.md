@@ -26,6 +26,7 @@ The JSON summaries retain sanitized identities/counts at measurement time:
 - [Typed SQL service, TCP/gzip HTTP and AppServer dataset contracts](typed.sql.windows.json).
 - [AppServer native presentation conversion, storage and ownership](native.presentation.windows.json).
 - [Revised native browse, FWBulk, ID_CODE ordering and 10,000-row storage](native.presentation.revision.windows.json).
+- [Real MSSQL TCP/gzip HTTP to AppServer typed/native presentation](native.presentation.sql.windows.json).
 
 These identities describe the dated source snapshot, not today's checkout.
 Historical `tmp/...` mentions in older records identify where output was written;

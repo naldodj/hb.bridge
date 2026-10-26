@@ -267,7 +267,14 @@ Usar `OpenSQLTyped(sql, bindings[, page])` e
 mantendo `New(oClient)` e `SetAliasProfile(profile)` para selecionar perfil;
 sem novo argumento posicional de perfil. Assinaturas atuais preservadas.
 O **validador da versão 2** mantém validação da versão 1 para os
-resultados antigos. Validar tipos fixos de transporte, metadados/linhas
+resultados antigos. As entradas TLPP (SQL, perfil e valores de bindings
+textuais) usam a codificação do AppServer chamador. Os clientes TCP/HTTP
+codificam o JSON completo da requisição em UTF-8 uma única vez; não
+pré-codificar cada string de binding. Um valor reaproveitado de resultado
+UTF-8 deve antes passar pela decodificação do chamador. Isso preserva o
+contrato UTF-8 no transporte e os resultados: `FieldGet()` mantém texto de
+transporte até a conversão explícita de apresentação.
+Validar tipos fixos de transporte, metadados/linhas
 contíguos, nulls, totais e versão antes de publicar estado. Preservar cópias
 defensivas de header/linhas/bindings em Next/PreviousPage; limpar em close/
 reabertura/falha. Sem fallback por OpenSQL antigo ou reinterpretação de strings

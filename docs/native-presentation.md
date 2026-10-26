@@ -64,6 +64,40 @@ not exposed before the first successful load or while a page is invalid.
 SQL aliases are never truncated or evaluated. `ProjectionName(position)` and
 `FieldCount()` retain projection order. `Schema()` returns a defensive copy.
 
+Names at the SQL, projection and temporary-table boundaries remain distinct:
+
+| Method | Input | Result for `X5_DESCRI AS DESCRIPTION` |
+| --- | --- | --- |
+| `FieldName()` | Projected key `DESCRIPTION` | Generated native value field `F...` |
+| `ProjectionName()` | Projection ordinal, native `F...` or projected key | `DESCRIPTION` |
+| `SourceFieldName()` | Native `F...` or projected key | `X5_DESCRI`, when reported in source metadata |
+| `SourceFieldCaption()` | Native `F...` or projected key | The caller's logical-schema caption |
+
+`SourceFieldName()` snapshots `header[projection].source.column` only when a
+page load is accepted. It does not reread a borrowed dataset after the caller
+moves it, parse SQL or infer origin from an alias. Unknown/computed origin
+returns an empty string. Unknown projection names, private logical shadow
+fields and a closed/invalid native page return empty mappings.
+`SourceFieldCaption()` replaces `FieldCaption()` and returns the schema's
+caption; it does **not** call SX3 or derive a dictionary title from source
+metadata. Existing callers must use the renamed method.
+
+Protheus can explicitly use a reported source field to request its own
+dictionary metadata:
+
+```advpl
+cNative := oNative:FieldName("DESCRIPTION")
+cProjection := oNative:ProjectionName(cNative) // DESCRIPTION
+cField := oNative:SourceFieldName(cNative) // X5_DESCRI if supplied by ODBC
+cCaption := oNative:SourceFieldCaption(cNative) // Caller-supplied caption
+if !Empty(cField)
+    cSX3Title := GetSX3Cache(cField,"X3_TITULO")
+endif
+```
+
+The dictionary lookup belongs to the Protheus caller. The core adapter makes
+no automatic SX3 requests and leaves missing source origin unresolved.
+
 Search has a separate mapping: `SearchFieldName(projection)` returns the native
 index field and `IndexOrder(projection)` returns its active-order number.
 Character, numeric and date projections use their value fields. A logical
@@ -132,6 +166,8 @@ indexed table and refresh the existing widget. Every mapped search column has
 a corresponding native index, retained between page loads.
 First, Previous, Next, Last and Refresh reload the current native page inside
 that dialog. Close only ends the dialog; it does not request another page.
+View displays the current row within the example; visual acceptance of that
+action remains separate from headless checks.
 The search control, typed Field/Operator/Value filter and Clear filters action use the
 same page flow. `U_HBBridgeNativeBrowse([nRecords], [nPageSize])` defaults to
 **1000 synthetic records and 13 records per page**. For a larger visual load:
@@ -161,6 +197,49 @@ The logical Flag column displays `True`/`False` while retaining logical native
 storage; Day and Float use their own date/numeric bindings. Verify these
 columns, masks and accents when homologating the revised interface.
 
+## Read real SX5 data in the native browse
+
+The separate `U_HBBridgeNativeBrowseSX5([cProfile], [cTransport], [nPageSize])`
+entry reads actual SX5 rows through hbBridge and reuses the same local
+`BrowseNative()` dialog. It defaults to `TCP` and 100 rows per page:
+
+```advpl
+U_HBBridgeNativeBrowseSX5("MSSQL/pData","TCP",100)
+U_HBBridgeNativeBrowseSX5("MSSQL/pData","HTTP",100)
+```
+
+Use the SQL profile configured on the hbBridge server for the intended
+Protheus database. An omitted profile reads `[hbBridge] SQLProfile` from the
+active AppServer INI; there is no demo-profile fallback. TCP/HTTP endpoints
+and HTTP authorization come from the existing client configuration; HTTP
+requests gzip. Run inside an already prepared Protheus company/branch context,
+such as FWWebEx. This entry does not prepare or switch ERP environments.
+
+[`HBBridgePresentationSX5:Definition()`](../src/tlpp/tests/protheus/hbbridge.presentation.test/hbbridge.presentation.sx5.tlpp)
+resolves `RetSQLName("SX5")`, `xFilial("SX5")` and `TamSX3()` in Protheus.
+It builds five explicit projections: `BRANCH`, `TABLE_CODE`, `ITEM_CODE`,
+`DESCRIPTION` and `RECNO`. The first four character widths come from the
+dictionary; RECNO has an explicit native numeric definition. The base SELECT
+always binds the undeleted marker and current branch. Ordering ends in RECNO
+to make page boundaries deterministic when business keys repeat. Search/filter
+changes cannot remove those base predicates. The query is read-only; its
+native destination is an owned temporary table, not an SX5 update.
+
+[`HBBridgePresentationSQLSource`](../src/tlpp/tests/protheus/hbbridge.presentation.test/hbbridge.presentation.sql.source.tlpp)
+owns the example's trusted SQL, order, schema and base bindings. `Query()`
+returns SQL/bindings/order for each explicit page request. It accepts only
+schema-mapped projection names and allowed typed comparisons, appending values
+as parameters instead of SQL text. Character criteria escape `%`, `_`, `[`,
+`]` and `~` for literal LIKE matching; quote-containing input remains a bound
+value. Dates use ISO values and logical criteria use booleans. Integer criteria
+use exact int64 text; fractional native numeric criteria use approximate
+number bindings and do not promise exact decimal arithmetic. This controller
+keeps input text in the caller's encoding: the production client encodes the
+complete JSON request into UTF-8 once. Do not pre-encode individual bindings.
+It is example-owned, not a general SQL parser or a public generic browse API.
+The filter picker takes its fields from the current schema, so the five-column
+SX5 query and seven-column synthetic fixture share the dialog.
+
 ## Reproduce validation
 
 Use a licensed external AppServer SDK/INI, vendor RPOs, include directories and
@@ -183,6 +262,41 @@ buffer. Small fixed paging cases still use two rows followed by one row.
 Raw logs remain local scratch; credentials/INI content are not acceptance data.
 Interactive native browse dismissal and combined hbBridge/backend execution require
 their separate T05 acceptance. A mock or compilation alone does not prove UI.
+
+For the separate real SQL integration test, keep an owned hbBridge fixture
+serving from one PowerShell terminal:
+
+```powershell
+./scripts/test-hbbridge-typed-sql.ps1 -Config '<private-ini>' `
+    -Profile '<mssql-alias>' -Serve -ServeSeconds 1200
+```
+
+Wait for its printed fresh `endpoints.json` path. In another terminal, pass
+that path to a new isolated AppServer run:
+
+```powershell
+./scripts/test-protheus-presentation.ps1 -AppServerDirectory '<sdk>' `
+    -IniFile '<sdk-ini>' -RpoDirectory '<vendor-rpos>' `
+    -IncludeDirectory @('<totvs-includes>', '<project>/includes') `
+    -NativeTables -HBBridgeEndpointsFile '<fresh-endpoints.json>'
+```
+
+`-HBBridgeEndpointsFile` requires `-NativeTables` and adds
+`U_HBBridgePresentationSQLTest()`. This test executes an actual MSSQL SELECT
+over five constant `VALUES` rows, with the seven typed projections, through
+TCP and gzip HTTP, the dataset and native temporary table. It covers paging,
+types, criteria, literal input, failure recovery and cleanup without reading
+or writing ERP tables. It differs from the interactive SX5 SELECT: automated
+constant-row acceptance does not establish dictionary/business-context or
+dialog acceptance.
+
+The endpoint file contains a private temporary HTTP token. Keep it local and
+do not commit or paste it into reports. The AppServer runner copies those
+settings only into its newly owned INI; it does not edit deployment INIs.
+The serving fixture stops at its bounded lifetime or when `stop.request`
+is created in that fresh run directory. Reproduction starts a fresh serving
+run, never relies on retained scratch endpoints. See the
+[script guide](../scripts/README.md#isolated-native-protheus-presentation).
 
 The records are generated in
 [`HBBridgePresentationFixture:Row()`/`Result()`](../src/tlpp/tests/protheus/hbbridge.presentation.test/hbbridge.presentation.fixture.tlpp),
@@ -225,6 +339,16 @@ refill/failure/recovery. See the separate
 for source/RPO identities and exit codes. This remains nonvisual fixture
 acceptance, separate from real AppServer-to-hbBridge SQL integration.
 
+T05 subsequently passed **83 actual MSSQL TCP/gzip HTTP → AppServer typed
+dataset → native storage checks** on 2026-10-26. The final isolated compile
+passed **69 sources**, zero errors, and all six regression suites above.
+The fresh native host passed **133 checks** and stopped both listeners with
+no active leases. Unicode search verifies caller-native input encoded once
+by the client, complementing UTF-8 result/native storage checks. See the
+[real SQL manifest](validation/native.presentation.sql.windows.json).
+This real constant-row SELECT acceptance does not activate the SX5 dialog;
+the actual ERP-record and visual acceptance remains manual.
+
 Before the subsequent browse/FWBulk revision, validation on 2026-10-25 passed
 64-source compilation with zero errors, 32
 conversion checks, 34 actual native-table checks, five SDK assertions and
@@ -237,7 +361,7 @@ do not establish exact decimal storage for every declared numeric field.
 
 For visual acceptance, compile the
 [interactive fixture](../src/tlpp/tests/protheus/hbbridge.presentation.test/README.md)
-and run `U_HBBridgeNativeBrowse()`. It uses real native tables over mock typed
-pages. Navigation belongs inside the open browse; closing it ends the example
-without a next-page confirmation. Verify the revised UI separately from the
-historical CLI checks, including Flag, Day and Float column placement.
+and run `U_HBBridgeNativeBrowseSX5("MSSQL/pData","TCP",100)`, then HTTP,
+inside the prepared Protheus company/branch. Verify actual SX5 records, accents,
+paging/search/filter/View/close. The independent `U_HBBridgeNativeBrowse()`
+fixture remains useful for Flag/Day/Float placement and synthetic load checks.

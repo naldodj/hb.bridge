@@ -23,6 +23,39 @@ paginação mantêm duas linhas seguidas de uma. O exemplo interativo é separad
 os padrões são 1000/13. As duas origens são fixtures geradas, sem consulta a
 tabelas do ERP.
 
+Para acrescentar integração SQL efetiva pelo hbBridge, mantenha uma nova fixture
+SQL tipada própria servindo em um terminal:
+
+```powershell
+./scripts/test-hbbridge-typed-sql.ps1 -Config '<ini-privado>' `
+    -Profile '<alias-mssql>' -Serve -ServeSeconds 1200
+```
+
+Aguarde o novo caminho de `endpoints.json` impresso; em outro terminal execute:
+
+```powershell
+./scripts/test-protheus-presentation.ps1 -AppServerDirectory '<sdk>' `
+    -IniFile '<ini-sdk>' -RpoDirectory '<rpos-fornecedor>' `
+    -IncludeDirectory @('<includes-totvs>', '<projeto>/includes') `
+    -NativeTables -HBBridgeEndpointsFile '<endpoints-novo.json>'
+```
+
+`-HBBridgeEndpointsFile` exige `-NativeTables` e acrescenta
+`U_HBBridgePresentationSQLTest`: SELECT MSSQL real sobre cinco linhas
+constantes de `VALUES`, TCP e HTTP gzip, dataset tipado e temporária nativa
+própria. Não lê/grava tabelas ERP. O runner copia a nova configuração de
+endpoints somente para seu novo INI próprio; INIs da instalação não são
+alterados. O JSON contém token HTTP temporário privado: mantenha-o local,
+fora do Git e de evidências publicáveis. A fixture servidora encerra ao atingir
+o prazo limitado ou por `stop.request` naquela nova pasta da execução.
+Reproduza com uma nova execução, sem preservar endpoints em tmp.
+
+Já `U_HBBridgeNativeBrowseSX5('<perfil>','TCP',100)` ou a variante HTTP lê SX5
+real interativamente em contexto Protheus de empresa/filial já preparado.
+Sua definição de origem resolve dicionário/tabela/filial no Protheus. Essa
+etapa visual manual é separada do aceite automático de constantes SQL; veja
+o [guia nativo](../docs/native-presentation.pt-BR.md#ler-dados-reais-da-sx5-no-browse-nativo).
+
 ## Probes de resposta HTTP
 
 Manutenção de respostas HTTP: `test-harbour-http-send.ps1` reproduz envios
@@ -319,6 +352,17 @@ fixture versionada e executa processo filho próprio com orçamento padrão de
 opcionais juntos; selecionam INI/perfil privado existente sem copiar credenciais
 para o relatório. SQLite usa arquivo descartável de fixture; consultas MSSQL usam entradas
 explícitas sem alterar tabelas da aplicação.
+
+`-Serve` executa os checks de integração e então mantém novos listeners TCP/HTTP
+loopback próprios para consumidor externo. `-ServeSeconds` aceita 1..1800,
+com padrão 120, limitando a fase servidora separadamente do orçamento inicial
+de testes `-TimeoutSeconds`. Informe INI/perfil MSSQL privado explícito para
+o teste de apresentação AppServer. Quando pronto, o runner imprime o caminho
+local de `endpoints.json`, contendo perfil, portas e token HTTP privado.
+Não exporte esse arquivo como evidência de aceite. Encerre criando
+`stop.request` naquela nova pasta ou aguarde o prazo servidor expirar.
+A fixture registra `serve.result.json` e verifica liberação de listeners e
+leases SQL próprios. Veja os [comandos do consumidor AppServer](#apresentação-nativa-protheus-isolada).
 
 A rodada Windows de 2026-10-25 passou em **133 verificações, sem falhas**:
 111 nativas SDD/serviço compartilhado e 22 TCP/HTTP/REST com gzip entre SQLite e

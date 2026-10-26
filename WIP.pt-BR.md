@@ -22,10 +22,10 @@ HTTPS ou BLOB JSON. Veja [encerramento, artefatos e limites](docs/acceptance.pt-
 | --- | --- |
 | ID | `002-typed-sql-presentation` |
 | Abertura / atualização | 2026-10-21 / 2026-10-26 |
-| Situação | T01–T04 validadas nos escopos registrados. A apresentação nativa local T05 preserva armazenamento indexado entre páginas, usa FWBulk quando disponível e expõe dados sintéticos configuráveis com ordenação ID_CODE. Checks revisados e resultados manuais registrados abaixo. Homologação conjunta backend/UI continua aberta. |
+| Situação | T01–T04 validadas nos escopos registrados. T05 passou no caminho real MSSQL → TCP/HTTP gzip → dataset tipado AppServer → armazenamento nativo. Browse SX5 real compilado para aceite interativo; T05 continua aberto. |
 | Objetivo | Definir valores SQL/metadados tipados explícitos e adapter de apresentação nativa pertencente ao chamador Protheus sobre Query/dataset homologados. |
 | Referência | Base `8db2823`; artefatos da árvore de trabalho validados no pacote 001 identificados no manifesto de encerramento. Não é nova tag de release. |
-| Próxima tarefa | T05: validar execução conjunta AppServer TCP/HTTP/backend real e apresentação nativa interativa; depois encerrar o pacote. |
+| Próxima tarefa | T05: homologar browse SX5 real na empresa/filial Protheus ativa por TCP e HTTP, incluindo pesquisa/filtro, paginação e fechamento; revisar critérios restantes antes de encerrar o pacote. |
 
 ### Manutenção preparatória
 
@@ -254,6 +254,36 @@ para identidades/saídas. Interação com o widget e homologação tipada conjun
 AppServer-hbBridge-backend real continuam abertas em T05.
 Os três validadores de commit passaram em 316 arquivos; links aprovados em
 102 documentos, sem dependências de tmp/out ou alterações no índice.
+
+Continuação com SELECT real em 2026-10-26 após `6945aa5`: adicionar
+`U_HBBridgeNativeBrowseSX5(cProfile,cTransport,nPageSize)`, padrão TCP, 100 por página,
+na mesma janela local. Protheus resolve RetSQLName/xFilial/TamSX3 e o esquema
+de cinco colunas, bindings imutáveis de filial/exclusão e desempate por RECNO.
+A origem SQL do exemplo fornece SQL/bindings/ordenação e critérios tipados
+parametrizados; campos do filtro vêm do esquema atual. Nenhuma resolução ERP
+automática passa ao hbBridge nem BrowseNative vira API pública genérica.
+
+Host MSSQL isolado novo e TCP/HTTP gzip/AppServer/armazenamento nativo reais
+passaram em **83 checks de integração real**. Um SELECT sobre cinco linhas
+VALUES constantes exercita sete projeções, conferência independente dos valores
+nativos, paginação/totais, Unicode de entrada/saída, metadados decimais exatos,
+filtros numéricos/lógicos/data/texto vinculados, aspas/curingas literais,
+falhas/recuperação e liberação. Executa SQL real sem ler/atualizar tabelas ERP.
+Entradas TLPP mantêm codificação do chamador; clientes codificam o JSON completo
+uma vez. Resultados ficam UTF-8 até conversão explícita de apresentação.
+A nova asserção de pesquisa Unicode impede dupla codificação dos bindings.
+
+A execução isolada final compilou **69 fontes**, sem erros, e manteve os
+checks 32/77/67/5/62/59 de conversão/datasets/SDK/tabela/browse, sem falhas de
+asserção, além dos 83 reais. Hashes compilados iguais após executar. Regressão
+nativa de backend/transporte passou em **133 checks**; a fixture própria
+encerrou os dois listeners sem leases ativos. Veja o
+[manifesto SQL real/apresentação](docs/validation/native.presentation.sql.windows.json).
+SELECT automatizado e consulta SX5 interativa possuem aceites distintos:
+esta ainda precisa de execução visual manual no ambiente Protheus preparado.
+INI/RPOs da instalação e serviços existentes não foram substituídos.
+Os três validadores passaram em 320 arquivos e links em 102 documentos;
+o índice não foi alterado nesta continuação.
 
 Continuação em 2026-10-24 após publicar o commit HTTP `98054b45`: a
 [especificação T01](docs/typed-sql.pt-BR.md) fixa versões de entrada/resultado,

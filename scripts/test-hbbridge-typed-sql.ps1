@@ -5,7 +5,9 @@ param(
     [string] $Profile,
     [string] $HbCompileRoot,
     [string] $ZigPath,
-    [ValidateRange(10, 600)][int] $TimeoutSeconds = 120
+    [ValidateRange(10, 600)][int] $TimeoutSeconds = 120,
+    [switch] $Serve,
+    [ValidateRange(1, 1800)][int] $ServeSeconds = 120
 )
 
 $ErrorActionPreference = 'Stop'
@@ -44,9 +46,15 @@ try {
     $info.CreateNoWindow = $true
     $info.RedirectStandardOutput = $true
     $info.RedirectStandardError = $true
-    if ($mssqlRequested) {
+    if ($mssqlRequested -or $Serve) {
         $info.ArgumentList.Add($configPath)
-        $info.ArgumentList.Add($Profile)
+        $info.ArgumentList.Add($(if ($mssqlRequested) { $Profile } else { '' }))
+    }
+    if ($Serve) {
+        $info.ArgumentList.Add('serve')
+        $info.ArgumentList.Add($ServeSeconds.ToString([Globalization.CultureInfo]::InvariantCulture))
+        $info.Environment['HBBRIDGE_TYPED_HTTP_TOKEN'] = [Convert]::ToHexString([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
+        Write-Host "Typed SQL serving workspace: $runRoot"
     }
     $process = [Diagnostics.Process]::new()
     $process.StartInfo = $info
@@ -56,7 +64,22 @@ try {
         $started = $true
         $stdout = $process.StandardOutput.ReadToEndAsync()
         $stderr = $process.StandardError.ReadToEndAsync()
-        $completed = $process.WaitForExit($TimeoutSeconds * 1000)
+        $clock = [Diagnostics.Stopwatch]::StartNew()
+        $readyAt = $null
+        $endpointPath = Join-Path $runRoot 'endpoints.json'
+        $completed = $false
+        while (-not ($completed = $process.WaitForExit(500))) {
+            if ($Serve -and $null -eq $readyAt -and (Test-Path -LiteralPath $endpointPath -PathType Leaf)) {
+                $readyAt = $clock.Elapsed.TotalSeconds
+                Write-Host "Typed SQL listener endpoints: $endpointPath"
+            }
+            $expired = if ($null -eq $readyAt) {
+                $clock.Elapsed.TotalSeconds -gt $TimeoutSeconds
+            } else {
+                ($clock.Elapsed.TotalSeconds - $readyAt) -gt ($ServeSeconds + 10)
+            }
+            if ($expired) { break }
+        }
         if (-not $completed -and -not $process.HasExited) {
             $process.Kill($true)
             $null = $process.WaitForExit(5000)
@@ -67,7 +90,7 @@ try {
         [IO.File]::WriteAllText((Join-Path $runRoot 'console.log'), $log, [Text.UTF8Encoding]::new($false))
         Write-Output $log
         Write-Host "Typed SQL integration output: $runRoot"
-        if (-not $completed) { throw "The typed SQL integration test exceeded its $TimeoutSeconds-second budget." }
+        if (-not $completed) { throw 'The typed SQL test exceeded its acceptance or bounded serving budget.' }
         if (-not $captureCompleted) { throw 'The typed SQL test output capture did not complete.' }
         $resultPath = Join-Path $runRoot 'result.json'
         if (-not (Test-Path -LiteralPath $resultPath -PathType Leaf)) { throw 'The typed SQL test did not produce result.json.' }
@@ -99,6 +122,17 @@ try {
                 }
             }
         }
+        $serveReport = $null
+        if ($Serve) {
+            $serveResultPath = Join-Path $runRoot 'serve.result.json'
+            if (-not (Test-Path -LiteralPath $serveResultPath -PathType Leaf)) {
+                throw 'The typed SQL serving fixture did not produce serve.result.json.'
+            }
+            $serveReport = Get-Content -LiteralPath $serveResultPath -Raw | ConvertFrom-Json -AsHashtable
+            foreach ($field in @('success', 'ready', 'tcpStopped', 'httpStopped', 'noActiveLeases')) {
+                if ($serveReport[$field] -isnot [bool] -or -not $serveReport[$field]) { $valid = $false }
+            }
+        }
         $dependencies = Get-HBBridgeDependencies -ProjectRoot $projectRoot
         $receipt = [ordered]@{
             schemaVersion = 1
@@ -110,6 +144,9 @@ try {
             compilerVersion = $dependencies.zig.version
             harbourRevision = $dependencies.harbour.revision
             mssqlRequested = $mssqlRequested
+            servingRequested = [bool]$Serve
+            serveSeconds = if ($Serve) { $ServeSeconds } else { $null }
+            serving = $serveReport
             executableSHA256 = (Get-FileHash -LiteralPath $executable -Algorithm SHA256).Hash
             dependenciesSHA256 = (Get-FileHash -LiteralPath (Join-Path $projectRoot 'config/dependencies.json') -Algorithm SHA256).Hash
             managedReceiptSHA256 = [ordered]@{}

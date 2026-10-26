@@ -102,6 +102,123 @@ function U_HBBridgeNativeBrowse(nRecords,nPageSize)
 
 return(if(lOK,0,1))
 
+// Read-only real SX5 data, using the same local UI and actual typed clients.
+function U_HBBridgeNativeBrowseSX5(cProfile,cTransport,nPageSize)
+
+    local cCode:="" as character
+    local cMessage:="" as character
+
+    local jConfig as json
+    local jDefinition as json
+    local jQuery as json
+
+    local lOK:=.F. as logical
+
+    local oClient as object
+    local oDataSet as object
+    local oNative as object
+    local oSource as object
+
+    local xError as variant
+
+    DEFAULT cTransport:="TCP"
+    DEFAULT nPageSize:=100
+    if (ValType(cTransport)!="C".or.ValType(nPageSize)!="N")
+        MsgStop("Supply TCP or HTTP and a positive integer page size.","hbBridge SX5")
+        return(1)
+    endif
+    cTransport:=Upper(AllTrim(cTransport))
+    if (!(cTransport=="TCP".or.cTransport=="HTTP").or.nPageSize<1.or.nPageSize!=Int(nPageSize))
+        MsgStop("Supply TCP or HTTP and a positive integer page size.","hbBridge SX5")
+        return(1)
+    endif
+    if (ValType(cProfile)=="U")
+        jConfig:=HBBridge.Client.HBBridgeConfig():Read()
+        cProfile:=jConfig["sqlProfile"]
+        FreeObj(@jConfig)
+    endif
+    if (ValType(cProfile)!="C")
+        MsgStop("Supply an explicit SQL profile or configure SQLProfile.","hbBridge SX5")
+        return(1)
+    endif
+    if (Empty(AllTrim(cProfile)))
+        MsgStop("Supply an explicit SQL profile or configure SQLProfile.","hbBridge SX5")
+        return(1)
+    endif
+    try
+        jDefinition:=HBBridgePresentationSX5():Definition()
+        if (ValType(jDefinition)!="J")
+            cMessage:="Prepare the Protheus company/branch and SX5 dictionary before opening this example."
+            throw "PROTHEUS_CONTEXT_REQUIRED"
+        endif
+        if (cTransport=="HTTP")
+            oClient:=HBBridge.Client.HBBridgeHTTPClient():New(nil,nil,nil,"gzip",.T.)
+        else
+            oClient:=HBBridge.Client.HBBridgeClient():New()
+        endif
+        oSource:=HBBridgePresentationSQLSource():New(jDefinition["sql"],jDefinition["orderBy"],;
+            jDefinition["schema"],jDefinition["bindings"])
+        oDataSet:=HBBridge.RDD.HBBridgeRPCDataSet():New(oClient)
+        oDataSet:SetAliasProfile(cProfile)
+        jQuery:=oSource:Query()
+        if (ValType(jQuery)!="J")
+            cCode:="INVALID_QUERY_SOURCE"
+            cMessage:=oSource:ErrorMessage()
+            throw cCode
+        endif
+        if (!oDataSet:OpenPageTyped(jQuery["sql"],jQuery["bindings"],1,nPageSize,jQuery["orderBy"]))
+            cCode:=oDataSet:ErrorCode()
+            cMessage:=oDataSet:ErrorMessage()
+            throw cCode
+        endif
+        oNative:=HBBridge.Client.HBBridgeNativeTable():New(oDataSet,jDefinition["schema"])
+        if (!oNative:LoadCurrentPage())
+            cCode:=oNative:ErrorCode()
+            cMessage:=oNative:ErrorMessage()
+            throw cCode
+        endif
+        lOK:=BrowseNative(oNative,oDataSet,oSource,"hbBridge SX5: real SELECT via "+cTransport,@cCode,@cMessage)
+    catch xError
+        if (Empty(cCode))
+            cCode:="REAL_PRESENTATION_FAILED"
+        endif
+        if (Empty(cMessage))
+            cMessage:="Could not complete the real SX5 presentation."
+        endif
+        if (ValType(xError)=="O")
+            FreeObj(@xError)
+        endif
+    endtry
+    if (!lOK)
+        MsgStop(cCode+": "+cMessage,"hbBridge SX5")
+    endif
+    if (ValType(oNative)=="O")
+        if (oNative:Destroy())
+            FreeObj(@oNative)
+        else
+            lOK:=.F.
+            MsgStop(oNative:ErrorMessage(),"hbBridge native cleanup")
+        endif
+    endif
+    if (ValType(oDataSet)=="O")
+        oDataSet:Close()
+        FreeObj(@oDataSet)
+    endif
+    if (ValType(oSource)=="O")
+        oSource:Close()
+        FreeObj(@oSource)
+    endif
+    if (ValType(oClient)=="O")
+        if (cTransport=="TCP")
+            oClient:Close()
+        endif
+        FreeObj(@oClient)
+    endif
+    FreeObj(@jDefinition)
+    FreeObj(@jQuery)
+
+return(if(lOK,0,1))
+
 // Non-visual regression uses the exact codeblocks assigned to FWBrwColumn.
 // It creates actual native tables, but never activates a SmartClient window.
 function U_HBBridgeNativeBrowseTest()
@@ -294,6 +411,7 @@ return(if(lOK,0,1))
 // It borrows the adapter, dataset and fixture client; closing only closes UI.
 static function BrowseNative(oNativeTable as object,oDataSet as object,oClient as object,cTitle as character,cCode as character,cMessage as character) as logical
 
+    local aAcho as array
     local aColumns as array
     local aDataBlocks as array
     local aSeek as array
@@ -313,7 +431,7 @@ static function BrowseNative(oNativeTable as object,oDataSet as object,oClient a
     cCode:=""
     cMessage:=""
     try
-        BrowseNativeColumns(oNativeTable,@aColumns,@aSeek,@aDataBlocks)
+        BrowseNativeColumns(oNativeTable,@aColumns,@aSeek,@aDataBlocks,@aAcho)
         oBrowse:=FWBrowse():New()
         oBrowse:SetDataTable()
         oBrowse:SetAlias(oNativeTable:Alias())
@@ -332,14 +450,14 @@ static function BrowseNative(oNativeTable as object,oDataSet as object,oClient a
         oBrowse:SetOwner(oPanel)
         oBrowse:Activate()
         oDialog:AddButton("&Close",{|oButton|oDialog:DeActivate(.T.)},"Close",nil,.T.,.F.,.T.)
-        oDialog:AddButton("&View",{|oButton|HBBridge.Client.HBBridgeMsMGetEx():ViewData(oNativeTable:Alias(),(oNativeTable:Alias())->(RecNo()),"View current record")},"View",nil,.T.,.F.,.T.)
-        oDialog:AddButton("&Refresh",{|oButton|BrowseNativeMove(oBrowse,oNativeTable,oDataSet,"refresh")},"Refresh current page",nil,.T.,.F.,.T.)
+        oDialog:AddButton("&Refresh",{|oButton|BrowseNativeMove(oBrowse,oNativeTable,oDataSet,"refresh",oClient)},"Refresh current page",nil,.T.,.F.,.T.)
         oDialog:AddButton("Add &filter",{|oButton|BrowseNativeFilter(oBrowse,oNativeTable,oDataSet,oClient)},"Add an AND filter",nil,.T.,.F.,.T.)
         oDialog:AddButton("&Clear filters",{|oButton|BrowseNativeClear(oBrowse,oNativeTable,oDataSet,oClient)},"Clear filters and search",nil,.T.,.F.,.T.)
-        oDialog:AddButton("<< &First",{|oButton|BrowseNativeMove(oBrowse,oNativeTable,oDataSet,"first")},"First page",nil,.T.,.F.,.T.)
-        oDialog:AddButton("< &Previous",{|oButton|BrowseNativeMove(oBrowse,oNativeTable,oDataSet,"previous")},"Previous page",nil,.T.,.F.,.T.)
-        oDialog:AddButton("&Next >",{|oButton|BrowseNativeMove(oBrowse,oNativeTable,oDataSet,"next")},"Next page",nil,.T.,.F.,.T.)
-        oDialog:AddButton("&Last >>",{|oButton|BrowseNativeMove(oBrowse,oNativeTable,oDataSet,"last")},"Last page",nil,.T.,.F.,.T.)
+        oDialog:AddButton("<< &First",{|oButton|BrowseNativeMove(oBrowse,oNativeTable,oDataSet,"first",oClient)},"First page",nil,.T.,.F.,.T.)
+        oDialog:AddButton("< &Previous",{|oButton|BrowseNativeMove(oBrowse,oNativeTable,oDataSet,"previous",oClient)},"Previous page",nil,.T.,.F.,.T.)
+        oDialog:AddButton("&Next >",{|oButton|BrowseNativeMove(oBrowse,oNativeTable,oDataSet,"next",oClient)},"Next page",nil,.T.,.F.,.T.)
+        oDialog:AddButton("&Last >>",{|oButton|BrowseNativeMove(oBrowse,oNativeTable,oDataSet,"last",oClient)},"Last page",nil,.T.,.F.,.T.)
+        oDialog:AddButton("&View",{|oButton|HBBridge.Client.HBBridgeMsMGetEx():ViewData(oNativeTable:Alias(),(oNativeTable:Alias())->(RecNo()),"View current record",nil,aAcho,oNativeTable)},"View",nil,.T.,.F.,.T.)
         oDialog:Activate()
         lOK:=.T.
     catch xError
@@ -353,6 +471,7 @@ static function BrowseNative(oNativeTable as object,oDataSet as object,oClient a
     BrowseNativeReleaseColumns(@aColumns)
     FWFreeArray(@aDataBlocks)
     FWFreeArray(@aSeek)
+    FWFReeArray(@aAcho)
     FWFreeArray(@aDialogSize)
     FreeObj(@oPanel)
     FreeObj(@oDialog)
@@ -362,7 +481,7 @@ static function BrowseNative(oNativeTable as object,oDataSet as object,oClient a
 
 return(lOK)
 
-static procedure BrowseNativeColumns(oNativeTable as object,aColumns as array,aSeek as array,aDataBlocks as array)
+static procedure BrowseNativeColumns(oNativeTable as object,aColumns as array,aSeek as array,aDataBlocks as array,aAcho as array)
 
     local cField:="" as character
     local cNative:="" as character
@@ -383,9 +502,11 @@ static procedure BrowseNativeColumns(oNativeTable as object,aColumns as array,aS
     aColumns:=Array(nFields)
     aDataBlocks:=Array(nFields)
     aSeek:=Array(nFields)
+    aAcho:=Array(nFields)
     for nField:=1 to nFields
         cField:=oNativeTable:ProjectionName(nField)
         cNative:=oNativeTable:FieldName(cField)
+        aAcho[nField]:=cNative
         cSearch:=oNativeTable:SearchFieldName(cField)
         jField:=jSchema["fields"][cField]
         cType:=Upper(Left(jField["type"],1))
@@ -437,9 +558,9 @@ static function BrowseNativeValue(oNativeTable as object,cField as character,lLo
 
 return(nil)
 
-static function BrowseNativeMove(oBrowse as object,oNativeTable as object,oDataSet as object,cMove as character) as logical
+static function BrowseNativeMove(oBrowse as object,oNativeTable as object,oDataSet as object,cMove as character,oSource as object) as logical
 
-    local jBindings:=JSONObject():New() as json
+    local jQuery as json
 
     local lOpened:=.F. as logical
 
@@ -455,21 +576,24 @@ static function BrowseNativeMove(oBrowse as object,oNativeTable as object,oDataS
         nPage:=1
     case cMove=="previous"
         if (!oDataSet:HasPreviousPage())
-            FreeObj(@jBindings)
             return(.T.)
         endif
         nPage--
     case cMove=="next"
         if (!oDataSet:HasNextPage())
-            FreeObj(@jBindings)
             return(.T.)
         endif
         nPage++
     case cMove=="last"
         nPage:=Max(1,oDataSet:TotalPages())
     endcase
-    lOpened:=oDataSet:OpenPageTyped("SELECT fixture",jBindings,nPage,nSize,"ID ASC")
-    FreeObj(@jBindings)
+    jQuery:=oSource:Query()
+    if (ValType(jQuery)!="J")
+        MsgStop(oSource:ErrorMessage(),"hbBridge native query")
+        return(.F.)
+    endif
+    lOpened:=oDataSet:OpenPageTyped(jQuery["sql"],jQuery["bindings"],nPage,nSize,jQuery["orderBy"])
+    FreeObj(@jQuery)
     if (!lOpened)
         BrowseNativeInvalidate(oBrowse,oNativeTable)
         MsgStop(oDataSet:ErrorCode()+": "+oDataSet:ErrorMessage(),"hbBridge native page")
@@ -507,7 +631,7 @@ static function BrowseNativeSeek(oSeek as object,oBrowse as object,oNativeTable 
             if (!Empty(cAlias).and.Select(cAlias)>0)
                 (cAlias)->(DbSetOrder(oNativeTable:IndexOrder(cField)))
             endif
-            BrowseNativeMove(oBrowse,oNativeTable,oDataSet,"first")
+            BrowseNativeMove(oBrowse,oNativeTable,oDataSet,"first",oClient)
         else
             MsgStop(oClient:ErrorMessage(),"hbBridge native search")
         endif
@@ -517,29 +641,46 @@ return(1)
 
 static procedure BrowseNativeFilter(oBrowse as object,oNativeTable as object,oDataSet as object,oClient as object)
 
-    local aFields:={"Code","Identifier","Amount","Text","Flag","Day","Float"} as array
-    local aNames:={"ID_CODE","ID","AMOUNT","TEXT","FLAG","DAY","FLOAT"} as array
+    local aFields as array
+    local aNames as array
     local aOperators:={"equal","different","contains","starts with","greater","at least","less","at most"} as array
     local aParameters as array
     local aAnswers:=Array(0) as array
 
     local cField as character
 
-    local nField as numeric
+    local jSchema:=oNativeTable:Schema() as json
+
+    local nField:=0 as numeric
+    local nFields:=oNativeTable:FieldCount() as numeric
     local nOperator as numeric
 
+    if (nFields<1)
+        FreeObj(@jSchema)
+        FWFreeArray(@aOperators)
+        FWFreeArray(@aAnswers)
+        return
+    endif
+    aFields:=Array(nFields)
+    aNames:=Array(nFields)
+    for nField:=1 to nFields
+        cField:=oNativeTable:ProjectionName(nField)
+        aNames[nField]:=cField
+        aFields[nField]:=jSchema["fields"][cField]["caption"]
+    next nField
+    FreeObj(@jSchema)
     // ParamBox requires arrays. Inputs remain plain values: neither SQL nor
     // AdvPL expressions are accepted or evaluated by this example.
     aParameters:={{2,"Field",1,aFields,90,"",.T.},;
         {2,"Operator",1,aOperators,90,"",.T.},;
         {1,"Value",Space(80),"","","","",0,.F.}}
-    if (ParamBox(aParameters,"Add fixture filter (AND)",@aAnswers).and.(Len(aAnswers)==3))
+    if (ParamBox(aParameters,"Add query filter (AND)",@aAnswers).and.(Len(aAnswers)==3))
         cField:=aAnswers[1]
         nField:=aScan(aFields,cField)
         nOperator:=aAnswers[2]
-        if (nField>=1.and.nField<=Len(aNames).and.nOperator>=1.and.nOperator<=Len(aOperators))
+        if (nField>=1.and.nField<=nFields.and.nOperator>=1.and.nOperator<=Len(aOperators))
             if (oClient:AddFilter(aNames[nField],aOperators[nOperator],AllTrim(aAnswers[3])))
-                BrowseNativeMove(oBrowse,oNativeTable,oDataSet,"first")
+                BrowseNativeMove(oBrowse,oNativeTable,oDataSet,"first",oClient)
             else
                 MsgStop(oClient:ErrorMessage(),"hbBridge native filter")
             endif
@@ -555,7 +696,7 @@ return
 
 static procedure BrowseNativeClear(oBrowse as object,oNativeTable as object,oDataSet as object,oClient as object)
     oClient:ClearFilters()
-    BrowseNativeMove(oBrowse,oNativeTable,oDataSet,"first")
+    BrowseNativeMove(oBrowse,oNativeTable,oDataSet,"first",oClient)
 return
 
 static procedure BrowseNativeReleaseColumns(aColumns as array)

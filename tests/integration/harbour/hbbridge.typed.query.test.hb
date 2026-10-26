@@ -4,7 +4,7 @@
 
 REQUEST HB_CODEPAGE_UTF8EX
 
-PROCEDURE TypedQueryTests( cConfig, cProfile )
+PROCEDURE TypedQueryTests( cConfig, cProfile, cMode, cServeSeconds )
 
     LOCAL cCodePage := hb_cdpSelect( "UTF8EX" )
     LOCAL cDatabase := HBBridgeAbsolutePath( "typed-query.sqlite3", hb_cwd() )
@@ -74,9 +74,118 @@ PROCEDURE TypedQueryTests( cConfig, cProfile )
     ENDIF
     OutStd( "Typed SQL integration checks=" + hb_ntos( hReport[ "checkCount" ] ) + ;
         "; failures=" + hb_ntos( hReport[ "failureCount" ] ) + hb_eol() )
-    ErrorLevel( iif( hReport[ "success" ], 0, 1 ) )
+    IF hReport[ "success" ] .AND. cMode == "serve"
+        ErrorLevel( iif( TQServe( hProfiles, hPrivate, cProfile, cServeSeconds ), 0, 1 ) )
+    ELSE
+        ErrorLevel( iif( hReport[ "success" ], 0, 1 ) )
+    ENDIF
 
 RETURN
+
+/* Keep the same reviewed backend registry alive for a separate AppServer
+ * consumer. Readiness is published only after both listeners have started.
+ * The ephemeral HTTP credential comes from this child process's environment;
+ * private database configuration is never copied into endpoint metadata.
+ */
+STATIC FUNCTION TQServe( hProfiles, hPrivate, cProfile, cServeSeconds )
+
+    LOCAL cCodePage := hb_cdpSelect( "UTF8EX" )
+    LOCAL cStop := HBBridgeAbsolutePath( "stop.request", hb_cwd() )
+    LOCAL cPending := HBBridgeAbsolutePath( "endpoints.pending.json", hb_cwd() )
+    LOCAL cEndpoints := HBBridgeAbsolutePath( "endpoints.json", hb_cwd() )
+    LOCAL cOutput := HBBridgeAbsolutePath( "serve.result.json", hb_cwd() )
+    LOCAL cError, cToken := hb_GetEnv( "HBBRIDGE_TYPED_HTTP_TOKEN" )
+
+    LOCAL hConfig := HBBridgeConfig( {} )
+    LOCAL hServeProfiles := hb_HClone( hProfiles )
+    LOCAL hRegistry, hEndpoints
+    LOCAL hTCP := NIL, hHTTP := NIL
+    LOCAL hReport := { "schemaVersion" => 1, "ready" => .F., ;
+        "tcpStopped" => .F., "httpStopped" => .F., "noActiveLeases" => .F. }
+
+    LOCAL lSuccess := .F.
+
+    LOCAL nSeconds := Val( hb_defaultValue( cServeSeconds, "120" ) )
+    LOCAL nStarted, nBudget
+
+    hb_SetEnv( "HBBRIDGE_TYPED_HTTP_TOKEN", "" )
+    BEGIN SEQUENCE WITH __BreakBlock()
+        IF nSeconds < 1 .OR. nSeconds > 1800 .OR. nSeconds != Int( nSeconds ) .OR. ;
+            ! TQServeTokenValid( cToken )
+            OutStd( "Typed SQL serving prerequisite failed: INVALID_SERVE_SETTINGS" + hb_eol() )
+            Break( NIL )
+        ENDIF
+        IF HB_ISHASH( hPrivate )
+            hServeProfiles[ cProfile ] := hPrivate[ "sqlProfiles" ][ cProfile ]
+        ELSE
+            cProfile := "typed/sqlite"
+        ENDIF
+        hRegistry := HBBridgeBuiltinRegistry( hServeProfiles )
+        hConfig[ "httpHost" ] := "127.0.0.1"
+        hConfig[ "httpPort" ] := TQFreePort()
+        hConfig[ "httpPassword" ] := cToken
+        hConfig[ "httpCompressionMinBytes" ] := 0
+        hConfig[ "maxWorkers" ] := 8
+        hTCP := HBBridgeServerStart( 0, 8, "127.0.0.1", hRegistry )
+        hHTTP := HBBridgeHTTPStart( hConfig, hRegistry, { => }, @cError )
+        IF hTCP == NIL .OR. hHTTP == NIL
+            OutStd( "Typed SQL serving prerequisite failed: LISTENER_START_FAILED" + hb_eol() )
+            Break( NIL )
+        ENDIF
+        hEndpoints := { "schemaVersion" => 1, "profile" => cProfile, ;
+            "backend" => hServeProfiles[ cProfile ][ "driver" ], ;
+            "tcpPort" => hTCP[ "port" ], "httpPort" => hConfig[ "httpPort" ], ;
+            "httpToken" => cToken, "host" => "127.0.0.1", ;
+            "serveSeconds" => nSeconds, "httpCompressionMinBytes" => 0 }
+        IF ! hb_MemoWrit( cPending, HBBridgeJSONEncode( hEndpoints ) + hb_eol() ) .OR. ;
+            FRename( cPending, cEndpoints ) != 0
+            OutStd( "Typed SQL serving prerequisite failed: ENDPOINT_PUBLICATION_FAILED" + hb_eol() )
+            Break( NIL )
+        ENDIF
+        hReport[ "ready" ] := .T.
+        OutStd( "Typed SQL listeners ready; endpoint file=endpoints.json; stop file=stop.request" + hb_eol() )
+        nStarted := HBBridgeMonotonicMs()
+        nBudget := nSeconds * 1000
+        DO WHILE ! hb_FileExists( cStop ) .AND. HBBridgeMonotonicMs() - nStarted < nBudget
+            hb_idleSleep( 0.1 )
+        ENDDO
+        lSuccess := .T.
+    RECOVER
+        OutStd( "Typed SQL serving failed: CONTROLLED_RUNTIME_FAILURE" + hb_eol() )
+    ALWAYS
+        IF hHTTP != NIL
+            hReport[ "httpStopped" ] := HBBridgeHTTPStop( hHTTP )
+        ENDIF
+        IF hTCP != NIL
+            hReport[ "tcpStopped" ] := HBBridgeServerStop( hTCP )
+        ENDIF
+        hReport[ "noActiveLeases" ] := HBBridgeGetPool():Status()[ "activeLeases" ] == 0
+        hb_cdpSelect( cCodePage )
+    END SEQUENCE
+    hReport[ "success" ] := lSuccess .AND. hReport[ "ready" ] .AND. ;
+        hReport[ "tcpStopped" ] .AND. hReport[ "httpStopped" ] .AND. hReport[ "noActiveLeases" ]
+    IF ! hb_MemoWrit( cOutput, HBBridgeJSONEncode( hReport ) + hb_eol() )
+        RETURN .F.
+    ENDIF
+
+RETURN hReport[ "success" ]
+
+STATIC FUNCTION TQServeTokenValid( cToken )
+
+    LOCAL cHex := "0123456789ABCDEF"
+
+    LOCAL nPosition, nSize := Len( cToken )
+
+    IF nSize != 64
+        RETURN .F.
+    ENDIF
+    FOR nPosition := 1 TO nSize
+        IF ! ( SubStr( cToken, nPosition, 1 ) $ cHex )
+            RETURN .F.
+        ENDIF
+    NEXT
+
+RETURN .T.
 
 STATIC PROCEDURE TQSQLiteFixture( nConnection, hReport )
 

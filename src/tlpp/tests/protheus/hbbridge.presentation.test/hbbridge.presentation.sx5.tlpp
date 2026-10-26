@@ -1,0 +1,102 @@
+/* Released to Public Domain. */
+#include "totvs.ch"
+
+namespace HBBridge.Examples
+
+// Protheus alone resolves its physical table, branch and dictionary fields.
+class HBBridgePresentationSX5
+    static method Definition() as json
+endclass
+
+static method Definition() class HBBridgePresentationSX5
+
+    local aNames as array
+    local aSX3 as array
+
+    local cField:="" as character
+
+    local jDefinition as json
+    local jFields:=JSONObject():New() as json
+    local jMap:=JSONObject():New() as json
+    local jBindings:=JSONObject():New() as json
+    local jSchema:=JSONObject():New() as json
+
+    local lValid:=.T. as logical
+
+    local nField:=0 as numeric
+    local nFields:=0 as numeric
+
+    if (Select("SX2")==0.or.Type("cEmpAnt")!="C".or.Type("cFilAnt")!="C")
+        FreeObj(@jFields)
+        FreeObj(@jMap)
+        FreeObj(@jBindings)
+        FreeObj(@jSchema)
+        return(nil)
+    endif
+    jMap["BRANCH"]:={"field":"X5_FILIAL","caption":"Branch"}
+    jMap["TABLE_CODE"]:={"field":"X5_TABELA","caption":"Table code"}
+    jMap["ITEM_CODE"]:={"field":"X5_CHAVE","caption":"Item code"}
+    jMap["DESCRIPTION"]:={"field":"X5_DESCRI","caption":"Description"}
+    // GetNames/TamSX3 return arrays at the native framework boundary.
+    aNames:=jMap:GetNames()
+    nFields:=Len(aNames)
+    for nField:=1 to nFields
+        cField:=aNames[nField]
+        aSX3:=TamSX3(jMap[cField]["field"])
+        if (ValType(aSX3)!="A")
+            lValid:=.F.
+            exit
+        endif
+        if (Len(aSX3)<3)
+            lValid:=.F.
+            exit
+        endif
+        if (aSX3[3]!="C".or.aSX3[1]<1.or.aSX3[1]>254)
+            lValid:=.F.
+            exit
+        endif
+        jFields[cField]:=PresentationSX5Field("character",aSX3[1],jMap[cField]["caption"])
+        FWFreeArray(@aSX3)
+    next nField
+    if (lValid)
+        jFields["RECNO"]:=PresentationSX5Field("numeric",16,"Record")
+        jSchema["schemaVersion"]:=1
+        jSchema["fields"]:=jFields
+        jFields:=nil
+        jBindings["1"]:={"type":"text","isNull":.F.,"value":" "}
+        jBindings["2"]:={"type":"text","isNull":.F.,"value":xFilial("SX5")}
+        jDefinition:=JSONObject():New()
+        jDefinition["sql"]:="SELECT X5_FILIAL AS BRANCH, X5_TABELA AS TABLE_CODE, "+;
+            "X5_CHAVE AS ITEM_CODE, X5_DESCRI AS DESCRIPTION, "+;
+            "CAST(R_E_C_N_O_ AS BIGINT) AS RECNO FROM "+RetSQLName("SX5")+;
+            " WHERE D_E_L_E_T_ = ? AND X5_FILIAL = ?"
+        jDefinition["orderBy"]:="BRANCH ASC,TABLE_CODE ASC,ITEM_CODE ASC,RECNO ASC"
+        jDefinition["schema"]:=jSchema
+        jSchema:=nil
+        jDefinition["bindings"]:=jBindings
+        jBindings:=nil
+    endif
+    FWFreeArray(@aNames)
+    FWFreeArray(@aSX3)
+    FreeObj(@jMap)
+    FreeObj(@jFields)
+    FreeObj(@jBindings)
+    FreeObj(@jSchema)
+
+return(jDefinition)
+
+static function PresentationSX5Field(cType as character,nLength as numeric,cCaption as character) as json
+
+    local jField:=JSONObject():New() as json
+
+    jField["type"]:=cType
+    jField["length"]:=nLength
+    jField["decimals"]:=0
+    jField["nullable"]:=.F.
+    jField["caption"]:=cCaption
+    jField["picture"]:=""
+    jField["inputFormat"]:=nil
+    jField["nullPolicy"]:="reject"
+    jField["roundingPolicy"]:="reject"
+
+return(jField)
