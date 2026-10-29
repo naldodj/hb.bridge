@@ -16,14 +16,19 @@ function U_HBBridgePresentationTest()
     local jConverted as json
     local jChecks:=JSONObject():New() as json
     local jCases:=JSONObject():New() as json
+    local jBindings as json
+    local jQuery as json
 
     local lOK:=.T. as logical
     local lConverted:=.F. as logical
+    local lInputsUnchanged:=.T. as logical
 
     local nCase:=0 as numeric
     local nCases:=0 as numeric
     local nCheck:=0 as numeric
     local nChecks:=0 as numeric
+
+    local oSource as object
 
     jHeader:=HBBridge.Tests.HBBridgePresentationFixture():Header()
     jSchema:=HBBridge.Tests.HBBridgePresentationFixture():Schema()
@@ -44,6 +49,7 @@ function U_HBBridgePresentationTest()
     FreeObj(@jHeader)
     FreeObj(@jSchema)
     FreeObj(@jRow)
+    PresentationTestProjectionFields(jChecks)
     jCases:FromJSON('{"unknownMember":true,"version":true,"composedMember":true,"missingProjection":true,"characterCapacity":true,"numericCapacity":true,"numericScale":true,"dateWidth":true,"logicalWidth":true,"nullPolicy":true,"roundingPolicy":true,"dateFormat":true,"unknownType":true,"wireMismatch":true,"nullableType":true}')
     aNames:=jCases:GetNames()
     nCases:=Len(aNames)
@@ -129,6 +135,98 @@ function U_HBBridgePresentationTest()
     next nCase
     FWFreeArray(@aNames)
     FreeObj(@jCases)
+    // Compact physical dates are explicitly caller-declared text, including
+    // the Protheus eight-space empty date. They never change SQL NULL policy.
+    jHeader:=HBBridge.Tests.HBBridgePresentationFixture():Header()
+    jHeader["DAY"]["wire"]["kind"]:="text"
+    jSchema:=HBBridge.Tests.HBBridgePresentationFixture():Schema()
+    jSchema["fields"]["DAY"]["inputFormat"]:="YYYYMMDD"
+    jRow:=HBBridge.Tests.HBBridgePresentationFixture():Row()
+    jRow["DAY"]:="20240229"
+    cOriginal:=HBBridge.Client.HBBridgeJSON():Encode(jRow)
+    lConverted:=HBBridge.Client.HBBridgePresentationSchema():ConvertRow(;
+        jHeader,jSchema,jRow,@jConverted,@cCode,@cMessage)
+    jChecks["dateValidYYYYMMDD"]:=.F.
+    if (lConverted)
+        jChecks["dateValidYYYYMMDD"]:=ValType(jConverted["DAY"])=="D".and.DToS(jConverted["DAY"])=="20240229"
+    endif
+    jChecks["dateYYYYMMDDInputUnchanged"]:=HBBridge.Client.HBBridgeJSON():Encode(jRow)==cOriginal
+    FreeObj(@jConverted)
+    jRow["DAY"]:=Space(8)
+    cOriginal:=HBBridge.Client.HBBridgeJSON():Encode(jRow)
+    lConverted:=HBBridge.Client.HBBridgePresentationSchema():ConvertRow(;
+        jHeader,jSchema,jRow,@jConverted,@cCode,@cMessage)
+    jChecks["dateExactSpacesIsEmptyNativeDate"]:=.F.
+    if (lConverted)
+        jChecks["dateExactSpacesIsEmptyNativeDate"]:=ValType(jConverted["DAY"])=="D".and.Empty(jConverted["DAY"])
+    endif
+    jChecks["dateEmptyInputUnchanged"]:=HBBridge.Client.HBBridgeJSON():Encode(jRow)==cOriginal
+    FreeObj(@jConverted)
+    jSchema["fields"]["DAY"]["nullable"]:=.T.
+    jRow["DAY"]:=nil
+    cOriginal:=HBBridge.Client.HBBridgeJSON():Encode(jRow)
+    jChecks["dateNullStillRejected"]:=!HBBridge.Client.HBBridgePresentationSchema():ConvertRow(;
+        jHeader,jSchema,jRow,@jConverted,@cCode,@cMessage).and.;
+        ValType(jConverted)=="U".and.cCode=="PRESENTATION_NULL_REJECTED"
+    jChecks["dateNullInputUnchanged"]:=HBBridge.Client.HBBridgeJSON():Encode(jRow)==cOriginal
+    jCases:=JSONObject():New()
+    jCases["zeroes"]:="00000000"
+    jCases["sevenSpaces"]:=Space(7)
+    jCases["nineSpaces"]:=Space(9)
+    jCases["emptyText"]:=""
+    jCases["invalidCalendar"]:="20240230"
+    jCases["isoInCompact"]:="2024-02-29"
+    jCases["wrongDigits"]:="2024A229"
+    jCases["isoSpaces"]:=Space(10)
+    aNames:=jCases:GetNames()
+    nCases:=Len(aNames)
+    for nCase:=1 to nCases
+        cMode:=aNames[nCase]
+        jSchema["fields"]["DAY"]["inputFormat"]:=if(cMode=="isoSpaces","YYYY-MM-DD","YYYYMMDD")
+        jRow["DAY"]:=jCases[cMode]
+        cOriginal:=HBBridge.Client.HBBridgeJSON():Encode(jRow)
+        jChecks["rejectDate."+cMode]:=!HBBridge.Client.HBBridgePresentationSchema():ConvertRow(;
+            jHeader,jSchema,jRow,@jConverted,@cCode,@cMessage).and.;
+            ValType(jConverted)=="U".and.cCode=="PRESENTATION_DATE_ERROR"
+        lInputsUnchanged:=lInputsUnchanged.and.HBBridge.Client.HBBridgeJSON():Encode(jRow)==cOriginal
+    next nCase
+    jChecks["dateRejectedInputsUnchanged"]:=lInputsUnchanged
+    FWFreeArray(@aNames)
+    FreeObj(@jCases)
+    FreeObj(@jHeader)
+    FreeObj(@jSchema)
+    FreeObj(@jRow)
+    // SQL dates and compact Protheus character dates need different binding
+    // types even though the user enters the same validated ISO calendar date.
+    jBindings:=JSONObject():New()
+    jSchema:=HBBridge.Tests.HBBridgePresentationFixture():Schema()
+    jSchema["fields"]["DAY"]["inputFormat"]:="YYYYMMDD"
+    oSource:=HBBridge.Examples.HBBridgePresentationSQLSource():New("SELECT physical_dates","DAY ASC",jSchema,jBindings)
+    jSchema["fields"]["DAY"]["inputFormat"]:="YYYY-MM-DD"
+    jChecks["compactDateFilterAcceptsISO"]:=oSource:AddFilter("DAY","equal","2024-02-29")
+    jQuery:=oSource:Query()
+    jChecks["compactDateBindingUsesText"]:=jQuery["bindings"]["1"]["type"]=="text".and.;
+        jQuery["bindings"]["1"]["value"]=="20240229".and.!jQuery["bindings"]["1"]["isNull"]
+    jChecks["compactDateKeepsColumnUnconverted"]:=jQuery["sql"]==;
+        "SELECT * FROM (SELECT physical_dates"+Chr(10)+") HBBR_SOURCE WHERE HBBR_SOURCE.[DAY] = ?"
+    cOriginal:=HBBridge.Client.HBBridgeJSON():Encode(jQuery)
+    FreeObj(@jQuery)
+    jChecks["compactDateRejectsInvalidCalendar"]:=!oSource:AddFilter("DAY","equal","2023-02-29")
+    jQuery:=oSource:Query()
+    jChecks["invalidDateFilterKeepsQuery"]:=HBBridge.Client.HBBridgeJSON():Encode(jQuery)==cOriginal
+    FreeObj(@jQuery)
+    oSource:Close()
+    FreeObj(@oSource)
+    oSource:=HBBridge.Examples.HBBridgePresentationSQLSource():New("SELECT sql_dates","DAY ASC",jSchema,jBindings)
+    jChecks["sqlDateFilterAcceptsISO"]:=oSource:AddFilter("DAY","equal","2024-02-29")
+    jQuery:=oSource:Query()
+    jChecks["sqlDateBindingRemainsDate"]:=jQuery["bindings"]["1"]["type"]=="date".and.;
+        jQuery["bindings"]["1"]["value"]=="2024-02-29".and.!jQuery["bindings"]["1"]["isNull"]
+    FreeObj(@jQuery)
+    oSource:Close()
+    FreeObj(@oSource)
+    FreeObj(@jSchema)
+    FreeObj(@jBindings)
     aNames:=jChecks:GetNames()
     nChecks:=Len(aNames)
     for nCheck:=1 to nChecks
@@ -139,6 +237,130 @@ function U_HBBridgePresentationTest()
     FWFreeArray(@aNames)
     FreeObj(@jChecks)
 return(IIf(lOK,0,1))
+
+static function PresentationTestProjectionFields(jChecks as json)
+
+    // JSONObject enumeration requires arrays; invalid-array payloads below
+    // intentionally exercise the JSON contract rather than a data structure.
+    local aNames as array
+
+    local cCode:="" as character
+    local cMessage:="" as character
+    local cMode:="" as character
+    local cName:="" as character
+    local cHeaderBefore:="" as character
+    local cRowBefore:="" as character
+    local cSchemaBefore:="" as character
+    local cNul:=Chr(0) as character
+
+    local jHeader:=HBBridge.Tests.HBBridgePresentationFixture():Header() as json
+    local jSchema:=HBBridge.Tests.HBBridgePresentationFixture():Schema() as json
+    local jRow:=HBBridge.Tests.HBBridgePresentationFixture():Row() as json
+    local jExpected as json
+    local jConverted as json
+    local jCases:=JSONObject():New() as json
+
+    local lBaseline:=.F. as logical
+    local lConverted:=.F. as logical
+
+    local nCase:=0 as numeric
+    local nCases:=0 as numeric
+    local nField:=0 as numeric
+    local nFields:=0 as numeric
+
+    // Preserve the established two-member schema as the conversion baseline.
+    lBaseline:=HBBridge.Client.HBBridgePresentationSchema():ConvertRow(;
+        jHeader,jSchema,jRow,@jExpected,@cCode,@cMessage)
+    jSchema["projectionFields"]:=JSONObject():New()
+    jChecks["projectionFieldsEmptyMapAccepted"]:=HBBridge.Client.HBBridgePresentationSchema():Validate(;
+        jHeader,jSchema,@cCode,@cMessage)
+    jSchema["projectionFields"]["AMOUNT"]:="RA_SALARIO"
+    jSchema["projectionFields"]["TEXT"]:="RA_NOME"
+    jChecks["projectionFieldsPartialMapAccepted"]:=HBBridge.Client.HBBridgePresentationSchema():Validate(;
+        jHeader,jSchema,@cCode,@cMessage)
+    cHeaderBefore:=HBBridge.Client.HBBridgeJSON():Encode(jHeader)
+    cRowBefore:=HBBridge.Client.HBBridgeJSON():Encode(jRow)
+    cSchemaBefore:=HBBridge.Client.HBBridgeJSON():Encode(jSchema)
+    lConverted:=HBBridge.Client.HBBridgePresentationSchema():ConvertRow(;
+        jHeader,jSchema,jRow,@jConverted,@cCode,@cMessage)
+    jChecks["projectionFieldsRowConversion"]:=lConverted
+    jChecks["projectionFieldsConvertedValuesUnchanged"]:=lBaseline.and.lConverted
+    if (lBaseline.and.lConverted)
+        aNames:=jExpected:GetNames()
+        nFields:=Len(aNames)
+        for nField:=1 to nFields
+            cName:=aNames[nField]
+            jChecks["projectionFieldsConvertedValuesUnchanged"]:=jChecks["projectionFieldsConvertedValuesUnchanged"].and.;
+                jConverted:HasProperty(cName).and.ValType(jConverted[cName])==ValType(jExpected[cName]).and.;
+                jConverted[cName]==jExpected[cName]
+        next nField
+        FWFreeArray(@aNames)
+        aNames:=jConverted:GetNames()
+        jChecks["projectionFieldsConvertedValuesUnchanged"]:=jChecks["projectionFieldsConvertedValuesUnchanged"].and.Len(aNames)==nFields
+        FWFreeArray(@aNames)
+    endif
+    jChecks["projectionFieldsInputsUnchanged"]:=HBBridge.Client.HBBridgeJSON():Encode(jHeader)==cHeaderBefore.and.;
+        HBBridge.Client.HBBridgeJSON():Encode(jRow)==cRowBefore.and.;
+        HBBridge.Client.HBBridgeJSON():Encode(jSchema)==cSchemaBefore
+    FreeObj(@jExpected)
+    FreeObj(@jConverted)
+    // A repeated origin is legal metadata; inverse lookup has its own
+    // ambiguity policy and must not invalidate the logical schema.
+    jSchema["projectionFields"]["TEXT"]:="RA_SALARIO"
+    jChecks["projectionFieldsSharedOriginAccepted"]:=HBBridge.Client.HBBridgePresentationSchema():Validate(;
+        jHeader,jSchema,@cCode,@cMessage)
+    jSchema["projectionFields"]["TEXT"]:="MixedCase.original field"
+    jChecks["projectionFieldsGenericOriginAccepted"]:=HBBridge.Client.HBBridgePresentationSchema():Validate(;
+        jHeader,jSchema,@cCode,@cMessage)
+    FreeObj(@jSchema)
+    jCases:FromJSON('{"unknownRootMember":true,"mapNull":true,"mapNumeric":true,"mapText":true,"mapLogical":true,"mapArray":true,"unknownProjection":true,"valueNull":true,"valueNumeric":true,"valueLogical":true,"valueArray":true,"valueObject":true,"valueEmpty":true,"valueSpaces":true,"valueNul":true}')
+    aNames:=jCases:GetNames()
+    nCases:=Len(aNames)
+    for nCase:=1 to nCases
+        cMode:=aNames[nCase]
+        jSchema:=HBBridge.Tests.HBBridgePresentationFixture():Schema()
+        jSchema["projectionFields"]:=JSONObject():New()
+        do case
+        case cMode=="unknownRootMember"
+            jSchema["extra"]:=.T.
+        case cMode=="mapNull"
+            jSchema["projectionFields"]:=nil
+        case cMode=="mapNumeric"
+            jSchema["projectionFields"]:=1
+        case cMode=="mapText"
+            jSchema["projectionFields"]:="RA_NOME"
+        case cMode=="mapLogical"
+            jSchema["projectionFields"]:=.T.
+        case cMode=="mapArray"
+            jSchema["projectionFields"]:={"RA_NOME"}
+        case cMode=="unknownProjection"
+            jSchema["projectionFields"]["MISSING"]:="RA_NOME"
+        case cMode=="valueNull"
+            jSchema["projectionFields"]["TEXT"]:=nil
+        case cMode=="valueNumeric"
+            jSchema["projectionFields"]["TEXT"]:=1
+        case cMode=="valueLogical"
+            jSchema["projectionFields"]["TEXT"]:=.T.
+        case cMode=="valueArray"
+            jSchema["projectionFields"]["TEXT"]:={"RA_NOME"}
+        case cMode=="valueObject"
+            jSchema["projectionFields"]["TEXT"]:=JSONObject():New()
+        case cMode=="valueEmpty"
+            jSchema["projectionFields"]["TEXT"]:=""
+        case cMode=="valueSpaces"
+            jSchema["projectionFields"]["TEXT"]:=Space(3)
+        case cMode=="valueNul"
+            jSchema["projectionFields"]["TEXT"]:="RA"+cNul+"NOME"
+        endcase
+        jChecks["rejectProjectionFields."+cMode]:=!HBBridge.Client.HBBridgePresentationSchema():Validate(;
+            jHeader,jSchema,@cCode,@cMessage).and.cCode=="INVALID_LOGICAL_SCHEMA"
+        FreeObj(@jSchema)
+    next nCase
+    FWFreeArray(@aNames)
+    FreeObj(@jCases)
+    FreeObj(@jHeader)
+    FreeObj(@jRow)
+return
 
 static function PresentationTestOmit(jValue as json,cOmitted as character) as json
 

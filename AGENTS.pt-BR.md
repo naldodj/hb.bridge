@@ -14,6 +14,12 @@
   e resumos sanitizados em `docs/validation/`. Caminhos históricos de logs tmp
   são proveniência, nunca exigência de retenção. `out/` é gerado; dependências
   de compilação gerenciadas pertencem a `.deps/`.
+- Compile TLPP a partir do caminho do fonte mantido sempre que possível. Se
+  testes ou validações precisarem copiar/gerar arquivos `.tlpp` em `tmp/`,
+  remova-os imediatamente após o uso, inclusive nas falhas, com `try`/`finally`
+  ou limpeza equivalente. Duplicatas retidas confundem a resolução de fontes
+  da extensão TOTVS. Preserve logs, listas de fontes e hashes como evidência,
+  em vez das cópias; nunca exclua os originais mantidos nessa limpeza.
 - Use `#include "totvs.ch"` como include TLPP padrão. Acrescente `tlpp-core.th`,
   `tlpp-rest.th` ou outros headers somente por declarações/macros efetivamente
   utilizados, não apenas por o fonte ter extensão `.tlpp`.
@@ -35,7 +41,9 @@
   métodos, namespaces e classes usam PascalCase. Os fontes usam palavras
   minúsculas separadas por pontos: `HBBridgeClient` fica em `hbbridge.client.tlpp`. Remover os pontos
   deve produzir o nome da classe em minúsculas; pontos não representam namespaces.
-- Escreva mensagens de erro, logs e rótulos de interface próprios em inglês.
+- Escreva comentários de fontes, mensagens de erro, logs e rótulos de interface
+  próprios em inglês. Traduza comentários em português encontrados ao editar
+  ou revisar fontes, preservando seu sentido técnico e nomes de APIs externas.
   Preserve textos externos e dados intencionais de testes de idioma/codificação.
   A documentação portuguesa continua nos arquivos pareados `.pt-BR`.
 - Redija documentação de forma impessoal, com foco em decisões, resultados
@@ -87,3 +95,7 @@
 - Antes de cada commit, execute `scripts/commit-check.ps1`: devem passar
   `.hbcommit/check.hb`, `.hbcommit/commit.hb` e a validação somente leitura de
   `.hbcommit/3rdpatch.hb`. Não ignore falhas nem altere o índice silenciosamente.
+  O padrão verifica alterados/novos; `-Staged` valida conteúdos alterados do
+  índice e `-All` solicita revisão completa. Alterações em políticas,
+  ferramentas/configuração exigem validação completa; terceiros mantêm seu
+  escopo global em todas as execuções.

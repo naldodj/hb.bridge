@@ -1,0 +1,265 @@
+/* Released to Public Domain. */
+#include "totvs.ch"
+#include "dbinfo.ch"
+
+// Actual local SQLite RDD storage with synthetic typed rows. This test never
+// opens a DBAccess connection, executes SQL or reads employee information.
+function U_HBBridgePresentationRDDTest()
+
+    // JSONObject exposes its property names through this native array API.
+    local aNames as array
+
+    local cRDD:="" as character
+    local cOtherRDD:="" as character
+    local cPrefix:="" as character
+    local cAlias:="" as character
+    local cDateKey:="" as character
+    local cActualRDD:="" as character
+    local cText:=DecodeUTF8("a"+Chr(195)+Chr(167)+Chr(195)+Chr(163)+"o") as character
+
+    local jChecks:=JSONObject():New() as json
+    local jSchema as json
+    local jResponse as json
+    local jBindings:=JSONObject():New() as json
+
+    local lOK:=.T. as logical
+    local lConnected:=TCIsConnected() as logical
+
+    local nRDD:=0 as numeric
+    local nArea:=Select() as numeric
+    local nWorkArea:=0 as numeric
+    local nTextOrder:=0 as numeric
+    local nDayOrder:=0 as numeric
+    local nFlagOrder:=0 as numeric
+    local nSelectedOrder:=0 as numeric
+    local nCheck:=0 as numeric
+    local nChecks:=0 as numeric
+
+    local oClient as object
+    local oDataSet as object
+    local oNative as object
+
+    local xError as variant
+
+    try
+        for nRDD:=1 to 2
+            cRDD:=if(nRDD==1,"SQLITE_MEM","SQLITE_TMP")
+            cOtherRDD:=if(nRDD==1,"SQLITE_TMP","SQLITE_MEM")
+            cPrefix:=Lower(cRDD)+"."
+            oClient:=HBBridge.Tests.HBBridgeDataSetMockClient():New()
+            oDataSet:=HBBridge.RDD.HBBridgeRPCDataSet():New(oClient)
+            oDataSet:SetAliasProfile("presentation/mock")
+            jResponse:=PresentationRDDResult(1,2,3)
+            oClient:Queue(jResponse)
+            FreeObj(@jResponse)
+            jResponse:=PresentationRDDResult(2,1,3)
+            oClient:Queue(jResponse)
+            FreeObj(@jResponse)
+            jChecks[cPrefix+"fixtureOpen"]:=oDataSet:OpenPageTyped("SELECT local_fixture",jBindings,1,2,"ID_CODE ASC")
+            jSchema:=HBBridge.Tests.HBBridgePresentationFixture():Schema()
+            jSchema["fields"]["DAY"]["inputFormat"]:="YYYYMMDD"
+            if (nRDD==1)
+                oNative:=HBBridge.Client.HBBridgeNativeTable():New(oDataSet,jSchema,.T.)
+            else
+                oNative:=HBBridge.Client.HBBridgeNativeTable():New(oDataSet,jSchema,.T.,cRDD)
+            endif
+            jChecks[cPrefix+"configuredRDD"]:=oNative:RDD()==cRDD
+            jChecks[cPrefix+"unpublishedSearchIsSafe"]:=oNative:IndexOrder("TEXT")==0.and.;
+                oNative:EnsureIndex("TEXT")==0.and.Empty(oNative:Alias())
+            nArea:=Select()
+            jChecks[cPrefix+"nativePageLoaded"]:=oNative:LoadCurrentPage()
+            jChecks[cPrefix+"selectedAreaRestored"]:=Select()==nArea
+            if (!oNative:IsOpen())
+                ConOut("hbBridge local RDD storage failure: "+cRDD+"; "+oNative:ErrorCode())
+                throw "LOCAL_RDD_PAGE_FAILED"
+            endif
+            cAlias:=oNative:Alias()
+            nWorkArea:=Select(cAlias)
+            cActualRDD:=Upper((cAlias)->(RDDName()))
+            jChecks[cPrefix+"actualSQLiteDriver"]:="SQLITE" $ cActualRDD
+            ConOut("hbBridge local RDD storage: configured="+cRDD+"; native="+cActualRDD+;
+                "; path="+(cAlias)->(DbInfo(DBI_FULLPATH)))
+            jChecks[cPrefix+"nativeRowsAndFields"]:=oNative:RowCount()==2.and.;
+                (cAlias)->(LastRec())==2.and.oNative:FieldCount()==7
+            jChecks[cPrefix+"localStorageUsesRecordWriter"]:=oNative:WriteMode()=="record"
+            jChecks[cPrefix+"onlyFirstIndexExists"]:=oNative:IndexOrder("ID_CODE")==1.and.;
+                !Empty((cAlias)->(IndexKey(1))).and.Empty((cAlias)->(IndexKey(2)))
+            jChecks[cPrefix+"unrequestedIndexIsZero"]:=oNative:IndexOrder("TEXT")==0.and.;
+                oNative:IndexOrder("DAY")==0.and.oNative:IndexOrder("FLAG")==0
+            (cAlias)->(DbGoTop())
+            jChecks[cPrefix+"identifierAndCodeRetained"]:=;
+                RTrim((cAlias)->(FieldGet(FieldPos(oNative:FieldName("ID_CODE")))))=="0000000001".and.;
+                RTrim((cAlias)->(FieldGet(FieldPos(oNative:FieldName("ID")))))=="1"
+            jChecks[cPrefix+"utf8DecodedExactlyOnce"]:=;
+                RTrim((cAlias)->(FieldGet(FieldPos(oNative:FieldName("TEXT")))))==cText
+            jChecks[cPrefix+"numericValueAndTypeRetained"]:=;
+                ValType((cAlias)->(FieldGet(FieldPos(oNative:FieldName("AMOUNT")))))=="N".and.;
+                (cAlias)->(FieldGet(FieldPos(oNative:FieldName("AMOUNT"))))==123.25.and.;
+                (cAlias)->(FieldGet(FieldPos(oNative:FieldName("FLOAT"))))==1.25
+            jChecks[cPrefix+"emptyDateIsNativeDate"]:=;
+                ValType((cAlias)->(FieldGet(FieldPos(oNative:FieldName("DAY")))))=="D".and.;
+                Empty((cAlias)->(FieldGet(FieldPos(oNative:FieldName("DAY")))))
+            jChecks[cPrefix+"falseLogicalIsNativeLogical"]:=;
+                ValType((cAlias)->(FieldGet(FieldPos(oNative:FieldName("FLAG")))))=="L".and.;
+                (cAlias)->(!FieldGet(FieldPos(oNative:FieldName("FLAG"))))
+            (cAlias)->(DbSkip())
+            jChecks[cPrefix+"secondRowTypesRemainAligned"]:=;
+                DToS((cAlias)->(FieldGet(FieldPos(oNative:FieldName("DAY")))))=="20240229".and.;
+                (cAlias)->(FieldGet(FieldPos(oNative:FieldName("FLAG")))).and.;
+                (cAlias)->(FieldGet(FieldPos(oNative:FieldName("AMOUNT"))))==-123.25.and.;
+                (cAlias)->(FieldGet(FieldPos(oNative:FieldName("FLOAT"))))==2.5
+            nArea:=Select()
+            nTextOrder:=oNative:EnsureIndex("TEXT")
+            nDayOrder:=oNative:EnsureIndex("DAY")
+            nFlagOrder:=oNative:EnsureIndex("FLAG")
+            jChecks[cPrefix+"lazyIndexesCreatedAfterData"]:=nTextOrder==2.and.nDayOrder==3.and.nFlagOrder==4
+            jChecks[cPrefix+"physicalOrdersDifferFromProjectionPositions"]:=;
+                nTextOrder!=4.and.nDayOrder!=6.and.nFlagOrder!=5
+            jChecks[cPrefix+"indexCreationRestoresSelectedArea"]:=Select()==nArea
+            jChecks[cPrefix+"indexLookupReturnsActualOrders"]:=oNative:IndexOrder("TEXT")==nTextOrder.and.;
+                oNative:IndexOrder("DAY")==nDayOrder.and.oNative:IndexOrder("FLAG")==nFlagOrder
+            jChecks[cPrefix+"lazyIndexesAreIdempotent"]:=oNative:EnsureIndex("TEXT")==nTextOrder.and.;
+                oNative:EnsureIndex("DAY")==nDayOrder.and.Empty((cAlias)->(IndexKey(5)))
+            jChecks[cPrefix+"unknownFieldCreatesNoIndex"]:=oNative:EnsureIndex("NOT_PROJECTED")==0.and.;
+                oNative:IndexOrder("NOT_PROJECTED")==0.and.Empty((cAlias)->(IndexKey(5)))
+            jChecks[cPrefix+"textIndexUsesPublishedNativeField"]:=;
+                Upper(AllTrim((cAlias)->(IndexKey(nTextOrder))))==oNative:FieldName("TEXT")
+            cDateKey:=Upper(StrTran(AllTrim((cAlias)->(IndexKey(nDayOrder)))," ",""))
+            jChecks[cPrefix+"dateIndexUsesNativeDateExpression"]:=cDateKey==oNative:FieldName("DAY").or.;
+                cDateKey=="DTOS("+oNative:FieldName("DAY")+")"
+            jChecks[cPrefix+"logicalIndexUsesPrivateTextShadow"]:=;
+                Upper(AllTrim((cAlias)->(IndexKey(nFlagOrder))))==oNative:SearchFieldName("FLAG").and.;
+                oNative:SearchFieldName("FLAG")!=oNative:FieldName("FLAG")
+            (cAlias)->(DbSetOrder(nTextOrder))
+            jChecks[cPrefix+"lazyTextIndexCanSeek"]:=(cAlias)->(DbSeek(PadR(cText,20),.F.))
+            (cAlias)->(DbSetOrder(nFlagOrder))
+            jChecks[cPrefix+"logicalShadowCanSeekFalse"]:=(cAlias)->(DbSeek(PadR("False",5),.F.)).and.;
+                (cAlias)->(!FieldGet(FieldPos(oNative:FieldName("FLAG"))))
+            nSelectedOrder:=(cAlias)->(IndexOrd())
+            jChecks[cPrefix+"invalidRDDPreservesCurrentPage"]:=!oNative:LoadCurrentPage("DBFCDX").and.;
+                oNative:ErrorCode()=="INVALID_PRESENTATION_RDD".and.;
+                oNative:IsOpen().and.oNative:Alias()==cAlias.and.oNative:RowCount()==2.and.;
+                (cAlias)->(IndexOrd())==nSelectedOrder
+            jChecks[cPrefix+"driverChangePreservesCurrentPage"]:=!oNative:LoadCurrentPage(cOtherRDD).and.;
+                oNative:ErrorCode()=="PRESENTATION_RDD_CHANGE_REJECTED".and.;
+                oNative:IsOpen().and.oNative:RDD()==cRDD.and.oNative:Alias()==cAlias.and.;
+                oNative:IndexOrder("TEXT")==nTextOrder.and.(cAlias)->(LastRec())==2
+            jChecks[cPrefix+"storageSelectionDoesNotCallService"]:=oClient:CallCount()==1
+            jChecks[cPrefix+"nextPageIsExplicit"]:=oDataSet:NextPage().and.oClient:CallCount()==2
+            jChecks[cPrefix+"refillReusesNativeAlias"]:=oNative:LoadCurrentPage().and.;
+                oNative:Alias()==cAlias.and.Select(cAlias)==nWorkArea.and.oNative:RowCount()==1
+            jChecks[cPrefix+"refillKeepsActualIndexOrders"]:=oNative:IndexOrder("TEXT")==nTextOrder.and.;
+                oNative:IndexOrder("DAY")==nDayOrder.and.oNative:IndexOrder("FLAG")==nFlagOrder.and.;
+                (cAlias)->(IndexOrd())==nSelectedOrder.and.Empty((cAlias)->(IndexKey(5)))
+            (cAlias)->(DbSetOrder(nFlagOrder))
+            jChecks[cPrefix+"refilledIndexCanSeekTrue"]:=(cAlias)->(DbSeek(PadR("True",5),.F.)).and.;
+                RTrim((cAlias)->(FieldGet(FieldPos(oNative:FieldName("ID")))))=="3".and.;
+                DToS((cAlias)->(FieldGet(FieldPos(oNative:FieldName("DAY")))))=="20000229"
+            jResponse:=PresentationRDDResult(0,1,1)
+            jResponse["rows"]["1"]["TEXT"]:=nil
+            oClient:Queue(jResponse)
+            FreeObj(@jResponse)
+            jChecks[cPrefix+"nullIsAcceptedByDataset"]:=oDataSet:OpenSQLTyped("SELECT null_fixture",jBindings)
+            jChecks[cPrefix+"nullIsRejectedByNativeDestination"]:=!oNative:LoadCurrentPage().and.;
+                oNative:ErrorCode()=="PRESENTATION_NULL_REJECTED".and.!oNative:IsOpen()
+            jChecks[cPrefix+"failedRefillClearsRowsButKeepsStorage"]:=Select(cAlias)==nWorkArea.and.;
+                (cAlias)->(LastRec())==0.and.(cAlias)->(IndexOrd())==nSelectedOrder
+            jChecks[cPrefix+"failedPageCannotCreateSearchIndex"]:=oNative:EnsureIndex("FLOAT")==0.and.;
+                oNative:IndexOrder("FLOAT")==0.and.Empty((cAlias)->(IndexKey(5)))
+            jChecks[cPrefix+"nullSourceRemainsUnchanged"]:=ValType(oDataSet:FieldGet("TEXT"))=="U"
+            jResponse:=PresentationRDDResult(0,1,1)
+            oClient:Queue(jResponse)
+            FreeObj(@jResponse)
+            jChecks[cPrefix+"recoveryFixture"]:=oDataSet:OpenSQLTyped("SELECT recovery_fixture",jBindings)
+            jChecks[cPrefix+"recoveryKeepsStorageAndIndexes"]:=oNative:LoadCurrentPage().and.;
+                oNative:Alias()==cAlias.and.Select(cAlias)==nWorkArea.and.;
+                oNative:IndexOrder("TEXT")==nTextOrder.and.oNative:IndexOrder("DAY")==nDayOrder.and.;
+                oNative:IndexOrder("FLAG")==nFlagOrder.and.(cAlias)->(IndexOrd())==nSelectedOrder
+            jResponse:=PresentationRDDResult(0,0,0)
+            oClient:Queue(jResponse)
+            FreeObj(@jResponse)
+            jChecks[cPrefix+"emptyFixture"]:=oDataSet:OpenSQLTyped("SELECT empty_fixture",jBindings)
+            jChecks[cPrefix+"emptyPageKeepsSchemaAndStorage"]:=oNative:LoadCurrentPage().and.;
+                oNative:Alias()==cAlias.and.oNative:RowCount()==0.and.oNative:FieldCount()==7.and.;
+                (cAlias)->(Eof()).and.Empty(oNative:WriteMode())
+            jChecks[cPrefix+"emptyPageCanCreateRequestedIndex"]:=oNative:EnsureIndex("FLOAT")==5.and.;
+                oNative:IndexOrder("FLOAT")==5
+            jChecks[cPrefix+"closeReleasesLocalAlias"]:=oNative:Close().and.Select(cAlias)==0.and.!oNative:IsOpen()
+            jChecks[cPrefix+"closedLookupIsSafe"]:=oNative:IndexOrder("TEXT")==0.and.;
+                oNative:EnsureIndex("TEXT")==0.and.Empty(oNative:Alias())
+            jChecks[cPrefix+"closeIsIdempotent"]:=oNative:Close()
+            jChecks[cPrefix+"datasetRemainsCallerOwned"]:=oDataSet:FieldCount()==7.and.oDataSet:RowCount()==0
+            jChecks[cPrefix+"destroy"]:=oNative:Destroy()
+            FreeObj(@oNative)
+            oDataSet:Close()
+            FreeObj(@oDataSet)
+            oClient:Close()
+            FreeObj(@oClient)
+            FreeObj(@jSchema)
+            jChecks[cPrefix+"dbaccessConnectionStateUnchanged"]:=TCIsConnected()==lConnected
+        next nRDD
+    catch xError
+        jChecks["unexpectedRuntimeFailure"]:=.F.
+        ConOut("hbBridge local RDD test failed; inspect the owned local log.")
+        if (ValType(xError)=="O")
+            FreeObj(@xError)
+        endif
+    endtry
+    if (ValType(oNative)=="O")
+        jChecks["finalNativeCleanup"]:=oNative:Destroy()
+        if (jChecks["finalNativeCleanup"])
+            FreeObj(@oNative)
+        endif
+    endif
+    if (ValType(oDataSet)=="O")
+        oDataSet:Close()
+        FreeObj(@oDataSet)
+    endif
+    if (ValType(oClient)=="O")
+        oClient:Close()
+        FreeObj(@oClient)
+    endif
+    FreeObj(@jResponse)
+    FreeObj(@jSchema)
+    FreeObj(@jBindings)
+    aNames:=jChecks:GetNames()
+    nChecks:=Len(aNames)
+    for nCheck:=1 to nChecks
+        lOK:=jChecks[aNames[nCheck]].and.lOK
+        ConOut("hbBridge local RDD check "+aNames[nCheck]+": "+if(jChecks[aNames[nCheck]],"PASS","FAILED"))
+    next nCheck
+    ConOut("hbBridge local RDD checks: "+tlpp.ToStr(nChecks)+"; "+if(lOK,"OK","FAILED"))
+    FWFreeArray(@aNames)
+    FreeObj(@jChecks)
+
+return(if(lOK,0,1))
+
+static function PresentationRDDResult(nPage as numeric,nRows as numeric,nTotal as numeric) as json
+
+    local cKey:="" as character
+
+    local jResponse:=HBBridge.Tests.HBBridgePresentationFixture():Result(nPage,nRows,nTotal) as json
+
+    local nRow:=0 as numeric
+
+    // Model physical Protheus C(8) dates, including their eight-space empty
+    // value, as declared textual input instead of changing SQL NULL semantics.
+    jResponse["header"]["DAY"]["wire"]["kind"]:="text"
+    jResponse["header"]["DAY"]["source"]["typeCode"]:=1
+    jResponse["header"]["DAY"]["source"]["typeName"]:="char"
+    jResponse["header"]["DAY"]["source"]["characterLength"]:=8
+    jResponse["header"]["DAY"]["source"]["octetLength"]:=8
+    for nRow:=1 to nRows
+        cKey:=tlpp.ToStr(nRow)
+        if (nPage==2)
+            jResponse["rows"][cKey]["DAY"]:="20000229"
+            jResponse["rows"][cKey]["FLAG"]:=.T.
+        else
+            jResponse["rows"][cKey]["DAY"]:=if(nRow==1,Space(8),"20240229")
+            jResponse["rows"][cKey]["FLAG"]:=nRow!=1
+        endif
+        jResponse["rows"][cKey]["AMOUNT"]:=if(nRow==1,"123.25","-123.25")
+        jResponse["rows"][cKey]["FLOAT"]:=nRow*1.25
+    next nRow
+
+return(jResponse)

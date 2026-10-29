@@ -9,6 +9,7 @@ class HBBridgePresentationSchema
 
     static method Validate(jHeader as json,jLogicalSchema as json,cCode as character,cMessage as character) as logical
     static method ConvertRow(jHeader as json,jLogicalSchema as json,jRow as json,jConverted as json,cCode as character,cMessage as character) as logical
+    static method ConvertPage(jHeader as json,jLogicalSchema as json,jRows as json,jConverted as json,cCode as character,cMessage as character) as logical
 
 endclass
 
@@ -30,12 +31,24 @@ static method Validate(jHeader,jLogicalSchema,cCode,cMessage) class HBBridgePres
 
     cCode:=""
     cMessage:=""
-    if (!PresentationMembers(jLogicalSchema,"|schemaVersion|fields|",2))
+    if (ValType(jLogicalSchema)!="J")
+        return(PresentationFailure("INVALID_LOGICAL_SCHEMA","Logical schema requires schemaVersion and fields.",@cCode,@cMessage))
+    endif
+    if (!PresentationMembers(jLogicalSchema,"|schemaVersion|fields|projectionFields|",;
+        if(jLogicalSchema:HasProperty("projectionFields"),3,2)))
         return(PresentationFailure("INVALID_LOGICAL_SCHEMA","Logical schema requires schemaVersion and fields.",@cCode,@cMessage))
     endif
     if ((ValType(jLogicalSchema["schemaVersion"])!="N").or.(jLogicalSchema["schemaVersion"]!=1).or.;
         (ValType(jLogicalSchema["fields"])!="J").or.(ValType(jHeader)!="J"))
         return(PresentationFailure("INVALID_LOGICAL_SCHEMA","Logical schema version or projection is invalid.",@cCode,@cMessage))
+    endif
+    if (jLogicalSchema:HasProperty("projectionFields"))
+        if (ValType(jLogicalSchema["projectionFields"])!="J")
+            return(PresentationFailure("INVALID_LOGICAL_SCHEMA","Projection fields must be a JSON object.",@cCode,@cMessage))
+        endif
+        if (!PresentationProjectionFields(jLogicalSchema["projectionFields"],jLogicalSchema["fields"],@cCode,@cMessage))
+            return(.F.)
+        endif
     endif
     // GetNames is the SDK enumeration boundary. Records remain keyed JSON.
     aNames:=jHeader:GetNames()
@@ -78,6 +91,80 @@ static method ConvertRow(jHeader,jLogicalSchema,jRow,jConverted,cCode,cMessage) 
 
     local aNames as array
 
+    local lValid:=.F. as logical
+
+    local nFields:=0 as numeric
+
+    jConverted:=nil
+    if (!HBBridgePresentationSchema():Validate(jHeader,jLogicalSchema,@cCode,@cMessage))
+        return(.F.)
+    endif
+    aNames:=jHeader:GetNames()
+    nFields:=Len(aNames)
+    lValid:=PresentationConvertRow(jHeader,jLogicalSchema,jRow,aNames,nFields,@jConverted,@cCode,@cMessage)
+    FWFreeArray(@aNames)
+
+return(lValid)
+
+static method ConvertPage(jHeader,jLogicalSchema,jRows,jConverted,cCode,cMessage) class HBBridgePresentationSchema
+
+    local aNames as array
+
+    local cKey:="" as character
+
+    local jPending as json
+    local jRow as json
+
+    local lValid:=.T. as logical
+
+    local nFieldCount:=0 as numeric
+    local nRow:=0 as numeric
+    local nRows:=0 as numeric
+
+    jConverted:=nil
+    // These caller-owned snapshots cannot change during synchronous conversion.
+    // Validate their invariants once, without weakening any per-value check.
+    if (!HBBridgePresentationSchema():Validate(jHeader,jLogicalSchema,@cCode,@cMessage))
+        return(.F.)
+    endif
+    if (ValType(jRows)!="J")
+        return(PresentationFailure("INVALID_PRESENTATION_ROW","A page requires keyed rows.",@cCode,@cMessage))
+    endif
+    aNames:=jHeader:GetNames()
+    nFieldCount:=Len(aNames)
+    nRows:=PresentationCount(jRows)
+    jPending:=JSONObject():New()
+    for nRow:=1 to nRows
+        cKey:=tlpp.ToStr(nRow)
+        if (!jRows:HasProperty(cKey))
+            lValid:=PresentationFailure("INVALID_PRESENTATION_ROW","Page row keys must be contiguous ordinals.",@cCode,@cMessage)
+            exit
+        endif
+        // Reject a malformed row before crossing a typed JSON call boundary.
+        if (ValType(jRows[cKey])!="J")
+            lValid:=PresentationFailure("INVALID_PRESENTATION_ROW","Each page row must be an object.",@cCode,@cMessage)
+            exit
+        endif
+        if (!PresentationConvertRow(jHeader,jLogicalSchema,jRows[cKey],aNames,nFieldCount,@jRow,@cCode,@cMessage))
+            lValid:=.F.
+            exit
+        endif
+        jPending[cKey]:=jRow
+        jRow:=nil
+    next nRow
+    FWFreeArray(@aNames)
+    FreeObj(@jRow)
+    if (lValid)
+        jConverted:=jPending
+    else
+        FreeObj(@jPending)
+    endif
+
+return(lValid)
+
+// Internal only: the two public entry points validate the schema first.
+static function PresentationConvertRow(jHeader as json,jLogicalSchema as json,jRow as json,aNames as array,nFields as numeric,jConverted as json,cCode as character,cMessage as character) as logical
+
     local cName:="" as character
 
     local jPending as json
@@ -85,20 +172,14 @@ static method ConvertRow(jHeader,jLogicalSchema,jRow,jConverted,cCode,cMessage) 
     local lValid:=.T. as logical
 
     local nField:=0 as numeric
-    local nFields:=0 as numeric
 
     local xConverted as variant
 
     jConverted:=nil
-    if (!HBBridgePresentationSchema():Validate(jHeader,jLogicalSchema,@cCode,@cMessage))
-        return(.F.)
-    endif
-    if ((ValType(jRow)!="J").or.(PresentationCount(jRow)!=PresentationCount(jHeader)))
+    if ((ValType(jRow)!="J").or.(PresentationCount(jRow)!=nFields))
         return(PresentationFailure("INVALID_PRESENTATION_ROW","A row must contain every projected field exactly once.",@cCode,@cMessage))
     endif
     jPending:=JSONObject():New()
-    aNames:=jHeader:GetNames()
-    nFields:=Len(aNames)
     for nField:=1 to nFields
         cName:=aNames[nField]
         if (!jRow:HasProperty(cName))
@@ -112,7 +193,6 @@ static method ConvertRow(jHeader,jLogicalSchema,jRow,jConverted,cCode,cMessage) 
         endif
         jPending[cName]:=xConverted
     next nField
-    FWFreeArray(@aNames)
     if (lValid)
         jConverted:=jPending
     else
@@ -169,6 +249,41 @@ static function PresentationMembers(jValue as json,cAllowed as character,nExpect
     FWFreeArray(@aNames)
 
 return(lValid)
+
+static function PresentationProjectionFields(jProjectionFields as json,jFields as json,cCode as character,cMessage as character) as logical
+
+    // GetNames is the JSONObject enumeration boundary for this optional map.
+    local aNames:=jProjectionFields:GetNames() as array
+
+    local cProjection:="" as character
+    local cNul:=Chr(0) as character
+
+    local lValid:=.T. as logical
+
+    local nField:=0 as numeric
+    local nFields:=Len(aNames) as numeric
+
+    local xSource as variant
+
+    for nField:=1 to nFields
+        cProjection:=aNames[nField]
+        xSource:=jProjectionFields[cProjection]
+        if (Empty(cProjection).or.(cNul $ cProjection).or.!jFields:HasProperty(cProjection).or.ValType(xSource)!="C")
+            lValid:=.F.
+            exit
+        endif
+        if (Empty(xSource).or.(cNul $ xSource))
+            lValid:=.F.
+            exit
+        endif
+    next nField
+    FWFreeArray(@aNames)
+    if (!lValid)
+        return(PresentationFailure("INVALID_LOGICAL_SCHEMA",;
+            "Projection fields require existing projection keys and nonempty NUL-free source names.",@cCode,@cMessage))
+    endif
+
+return(.T.)
 
 static function PresentationInteger(xValue as variant,nMinimum as numeric,nMaximum as numeric) as logical
 
@@ -335,6 +450,13 @@ static function PresentationValue(xValue as variant,jMetadata as json,jField as 
             return(PresentationFailure("PRESENTATION_TYPE_MISMATCH","A date or declared textual date is required.",@cCode,@cMessage))
         endif
         cDate:=xValue
+        // Protheus physical character dates use exactly eight spaces for an
+        // empty native date. This explicit textual representation is not SQL
+        // NULL and is valid only for the caller-selected compact date format.
+        if (jField["inputFormat"]=="YYYYMMDD".and.cKind=="text".and.cDate==Space(8))
+            xConverted:=SToD("")
+            return(.T.)
+        endif
         if (jField["inputFormat"]=="YYYY-MM-DD")
             if ((Len(cDate)!=10).or.(SubStr(cDate,5,1)!="-").or.(SubStr(cDate,8,1)!="-"))
                 return(PresentationFailure("PRESENTATION_DATE_ERROR","A date value does not match YYYY-MM-DD.",@cCode,@cMessage))

@@ -1,0 +1,79 @@
+/* Released to Public Domain. */
+#include "totvs.ch"
+
+namespace HBBridge.Examples
+
+// ERP-specific query construction stays in this Protheus example. Neither
+// the generic SQL executor nor the native table discovers business metadata.
+class HBBridgePresentationSRA
+    static method Definition() as json
+    static method Plan(jMetadata as json,jColumns as json,cTable as character,cBranch as character) as json
+endclass
+
+static method Definition() class HBBridgePresentationSRA
+
+    local jDefinition:=HBBridge.Client.HBBridgePresentationTable():Definition("SRA") as json
+
+    if (ValType(jDefinition)=="J".and.jDefinition["success"]==.T.)
+        jDefinition:=PresentationSRAQuery(jDefinition,xFilial("SRA"))
+    endif
+
+return(jDefinition)
+
+// Deterministic planning uses the same builder and query completion as Definition.
+static method Plan(jMetadata,jColumns,cTable,cBranch) class HBBridgePresentationSRA
+
+    local jDefinition:=HBBridge.Client.HBBridgePresentationTable():Build(jMetadata,jColumns,"SRA",cTable) as json
+
+return(PresentationSRAQuery(jDefinition,cBranch))
+
+static function PresentationSRAQuery(jDefinition as json,cBranch as character) as json
+
+    local jFields as json
+
+    local lValid:=.F. as logical
+
+    if (ValType(jDefinition)!="J")
+        return(jDefinition)
+    endif
+    if (jDefinition["success"]!=.T.)
+        return(jDefinition)
+    endif
+    jFields:=jDefinition["schema"]["fields"]
+    if (jFields:HasProperty("RA_FILIAL").and.jFields:HasProperty("RA_MAT").and.;
+        jFields:HasProperty("R_E_C_N_O_").and.jFields:HasProperty("D_E_L_E_T_"))
+        lValid:=jFields["RA_FILIAL"]["type"]=="character".and.;
+            jFields["RA_MAT"]["type"]=="character".and.;
+            jFields["R_E_C_N_O_"]["type"]=="numeric".and.;
+            jFields["R_E_C_N_O_"]["decimals"]==0.and.;
+            jFields["D_E_L_E_T_"]["type"]=="character".and.;
+            jFields["D_E_L_E_T_"]["length"]==1
+    endif
+    if (lValid)
+        lValid:=ValType(cBranch)=="C"
+        if (lValid)
+            lValid:=Len(cBranch)<=jFields["RA_FILIAL"]["length"].and.!(Chr(0)$cBranch)
+        endif
+    endif
+    if (lValid)
+        jDefinition["bindings"]["1"]:={"type":"text","isNull":.F.,"value":" "}
+        jDefinition["bindings"]["2"]:={"type":"text","isNull":.F.,"value":cBranch}
+        beginContent var jDefinition["sql"]
+            SELECT @@PROJECTION@@ FROM @@TABLE@@ AS @@ALIAS@@
+            WHERE @@ALIAS@@.[D_E_L_E_T_] = ?
+            AND @@ALIAS@@.[RA_FILIAL] = ?
+        endContent
+        jDefinition["sql"]:=HBBridge.Helper.HBBridgeStrTools():StrReplaceEx(;
+            jDefinition["sql"],;
+            {"@@PROJECTION@@",jDefinition["projection"]},;
+            {"@@TABLE@@",jDefinition["table"]},;
+            {"@@ALIAS@@",jDefinition["alias"]};
+        )
+        jDefinition["orderBy"]:="RA_FILIAL ASC,RA_MAT ASC,R_E_C_N_O_ ASC"
+    else
+        jDefinition["success"]:=.F.
+        jDefinition["code"]:="INVALID_SRA_DEFINITION"
+        jDefinition["message"]:="The SRA query requires valid branch, registration, deleted and record fields."
+    endif
+
+return(jDefinition)

@@ -21,13 +21,75 @@ is inferred. See [closure, exact artifacts and limitations](docs/acceptance.md#p
 | Item | Current value |
 | --- | --- |
 | ID | `002-typed-sql-presentation` |
-| Opened / updated | 2026-10-21 / 2026-10-26 |
-| Status | T01–T04 validated in their recorded scopes. T05 actual MSSQL → TCP/gzip HTTP → AppServer typed dataset → native storage passed. The real SX5 browse is compiled for interactive acceptance; T05 remains open. |
+| Opened / updated | 2026-10-21 / 2026-10-29 |
+| Status | T01–T04 validated in their recorded scopes. T05 actual MSSQL → TCP/gzip HTTP → AppServer typed dataset → native storage passed; supplied screenshots confirm SX5 browse/View display. The requested wider SRA/SX3 extension is under validation; T05 remains open. |
 | Goal | Define explicit typed SQL values/result metadata and a caller-owned native Protheus presentation adapter using the accepted Query/dataset. |
 | Reference | Base `8db2823`; package 001 validated working-tree artifacts are identified in its closure manifest. This is not a new release tag. |
-| Next task | T05: homologate the real SX5 browse in an active Protheus company/branch over TCP and HTTP, including search/filter, paging and close; review remaining scoped criteria before package closure. |
+| Next task | T05 continuation: confirm the revised SRA/SX3 browse/View, search and filters with real data. Local RDDs, lazy indexes, mapping and shared SQL planning passed isolated SDK regressions; retain separate interactive acceptance before closure. |
 
 ### Preparatory maintenance
+
+- [x] 2026-10-29: resolve the remaining source-mapping, MsMGet, shared-builder
+  and stale SRA-test findings. Source lookup consistently rejects ambiguous
+  origins and finds a unique origin despite an unknown homonymous projection.
+  Keep dictionary identity in MsMGet `aFields`/`M->`, including `RA_BITMAP`,
+  while captions follow the projection. Share pure Build/Plan paths with the
+  live examples, reject empty projections and missing filter/order fields,
+  and reject invalid browse search options without changing the current order.
+  Compile 78 TLPP sources, zero errors; isolated checks passed: schema 76,
+  page conversion 31, SRA/SX5 planning 66, local RDDs 100, source mapping 36,
+  typed/ordinary datasets 77/67, SDK 5, TOPCONN/FWBulk 122 and browse callbacks
+  74. The ordinary dataset returned -4 after all 67 checks and APPLICATION END,
+  accepted by the existing runner policy; other suites returned 0. Final
+  MsMGet dictionary-variable adjustment compiled separately, zero errors.
+  Preserve the separate interactive View scope and
+  [sanitized identities/results](docs/validation/presentation.review.windows.json).
+
+- [x] 2026-10-29: document immediate cleanup of copied/generated TLPP in tmp,
+  including failure paths, and translation of Portuguese source comments to
+  English during reviews/edits. Staged commit validation now removes its
+  source snapshot in `finally`; the selection regression removes its fixtures.
+  Translation in three reviewed TLPP sources preserved executable code and
+  string literals. Selection/cleanup passed 57 checks; actual staged validation
+  passed all three tools with an empty staged selection, unchanged index and
+  zero remaining temporary TLPP copies. Documentation links passed for 104
+  documents. This maintenance does not close T05.
+
+- [x] 2026-10-29: keep `projectionFields` optional in version-1 logical
+  schemas. Accept existing two-member schemas and validate supplied maps:
+  existing projection keys, nonempty NUL-free source strings; empty/partial
+  maps and repeated origins remain valid. Preserve the caller's values and
+  metadata during conversion and transfer the builder's map to its schema.
+  Focused isolated AppServer validation compiled nine sources with zero errors
+  and passed 76 schema/conversion plus 31 page-conversion checks, exit 0.
+  This scope does not close the remaining SRA tests, origin-lookup, builder
+  validation or interactive presentation work.
+
+- [x] 2026-10-27: add reusable SX3 metadata and the SRA/standalone SX3 examples.
+  Record the complete field inventory and explicit native-value exclusions;
+  keep dictionary CASTs and branch/table resolution in Protheus. Preserve
+  source/projection/native name directions, empty compact dates and SQL NULL.
+  Compile 73 TLPP sources, zero errors; isolated AppServer checks passed:
+  conversion 54, page conversion 31, SRA planning 49, typed/ordinary datasets
+  77/67, SDK 5, native storage 89 and browse callbacks 59. Page conversion
+  validates invariant metadata once and retains every value check; column
+  positions are resolved before paint. The 100-column/100-row, three-round
+  local comparison averaged 8842.354 ms per-row versus 1936.071 ms per-page
+  conversion, excluding SQL, transport, native DDL and UI. This precedes the
+  requested storage/index revision and is not a complete SRA speedup.
+  Default commit checks now select changed/new files; staged snapshots, full
+  policy invalidation and all three mandatory tools remain. Git selection
+  passed 41 isolated checks without index changes. See the
+  [sanitized evidence](docs/validation/sra.presentation.windows.json).
+
+- [x] 2026-10-27, validated 2026-10-29: review the added SQLITE_MEM/SQLITE_TMP storage paths and adopt
+  one initial index after population, with additional indexes created on demand
+  through the native adapter. Map FWSeek details to projections and actual index
+  orders, preserve indexed aliases across refills and release owned resources.
+  Retain explicit TOPCONN/FWBulk coverage; validate both local RDDs separately.
+  Local RDDs passed 100 checks; TOPCONN/FWBulk passed 122 checks with a
+  1025-row bulk write; browse callbacks passed 74 checks. SQLite connection-end
+  resource lifetime remains the documented SDK behavior, not a confirmed leak.
 
 - [x] 2026-10-21: review project-owned sources against AGENTS: group declarations by type,
   preserve initializer order and cache proven loop invariants. Correct the
@@ -183,6 +245,17 @@ HTTP 406 rejection (exit 1), with no identity fallback.
   path to caller-resolved schema and owned FWTemporaryTable/native UI resources.
   Define text decode-once, NULL/type/scale policies, page traversal and cleanup
   after success, failure and UI close. Preserve existing examples and ownership.
+- [ ] **T05a — Demonstrate selected dictionary fields.** Add an explicit
+  projection example with caller-selected columns, aliases and per-output
+  logical schema/source mappings. Reuse the current typed dataset and native
+  presentation; do not assume the whole-table builder already has a selection API.
+- [ ] **T05b — Demonstrate explicit JOIN results.** Add INNER/LEFT JOIN examples
+  with unique output aliases, caller-resolved metadata and business predicates,
+  deterministic paging at the joined-row granularity and explicit NULL/native
+  presentation policy. Validate duplicate origins through projected access;
+  preserve dictionary-specific MsMGet identity without conflating repeated fields.
+  These requested examples are planned; generic SQL execution does not establish
+  their native UI acceptance. See the [projection/JOIN plan](docs/sx3-metadata.md#selected-fields-and-join-queries).
 - [ ] **T05 — Validate and close.** Run appropriate native and real AppServer
   TCP/HTTP/presentation checks, failure recovery and resource release. Run the
   three commit gates; update EN/PT docs and attributable artifacts.
@@ -284,6 +357,24 @@ the latter still needs manual visual execution in the prepared Protheus
 environment. Existing deployment INI/RPOs and services were not replaced.
 All three validators passed for 320 files and links for 102 documents; the
 index was not changed during this continuation.
+
+2026-10-26 subsequent visual acceptance: supplied screenshots confirm the
+real SX5 browse displayed over TCP/HTTP and its current-record View displayed
+successfully. This manual observation supplies no compiled hashes and does
+not independently establish every filter/failure/cleanup path.
+
+The requested next example expands T05 to SRA and a reusable
+`HBBridge.Protheus.HBBridgeSX3Metadata:Read()` snapshot. Protheus retains
+dictionary/table/branch resolution. Combine FWSX3Util metadata and the physical
+MSSQL catalog to select every supported physical dictionary field and available
+system field; report explicit reasons for virtual, memo/binary, long-text,
+missing and unsupported fields rather than silently truncating them. Keep the
+full metadata inventory even when values are excluded. Numeric CASTs are
+explicit caller-side example definitions, not a general SQL parser or automatic
+server-side SX3 processing. LOB transport remains future work. See the
+[SX3/SRA guide](docs/sx3-metadata.md). This extension requires its own compile,
+regressions and interactive acceptance before closing T05; prior source hashes
+and counts remain historical evidence.
 
 2026-10-24 continuation after published HTTP commit `98054b45`: the
 [T01 specification](docs/typed-sql.md) fixes request/result versions,

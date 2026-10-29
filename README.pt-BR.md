@@ -589,8 +589,11 @@ strings; escala de negócio continua explícita no chamador. Checks nativos
 Windows SQLite/MSSQL e TCP/HTTP gzip têm evidência separada dos testes com mock
 no AppServer. T04 adiciona adapter de tabela nativa com esquema explícito do
 chamador e exemplo local de browse, com checks reais de conversão/armazenamento
-AppServer. Carregamentos preenchem a mesma tabela nativa física, área, alias e
-índices de pesquisa; releitura completa após gravação é diagnóstico opcional.
+AppServer. Carregamentos preenchem a mesma tabela nativa, área, alias e índices
+de pesquisa já criados. `SQLITE_MEM` local é o destino padrão; `SQLITE_TMP` e
+`TOPCONN` via DBAccess são alternativas explícitas, independentes do perfil SQL
+remoto. Um índice é criado após a carga inicial; os demais são criados sob
+demanda. Releitura completa após gravação é diagnóstico opcional.
 Uma API pública genérica de browse nativo permanece futura.
 O exemplo sintético aceita `U_HBBridgeNativeBrowse(10000,100)` para quantidade/
 tamanho da página (padrões 1000/13). O `ID_CODE` visível com zeros à esquerda
@@ -601,7 +604,26 @@ consultam tabelas do ERP. T05 adiciona
 `U_HBBridgeNativeBrowseSX5("MSSQL/pData","TCP",100)` para consulta real à SX5,
 somente leitura, também disponível por HTTP. Protheus resolve tabela, filial
 e esquema do dicionário. MSSQL TCP/HTTP gzip/AppServer/armazenamento nativo
-passaram em 83 checks de integração; aceite SX5 interativo continua aberto.
+passaram em 83 checks de integração. Capturas posteriores fornecidas confirmam
+a exibição do browse SX5 por TCP/HTTP e do View do registro atual. O novo
+exemplo SRA usa `U_HBBridgeNativeBrowseSRA("MSSQL/pData","TCP",100)` ou HTTP,
+com metadados SX3 no chamador e catálogo físico para selecionar campos
+suportados e informar explicitamente todas as exclusões; seu perfil mais amplo
+requer aceite próprio. SRA/SX5 compartilham
+`HBBridgePresentationTable():Definition()` e preservam os nomes originais do
+dicionário, além dos campos de sistema suportados. Um mapa local explícito
+preserva a origem quando o ODBC não a informa; legendas do esquema e consultas
+por origem mantêm APIs distintas. Campos obrigatórios da consulta são
+verificados antes de aceitar o SQL. `HBBridge.Protheus.HBBridgeSX3Metadata:Read("SRA")`
+expõe snapshot reutilizável sem transferir resolução de dicionário/negócio para
+o servidor. Veja o [guia de metadados SX3](docs/sx3-metadata.pt-BR.md).
+Chamadas SQL genéricas também aceitam listas explícitas de campos e JOINs
+suportados pelo backend. Exemplos nativos baseados no dicionário para esses
+casos permanecem planejados; os builders SRA/SX5 atuais enumeram os campos
+suportados de uma tabela. O chamador define aliases de saída únicos, esquema/
+mapa de origem correspondente, ordenação determinística do resultado com JOIN
+e eventual tratamento de NULL para apresentação nativa. Veja o
+[escopo de projeções/JOIN](docs/sx3-metadata.pt-BR.md#campos-específicos-e-consultas-com-join).
 Veja o
 [guia de apresentação nativa](docs/native-presentation.pt-BR.md), [contrato tipado](docs/typed-sql.pt-BR.md),
 [limites dos conectores](docs/typed-sql-connectors.pt-BR.md) e [WIP](WIP.pt-BR.md).

@@ -16,6 +16,13 @@ da instalação nem interrompe serviços existentes. Fontes/RPOs recebem hashes;
 `result.json` local registra resultados exatos sem conteúdo INI. Veja o
 [guia e exemplo visual manual](../docs/native-presentation.pt-BR.md).
 
+`-MeasureConversion` compara adicionalmente a conversão estrita por linha com
+a conversão por página em 100 colunas × 100 linhas, em três rodadas alternadas.
+A fase local medida exclui criação da fixture, SQL, transporte, armazenamento
+nativo, interface e comparação dos valores. Os checks de corretude não exigem
+ganho de tempo. As suítes padrão incluem conversão por página e planejamento
+dos metadados SRA.
+
 `-NativeRows 10000` define a carga sintética principal (padrão 1025), por
 `U_HBBridgePresentationTableCLI --native-rows=10000`. Os casos pequenos de
 paginação mantêm duas linhas seguidas de uma. O exemplo interativo é separado:
@@ -197,6 +204,23 @@ Antes de cada commit:
 ```powershell
 ./scripts/commit-check.ps1
 ```
+
+Por padrão, verifica arquivos modificados/adicionados da árvore de trabalho e
+do índice, além dos novos não ignorados. Use `-Staged` para validar somente os
+arquivos alterados preparados para commit, com seu conteúdo indexado; `-All`
+faz a revisão completa (`-Staged -All` revisa o índice completo). Documentos
+excluídos/renomeados incluem o par de idioma sobrevivente. Alterações nas
+regras, ferramentas de validação ou políticas de dependências/configuração
+exigem automaticamente revisão completa. A validação de terceiros permanece
+global; os três validadores Harbour são executados mesmo com seleção vazia.
+A seleção não atualiza nem modifica o índice. A regressão isolada está em
+`./scripts/test-commit-check-selection.ps1`.
+
+A validação do índice remove sua cópia dos fontes em `finally`, inclusive em
+falhas de checkout/validação. A regressão de seleção também remove as fixtures
+geradas. Cópias TLPP não devem permanecer em `tmp/`: confundem a resolução de
+fontes da extensão TOTVS. Listas/logs preservados não contêm fontes duplicados;
+a compilação Protheus usa os caminhos dos fontes mantidos.
 
 O `hbrun` gerenciado executa `.hbcommit/check.hb`, `.hbcommit/commit.hb` e
 `.hbcommit/3rdpatch.hb` em validação somente de leitura. Não há outro

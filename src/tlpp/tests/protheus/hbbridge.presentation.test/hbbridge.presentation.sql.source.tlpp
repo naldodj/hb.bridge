@@ -384,8 +384,16 @@ static function PresentationSQLCriterion(jFields as json,cField as character,cOp
             cValue:=AllTrim(cValue)
             lValid:=PresentationSQLDate(cValue)
             if (lValid)
-                jBinding["type"]:="date"
-                jBinding["value"]:=cValue
+                if (jFields[cField]["inputFormat"]=="YYYYMMDD")
+                    // Native Protheus dates are stored as character(8). Keep
+                    // ISO input in the UI, but compare matching text values
+                    // without an implicit SQL conversion of the column.
+                    jBinding["type"]:="text"
+                    jBinding["value"]:=Left(cValue,4)+SubStr(cValue,6,2)+Right(cValue,2)
+                else
+                    jBinding["type"]:="date"
+                    jBinding["value"]:=cValue
+                endif
             endif
         endif
     case cType=="logical"

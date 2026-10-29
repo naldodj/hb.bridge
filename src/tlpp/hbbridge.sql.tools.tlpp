@@ -46,6 +46,7 @@ class HBBridgeSqlTools
     static method GetNextFieldNum(cAlias as character,cField as character,nOrder as numeric,cMyIUseCode as character,lUseFilial as logical,lIgnoreDeleted as logical) as character
 
     static method GetNonBlobColumns(cTable as character) as character
+    static method GetColumnMetadata(cTable as character) as json
 
 end class
 
@@ -552,3 +553,67 @@ static method GetNonBlobColumns(cTable) class HBBridgeSqlTools
     endif
 
 return(cNonBlobColumns)
+
+// Physical SQL metadata only. The caller owns dictionary/business interpretation.
+// This MSSQL catalog is intentionally richer than a non-binary column list:
+// text/ntext and (n)varchar(max) are text, but need a long-value destination.
+static method GetColumnMetadata(cTable) class HBBridgeSqlTools
+
+    local aRows as array
+
+    local cSQL:="" as character
+    local cName:="" as character
+    local cType:="" as character
+
+    local jColumns as json
+    local jColumn as json
+
+    local nRow:=0 as numeric
+    local nRows:=0 as numeric
+
+    paramtype 1 var cTable as character
+
+    if (Empty(AllTrim(cTable)).or.TCGetDB()!="MSSQL")
+        return(nil)
+    endif
+    beginContent var cSQL
+        SELECT c.name, t.name, c.max_length, c.precision, c.scale, c.column_id
+        FROM sys.columns c
+        JOIN sys.types t ON c.system_type_id = t.user_type_id
+        WHERE c.object_id = OBJECT_ID('@@__TABLE__@@')
+        ORDER BY c.column_id
+    endContent
+    cSQL:=StrTran(cSQL,"@@__TABLE__@@",StrTran(cTable,"'","''"))
+    // TCSQLToArr is the native SQL API boundary, not row storage in the client.
+    aRows:=Array(0)
+    if (TCSQLToArr(cSQL,@aRows)==0)
+        jColumns:=JSONObject():New()
+        nRows:=Len(aRows)
+        for nRow:=1 to nRows
+            if (ValType(aRows[nRow])!="A")
+                FreeObj(@jColumns)
+                exit
+            endif
+            if (Len(aRows[nRow])!=6)
+                FreeObj(@jColumns)
+                exit
+            endif
+            cName:=Upper(AllTrim(aRows[nRow][1]))
+            cType:=Lower(AllTrim(aRows[nRow][2]))
+            jColumn:=JSONObject():New()
+            jColumn["name"]:=AllTrim(aRows[nRow][1])
+            jColumn["type"]:=cType
+            jColumn["length"]:=aRows[nRow][3]
+            jColumn["precision"]:=aRows[nRow][4]
+            jColumn["scale"]:=aRows[nRow][5]
+            jColumn["position"]:=aRows[nRow][6]
+            jColumn["binary"]:=("|"+cType+"|")$"|image|binary|varbinary|timestamp|rowversion|"
+            jColumn["longText"]:=cType=="text".or.cType=="ntext".or.;
+                ((cType=="varchar".or.cType=="nvarchar").and.aRows[nRow][3]==-1)
+            jColumns[cName]:=jColumn
+            jColumn:=nil
+        next nRow
+    endif
+    FWFreeArray(@aRows)
+
+return(jColumns)

@@ -96,6 +96,9 @@ function U_HBBridgePresentationTableTest(nRecords)
     local nField:=0 as numeric
     local nFields:=0 as numeric
     local nPreviousWorkArea:=0 as numeric
+    local nPreviousOrder:=0 as numeric
+    local nLookupArea:=0 as numeric
+    local nLookupRecord:=0 as numeric
     local nIDPosition:=0 as numeric
     local nCodePosition:=0 as numeric
     local nAmountPosition:=0 as numeric
@@ -162,10 +165,13 @@ function U_HBBridgePresentationTableTest(nRecords)
         jSchema:=HBBridge.Tests.HBBridgePresentationFixture():Schema()
         // This small fixture opts into production storage verification. The
         // configurable larger fixture is independently traversed below.
-        oNative:=HBBridge.Client.HBBridgeNativeTable():New(oDataSet,jSchema,.T.)
+        oNative:=HBBridge.Client.HBBridgeNativeTable():New(oDataSet,jSchema,.T.,"TOPCONN")
         jChecks["unpublishedProjectionName"]:=Empty(oNative:ProjectionName("F000000004"))
         jChecks["unpublishedSourceFieldName"]:=Empty(oNative:SourceFieldName("TEXT"))
         jChecks["unpublishedSourceCaption"]:=Empty(oNative:SourceFieldCaption("TEXT"))
+        jChecks["unpublishedFieldAccess"]:=oNative:FieldPos("TEXT")==0
+        jChecks["unpublishedFieldAccess"]:=jChecks["unpublishedFieldAccess"].and.oNative:SourceFieldPos("RA_NOME")==0
+        jChecks["unpublishedFieldAccess"]:=jChecks["unpublishedFieldAccess"].and.ValType(oNative:FieldGet("TEXT"))=="U"
         jSchema["fields"]["TEXT"]["length"]:=1
         nArea:=Select()
         lOpened:=oNative:LoadCurrentPage()
@@ -173,36 +179,76 @@ function U_HBBridgePresentationTableTest(nRecords)
         jChecks["selectedAreaRestored"]:=Select()==nArea
         if (lOpened)
             cAlias:=oNative:Alias()
+            jChecks["explicitTopconnStorage"]:=oNative:RDD()=="TOPCONN"
+            jChecks["firstFieldIndexOnly"]:=oNative:IndexOrder("ID_CODE")==1
+            jChecks["firstFieldIndexOnly"]:=jChecks["firstFieldIndexOnly"].and.(cAlias)->(IndexKey(1))==oNative:FieldName("ID_CODE")
+            jChecks["firstFieldIndexOnly"]:=jChecks["firstFieldIndexOnly"].and.Empty((cAlias)->(IndexKey(2)))
+            jChecks["uncreatedIndexIsZero"]:=oNative:IndexOrder("TEXT")==0
+            jChecks["uncreatedIndexIsZero"]:=jChecks["uncreatedIndexIsZero"].and.oNative:IndexOrder("DAY")==0
+            jChecks["uncreatedIndexIsZero"]:=jChecks["uncreatedIndexIsZero"].and.oNative:IndexOrder("FLAG")==0
+            jChecks["firstFieldIndexIsIdempotent"]:=oNative:EnsureIndex("ID_CODE")==1
+            jChecks["firstFieldIndexIsIdempotent"]:=jChecks["firstFieldIndexIsIdempotent"].and.oNative:EnsureIndex("ID_CODE")==1
+            jChecks["firstFieldIndexIsIdempotent"]:=jChecks["firstFieldIndexIsIdempotent"].and.Empty((cAlias)->(IndexKey(2)))
             cExpectedMode:=if(FWBulk():CanBulk(),"bulk","record")
             jChecks["capabilitySelectsWriteMode"]:=oNative:WriteMode()==cExpectedMode
-            jChecks["nativeRows"]:=oNative:RowCount()==2.and.(cAlias)->(LastRec())==2
+            jChecks["nativeRows"]:=oNative:RowCount()==2
+            jChecks["nativeRows"]:=jChecks["nativeRows"].and.(cAlias)->(LastRec())==2
             jChecks["nativeFields"]:=oNative:FieldCount()==7
-            jChecks["projectionOrder"]:=oNative:ProjectionName(2)=="ID".and.oNative:ProjectionName(7)=="FLOAT"
+            jChecks["projectionOrder"]:=oNative:ProjectionName(2)=="ID"
+            jChecks["projectionOrder"]:=jChecks["projectionOrder"].and.oNative:ProjectionName(7)=="FLOAT"
             jChecks["nativeCodeMatchesIdentifier"]:=RTrim((cAlias)->(FieldGet(FieldPos(oNative:FieldName("ID_CODE")))))=="0000000001"
-            jChecks["generatedFieldNames"]:=Len(oNative:FieldName("TEXT"))==10.and.oNative:FieldName("missing")==""
+            jChecks["generatedFieldNames"]:=Len(oNative:FieldName("TEXT"))==10
+            jChecks["generatedFieldNames"]:=jChecks["generatedFieldNames"].and.oNative:FieldName("missing")==""
             jChecks["nativeToProjectionName"]:=oNative:ProjectionName(oNative:FieldName("TEXT"))=="TEXT"
-            jChecks["projectedNameIdentity"]:=oNative:ProjectionName("TEXT")=="TEXT"
+            jChecks["projectionNameRequiresNativeInput"]:=Empty(oNative:ProjectionName("TEXT"))
             jChecks["projectionToSourceName"]:=oNative:SourceFieldName("TEXT")=="RA_NOME"
-            jChecks["nativeToSourceName"]:=oNative:SourceFieldName(oNative:FieldName("TEXT"))=="RA_NOME"
-            jChecks["nativeSourceCaption"]:=oNative:SourceFieldCaption(oNative:FieldName("TEXT"))=="Text"
+            jChecks["nativeToSourceName"]:=oNative:SourceFieldName(oNative:ProjectionName(oNative:FieldName("TEXT")))=="RA_NOME"
+            jChecks["nativeSourceCaption"]:=oNative:SourceFieldCaption(oNative:SourceFieldName(oNative:ProjectionName(oNative:FieldName("TEXT"))))=="Text"
             jChecks["projectedSourceCaption"]:=oNative:SourceFieldCaption("TEXT")=="Text"
+            jChecks["sourceLookupsRequireProjection"]:=Empty(oNative:SourceFieldName(oNative:FieldName("TEXT")))
+            jChecks["sourceLookupsRequireProjection"]:=jChecks["sourceLookupsRequireProjection"].and.Empty(oNative:SourceFieldCaption(oNative:FieldName("TEXT")))
             jChecks["unknownSourceCaption"]:=Empty(oNative:SourceFieldCaption("missing"))
-            jChecks["unknownSourceIsEmpty"]:=Empty(oNative:SourceFieldName("AMOUNT")).and.Empty(oNative:SourceFieldName("missing"))
-            jChecks["unknownProjectionIsEmpty"]:=Empty(oNative:ProjectionName("missing")).and.Empty(oNative:ProjectionName(nil))
-            jChecks["privateSearchFieldNotProjected"]:=Empty(oNative:ProjectionName(oNative:SearchFieldName("FLAG"))).and.;
-                Empty(oNative:SourceFieldName(oNative:SearchFieldName("FLAG"))).and.;
-                Empty(oNative:SourceFieldCaption(oNative:SearchFieldName("FLAG")))
+            jChecks["unknownSourceIsEmpty"]:=Empty(oNative:SourceFieldName("AMOUNT"))
+            jChecks["unknownSourceIsEmpty"]:=jChecks["unknownSourceIsEmpty"].and.Empty(oNative:SourceFieldName("missing"))
+            jChecks["unknownProjectionIsEmpty"]:=Empty(oNative:ProjectionName("missing"))
+            jChecks["unknownProjectionIsEmpty"]:=jChecks["unknownProjectionIsEmpty"].and.Empty(oNative:ProjectionName(nil))
+            jChecks["privateSearchFieldNotProjected"]:=Empty(oNative:ProjectionName(oNative:SearchFieldName("FLAG")))
+            jChecks["privateSearchFieldNotProjected"]:=jChecks["privateSearchFieldNotProjected"].and.Empty(oNative:SourceFieldName(oNative:SearchFieldName("FLAG")))
+            jChecks["privateSearchFieldNotProjected"]:=jChecks["privateSearchFieldNotProjected"].and.Empty(oNative:SourceFieldCaption(oNative:SearchFieldName("FLAG")))
             jChecks["utf8DecodedIntoNativeField"]:=RTrim((cAlias)->(FieldGet(FieldPos(oNative:FieldName("TEXT")))))==;
                 DecodeUTF8("a"+Chr(195)+Chr(167)+Chr(195)+Chr(163)+"o")
             jChecks["exactNativeAmount"]:=(cAlias)->(FieldGet(FieldPos(oNative:FieldName("AMOUNT"))))==123.25
             jChecks["nativeDate"]:=DToS((cAlias)->(FieldGet(FieldPos(oNative:FieldName("DAY")))))=="20240229"
-            jChecks["nativeLogicalFalse"]:=ValType((cAlias)->(FieldGet(FieldPos(oNative:FieldName("FLAG")))))=="L".and.;
-                (cAlias)->(!FieldGet(FieldPos(oNative:FieldName("FLAG"))))
-            jChecks["nativeFloatAligned"]:=ValType((cAlias)->(FieldGet(FieldPos(oNative:FieldName("FLOAT")))))=="N".and.;
-                (cAlias)->(FieldGet(FieldPos(oNative:FieldName("FLOAT"))))==1.25
+            jChecks["nativeLogicalFalse"]:=ValType((cAlias)->(FieldGet(FieldPos(oNative:FieldName("FLAG")))))=="L"
+            jChecks["nativeLogicalFalse"]:=jChecks["nativeLogicalFalse"].and.(cAlias)->(!FieldGet(FieldPos(oNative:FieldName("FLAG"))))
+            jChecks["nativeFloatAligned"]:=ValType((cAlias)->(FieldGet(FieldPos(oNative:FieldName("FLOAT")))))=="N"
+            jChecks["nativeFloatAligned"]:=jChecks["nativeFloatAligned"].and.(cAlias)->(FieldGet(FieldPos(oNative:FieldName("FLOAT"))))==1.25
+            nLookupArea:=Select()
+            nLookupRecord:=(cAlias)->(RecNo())
+            jChecks["projectionFieldPosition"]:=oNative:FieldPos("TEXT")==(cAlias)->(FieldPos(oNative:FieldName("TEXT")))
+            jChecks["uniqueSourceFieldPosition"]:=oNative:SourceFieldPos("RA_NOME")==oNative:FieldPos("TEXT")
+            jChecks["uniqueSourceFieldPosition"]:=jChecks["uniqueSourceFieldPosition"].and.oNative:SourceFieldPos("RA_NOME")==oNative:FieldPos("TEXT")
+            jChecks["nativeFieldGetKeepsPaddingAndEncoding"]:=oNative:FieldGet("TEXT")==PadR(DecodeUTF8("a"+Chr(195)+Chr(167)+Chr(195)+Chr(163)+"o"),20)
+            jChecks["nativeFieldGetKeepsPaddingAndEncoding"]:=jChecks["nativeFieldGetKeepsPaddingAndEncoding"].and.oNative:SourceFieldGet("RA_NOME")==oNative:FieldGet("TEXT")
+            jChecks["nativeFieldGetKeepsDateLogicalAndNumeric"]:=ValType(oNative:FieldGet("DAY"))=="D".and.DToS(oNative:FieldGet("DAY"))=="20240229"
+            jChecks["nativeFieldGetKeepsDateLogicalAndNumeric"]:=jChecks["nativeFieldGetKeepsDateLogicalAndNumeric"].and.ValType(oNative:FieldGet("FLAG"))=="L"
+            jChecks["nativeFieldGetKeepsDateLogicalAndNumeric"]:=jChecks["nativeFieldGetKeepsDateLogicalAndNumeric"].and.!oNative:FieldGet("FLAG")
+            jChecks["nativeFieldGetKeepsDateLogicalAndNumeric"]:=jChecks["nativeFieldGetKeepsDateLogicalAndNumeric"].and.ValType(oNative:FieldGet("AMOUNT"))=="N"
+            jChecks["nativeFieldGetKeepsDateLogicalAndNumeric"]:=jChecks["nativeFieldGetKeepsDateLogicalAndNumeric"].and.oNative:FieldGet("AMOUNT")==123.25
+            jChecks["computedProjectionHasNoInferredSource"]:=oNative:FieldPos("AMOUNT")>0
+            jChecks["computedProjectionHasNoInferredSource"]:=jChecks["computedProjectionHasNoInferredSource"].and.oNative:SourceFieldPos("AMOUNT",.F.)==0
+            jChecks["computedProjectionHasNoInferredSource"]:=jChecks["computedProjectionHasNoInferredSource"].and.ValType(oNative:SourceFieldGet("AMOUNT",.F.))=="U"
+            jChecks["unknownFieldAccessIsSafe"]:=oNative:FieldPos("NOT_PROJECTED")==0
+            jChecks["unknownFieldAccessIsSafe"]:=jChecks["unknownFieldAccessIsSafe"].and.ValType(oNative:FieldGet("NOT_PROJECTED"))=="U"
+            jChecks["unknownFieldAccessIsSafe"]:=jChecks["unknownFieldAccessIsSafe"].and.oNative:SourceFieldPos("TEXT",.F.)==0
+            jChecks["unknownFieldAccessIsSafe"]:=jChecks["unknownFieldAccessIsSafe"].and.ValType(oNative:SourceFieldGet("TEXT",.F.))=="U"
+            jChecks["fieldAccessPreservesCursorAndArea"]:=Select()==nLookupArea
+            jChecks["fieldAccessPreservesCursorAndArea"]:=jChecks["fieldAccessPreservesCursorAndArea"].and.(cAlias)->(RecNo())==nLookupRecord
+            jChecks["fieldAccessPreservesCursorAndArea"]:=jChecks["fieldAccessPreservesCursorAndArea"].and.oClient:CallCount()==1
             jChecks["nativeFieldIndexes"]:=.T.
             nFields:=oNative:FieldCount()
             for nField:=1 to nFields
+                jChecks["nativeFieldIndexes"]:=jChecks["nativeFieldIndexes"].and.oNative:EnsureIndex(oNative:ProjectionName(nField))>0
                 cIndexKey:=Upper(AllTrim((cAlias)->(IndexKey(nField))))
                 ConOut("hbBridge native table index "+tlpp.ToStr(nField)+": "+cIndexKey)
                 cFieldType:=(cAlias)->(Type(oNative:FieldName(oNative:ProjectionName(nField))))
@@ -227,14 +273,23 @@ function U_HBBridgePresentationTableTest(nRecords)
             jChecks["returnedSchemaDefensive"]:=jSnapshot["fields"]["TEXT"]["length"]==20
             FreeObj(@jSnapshot)
         endif
-        jChecks["noImplicitPageRequest"]:=oClient:CallCount()==1.and.oDataSet:PageNumber()==1.and.oDataSet:FieldGet("ID")=="1"
+        jChecks["noImplicitPageRequest"]:=oClient:CallCount()==1
+        jChecks["noImplicitPageRequest"]:=jChecks["noImplicitPageRequest"].and.oDataSet:PageNumber()==1
+        jChecks["noImplicitPageRequest"]:=jChecks["noImplicitPageRequest"].and.oDataSet:FieldGet("ID")=="1"
         jChecks["explicitNextPage"]:=oDataSet:NextPage()
         jChecks["sourceNameRetainsAcceptedPage"]:=oNative:SourceFieldName("TEXT")=="RA_NOME"
+        jChecks["sourceFieldAccessRetainsAcceptedPage"]:=oNative:SourceFieldPos("RA_NOME")>0
+        jChecks["sourceFieldAccessRetainsAcceptedPage"]:=jChecks["sourceFieldAccessRetainsAcceptedPage"].and.oNative:SourceFieldPos("RA_APELIDO")==0
+        jChecks["sourceFieldAccessRetainsAcceptedPage"]:=jChecks["sourceFieldAccessRetainsAcceptedPage"].and.oNative:SourceFieldGet("RA_NOME")==oNative:FieldGet("TEXT")
         cPreviousAlias:=cAlias
         nPreviousWorkArea:=Select(cAlias)
         lOpened:=oNative:LoadCurrentPage()
         jChecks["nextNativePage"]:=lOpened.and.oNative:RowCount()==1
         jChecks["sourceNameFollowsRefill"]:=oNative:SourceFieldName("TEXT")=="RA_APELIDO"
+        jChecks["sourceFieldAccessFollowsRefill"]:=oNative:SourceFieldPos("RA_NOME")==0
+        jChecks["sourceFieldAccessFollowsRefill"]:=jChecks["sourceFieldAccessFollowsRefill"].and.ValType(oNative:SourceFieldGet("RA_NOME"))=="U"
+        jChecks["sourceFieldAccessFollowsRefill"]:=jChecks["sourceFieldAccessFollowsRefill"].and.oNative:SourceFieldPos("RA_APELIDO")==oNative:FieldPos("TEXT")
+        jChecks["sourceFieldAccessFollowsRefill"]:=jChecks["sourceFieldAccessFollowsRefill"].and.oNative:SourceFieldGet("RA_APELIDO")==oNative:FieldGet("TEXT")
         jChecks["refreshKeepsNativeAlias"]:=oNative:Alias()==cPreviousAlias
         jChecks["refreshKeepsNativeWorkArea"]:=Select(cPreviousAlias)==nPreviousWorkArea
         jChecks["refreshKeepsSelectedIndex"]:=(cPreviousAlias)->(IndexOrd())==2
@@ -257,24 +312,123 @@ function U_HBBridgePresentationTableTest(nRecords)
             next nField
             (cAlias)->(dbSetOrder(2))
             jChecks["refreshRemovesOldIndexedRows"]:=(cAlias)->(!DbSeek(PadR("1",20),.F.))
-            jChecks["refreshIndexSeeksNewRows"]:=(cAlias)->(DbSeek(PadR("3",20),.F.)).and.;
-                RTrim((cAlias)->(FieldGet(FieldPos(oNative:FieldName("ID")))))=="3"
+            jChecks["refreshIndexSeeksNewRows"]:=(cAlias)->(DbSeek(PadR("3",20),.F.))
+            jChecks["refreshIndexSeeksNewRows"]:=jChecks["refreshIndexSeeksNewRows"].and.RTrim((cAlias)->(FieldGet(FieldPos(oNative:FieldName("ID")))))=="3"
             jChecks["refreshedCodeMatchesIdentifier"]:=RTrim((cAlias)->(FieldGet(FieldPos(oNative:FieldName("ID_CODE")))))=="0000000003"
             (cAlias)->(DbSetOrder(oNative:IndexOrder("FLAG")))
-            jChecks["logicalShadowIndexSeek"]:=(cAlias)->(DbSeek(PadR("False",5),.F.)).and.;
-                (cAlias)->(!FieldGet(FieldPos(oNative:FieldName("FLAG"))))
+            jChecks["logicalShadowIndexSeek"]:=(cAlias)->(DbSeek(PadR("False",5),.F.))
+            jChecks["logicalShadowIndexSeek"]:=jChecks["logicalShadowIndexSeek"].and.(cAlias)->(!FieldGet(FieldPos(oNative:FieldName("FLAG"))))
             (cAlias)->(dbSetOrder(0))
+            (cAlias)->(DbGoBottom())
+            (cAlias)->(DbSkip())
+            jChecks["eofFieldPositionRetainsMetadata"]:=(cAlias)->(Eof())
+            jChecks["eofFieldPositionRetainsMetadata"]:=jChecks["eofFieldPositionRetainsMetadata"].and.oNative:FieldPos("TEXT")>0
+            jChecks["eofFieldPositionRetainsMetadata"]:=jChecks["eofFieldPositionRetainsMetadata"].and.oNative:SourceFieldPos("RA_APELIDO")==oNative:FieldPos("TEXT")
+            jChecks["eofFieldGetHasNoStaleRow"]:=Empty(oNative:FieldGet("TEXT"))
+            jChecks["eofFieldGetHasNoStaleRow"]:=jChecks["eofFieldGetHasNoStaleRow"].and.Empty(oNative:SourceFieldGet("RA_APELIDO"))
+            jChecks["eofFieldGetHasNoStaleRow"]:=jChecks["eofFieldGetHasNoStaleRow"].and.Empty(oNative:FieldGet("DAY"))
+            (cAlias)->(DbGoTop())
         endif
-        jChecks["pageRequestsRemainExplicit"]:=oClient:CallCount()==2.and.oDataSet:FieldGet("ID")=="3"
+        jChecks["pageRequestsRemainExplicit"]:=oClient:CallCount()==2
+        jChecks["pageRequestsRemainExplicit"]:=jChecks["pageRequestsRemainExplicit"].and.oDataSet:FieldGet("ID")=="3"
         cAlias:=oNative:Alias()
-        jChecks["closeReleasesAlias"]:=oNative:Close().and.Select(cAlias)==0.and.!oNative:IsOpen()
+        jChecks["closeReleasesAlias"]:=oNative:Close()
+        jChecks["closeReleasesAlias"]:=jChecks["closeReleasesAlias"].and.Select(cAlias)==0
+        jChecks["closeReleasesAlias"]:=jChecks["closeReleasesAlias"].and.!oNative:IsOpen()
         jChecks["closeIdempotent"]:=oNative:Close()
-        jChecks["closeClearsNameLookups"]:=Empty(oNative:SourceFieldName("TEXT")).and.Empty(oNative:ProjectionName("F000000004"))
+        jChecks["closeClearsNameLookups"]:=Empty(oNative:SourceFieldName("TEXT"))
+        jChecks["closeClearsNameLookups"]:=jChecks["closeClearsNameLookups"].and.Empty(oNative:ProjectionName("F000000004"))
         jChecks["closeClearsSourceCaption"]:=Empty(oNative:SourceFieldCaption("TEXT"))
         jChecks["closeClearsWriteMode"]:=Empty(oNative:WriteMode())
-        jChecks["datasetRemainsOwnedByCaller"]:=oDataSet:FieldCount()==7.and.oDataSet:FieldGet("ID")=="3"
+        jChecks["closeClearsFieldAccess"]:=oNative:FieldPos("TEXT")==0
+        jChecks["closeClearsFieldAccess"]:=jChecks["closeClearsFieldAccess"].and.oNative:SourceFieldPos("RA_APELIDO")==0
+        jChecks["closeClearsFieldAccess"]:=jChecks["closeClearsFieldAccess"].and.ValType(oNative:FieldGet("TEXT"))=="U"
+        jChecks["datasetRemainsOwnedByCaller"]:=oDataSet:FieldCount()==7
+        jChecks["datasetRemainsOwnedByCaller"]:=jChecks["datasetRemainsOwnedByCaller"].and.oDataSet:FieldGet("ID")=="3"
         jChecks["destroy"]:=oNative:Destroy()
         if (!jChecks["destroy"])
+            throw "NATIVE_TABLE_CLEANUP_FAILED"
+        endif
+        FreeObj(@oNative)
+        // An opaque projection alias can equal another column's native field
+        // name. Each mapping API has one direction, so neither column wins by
+        // lookup precedence or silently acquires the other's SX3 metadata.
+        jResponse:=HBBridge.Tests.HBBridgePresentationFixture():Result(0,1,1)
+        jResponse["header"]:=NativeTableTestRename(jResponse["header"],"ID","F000000004")
+        jResponse["rows"]["1"]:=NativeTableTestRename(jResponse["rows"]["1"],"ID","F000000004")
+        jResponse["header"]["F000000004"]["source"]["column"]:="ORIGINAL_ID"
+        jResponse["header"]["TEXT"]["source"]["column"]:="RA_NOME"
+        oClient:Queue(jResponse)
+        FreeObj(@jResponse)
+        jChecks["collidingProjectionFixture"]:=oDataSet:OpenSQLTyped("SELECT colliding_projection_fixture",jBindings)
+        FreeObj(@jSchema)
+        jSchema:=HBBridge.Tests.HBBridgePresentationFixture():Schema()
+        jSchema["fields"]:=NativeTableTestRename(jSchema["fields"],"ID","F000000004")
+        oNative:=HBBridge.Client.HBBridgeNativeTable():New(oDataSet,jSchema,.T.,"TOPCONN")
+        jChecks["collidingProjectionLoad"]:=oNative:LoadCurrentPage()
+        jChecks["collidingProjectionToNative"]:=oNative:FieldName("F000000004")=="F000000002"
+        jChecks["collidingNativeToProjection"]:=oNative:ProjectionName("F000000004")=="TEXT"
+        jChecks["collidingNativeToProjection"]:=jChecks["collidingNativeToProjection"].and.oNative:ProjectionName(2)=="F000000004"
+        jChecks["collidingProjectionSourceName"]:=oNative:SourceFieldName("F000000004")=="ORIGINAL_ID"
+        jChecks["collidingProjectionSourceName"]:=jChecks["collidingProjectionSourceName"].and.oNative:SourceFieldName(oNative:ProjectionName("F000000004"))=="RA_NOME"
+        jChecks["collidingProjectionSourceCaption"]:=oNative:SourceFieldCaption("F000000004")=="Identifier"
+        jChecks["collidingProjectionSourceCaption"]:=jChecks["collidingProjectionSourceCaption"].and.oNative:SourceFieldCaption(oNative:ProjectionName("F000000004"))=="Text"
+        jChecks["collidingProjectionFieldAccess"]:=oNative:FieldPos("F000000004")==2
+        jChecks["collidingProjectionFieldAccess"]:=jChecks["collidingProjectionFieldAccess"].and.RTrim(oNative:FieldGet("F000000004"))=="1"
+        jChecks["collidingProjectionFieldAccess"]:=jChecks["collidingProjectionFieldAccess"].and.oNative:SourceFieldPos("ORIGINAL_ID")==2
+        jChecks["collidingProjectionFieldAccess"]:=jChecks["collidingProjectionFieldAccess"].and.oNative:SourceFieldPos("RA_NOME")==4
+        jChecks["collidingProjectionCleanup"]:=oNative:Destroy()
+        if (!jChecks["collidingProjectionCleanup"])
+            throw "NATIVE_TABLE_CLEANUP_FAILED"
+        endif
+        FreeObj(@oNative)
+        // A projection can also equal another field's original SQL name.
+        // Default lookup gives the explicit projection priority; source-only
+        // mode selects the other field without guessing between namespaces.
+        jResponse:=HBBridge.Tests.HBBridgePresentationFixture():Result(0,1,1)
+        jResponse["header"]:=NativeTableTestRename(jResponse["header"],"ID","RA_NOME")
+        jResponse["rows"]["1"]:=NativeTableTestRename(jResponse["rows"]["1"],"ID","RA_NOME")
+        jResponse["header"]["RA_NOME"]["source"]["column"]:="ORIGINAL_ID"
+        jResponse["header"]["TEXT"]["source"]["column"]:="RA_NOME"
+        oClient:Queue(jResponse)
+        FreeObj(@jResponse)
+        jChecks["sourceProjectionCollisionFixture"]:=oDataSet:OpenSQLTyped("SELECT source_projection_collision",jBindings)
+        FreeObj(@jSchema)
+        jSchema:=HBBridge.Tests.HBBridgePresentationFixture():Schema()
+        jSchema["fields"]:=NativeTableTestRename(jSchema["fields"],"ID","RA_NOME")
+        oNative:=HBBridge.Client.HBBridgeNativeTable():New(oDataSet,jSchema,.T.,"TOPCONN")
+        jChecks["sourceProjectionCollisionLoad"]:=oNative:LoadCurrentPage()
+        jChecks["projectionHasExplicitLookupPriority"]:=oNative:FieldPos("RA_NOME")==2
+        jChecks["projectionHasExplicitLookupPriority"]:=jChecks["projectionHasExplicitLookupPriority"].and.RTrim(oNative:FieldGet("RA_NOME"))=="1"
+        jChecks["sourceOnlyDisambiguatesLookup"]:=oNative:SourceFieldPos("RA_NOME")==4
+        jChecks["sourceOnlyDisambiguatesLookup"]:=jChecks["sourceOnlyDisambiguatesLookup"].and.oNative:SourceFieldGet("RA_NOME")==oNative:FieldGet("TEXT")
+        jChecks["sourceProjectionCollisionCleanup"]:=oNative:Destroy()
+        if (!jChecks["sourceProjectionCollisionCleanup"])
+            throw "NATIVE_TABLE_CLEANUP_FAILED"
+        endif
+        FreeObj(@oNative)
+        // Two projections of the same source cannot identify a unique
+        // native position. Both explicit projection keys remain usable.
+        jResponse:=HBBridge.Tests.HBBridgePresentationFixture():Result(0,1,1)
+        jResponse["header"]["ID"]["source"]["column"]:="RA_NOME"
+        jResponse["header"]["TEXT"]["source"]["column"]:="RA_NOME"
+        oClient:Queue(jResponse)
+        FreeObj(@jResponse)
+        jChecks["duplicateSourceFixture"]:=oDataSet:OpenSQLTyped("SELECT duplicate_source_fixture",jBindings)
+        FreeObj(@jSchema)
+        jSchema:=HBBridge.Tests.HBBridgePresentationFixture():Schema()
+        oNative:=HBBridge.Client.HBBridgeNativeTable():New(oDataSet,jSchema,.T.,"TOPCONN")
+        jChecks["duplicateSourceLoad"]:=oNative:LoadCurrentPage()
+        jChecks["ambiguousSourcePositionIsRejected"]:=oNative:FieldPos("RA_NOME")==0
+        jChecks["ambiguousSourcePositionIsRejected"]:=jChecks["ambiguousSourcePositionIsRejected"].and.oNative:SourceFieldPos("RA_NOME")==0
+        jChecks["ambiguousSourceValueIsRejected"]:=ValType(oNative:FieldGet("RA_NOME"))=="U"
+        jChecks["ambiguousSourceValueIsRejected"]:=jChecks["ambiguousSourceValueIsRejected"].and.ValType(oNative:SourceFieldGet("RA_NOME"))=="U"
+        jChecks["duplicateSourceKeepsProjectionAccess"]:=oNative:FieldPos("ID")==2
+        jChecks["duplicateSourceKeepsProjectionAccess"]:=jChecks["duplicateSourceKeepsProjectionAccess"].and.oNative:FieldPos("TEXT")==4
+        jChecks["duplicateSourceKeepsProjectionAccess"]:=jChecks["duplicateSourceKeepsProjectionAccess"].and.RTrim(oNative:FieldGet("ID"))=="1"
+        jChecks["duplicateSourceKeepsProjectionAccess"]:=jChecks["duplicateSourceKeepsProjectionAccess"].and.RTrim(oNative:FieldGet("TEXT"))==DecodeUTF8("a"+Chr(195)+Chr(167)+Chr(195)+Chr(163)+"o")
+        jChecks["duplicateSourceCleanup"]:=oNative:Destroy()
+        if (!jChecks["duplicateSourceCleanup"])
             throw "NATIVE_TABLE_CLEANUP_FAILED"
         endif
         FreeObj(@oNative)
@@ -287,42 +441,64 @@ function U_HBBridgePresentationTableTest(nRecords)
         jChecks["nullAcceptedByDataset"]:=oDataSet:OpenSQLTyped("SELECT nullable_fixture",jBindings)
         FreeObj(@jSchema)
         jSchema:=HBBridge.Tests.HBBridgePresentationFixture():Schema()
-        oNative:=HBBridge.Client.HBBridgeNativeTable():New(oDataSet,jSchema)
-        jChecks["nullRejectedOnlyByPresentation"]:=!oNative:LoadCurrentPage().and.;
-            oNative:ErrorCode()=="PRESENTATION_NULL_REJECTED".and.Empty(oNative:Alias())
+        oNative:=HBBridge.Client.HBBridgeNativeTable():New(oDataSet,jSchema,.F.,"TOPCONN")
+        jChecks["nullRejectedOnlyByPresentation"]:=!oNative:LoadCurrentPage()
+        jChecks["nullRejectedOnlyByPresentation"]:=jChecks["nullRejectedOnlyByPresentation"].and.oNative:ErrorCode()=="PRESENTATION_NULL_REJECTED"
+        jChecks["nullRejectedOnlyByPresentation"]:=jChecks["nullRejectedOnlyByPresentation"].and.Empty(oNative:Alias())
         jChecks["failedLoadHasNoWriteMode"]:=Empty(oNative:WriteMode())
-        jChecks["nullDatasetUnchanged"]:=ValType(oDataSet:FieldGet("TEXT"))=="U".and.oDataSet:FieldExist("TEXT")
+        jChecks["failedLoadHasNoFieldAccess"]:=oNative:FieldPos("TEXT")==0
+        jChecks["failedLoadHasNoFieldAccess"]:=jChecks["failedLoadHasNoFieldAccess"].and.ValType(oNative:FieldGet("TEXT"))=="U"
+        jChecks["failedLoadCreatesNoSearchIndex"]:=oNative:EnsureIndex("TEXT")==0
+        jChecks["failedLoadCreatesNoSearchIndex"]:=jChecks["failedLoadCreatesNoSearchIndex"].and.oNative:IndexOrder("TEXT")==0
+        jChecks["nullDatasetUnchanged"]:=ValType(oDataSet:FieldGet("TEXT"))=="U"
+        jChecks["nullDatasetUnchanged"]:=jChecks["nullDatasetUnchanged"].and.oDataSet:FieldExist("TEXT")
         jChecks["destroyAfterFailure"]:=oNative:Destroy()
         if (!jChecks["destroyAfterFailure"])
             throw "NATIVE_TABLE_CLEANUP_FAILED"
         endif
         FreeObj(@oNative)
         jResponse:=HBBridge.Tests.HBBridgePresentationFixture():Result(0,0,0)
+        jResponse["header"]["TEXT"]["source"]["column"]:="RA_NOME"
         oClient:Queue(jResponse)
         FreeObj(@jResponse)
         jChecks["emptyDatasetOpen"]:=oDataSet:OpenSQLTyped("SELECT empty_fixture",jBindings)
-        oNative:=HBBridge.Client.HBBridgeNativeTable():New(oDataSet,jSchema)
-        jChecks["emptyNativeTableKeepsSchema"]:=oNative:LoadCurrentPage().and.oNative:RowCount()==0.and.oNative:FieldCount()==7
+        oNative:=HBBridge.Client.HBBridgeNativeTable():New(oDataSet,jSchema,.F.,"TOPCONN")
+        jChecks["emptyNativeTableKeepsSchema"]:=oNative:LoadCurrentPage()
+        jChecks["emptyNativeTableKeepsSchema"]:=jChecks["emptyNativeTableKeepsSchema"].and.oNative:RowCount()==0
+        jChecks["emptyNativeTableKeepsSchema"]:=jChecks["emptyNativeTableKeepsSchema"].and.oNative:FieldCount()==7
+        jChecks["emptyPageKeepsSourceMetadata"]:=oNative:SourceFieldName("TEXT")=="RA_NOME"
         jChecks["emptyPageNeedsNoWriter"]:=Empty(oNative:WriteMode())
+        jChecks["emptyPageFieldPositionWithoutRow"]:=oNative:FieldPos("TEXT")>0
+        jChecks["emptyPageFieldPositionWithoutRow"]:=jChecks["emptyPageFieldPositionWithoutRow"].and.oNative:SourceFieldPos("RA_NOME")==oNative:FieldPos("TEXT")
+        jChecks["emptyPageFieldPositionWithoutRow"]:=jChecks["emptyPageFieldPositionWithoutRow"].and.Empty(oNative:FieldGet("TEXT"))
         cPreviousAlias:=oNative:Alias()
         nPreviousWorkArea:=Select(cPreviousAlias)
-        (cPreviousAlias)->(DbSetOrder(oNative:IndexOrder("TEXT")))
+        nPreviousOrder:=oNative:EnsureIndex("TEXT")
+        jChecks["emptyTableSearchIndexCreatedOnDemand"]:=nPreviousOrder>0
+        jChecks["emptyTableSearchIndexCreatedOnDemand"]:=jChecks["emptyTableSearchIndexCreatedOnDemand"].and.nPreviousOrder!=4
+        (cPreviousAlias)->(DbSetOrder(nPreviousOrder))
         jResponse:=HBBridge.Tests.HBBridgePresentationFixture():Result(0,1,1)
         jResponse["rows"]["1"]["TEXT"]:=nil
         oClient:Queue(jResponse)
         FreeObj(@jResponse)
         jChecks["failedRefreshFixture"]:=oDataSet:OpenSQLTyped("SELECT null_refresh",jBindings)
-        jChecks["failedRefreshInvalidatesNativePage"]:=!oNative:LoadCurrentPage().and.!oNative:IsOpen()
+        jChecks["failedRefreshInvalidatesNativePage"]:=!oNative:LoadCurrentPage()
+        jChecks["failedRefreshInvalidatesNativePage"]:=jChecks["failedRefreshInvalidatesNativePage"].and.!oNative:IsOpen()
+        jChecks["failedRefreshHidesSourceMetadata"]:=Empty(oNative:SourceFieldName("TEXT"))
+        jChecks["failedRefreshHidesSourceMetadata"]:=jChecks["failedRefreshHidesSourceMetadata"].and.Empty(oNative:SourceFieldCaption("TEXT")).and.Empty(oNative:ProjectionName("F000000004"))
         jChecks["failedRefreshKeepsOwnedWorkArea"]:=Select(cPreviousAlias)==nPreviousWorkArea
         jChecks["failedRefreshClearsNativeRows"]:=(cPreviousAlias)->(LastRec())==0
-        jChecks["failedRefreshKeepsSelectedIndex"]:=(cPreviousAlias)->(IndexOrd())==4
+        jChecks["failedRefreshKeepsSelectedIndex"]:=(cPreviousAlias)->(IndexOrd())==nPreviousOrder
         jResponse:=HBBridge.Tests.HBBridgePresentationFixture():Result(0,1,1)
         oClient:Queue(jResponse)
         FreeObj(@jResponse)
         jChecks["recoveryFixture"]:=oDataSet:OpenSQLTyped("SELECT recovered_fixture",jBindings)
-        jChecks["recoveryAfterPresentationFailure"]:=oNative:LoadCurrentPage().and.oNative:RowCount()==1.and.Empty(oNative:ErrorCode())
-        jChecks["recoveryReusesNativeStorage"]:=oNative:Alias()==cPreviousAlias.and.Select(cPreviousAlias)==nPreviousWorkArea
-        jChecks["recoveryKeepsSelectedIndex"]:=(cPreviousAlias)->(IndexOrd())==4
+        jChecks["recoveryAfterPresentationFailure"]:=oNative:LoadCurrentPage()
+        jChecks["recoveryAfterPresentationFailure"]:=jChecks["recoveryAfterPresentationFailure"].and.oNative:RowCount()==1
+        jChecks["recoveryAfterPresentationFailure"]:=jChecks["recoveryAfterPresentationFailure"].and.Empty(oNative:ErrorCode())
+        jChecks["recoveryReusesNativeStorage"]:=oNative:Alias()==cPreviousAlias
+        jChecks["recoveryReusesNativeStorage"]:=jChecks["recoveryReusesNativeStorage"].and.Select(cPreviousAlias)==nPreviousWorkArea
+        jChecks["recoveryKeepsSelectedIndex"]:=(cPreviousAlias)->(IndexOrd())==nPreviousOrder
         jChecks["emptyTableCleanup"]:=oNative:Destroy()
         if (!jChecks["emptyTableCleanup"])
             throw "NATIVE_TABLE_CLEANUP_FAILED"
@@ -341,13 +517,14 @@ function U_HBBridgePresentationTableTest(nRecords)
         oClient:Queue(jResponse)
         FreeObj(@jResponse)
         jChecks["bufferBoundaryFixture"]:=oDataSet:OpenSQLTyped("SELECT bulk_boundary_fixture",jBindings)
-        oNative:=HBBridge.Client.HBBridgeNativeTable():New(oDataSet,jSchema)
+        oNative:=HBBridge.Client.HBBridgeNativeTable():New(oDataSet,jSchema,.F.,"TOPCONN")
         cExpectedMode:=if(FWBulk():CanBulk(),"bulk","record")
         jChecks["bufferBoundaryLoad"]:=oNative:LoadCurrentPage()
         jChecks["bufferBoundaryWriteMode"]:=oNative:WriteMode()==cExpectedMode
         if (oNative:IsOpen())
             cAlias:=oNative:Alias()
-            jChecks["bufferBoundaryRowCount"]:=oNative:RowCount()==nRecords.and.(cAlias)->(LastRec())==nRecords
+            jChecks["bufferBoundaryRowCount"]:=oNative:RowCount()==nRecords
+            jChecks["bufferBoundaryRowCount"]:=jChecks["bufferBoundaryRowCount"].and.(cAlias)->(LastRec())==nRecords
             jChecks["bufferBoundaryValues"]:=.T.
             nIDPosition:=(cAlias)->(FieldPos(oNative:FieldName("ID")))
             nCodePosition:=(cAlias)->(FieldPos(oNative:FieldName("ID_CODE")))
@@ -364,21 +541,22 @@ function U_HBBridgePresentationTableTest(nRecords)
                     jChecks["bufferBoundaryValues"]:=.F.
                     exit
                 endif
-                jChecks["bufferBoundaryValues"]:=jChecks["bufferBoundaryValues"].and.;
-                    RTrim((cAlias)->(FieldGet(nIDPosition)))==tlpp.ToStr(nRow).and.;
-                    RTrim((cAlias)->(FieldGet(nCodePosition)))==StrZero(nRow,10).and.;
-                    (cAlias)->(FieldGet(nFlagPosition))==((nRow%2)==0).and.;
-                    DToS((cAlias)->(FieldGet(nDayPosition)))==if((nRow%2)==0,"20000229","20240229").and.;
-                    (cAlias)->(FieldGet(nAmountPosition))==if((nRow%2)==0,-123.25,123.25).and.;
-                    (cAlias)->(FieldGet(nFloatPosition))==nRow/4.and.;
-                    RTrim((cAlias)->(FieldGet(nTextPosition)))==cExpectedText
+                jChecks["bufferBoundaryValues"]:=jChecks["bufferBoundaryValues"].and.RTrim((cAlias)->(FieldGet(nIDPosition)))==tlpp.ToStr(nRow)
+                jChecks["bufferBoundaryValues"]:=jChecks["bufferBoundaryValues"].and.RTrim((cAlias)->(FieldGet(nCodePosition)))==StrZero(nRow,10)
+                jChecks["bufferBoundaryValues"]:=jChecks["bufferBoundaryValues"].and.(cAlias)->(FieldGet(nFlagPosition))==((nRow%2)==0)
+                jChecks["bufferBoundaryValues"]:=jChecks["bufferBoundaryValues"].and.DToS((cAlias)->(FieldGet(nDayPosition)))==if((nRow%2)==0,"20000229","20240229")
+                jChecks["bufferBoundaryValues"]:=jChecks["bufferBoundaryValues"].and.(cAlias)->(FieldGet(nAmountPosition))==if((nRow%2)==0,-123.25,123.25)
+                jChecks["bufferBoundaryValues"]:=jChecks["bufferBoundaryValues"].and.(cAlias)->(FieldGet(nFloatPosition))==nRow/4
+                jChecks["bufferBoundaryValues"]:=jChecks["bufferBoundaryValues"].and.RTrim((cAlias)->(FieldGet(nTextPosition)))==cExpectedText
                 (cAlias)->(DbSkip())
             next nRow
             jChecks["bufferBoundaryHasNoExtraRows"]:=(cAlias)->(Eof())
             ConOut("hbBridge native table buffer write mode: "+oNative:WriteMode()+"; rows="+tlpp.ToStr(nRecords)+"; crosses1024="+if(nRecords>1024,"true","false"))
         endif
-        jChecks["bufferBoundaryKeepsBorrowedDataset"]:=oDataSet:RowCount()==nRecords.and.oDataSet:FieldGet("ID")=="1".and.;
-            oDataSet:FieldGet("DAY")=="2024-02-29".and.ValType(oDataSet:FieldGet("FLAG"))=="L"
+        jChecks["bufferBoundaryKeepsBorrowedDataset"]:=oDataSet:RowCount()==nRecords
+        jChecks["bufferBoundaryKeepsBorrowedDataset"]:=jChecks["bufferBoundaryKeepsBorrowedDataset"].and.oDataSet:FieldGet("ID")=="1"
+        jChecks["bufferBoundaryKeepsBorrowedDataset"]:=jChecks["bufferBoundaryKeepsBorrowedDataset"].and.oDataSet:FieldGet("DAY")=="2024-02-29"
+        jChecks["bufferBoundaryKeepsBorrowedDataset"]:=jChecks["bufferBoundaryKeepsBorrowedDataset"].and.ValType(oDataSet:FieldGet("FLAG"))=="L"
         jChecks["bufferBoundaryCleanup"]:=oNative:Destroy()
         if (!jChecks["bufferBoundaryCleanup"])
             throw "NATIVE_TABLE_CLEANUP_FAILED"
@@ -418,3 +596,23 @@ function U_HBBridgePresentationTableTest(nRecords)
     FWFreeArray(@aNames)
     FreeObj(@jChecks)
 return(if(lOK,0,1))
+
+static function NativeTableTestRename(jObject as json,cOld as character,cNew as character) as json
+
+    // JSONObject exposes its property names through this native array API.
+    local aNames:=jObject:GetNames() as array
+
+    local cName:="" as character
+
+    local jRenamed:=JSONObject():New() as json
+
+    local nName:=0 as numeric
+    local nNames:=Len(aNames) as numeric
+
+    for nName:=1 to nNames
+        cName:=aNames[nName]
+        jRenamed[if(cName==cOld,cNew,cName)]:=jObject[cName]
+    next nName
+    FWFreeArray(@aNames)
+
+return(jRenamed)

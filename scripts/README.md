@@ -16,6 +16,12 @@ the native browse, replace deployment files or stop existing services. Sources a
 RPOs are hashed; local `result.json` records exact outcomes without INI content.
 See [the guide and manual UI fixture](../docs/native-presentation.md).
 
+`-MeasureConversion` additionally compares strict row conversion against page
+conversion over 100 columns × 100 rows, in three alternating rounds. The
+reported local phase excludes fixture creation, SQL, transport, native storage,
+UI and value comparison. Correctness checks never require a timing win.
+The default suites include page conversion and SRA metadata planning.
+
 `-NativeRows 10000` sets the main synthetic storage load (default 1025),
 through `U_HBBridgePresentationTableCLI --native-rows=10000`. Small paging cases
 retain two rows followed by one. The interactive example is separate:
@@ -200,6 +206,22 @@ Before every commit:
 ```powershell
 ./scripts/commit-check.ps1
 ```
+
+The default checks modified/added files from the working tree and index, plus
+nonignored new files. Use `-Staged` to validate only changed staged files using
+their indexed content, or `-All` for a complete review (`-Staged -All` reviews
+the complete index). Deleted/renamed documents include their surviving language
+pair. Changes to validation rules, tools or dependency/configuration policy
+automatically require a full review. Third-party validation remains global;
+all three Harbour validators still run, including when the selection is empty.
+Selection does not refresh or modify the index. The isolated regression is
+`./scripts/test-commit-check-selection.ps1`.
+
+Staged validation removes its copied source snapshot in `finally`, including
+checkout/validation failures. The selection regression also removes its
+generated fixtures. TLPP copies must not remain under `tmp/`: they confuse
+the TOTVS extension's source resolution. Retained file lists/logs contain no
+duplicate sources; Protheus compilation uses maintained source paths.
 
 The managed `hbrun` executes `.hbcommit/check.hb`, `.hbcommit/commit.hb` and
 `.hbcommit/3rdpatch.hb` in read-only validation mode. No second Harbour runtime

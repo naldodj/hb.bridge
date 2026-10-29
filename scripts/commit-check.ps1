@@ -3,11 +3,14 @@ param(
     [string] $HbCompileRoot,
     [string] $ZigPath,
     [switch] $Staged,
+    [switch] $All,
     [switch] $InstallHook
 )
 
 $ErrorActionPreference = 'Stop'
 $projectRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+. (Join-Path $PSScriptRoot 'commit-check-selection.ps1')
+$selection = Get-CommitCheckSelection -ProjectRoot $projectRoot -Staged:$Staged -All:$All
 . (Join-Path $PSScriptRoot 'toolchain.ps1')
 $toolchainArguments = @{ ProjectRoot = $projectRoot }
 if ($HbCompileRoot) { $toolchainArguments.HbCompileRoot = $HbCompileRoot }
@@ -17,15 +20,14 @@ $toolchain = Resolve-HBBridgeToolchain @toolchainArguments
 function Invoke-ValidationGit {
     param([string[]] $Arguments)
 
-    $result = & git -c "safe.directory=$projectRoot" -C $projectRoot @Arguments
-    if ($LASTEXITCODE -ne 0) { throw "git validation command failed ($LASTEXITCODE)." }
-    return $result
+    $result = Invoke-CommitCheckGit -ProjectRoot $projectRoot -GitPath $selection.GitPath -Arguments $Arguments
+    return $result.TrimEnd([char[]]"`r`n")
 }
 
 function Invoke-ValidationTool {
     param([string] $Script, [string[]] $Arguments)
 
-    & $toolchain.Hbrun (Join-Path $projectRoot ".hbcommit/$Script") @Arguments
+    & $toolchain.Hbrun (Join-Path $validationRoot ".hbcommit/$Script") @Arguments
     if ($LASTEXITCODE -ne 0) { throw "$Script rejected the files (exit $LASTEXITCODE)." }
 }
 
@@ -33,25 +35,15 @@ function Test-ProjectConventions {
     param([string] $ValidationRoot, [string[]] $Files)
 
     $failures = [Collections.Generic.List[string]]::new()
+    foreach ($missingPair in @(Get-CommitCheckMissingDocumentationPair -ValidationRoot $ValidationRoot -Files $Files)) {
+        $failures.Add($missingPair)
+    }
     foreach ($relativePath in $Files) {
         $filePath = Join-Path $ValidationRoot $relativePath
         if ($relativePath -match '^(tmp|out)/') {
             $failures.Add("${relativePath}: generated tmp/out artifacts must not be versioned")
             continue
         }
-        if ($relativePath.EndsWith('.md') -and
-            -not $relativePath.StartsWith('.hbcommit/') -and
-            -not $relativePath.StartsWith('brainstorming/')) {
-            $pairedPath = if ($relativePath.EndsWith('.pt-BR.md')) {
-                $relativePath.Substring(0, $relativePath.Length - '.pt-BR.md'.Length) + '.md'
-            } else {
-                $relativePath.Substring(0, $relativePath.Length - '.md'.Length) + '.pt-BR.md'
-            }
-            if (-not (Test-Path -LiteralPath (Join-Path $ValidationRoot $pairedPath) -PathType Leaf)) {
-                $failures.Add("${relativePath}: missing documentation pair $pairedPath")
-            }
-        }
-
         if ($relativePath.StartsWith('.hbcommit/') -or $relativePath.Contains('/third_party/')) { continue }
         if ($relativePath -notmatch '\.(hb|prg|tlpp|c|zig|ps1)$') { continue }
         $content = [IO.File]::ReadAllText($filePath)
@@ -116,25 +108,32 @@ $validationRoot = $projectRoot
 $temporaryRoot = Join-Path $projectRoot ('tmp/commit-check-' + [Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $temporaryRoot -Force | Out-Null
 
-if ($Staged) {
-    # Read the index into an isolated snapshot; never change the index or checkout.
-    $validationRoot = Join-Path $temporaryRoot 'snapshot'
-    New-Item -ItemType Directory -Path $validationRoot -Force | Out-Null
-    $snapshotPrefix = $validationRoot.Replace('\', '/') + '/'
-    Invoke-ValidationGit -Arguments @('checkout-index', '--all', "--prefix=$snapshotPrefix") | Out-Null
-    $fileOutput = Invoke-ValidationGit -Arguments @('ls-files', '-z', '--cached')
-} else {
-    $fileOutput = Invoke-ValidationGit -Arguments @('ls-files', '-z', '--cached', '--others', '--exclude-standard')
-}
-$files = @(($fileOutput -join "`n") -split "`0" | Where-Object {
-    $_ -and (Test-Path -LiteralPath (Join-Path $validationRoot $_) -PathType Leaf)
-} | Sort-Object -Unique)
-$fileList = Join-Path $temporaryRoot 'files.txt'
-[IO.File]::WriteAllText($fileList, ($files -join "`n") + "`n", [Text.UTF8Encoding]::new($false))
-
-$previousEnvironment = Enter-HBBridgeToolchain -Toolchain $toolchain
-Push-Location $validationRoot
+$previousEnvironment = $null
+$pushedLocation = $false
 try {
+    if ($Staged) {
+        # Read the index into an isolated snapshot; never change the index or checkout.
+        $validationRoot = Join-Path $temporaryRoot 'snapshot'
+        New-CommitCheckSnapshot -ProjectRoot $projectRoot -SnapshotRoot $validationRoot -GitPath $selection.GitPath | Out-Null
+    }
+    $files = $selection.Files
+    foreach ($file in $files) {
+        if ($file.Contains("`n") -or $file.Contains("`r")) {
+            throw 'The Harbour validation file list cannot represent a filename containing a newline.'
+        }
+    }
+    $fileList = Join-Path $temporaryRoot 'files.txt'
+    # Even an empty selection has a terminating newline. The Harbour --list
+    # readers receive an explicit array of empty entries rather than requesting
+    # their implicit full-repository fallback. All three validators still run.
+    [IO.File]::WriteAllText($fileList, ($files -join "`n") + "`n", [Text.UTF8Encoding]::new($false))
+    if ($selection.FullReasons.Count -gt 0) {
+        Write-Host ('Full validation required by changed policy: ' + ($selection.FullReasons -join ', '))
+    }
+
+    $previousEnvironment = Enter-HBBridgeToolchain -Toolchain $toolchain
+    Push-Location $validationRoot
+    $pushedLocation = $true
     Invoke-ValidationTool -Script 'check.hb' -Arguments @('--list', $fileList)
     Invoke-ValidationTool -Script 'commit.hb' -Arguments @('-c', '--list', $fileList)
     Test-ProjectConventions -ValidationRoot $validationRoot -Files $files
@@ -146,8 +145,14 @@ try {
         finally { Pop-Location }
     }
 } finally {
-    Pop-Location
-    Exit-HBBridgeToolchain -PreviousEnvironment $previousEnvironment
+    try {
+        if ($pushedLocation) { Pop-Location }
+        if ($null -ne $previousEnvironment) { Exit-HBBridgeToolchain -PreviousEnvironment $previousEnvironment }
+    } finally {
+        # Remove copied TLPP immediately, even if checkout or a validator failed.
+        # The file list remains available without ambiguous duplicate sources.
+        if ($Staged) { Remove-CommitCheckSnapshot -ProjectRoot $projectRoot -SnapshotRoot $validationRoot }
+    }
 }
 
 if ($InstallHook) {
@@ -167,4 +172,5 @@ if ($InstallHook) {
     Write-Host "Installed pre-commit validation: $hookPath"
 }
 
-Write-Host "hbBridge commit checks passed: $($files.Count) files; check.hb, commit.hb and 3rdpatch.hb."
+$scope = if ($selection.Full) { 'all files' } elseif ($Staged) { 'changed staged files' } else { 'changed and new files' }
+Write-Host "hbBridge commit checks passed: $($files.Count) files ($scope); check.hb, commit.hb and 3rdpatch.hb."

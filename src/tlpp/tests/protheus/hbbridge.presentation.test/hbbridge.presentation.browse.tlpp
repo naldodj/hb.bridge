@@ -7,8 +7,6 @@ namespace HBBridge.Examples
 // UI example does not introduce a generic production BrowseNative API.
 function U_HBBridgeNativeBrowse(nRecords,nPageSize)
 
-    local aTopInfo as array
-
     local cCode:="" as character
     local cMessage:="" as character
     local cTitle:="" as character
@@ -17,10 +15,6 @@ function U_HBBridgeNativeBrowse(nRecords,nPageSize)
     local jBindings:=JSONObject():New() as json
 
     local lOK:=.F. as logical
-    local lOwned:=.F. as logical
-
-    local nConnection:=-1 as numeric
-
     local oClient as object
     local oDataSet as object
     local oNative as object
@@ -44,18 +38,6 @@ function U_HBBridgeNativeBrowse(nRecords,nPageSize)
     cTitle:="hbBridge native presentation: synthetic data ("+tlpp.ToStr(nRecords)+;
         " rows, "+tlpp.ToStr(nPageSize)+" per page)"
     try
-        if (!TCIsConnected())
-            aTopInfo:=FWGetTopInfo()
-            if (ValType(aTopInfo)!="A".or.Len(aTopInfo)<5)
-                throw "DBACCESS_CONFIGURATION_REQUIRED"
-            endif
-            nConnection:=TCLink(aTopInfo[4]+"/"+aTopInfo[5],aTopInfo[1],aTopInfo[3])
-            FWFreeArray(@aTopInfo)
-            if (nConnection<0)
-                throw "DBACCESS_CONNECTION_FAILED"
-            endif
-            lOwned:=.T.
-        endif
         oDataSet:SetAliasProfile("presentation/mock")
         if (!oDataSet:OpenPageTyped("SELECT fixture",jBindings,1,nPageSize,"ID ASC"))
             throw "TYPED_FIXTURE_FAILED"
@@ -95,18 +77,68 @@ function U_HBBridgeNativeBrowse(nRecords,nPageSize)
     FreeObj(@oClient)
     FreeObj(@jSchema)
     FreeObj(@jBindings)
-    FWFreeArray(@aTopInfo)
-    if (lOwned)
-        TCUnlink(nConnection)
-    endif
 
 return(if(lOK,0,1))
 
 // Read-only real SX5 data, using the same local UI and actual typed clients.
 function U_HBBridgeNativeBrowseSX5(cProfile,cTransport,nPageSize)
+return(BrowseNativeDictionary("SX5",cProfile,cTransport,nPageSize))
+
+function U_HBBridgeNativeBrowseSRA(cProfile,cTransport,nPageSize)
+return(BrowseNativeDictionary("SRA",cProfile,cTransport,nPageSize))
+
+// Dictionary content for the requested table; no SQL employee read or native
+// temporary destination is needed to inspect SX3 field definitions.
+function U_HBBridgeSX3Browse(cAlias)
+
+    local jMetadata as json
+    local jDefinition as json
+    local jStatus as json
+
+    local lOK:=.F. as logical
+
+    DEFAULT cAlias:="SRA"
+    jMetadata:=HBBridge.Protheus.HBBridgeSX3Metadata():Read(cAlias)
+    if (ValType(jMetadata)!="J")
+        MsgStop("Prepare the Protheus company/branch and supply a dictionary alias.","hbBridge SX3")
+        return(1)
+    endif
+    jStatus:=BrowseNativeDictionaryStatus(jMetadata)
+    jDefinition:=JSONObject():New()
+    jDefinition["metadata"]:=jMetadata
+    jMetadata:=nil
+    jDefinition["schema"]:={"fields":JSONObject():New()}
+    jDefinition["fieldStatus"]:=jStatus
+    jStatus:=nil
+    lOK:=BrowseNativeCatalog(jDefinition,"SX3 dictionary fields: "+jDefinition["metadata"]["alias"])
+    FreeObj(@jDefinition)
+
+return(if(lOK,0,1))
+
+static function BrowseNativeDictionaryStatus(jMetadata as json) as json
+
+    local aNames:=jMetadata["fields"]:GetNames() as array
+
+    local cField:="" as character
+
+    local jStatus:=JSONObject():New() as json
+
+    local nField:=0 as numeric
+    local nFields:=Len(aNames) as numeric
+
+    for nField:=1 to nFields
+        cField:=aNames[nField]
+        jStatus[cField]:={"status":"dictionary","reason":if(jMetadata["fields"][cField]["virtual"],"virtual","physical definition")}
+    next nField
+    FWFreeArray(@aNames)
+
+return(jStatus)
+
+static function BrowseNativeDictionary(cTable as character,cProfile,cTransport,nPageSize) as numeric
 
     local cCode:="" as character
     local cMessage:="" as character
+    local cTitle:="hbBridge "+cTable as character
 
     local jConfig as json
     local jDefinition as json
@@ -122,14 +154,14 @@ function U_HBBridgeNativeBrowseSX5(cProfile,cTransport,nPageSize)
     local xError as variant
 
     DEFAULT cTransport:="TCP"
-    DEFAULT nPageSize:=100
+    DEFAULT nPageSize:=13
     if (ValType(cTransport)!="C".or.ValType(nPageSize)!="N")
-        MsgStop("Supply TCP or HTTP and a positive integer page size.","hbBridge SX5")
+        MsgStop("Supply TCP or HTTP and a positive integer page size.",cTitle)
         return(1)
     endif
     cTransport:=Upper(AllTrim(cTransport))
     if (!(cTransport=="TCP".or.cTransport=="HTTP").or.nPageSize<1.or.nPageSize!=Int(nPageSize))
-        MsgStop("Supply TCP or HTTP and a positive integer page size.","hbBridge SX5")
+        MsgStop("Supply TCP or HTTP and a positive integer page size.",cTitle)
         return(1)
     endif
     if (ValType(cProfile)=="U")
@@ -138,17 +170,28 @@ function U_HBBridgeNativeBrowseSX5(cProfile,cTransport,nPageSize)
         FreeObj(@jConfig)
     endif
     if (ValType(cProfile)!="C")
-        MsgStop("Supply an explicit SQL profile or configure SQLProfile.","hbBridge SX5")
+        MsgStop("Supply an explicit SQL profile or configure SQLProfile.",cTitle)
         return(1)
     endif
     if (Empty(AllTrim(cProfile)))
-        MsgStop("Supply an explicit SQL profile or configure SQLProfile.","hbBridge SX5")
+        MsgStop("Supply an explicit SQL profile or configure SQLProfile.",cTitle)
         return(1)
     endif
     try
-        jDefinition:=HBBridgePresentationSX5():Definition()
+        if (cTable=="SRA")
+            jDefinition:=HBBridgePresentationSRA():Definition()
+            if (!jDefinition["success"])
+                cCode:=jDefinition["code"]
+                cMessage:=jDefinition["message"]
+                throw cCode
+            endif
+            cTitle+=": "+tlpp.ToStr(jDefinition["includedCount"])+" columns; "+;
+                tlpp.ToStr(jDefinition["excludedCount"])+" fields outside native presentation"
+        else
+            jDefinition:=HBBridgePresentationSX5():Definition()
+        endif
         if (ValType(jDefinition)!="J")
-            cMessage:="Prepare the Protheus company/branch and SX5 dictionary before opening this example."
+            cMessage:="Prepare the Protheus company/branch and dictionary before opening this example."
             throw "PROTHEUS_CONTEXT_REQUIRED"
         endif
         if (cTransport=="HTTP")
@@ -177,20 +220,20 @@ function U_HBBridgeNativeBrowseSX5(cProfile,cTransport,nPageSize)
             cMessage:=oNative:ErrorMessage()
             throw cCode
         endif
-        lOK:=BrowseNative(oNative,oDataSet,oSource,"hbBridge SX5: real SELECT via "+cTransport,@cCode,@cMessage)
+        lOK:=BrowseNative(oNative,oDataSet,oSource,cTitle+": real SELECT via "+cTransport,@cCode,@cMessage,jDefinition)
     catch xError
         if (Empty(cCode))
             cCode:="REAL_PRESENTATION_FAILED"
         endif
         if (Empty(cMessage))
-            cMessage:="Could not complete the real SX5 presentation."
+            cMessage:="Could not complete the real dictionary-driven presentation."
         endif
         if (ValType(xError)=="O")
             FreeObj(@xError)
         endif
     endtry
     if (!lOK)
-        MsgStop(cCode+": "+cMessage,"hbBridge SX5")
+        MsgStop(cCode+": "+cMessage,cTitle)
     endif
     if (ValType(oNative)=="O")
         if (oNative:Destroy())
@@ -227,7 +270,6 @@ function U_HBBridgeNativeBrowseTest()
     local aDataBlocks as array
     local aNames as array
     local aSeek as array
-    local aTopInfo as array
 
     local cAlias:="" as character
     local cOldAlias:="" as character
@@ -240,34 +282,21 @@ function U_HBBridgeNativeBrowseTest()
     local jSizedResponse as json
 
     local lOK:=.T. as logical
-    local lOwned:=.F. as logical
 
     local nArea:=Select() as numeric
     local nCheck:=0 as numeric
     local nChecks:=0 as numeric
-    local nConnection:=-1 as numeric
 
     local oClient:=HBBridge.Tests.HBBridgePresentationBrowseClient():New(12) as object
     local oDataSet:=HBBridge.RDD.HBBridgeRPCDataSet():New(oClient) as object
     local oNative as object
     local oSizedClient as object
     local oSizedDataSet as object
+    local oSeekMock as object
 
     local xError as variant
 
     try
-        if (!TCIsConnected())
-            aTopInfo:=FWGetTopInfo()
-            if (ValType(aTopInfo)!="A".or.Len(aTopInfo)<5)
-                throw "DBACCESS_CONFIGURATION_REQUIRED"
-            endif
-            nConnection:=TCLink(aTopInfo[4]+"/"+aTopInfo[5],aTopInfo[1],aTopInfo[3])
-            FWFreeArray(@aTopInfo)
-            if (nConnection<0)
-                throw "DBACCESS_CONNECTION_FAILED"
-            endif
-            lOwned:=.T.
-        endif
         oDataSet:SetAliasProfile("presentation/mock")
         jChecks["firstPage"]:=oDataSet:OpenPageTyped("SELECT fixture",jBindings,1,4,"ID ASC")
         jChecks["allFixtureTotals"]:=oDataSet:TotalRows()==12.and.oDataSet:TotalPages()==3
@@ -294,39 +323,110 @@ function U_HBBridgeNativeBrowseTest()
         jChecks["trueFlagBinding"]:=Eval(aDataBlocks[5])=="True"
         jChecks["secondDateBinding"]:=Eval(aDataBlocks[6])==SToD("20240222")
         jChecks["secondFloatBinding"]:=Eval(aDataBlocks[7])==2.5
+        jChecks["initialNativeIndexOnly"]:=!Empty((cAlias)->(IndexKey(1)))
+        jChecks["initialNativeIndexOnly"]:=jChecks["initialNativeIndexOnly"].and.Empty((cAlias)->(IndexKey(2)))
+        jChecks["initialNativeIndexOnly"]:=jChecks["initialNativeIndexOnly"].and.oNative:IndexOrder("ID_CODE")==1
+        jChecks["initialNativeIndexOnly"]:=jChecks["initialNativeIndexOnly"].and.oNative:IndexOrder("TEXT")==0
+        jChecks["initialNativeIndexOnly"]:=jChecks["initialNativeIndexOnly"].and.oNative:IndexOrder("DAY")==0
+        jChecks["seekOptionsRemainProjectionTokens"]:=aSeek[4][3]==4
+        jChecks["seekOptionsRemainProjectionTokens"]:=jChecks["seekOptionsRemainProjectionTokens"].and.aSeek[6][3]==6
+        oSeekMock:=HBBridge.Tests.HBBridgePresentationSeekMock():New(cAlias,aSeek)
+        oSeekMock:nOption:=4
+        jChecks["detailResolvesTextProjection"]:=BrowseNativeSeekProjection(oSeekMock,oNative,oSeekMock:nOption)=="TEXT"
+        jChecks["seekCreatesRequestedTextIndex"]:=BrowseNativeSeekChange(oSeekMock,;
+            {|oSeek|oSeek:nCallbacks++,(oSeek:cAlias)->(DbSetOrder(1))},oNative,.F.)==1
+        jChecks["seekCreatesRequestedTextIndex"]:=jChecks["seekCreatesRequestedTextIndex"].and.oNative:IndexOrder("TEXT")==4
+        jChecks["seekCreatesRequestedTextIndex"]:=jChecks["seekCreatesRequestedTextIndex"].and.(cAlias)->(IndexOrd())==4
+        jChecks["seekCreatesRequestedTextIndex"]:=jChecks["seekCreatesRequestedTextIndex"].and.!Empty((cAlias)->(IndexKey(3)))
+        jChecks["repeatSeekReusesIndex"]:=BrowseNativeSeekChange(oSeekMock,nil,oNative,.F.)==1.and.;
+            !Empty((cAlias)->(IndexKey(3)))
+        oSeekMock:nOption:=6
+        jChecks["seekCreatesDateOutOfProjectionOrder"]:=BrowseNativeSeekChange(oSeekMock,nil,oNative,.F.)==1
+        jChecks["seekCreatesDateOutOfProjectionOrder"]:=jChecks["seekCreatesDateOutOfProjectionOrder"].and.oNative:IndexOrder("DAY")==6
+        jChecks["seekCreatesDateOutOfProjectionOrder"]:=jChecks["seekCreatesDateOutOfProjectionOrder"].and.(cAlias)->(IndexOrd())==6
+        oSeekMock:nOption:=5
+        jChecks["detailKeepsLogicalShadowMapping"]:=BrowseNativeSeekProjection(oSeekMock,oNative,oSeekMock:nOption)=="FLAG"
+        jChecks["seekCreatesLogicalOutOfProjectionOrder"]:=BrowseNativeSeekChange(oSeekMock,nil,oNative,.F.)==1
+        jChecks["seekCreatesLogicalOutOfProjectionOrder"]:=jChecks["seekCreatesLogicalOutOfProjectionOrder"].and.oNative:IndexOrder("FLAG")==5
+        jChecks["seekCreatesLogicalOutOfProjectionOrder"]:=jChecks["seekCreatesLogicalOutOfProjectionOrder"].and.(cAlias)->(IndexOrd())==5
+        oSeekMock:nOption:=7
+        oSeekMock:aDetails[7][1][7]:="UNMAPPED"
+        jChecks["invalidSeekDetailPreservesOrder"]:=BrowseNativeSeekChange(oSeekMock,nil,oNative,.F.)
+        jChecks["invalidSeekDetailPreservesOrder"]:=jChecks["invalidSeekDetailPreservesOrder"]==0
+        jChecks["invalidSeekDetailPreservesOrder"]:=jChecks["invalidSeekDetailPreservesOrder"].and.(cAlias)->(IndexOrd())==5
+        jChecks["invalidSeekDetailPreservesOrder"]:=jChecks["invalidSeekDetailPreservesOrder"].and.oNative:IndexOrder("FLOAT")==0
+        oSeekMock:nOption:=0
+        jChecks["zeroSeekOptionRejected"]:=BrowseNativeSeekChange(oSeekMock,nil,oNative,.F.)==0.and.;
+            (cAlias)->(IndexOrd())==5
+        oSeekMock:nOption:=-1
+        jChecks["negativeSeekOptionRejected"]:=BrowseNativeSeekChange(oSeekMock,nil,oNative,.F.)==0.and.;
+            (cAlias)->(IndexOrd())==5
+        oSeekMock:nOption:=4.5
+        jChecks["fractionalSeekOptionRejected"]:=BrowseNativeSeekChange(oSeekMock,nil,oNative,.F.)==0.and.;
+            (cAlias)->(IndexOrd())==5
+        oSeekMock:nOption:=oNative:FieldCount()+1
+        jChecks["outOfRangeSeekOptionRejected"]:=BrowseNativeSeekChange(oSeekMock,nil,oNative,.F.)==0.and.;
+            (cAlias)->(IndexOrd())==5.and.oNative:IndexOrder("FLOAT")==0
+        jChecks["originalSeekCallbackRunsOnce"]:=oSeekMock:nCallbacks==1
+        FreeObj(@oSeekMock)
         cOldAlias:=cAlias
-        jChecks["randomLastPage"]:=oDataSet:OpenPageTyped("SELECT fixture",jBindings,3,4,"ID ASC").and.oNative:LoadCurrentPage()
-        jChecks["nativeAliasRemainsBound"]:=oNative:Alias()==cOldAlias.and.Select(cOldAlias)>0
+        jChecks["randomLastPage"]:=oDataSet:OpenPageTyped("SELECT fixture",jBindings,3,4,"ID ASC")
+        jChecks["randomLastPage"]:=jChecks["randomLastPage"].and.oNative:LoadCurrentPage()
+        jChecks["nativeAliasRemainsBound"]:=oNative:Alias()==cOldAlias
+        jChecks["nativeAliasRemainsBound"]:=jChecks["nativeAliasRemainsBound"].and.Select(cOldAlias)>0
+        jChecks["requestedIndexesSurvivePageRefill"]:=oNative:IndexOrder("TEXT")==4
+        jChecks["requestedIndexesSurvivePageRefill"]:=jChecks["requestedIndexesSurvivePageRefill"].and.oNative:IndexOrder("DAY")==6
+        jChecks["requestedIndexesSurvivePageRefill"]:=jChecks["requestedIndexesSurvivePageRefill"].and.oNative:IndexOrder("FLAG")==5
+        jChecks["requestedIndexesSurvivePageRefill"]:=jChecks["requestedIndexesSurvivePageRefill"].and.!Empty((cAlias)->(IndexKey(5)))
         jChecks["bindingFollowsPublishedAlias"]:=AllTrim(Eval(aDataBlocks[2]))=="9"
         (cAlias)->(DbSetOrder(oNative:IndexOrder("ID_CODE")))
         (cAlias)->(DbGoTop())
-        jChecks["codeIndexStartsAtNine"]:=AllTrim(Eval(aDataBlocks[1]))=="0000000009".and.AllTrim(Eval(aDataBlocks[2]))=="9"
+        jChecks["codeIndexStartsAtNine"]:=AllTrim(Eval(aDataBlocks[1]))=="0000000009"
+        jChecks["codeIndexStartsAtNine"]:=jChecks["codeIndexStartsAtNine"].and.AllTrim(Eval(aDataBlocks[2]))=="9"
         (cAlias)->(DbSkip())
-        jChecks["codeIndexAdvancesToTen"]:=AllTrim(Eval(aDataBlocks[1]))=="0000000010".and.AllTrim(Eval(aDataBlocks[2]))=="10"
-        jChecks["randomPreviousPage"]:=oDataSet:PreviousPage().and.oNative:LoadCurrentPage()
+        jChecks["codeIndexAdvancesToTen"]:=AllTrim(Eval(aDataBlocks[1]))=="0000000010"
+        jChecks["codeIndexAdvancesToTen"]:=jChecks["codeIndexAdvancesToTen"].and.AllTrim(Eval(aDataBlocks[2]))=="10"
+        jChecks["randomPreviousPage"]:=oDataSet:PreviousPage()
+        jChecks["randomPreviousPage"]:=jChecks["randomPreviousPage"].and.oNative:LoadCurrentPage()
         jChecks["previousPageIdentifier"]:=AllTrim(Eval(aDataBlocks[2]))=="5"
         jChecks["previousPageCode"]:=AllTrim(Eval(aDataBlocks[1]))=="0000000005"
-        jChecks["searchLastSourceRow"]:=oClient:SetSearch("ID","12").and.oDataSet:OpenPageTyped("SELECT fixture",jBindings,1,4,"ID ASC")
-        jChecks["searchTotalsBeforePaging"]:=oDataSet:TotalRows()==1.and.oDataSet:FieldGet("ID")=="12"
-        jChecks["searchKeepsNativeLogical"]:=oNative:LoadCurrentPage().and.Eval(aDataBlocks[5])=="True"
+        jChecks["searchLastSourceRow"]:=oClient:SetSearch("ID","12")
+        jChecks["searchLastSourceRow"]:=jChecks["searchLastSourceRow"].and.oDataSet:OpenPageTyped("SELECT fixture",jBindings,1,4,"ID ASC")
+        jChecks["searchTotalsBeforePaging"]:=oDataSet:TotalRows()==1
+        jChecks["searchTotalsBeforePaging"]:=jChecks["searchTotalsBeforePaging"].and.oDataSet:FieldGet("ID")=="12"
+        jChecks["searchKeepsNativeLogical"]:=oNative:LoadCurrentPage()
+        jChecks["searchKeepsNativeLogical"]:=jChecks["searchKeepsNativeLogical"].and.Eval(aDataBlocks[5])=="True"
         jChecks["clearSearch"]:=oClient:SetSearch("ID","")
         jChecks["addLogicalFilter"]:=oClient:AddFilter("FLAG","equal","true")
         jChecks["addNumericAndFilter"]:=oClient:AddFilter("AMOUNT","at least","108.25")
-        jChecks["andFilterTotals"]:=oDataSet:OpenPageTyped("SELECT fixture",jBindings,1,4,"ID ASC").and.oDataSet:TotalRows()==3
+        jChecks["andFilterTotals"]:=oDataSet:OpenPageTyped("SELECT fixture",jBindings,1,4,"ID ASC")
+        jChecks["andFilterTotals"]:=jChecks["andFilterTotals"].and.oDataSet:TotalRows()==3
         jChecks["andFilterFirstRow"]:=oDataSet:FieldGet("ID")=="8"
-        jChecks["searchIntersectsFilters"]:=oClient:SetSearch("ID","12").and.oDataSet:OpenPageTyped("SELECT fixture",jBindings,1,4,"ID ASC").and.oDataSet:TotalRows()==1
+        jChecks["searchIntersectsFilters"]:=oClient:SetSearch("ID","12")
+        jChecks["searchIntersectsFilters"]:=jChecks["searchIntersectsFilters"].and.oDataSet:OpenPageTyped("SELECT fixture",jBindings,1,4,"ID ASC")
+        jChecks["searchIntersectsFilters"]:=jChecks["searchIntersectsFilters"].and.oDataSet:TotalRows()==1
         oClient:ClearFilters()
-        jChecks["clearRestoresAllRows"]:=oDataSet:OpenPageTyped("SELECT fixture",jBindings,1,4,"ID ASC").and.oDataSet:TotalRows()==12
-        jChecks["codePrefixFilter"]:=oClient:AddFilter("ID_CODE","starts with","000000001").and.;
-            oDataSet:OpenPageTyped("SELECT fixture",jBindings,1,4,"ID ASC").and.oDataSet:TotalRows()==3.and.oDataSet:FieldGet("ID")=="10"
+        jChecks["clearRestoresAllRows"]:=oDataSet:OpenPageTyped("SELECT fixture",jBindings,1,4,"ID ASC")
+        jChecks["clearRestoresAllRows"]:=jChecks["clearRestoresAllRows"].and.oDataSet:TotalRows()==12
+        jChecks["codePrefixFilter"]:=oClient:AddFilter("ID_CODE","starts with","000000001")
+        jChecks["codePrefixFilter"]:=jChecks["codePrefixFilter"].and.oDataSet:OpenPageTyped("SELECT fixture",jBindings,1,4,"ID ASC")
+        jChecks["codePrefixFilter"]:=jChecks["codePrefixFilter"].and.oDataSet:TotalRows()==3
+        jChecks["codePrefixFilter"]:=jChecks["codePrefixFilter"].and.oDataSet:FieldGet("ID")=="10"
         oClient:ClearFilters()
-        jChecks["codeSearch"]:=oClient:SetSearch("ID_CODE","0012").and.;
-            oDataSet:OpenPageTyped("SELECT fixture",jBindings,1,4,"ID ASC").and.oDataSet:TotalRows()==1.and.oDataSet:FieldGet("ID_CODE")=="0000000012"
+        jChecks["codeSearch"]:=oClient:SetSearch("ID_CODE","0012")
+        jChecks["codeSearch"]:=jChecks["codeSearch"].and.oDataSet:OpenPageTyped("SELECT fixture",jBindings,1,4,"ID ASC")
+        jChecks["codeSearch"]:=jChecks["codeSearch"].and.oDataSet:TotalRows()==1
+        jChecks["codeSearch"]:=jChecks["codeSearch"].and.oDataSet:FieldGet("ID_CODE")=="0000000012"
         oClient:ClearFilters()
-        jChecks["literalSearchIsNotExpression"]:=oClient:SetSearch("TEXT","' OR 1=1 --").and.oDataSet:OpenPageTyped("SELECT fixture",jBindings,1,4,"ID ASC").and.oDataSet:TotalRows()==0
-        jChecks["emptyNativePage"]:=oNative:LoadCurrentPage().and.oNative:RowCount()==0
+        jChecks["literalSearchIsNotExpression"]:=oClient:SetSearch("TEXT","' OR 1=1 --")
+        jChecks["literalSearchIsNotExpression"]:=jChecks["literalSearchIsNotExpression"].and.oDataSet:OpenPageTyped("SELECT fixture",jBindings,1,4,"ID ASC")
+        jChecks["literalSearchIsNotExpression"]:=jChecks["literalSearchIsNotExpression"].and.oDataSet:TotalRows()==0
+        jChecks["emptyNativePage"]:=oNative:LoadCurrentPage()
+        jChecks["emptyNativePage"]:=jChecks["emptyNativePage"].and.oNative:RowCount()==0
         oClient:ClearFilters()
-        jChecks["recoverAfterEmptyPage"]:=oDataSet:OpenPageTyped("SELECT fixture",jBindings,1,4,"ID ASC").and.oNative:LoadCurrentPage().and.AllTrim(Eval(aDataBlocks[2]))=="1"
+        jChecks["recoverAfterEmptyPage"]:=oDataSet:OpenPageTyped("SELECT fixture",jBindings,1,4,"ID ASC")
+        jChecks["recoverAfterEmptyPage"]:=jChecks["recoverAfterEmptyPage"].and.oNative:LoadCurrentPage()
+        jChecks["recoverAfterEmptyPage"]:=jChecks["recoverAfterEmptyPage"].and.AllTrim(Eval(aDataBlocks[2]))=="1"
         jChecks["rejectDelimitedField"]:=!oClient:AddFilter("ID|AMOUNT","equal","1")
         jChecks["rejectDelimitedOperator"]:=!oClient:AddFilter("ID","equal|different","1")
         jChecks["rejectDelimitedLogical"]:=!oClient:AddFilter("FLAG","equal","true|false")
@@ -335,7 +435,8 @@ function U_HBBridgeNativeBrowseTest()
         jChecks["rejectNumericExpression"]:=!oClient:AddFilter("AMOUNT","equal","1+1")
         jChecks["rejectInvalidDate"]:=!oClient:AddFilter("DAY","equal","not-a-date")
         jChecks["rejectNulValue"]:=!oClient:AddFilter("TEXT","contains","a"+Chr(0)+"b")
-        jChecks["invalidFiltersDoNotChangeState"]:=oDataSet:OpenPageTyped("SELECT fixture",jBindings,1,4,"ID ASC").and.oDataSet:TotalRows()==12
+        jChecks["invalidFiltersDoNotChangeState"]:=oDataSet:OpenPageTyped("SELECT fixture",jBindings,1,4,"ID ASC")
+        jChecks["invalidFiltersDoNotChangeState"]:=jChecks["invalidFiltersDoNotChangeState"].and.oDataSet:TotalRows()==12
         // A larger configurable source must still generate distinct rows
         // beyond the former two-digit fixture suffix and arbitrary pages.
         oSizedClient:=HBBridge.Tests.HBBridgePresentationBrowseClient():New(10000)
@@ -355,7 +456,8 @@ function U_HBBridgeNativeBrowseTest()
         FreeObj(@oSizedClient)
         oSizedClient:=HBBridge.Tests.HBBridgePresentationBrowseClient():New(0)
         jSizedResponse:=oSizedClient:CallService("RPCRDD.QueryTyped",jBindings)
-        jChecks["invalidSourceSizeRejected"]:=!jSizedResponse["success"].and.jSizedResponse["code"]=="INVALID_FIXTURE_SIZE"
+        jChecks["invalidSourceSizeRejected"]:=!jSizedResponse["success"]
+        jChecks["invalidSourceSizeRejected"]:=jChecks["invalidSourceSizeRejected"].and.jSizedResponse["code"]=="INVALID_FIXTURE_SIZE"
     catch xError
         jChecks["unexpectedRuntimeFailure"]:=.F.
         ConOut("hbBridge native browse test failed; inspect the owned local log.")
@@ -380,6 +482,7 @@ function U_HBBridgeNativeBrowseTest()
     FreeObj(@jSchema)
     FreeObj(@jSizedRows)
     FreeObj(@jSizedResponse)
+    FreeObj(@oSeekMock)
     if (ValType(oSizedDataSet)=="O")
         oSizedDataSet:Close()
         FreeObj(@oSizedDataSet)
@@ -387,10 +490,6 @@ function U_HBBridgeNativeBrowseTest()
     if (ValType(oSizedClient)=="O")
         oSizedClient:Close()
         FreeObj(@oSizedClient)
-    endif
-    FWFreeArray(@aTopInfo)
-    if (lOwned)
-        TCUnlink(nConnection)
     endif
     if (Select()!=nArea)
         DbSelectArea(if(nArea>0,nArea,nil))
@@ -409,13 +508,15 @@ return(if(lOK,0,1))
 
 // One modal hosts the browse throughout paging, searching and filtering.
 // It borrows the adapter, dataset and fixture client; closing only closes UI.
-static function BrowseNative(oNativeTable as object,oDataSet as object,oClient as object,cTitle as character,cCode as character,cMessage as character) as logical
+static function BrowseNative(oNativeTable as object,oDataSet as object,oClient as object,cTitle as character,cCode as character,cMessage as character,jDefinition as json) as logical
 
     local aAcho as array
     local aColumns as array
     local aDataBlocks as array
     local aSeek as array
     local aDialogSize as array
+
+    local bSeekChange as codeblock
 
     local lOK:=.F. as logical
     local lRedefineBottom:=(((Type("__lRedefineBottom")=="L").and.(__lRedefineBottom)).or.FWIsInCallStack("UF.EXECUTE").or.FwIsInCallStack("DNA.TECH.EXECUTE")) as logical
@@ -449,6 +550,9 @@ static function BrowseNative(oNativeTable as object,oDataSet as object,oClient a
         oPanel:=oDialog:GetPanelMain()
         oBrowse:SetOwner(oPanel)
         oBrowse:Activate()
+        bSeekChange:=oBrowse:bSeekChange
+        // The SDK only installs this callback after browse activation.
+        oBrowse:SetSeekChange({|oSeek|BrowseNativeSeekChange(if(oSeek==NIL,oBrowse:oBrowseUI:oFWSeek,oSeek),bSeekChange,oNativeTable)})
         oDialog:AddButton("&Close",{|oButton|oDialog:DeActivate(.T.)},"Close",nil,.T.,.F.,.T.)
         oDialog:AddButton("&Refresh",{|oButton|BrowseNativeMove(oBrowse,oNativeTable,oDataSet,"refresh",oClient)},"Refresh current page",nil,.T.,.F.,.T.)
         oDialog:AddButton("Add &filter",{|oButton|BrowseNativeFilter(oBrowse,oNativeTable,oDataSet,oClient)},"Add an AND filter",nil,.T.,.F.,.T.)
@@ -457,7 +561,12 @@ static function BrowseNative(oNativeTable as object,oDataSet as object,oClient a
         oDialog:AddButton("< &Previous",{|oButton|BrowseNativeMove(oBrowse,oNativeTable,oDataSet,"previous",oClient)},"Previous page",nil,.T.,.F.,.T.)
         oDialog:AddButton("&Next >",{|oButton|BrowseNativeMove(oBrowse,oNativeTable,oDataSet,"next",oClient)},"Next page",nil,.T.,.F.,.T.)
         oDialog:AddButton("&Last >>",{|oButton|BrowseNativeMove(oBrowse,oNativeTable,oDataSet,"last",oClient)},"Last page",nil,.T.,.F.,.T.)
-        oDialog:AddButton("&View",{|oButton|HBBridge.Client.HBBridgeMsMGetEx():ViewData(oNativeTable:Alias(),(oNativeTable:Alias())->(RecNo()),"View current record",nil,aAcho,oNativeTable)},"View",nil,.T.,.F.,.T.)
+        oDialog:AddButton("&View",{|oButton|MGetExResolveView(oNativeTable,aAcho)},"View",nil,.T.,.F.,.T.)
+        if (ValType(jDefinition)=="J")
+            if (jDefinition:HasProperty("fieldStatus"))
+                oDialog:AddButton("Field &catalog",{|oButton|BrowseNativeCatalog(jDefinition)},"Dictionary and physical field coverage",nil,.T.,.F.,.T.)
+            endif
+        endif
         oDialog:Activate()
         lOK:=.T.
     catch xError
@@ -480,6 +589,45 @@ static function BrowseNative(oNativeTable as object,oDataSet as object,oClient a
     endif
 
 return(lOK)
+
+static procedure MGetExResolveView(oNativeTable as object,aAcho as array)
+
+    local cAlias as character
+    local cFieldRecNo as character
+
+    local lSourceTableSRA:=FWIsINCallStack("HBBRIDGE.EXAMPLES.U_HBBRIDGENATIVEBROWSESRA") as logical
+    local lSourceTableSX5:=!lSourceTableSRA.and.FWIsINCallStack("HBBRIDGE.EXAMPLES.U_HBBRIDGENATIVEBROWSESX5") as logical
+    local lSourceTable:=lSourceTableSRA.or.lSourceTableSX5 as logical
+
+    local nRecNo as numeric
+    local nFieldPos as numeric
+
+    cAlias:=oNativeTable:Alias()
+    nRecNo:=(oNativeTable:Alias())->(RecNo())
+
+    if ((lSourceTable).and.(lSourceTable:=APMsgYesNo("Check the data in the system table?","ViewData")))
+        cFieldRecNo:="R_E_C_N_O_"
+        nFieldPos:=(oNativeTable:FieldPos(cFieldRecNo))
+        if (nFieldPos>0)
+            if (lSourceTableSRA)
+                cAlias:="SRA"
+            else
+                cAlias:="SX5"
+            endif
+            lSourceTable:=ChkFile(cAlias)
+            if (lSourceTable)
+                nRecNo:=oNativeTable:FieldGet(nFieldPos)
+            else
+                cAlias:=oNativeTable:Alias()
+            endif
+        else
+            lSourceTable:=.F.
+        endif
+    endif
+
+    HBBridge.Client.HBBridgeMsMGetEx():ViewData(cAlias,nRecNo,"View current record",nil,if(lSourceTable,nil,aAcho),oNativeTable)
+
+return
 
 static procedure BrowseNativeColumns(oNativeTable as object,aColumns as array,aSeek as array,aDataBlocks as array,aAcho as array)
 
@@ -528,25 +676,31 @@ static procedure BrowseNativeColumns(oNativeTable as object,aColumns as array,aS
         oColumn:SetAlign(if(cType=="N",2,if(cType=="C",1,0)))
         aColumns[nField]:=oColumn
         oColumn:=nil
-        aSeek[nField]:={jField["caption"],{{"",cType,nSize,jField["decimals"],jField["caption"],jField["picture"],cSearch}},oNativeTable:IndexOrder(cField),.T.}
+        // The seek option is a stable projection token, not a physical index
+        // ordinal. Indexes are created in the order actually requested.
+        aSeek[nField]:={jField["caption"],{{"",cType,nSize,jField["decimals"],jField["caption"],jField["picture"],cSearch}},nField,.T.}
     next nField
     FreeObj(@jSchema)
 
 return
 
 static function BrowseNativeColumn(oNativeTable as object,cField as character,lLogical as logical) as codeblock
-return({||BrowseNativeValue(oNativeTable,cField,lLogical)})
-
-static function BrowseNativeValue(oNativeTable as object,cField as character,lLogical as logical) as variant
 
     local cAlias:=oNativeTable:Alias() as character
 
-    local nPosition:=0 as numeric
+    local nPosition:=(cAlias)->(FieldPos(cField)) as numeric
+
+    // Refills retain the same alias and validated physical schema. Resolve
+    // the ordinal once; readiness and actual values remain dynamic on paint.
+return({||BrowseNativeValue(oNativeTable,nPosition,lLogical)})
+
+static function BrowseNativeValue(oNativeTable as object,nPosition as numeric,lLogical as logical) as variant
+
+    local cAlias:=oNativeTable:Alias() as character
 
     local xValue as variant
 
     if (!Empty(cAlias).and.(Select(cAlias)>0))
-        nPosition:=(cAlias)->(FieldPos(cField))
         if (nPosition>0)
             xValue:=(cAlias)->(FieldGet(nPosition))
             if (lLogical)
@@ -624,12 +778,18 @@ static function BrowseNativeSeek(oSeek as object,oBrowse as object,oNativeTable 
     local cSeek:=AllTrim(oSeek:GetSeek()) as character
 
     local nColumn:=oSeek:GetOrder() as numeric
+    local nOrder:=0 as numeric
 
     if (nColumn>=1.and.nColumn<=oDataSet:FieldCount())
         cField:=oDataSet:FieldName(nColumn)
+        nOrder:=oNativeTable:EnsureIndex(cField)
+        if (nOrder<1)
+            MsgStop(oNativeTable:ErrorCode()+": "+oNativeTable:ErrorMessage(),"hbBridge native search index")
+            return(0)
+        endif
         if (oClient:SetSearch(cField,cSeek))
             if (!Empty(cAlias).and.Select(cAlias)>0)
-                (cAlias)->(DbSetOrder(oNativeTable:IndexOrder(cField)))
+                (cAlias)->(DbSetOrder(nOrder))
             endif
             BrowseNativeMove(oBrowse,oNativeTable,oDataSet,"first",oClient)
         else
@@ -638,6 +798,90 @@ static function BrowseNativeSeek(oSeek as object,oBrowse as object,oNativeTable 
     endif
 
 return(1)
+
+static function BrowseNativeSeekChange(oSeek as object,bSeekChange as variant,oNativeTable as object,lNotify as logical) as numeric
+
+    local cProjection:="" as character
+    local cAlias:=oNativeTable:Alias() as character
+
+    local nColumn:=0 as numeric
+    local nRet:=1 as numeric
+    local nOrder:=0 as numeric
+    local nOption:=oSeek:GetOrder() as numeric
+    local nPrevious:=0 as numeric
+
+    local xError as variant
+
+    DEFAULT lNotify:=.T.
+    if (Empty(cAlias).or.Select(cAlias)==0.or.nOption<1.or.nOption!=Int(nOption).or.;
+        nOption>oNativeTable:FieldCount())
+        return(0)
+    endif
+    nPrevious:=(cAlias)->(IndexOrd())
+    try
+        for nColumn:=1 to nOption
+            cProjection:=BrowseNativeSeekProjection(oSeek,oNativeTable,nColumn)
+            if (Empty(cProjection))
+                throw "INVALID_SEARCH_DETAILS"
+            endif
+            nOrder:=oNativeTable:EnsureIndex(cProjection)
+            if (nOrder<1)
+                throw "SEARCH_INDEX_FAILED"
+            endif
+        next nColumn
+        // Keep the framework's editor/mask updates. Its search option token
+        // need not be the index ordinal, so publish the real order afterwards.
+        if (ValType(bSeekChange)=="B")
+            Eval(bSeekChange,oSeek)
+        endif
+        (cAlias)->(DbSetOrder(nOrder))
+        (cAlias)->(DbGoTop())
+    catch xError
+        (cAlias)->(DbSetOrder(nPrevious))
+        if (lNotify)
+            MsgStop("Could not select the requested native search index.","hbBridge native search")
+        endif
+        if (ValType(xError)=="O")
+            FreeObj(@xError)
+        endif
+        //Keep the return after endtry: returning here produced nil instead of 0.
+        //TODO: document this SDK behavior and open an issue at https://github.com/naldodj/totvs-protheus-open-issues
+        //return(0)
+        nRet:=0
+    endtry
+
+return(nRet)
+
+static function BrowseNativeSeekProjection(oSeek as object,oNativeTable as object,nOption as numeric) as character
+
+    // FWSeek exposes this positional native array. Read the selected detail
+    // directly; JSON serialization would only copy an invariant SDK structure.
+    local aDetails:=oSeek:aDetails as array
+
+    local cProjection:="" as character
+
+    if (oSeek:cAlias!=oNativeTable:Alias().or.nOption<1.or.nOption!=Int(nOption).or.;
+        nOption>oNativeTable:FieldCount().or.nOption>Len(aDetails))
+        return("")
+    endif
+    if (ValType(aDetails[nOption])!="A")
+        return("")
+    endif
+    if (Len(aDetails[nOption])<1)
+        return("")
+    endif
+    if (ValType(aDetails[nOption][1])!="A")
+        return("")
+    endif
+    if (Len(aDetails[nOption][1])<7)
+        return("")
+    endif
+    cProjection:=oNativeTable:ProjectionName(nOption)
+    if (aDetails[nOption][1][7]!=oNativeTable:SearchFieldName(cProjection))
+        return("")
+    endif
+
+return(cProjection)
 
 static procedure BrowseNativeFilter(oBrowse as object,oNativeTable as object,oDataSet as object,oClient as object)
 
@@ -661,6 +905,7 @@ static procedure BrowseNativeFilter(oBrowse as object,oNativeTable as object,oDa
         FWFreeArray(@aAnswers)
         return
     endif
+
     aFields:=Array(nFields)
     aNames:=Array(nFields)
     for nField:=1 to nFields
@@ -669,15 +914,18 @@ static procedure BrowseNativeFilter(oBrowse as object,oNativeTable as object,oDa
         aFields[nField]:=jSchema["fields"][cField]["caption"]
     next nField
     FreeObj(@jSchema)
+
     // ParamBox requires arrays. Inputs remain plain values: neither SQL nor
     // AdvPL expressions are accepted or evaluated by this example.
-    aParameters:={{2,"Field",1,aFields,90,"",.T.},;
+    aParameters:={;
+        {2,"Field",1,aFields,90,"",.T.},;
         {2,"Operator",1,aOperators,90,"",.T.},;
-        {1,"Value",Space(80),"","","","",0,.F.}}
+        {1,"Value",Space(80),"","","","",0,.F.};
+    }
     if (ParamBox(aParameters,"Add query filter (AND)",@aAnswers).and.(Len(aAnswers)==3))
         cField:=aAnswers[1]
         nField:=aScan(aFields,cField)
-        nOperator:=aAnswers[2]
+        nOperator:=if((ValType(aAnswers[2])=="N"),aAnswers[2],aScan(aOperators,aAnswers[2]))
         if (nField>=1.and.nField<=nFields.and.nOperator>=1.and.nOperator<=Len(aOperators))
             if (oClient:AddFilter(aNames[nField],aOperators[nOperator],AllTrim(aAnswers[3])))
                 BrowseNativeMove(oBrowse,oNativeTable,oDataSet,"first",oClient)
@@ -686,6 +934,7 @@ static procedure BrowseNativeFilter(oBrowse as object,oNativeTable as object,oDa
             endif
         endif
     endif
+
     FWFreeArray(@aFields)
     FWFreeArray(@aNames)
     FWFreeArray(@aOperators)
@@ -710,6 +959,130 @@ static procedure BrowseNativeReleaseColumns(aColumns as array)
             FreeObj(@aColumns[nColumn])
         next nColumn
     endif
+
     FWFreeArray(@aColumns)
 
 return
+
+// Metadata-only companion view. The positional arrays are required by
+// FWBrowse's array datasource; employee records never enter this array.
+static function BrowseNativeCatalog(jDefinition as json,cTitle as character) as logical
+
+    local aNames:=jDefinition["fieldStatus"]:GetNames() as array
+    local aRows as array
+    local aColumns as array
+    local aSize as array
+    local aLabels:={;
+        {"name","Field",20},;
+        {"type","Type",10},;
+        {"length","Length",10},;
+        {"decimals","Decimals",10},;
+        {"caption","Caption",40},;
+        {"status","Status",12},;
+        {"reason","Reason",24};
+    } as array
+
+    local cField:="" as character
+    local cKey:="" as character
+
+    local jField as json
+    local jRow as json
+
+    local lOK:=.F. as logical
+    local lRedefineBottom:=(((Type("__lRedefineBottom")=="L").and.(__lRedefineBottom)).or.FWIsInCallStack("UF.EXECUTE").or.FwIsInCallStack("DNA.TECH.EXECUTE")) as logical
+
+    local nField:=0 as numeric
+    local nFields:=Len(aNames) as numeric
+    local nColumn:=0 as numeric
+    local nColumns:=Len(aLabels) as numeric
+
+    local oBrowse as object
+    local oDialog as object
+    local oPanel as object
+    local oColumn as object
+
+    local xError as variant
+
+    DEFAULT cTitle:="Table field catalog: dictionary and physical column coverage"
+    aRows:=Array(nFields)
+    aColumns:=Array(nColumns)
+    try
+        for nField:=1 to nFields
+            cField:=aNames[nField]
+            jRow:=JSONObject():New()
+            jRow["name"]:=cField
+            jRow["type"]:=""
+            jRow["length"]:=""
+            jRow["decimals"]:=""
+            jRow["caption"]:=""
+            jRow["status"]:=jDefinition["fieldStatus"][cField]["status"]
+            jRow["reason"]:=jDefinition["fieldStatus"][cField]["reason"]
+            if (jDefinition["metadata"]["fields"]:HasProperty(cField))
+                jField:=jDefinition["metadata"]["fields"][cField]
+                jRow["type"]:=jField["type"]
+                jRow["length"]:=tlpp.ToStr(jField["length"])
+                jRow["decimals"]:=tlpp.ToStr(jField["decimals"])
+                jRow["caption"]:=jField["caption"]
+            elseif (jDefinition["schema"]["fields"]:HasProperty(cField))
+                jField:=jDefinition["schema"]["fields"][cField]
+                jRow["type"]:=jField["type"]
+                jRow["length"]:=tlpp.ToStr(jField["length"])
+                jRow["decimals"]:=tlpp.ToStr(jField["decimals"])
+                jRow["caption"]:=jField["caption"]
+            endif
+            aRows[nField]:=jRow
+            jRow:=nil
+        next nField
+        oBrowse:=FWBrowse():New()
+        oBrowse:SetDataArray()
+        oBrowse:SetArray(aRows)
+        for nColumn:=1 to nColumns
+            cKey:=aLabels[nColumn][1]
+            oColumn:=FWBrwColumn():New()
+            oColumn:SetData(BrowseNativeCatalogColumn(oBrowse,aRows,cKey))
+            oColumn:SetTitle(aLabels[nColumn][2])
+            oColumn:SetType("C")
+            oColumn:SetSize(aLabels[nColumn][3])
+            aColumns[nColumn]:=oColumn
+            oColumn:=nil
+        next nColumn
+        oBrowse:SetColumns(aColumns)
+        oBrowse:DisableFilter()
+        aSize:=FWGetDialogSize()
+        oDialog:=FWDialogModal():New()
+        oDialog:SetTitle(cTitle)
+        oDialog:SetEscClose(.T.)
+        oDialog:SetSize(aSize[3]/(2+if(lRedefineBottom,.15,0)),aSize[4]/2)
+        oDialog:CreateDialog()
+        oDialog:EnableFormBar(.F.)
+        *oDialog:CreateFormBar()
+        oPanel:=oDialog:GetPanelMain()
+        oBrowse:SetOwner(oPanel)
+        oBrowse:Activate()
+        oDialog:AddButton("&Close",{|oButton|oDialog:DeActivate(.T.)},"Close",nil,.T.,.F.,.T.)
+        oDialog:Activate()
+        lOK:=.T.
+    catch xError
+        MsgStop("Could not display the field catalog.","hbBridge SRA metadata")
+        if (ValType(xError)=="O")
+            FreeObj(@xError)
+        endif
+    endtry
+    FreeObj(@oBrowse)
+    BrowseNativeReleaseColumns(@aColumns)
+    FreeObj(@oColumn)
+    FreeObj(@oPanel)
+    FreeObj(@oDialog)
+    FreeObj(@jRow)
+    for nField:=1 to nFields
+        FreeObj(@aRows[nField])
+    next nField
+    FWFreeArray(@aRows)
+    FWFreeArray(@aNames)
+    FWFreeArray(@aLabels)
+    FWFreeArray(@aSize)
+
+return(lOK)
+
+static function BrowseNativeCatalogColumn(oBrowse as object,aRows as array,cKey as character) as codeblock
+return({||aRows[oBrowse:nAT][cKey]})

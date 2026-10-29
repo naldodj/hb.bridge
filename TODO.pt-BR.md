@@ -769,6 +769,15 @@ locais/remotos em blocos, com integridade binária, erros e liberação verifica
 
 ### Apresentação nativa e resultados compartilhados
 
+- [ ] Estender os exemplos nativos baseados no dicionário com campos específicos
+  e JOINs por TCP/HTTP gzip. Definir esquema/mapa de origem por alias de saída
+  único, origem SX3 correta e campos calculados explícitos; testar ordenação/
+  totais um-para-muitos, preservação de NULL no LEFT JOIN e rejeição pelo destino
+  nativo. Manter tabelas, filiais, predicados de negócio, bindings e CASTs no
+  chamador; sem parser SQL automático ou inferência ERP no servidor. A execução
+  SELECT genérica já aceita projeções/JOINs suportados pelo backend; o aceite
+  específico da apresentação nativa permanece pendente. Veja o
+  [escopo](docs/sx3-metadata.pt-BR.md#campos-específicos-e-consultas-com-join) e o WIP ativo.
 - [ ] Reuso futuro de resultados MEMIO: materializar uma vez, publicar resultados
   imutáveis por handles opacos autorizados e ler por áreas independentes, com
   vida útil/memória/limpeza explícitas e aceite de integridade dos tipos. O probe

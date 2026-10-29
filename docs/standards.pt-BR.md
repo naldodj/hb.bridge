@@ -41,9 +41,11 @@ Esse uso explícito também permite ao compilador reconhecer a variável captura
 Os fontes separam palavras minúsculas por pontos, como
 `hbbridge.rpc.dataset.tlpp`. Remover os pontos deve produzir o nome da classe
 `HBBridgeRPCDataSet` em minúsculas. Isso não muda os namespaces.
-Erros, logs e rótulos próprios usam inglês; textos externos e fixtures
-intencionais de acentos/codificação preservam seu idioma. A documentação
-portuguesa permanece nos arquivos pareados `.pt-BR`.
+Comentários, erros, logs e rótulos próprios usam inglês. Ao editar ou revisar
+fontes, traduza comentários em português, preservando seu significado técnico
+e nomes de APIs externas. Textos externos e fixtures intencionais de
+acentos/codificação preservam seu idioma. A documentação portuguesa permanece
+nos arquivos pareados `.pt-BR`.
 
 Redija documentação de forma impessoal. Registre decisões e resultados como
 "Validação confirmada" ou "Validação registrada", com datas e artefatos.
@@ -133,6 +135,13 @@ probes reutilizáveis pertencem a `src/`, `addons/`, `scripts/` ou `tests/`;
 exemplos públicos ficam em `config/examples/`. `out/` contém entregáveis gerados
 e `.deps/` contém dependências resolvidas por entradas fixadas. Não versionar
 fontes nem evidência permanente em tmp/out.
+
+Compile TLPP pelo caminho do fonte mantido sempre que possível. Se um teste
+ou validação exigir cópias ou fontes `.tlpp` gerados em `tmp/`, remova-os logo
+após o uso, inclusive em falhas, com `try`/`finally` ou limpeza equivalente.
+Fontes duplicados retidos confundem a resolução de fontes da extensão TOTVS.
+Preserve logs, listas de fontes e hashes como evidência, sem manter as cópias
+nem excluir os originais mantidos.
 
 Manter resumos sanitizados, identidades dos fontes/dependências, comandos e
 pré-requisitos externos na [documentação de validação](validation/README.pt-BR.md).

@@ -1,0 +1,34 @@
+/* Released to Public Domain. */
+#include "totvs.ch"
+
+namespace HBBridge.Tests
+
+// Headless representation of the FWSeek native array boundary supplied by
+// FWBrowse:SetSeek. No SmartClient component is constructed in this fixture.
+class HBBridgePresentationSeekMock
+    public data aDetails as array
+    public data cAlias as character
+    public data nOption as numeric
+    public data nCallbacks as numeric
+
+    public method New(cAlias as character,aSeek as array) as object
+    public method GetOrder() as numeric
+endclass
+
+method New(cAlias,aSeek) class HBBridgePresentationSeekMock
+
+    local nOption:=0 as numeric
+    local nOptions:=Len(aSeek) as numeric
+
+    self:cAlias:=cAlias
+    self:nOption:=1
+    self:nCallbacks:=0
+    self:aDetails:=Array(nOptions)
+    for nOption:=1 to nOptions
+        self:aDetails[nOption]:=AClone(aSeek[nOption][2])
+    next nOption
+
+return(self)
+
+method GetOrder() class HBBridgePresentationSeekMock
+return(self:nOption)

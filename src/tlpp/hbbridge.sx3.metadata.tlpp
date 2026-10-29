@@ -1,0 +1,171 @@
+/* Released to Public Domain. */
+#include "totvs.ch"
+
+namespace HBBridge.Protheus
+
+// Caller-side dictionary metadata. Text remains in the active Protheus
+// codepage; the transport client owns UTF-8 encoding when sending JSON.
+class HBBridgeSX3Metadata
+    static method Read(cAlias as character) as json
+endclass
+
+static method Read(cAlias) class HBBridgeSX3Metadata
+
+    // FWSX3Util and FWGetArea/FWRestArea require native positional arrays.
+    local aArea as array
+    local aRows as array
+    local aSX3Area as array
+
+    local cTable:="" as character
+    local cField:="" as character
+    local cContext:="" as character
+    local cType:="" as character
+
+    local jResult as json
+    local jFields as json
+    local jField as json
+
+    local lValid:=.F. as logical
+
+    local nField:=0 as numeric
+    local nFields:=0 as numeric
+
+    local xError as variant
+
+    if (ValType(cAlias)!="C")
+        return(nil)
+    endif
+    cTable:=Upper(AllTrim(cAlias))
+    if (!SX3MetadataIdentifier(cTable))
+        return(nil)
+    endif
+    if (Select("SX2")==0.or.Type("cEmpAnt")!="C".or.Type("cFilAnt")!="C")
+        return(nil)
+    endif
+    if (Empty(cEmpAnt).or.Empty(cFilAnt))
+        return(nil)
+    endif
+    try
+        aArea:=FWGetArea()
+        if (Select("SX3")>0)
+            aSX3Area:=SX3->(FWGetArea())
+        endif
+        // Include virtual and optional fields in the snapshot. Consumers
+        // decide which declared fields also exist in the physical SQL table.
+        // https://tdn.totvs.com/display/public/framework/FWSX3Util
+        aRows:=FWSX3Util():GetListFieldsStruct(cTable,.T.,.F.)
+        if (ValType(aRows)=="A")
+            nFields:=Len(aRows)
+            if (nFields>0)
+                jFields:=JSONObject():New()
+                lValid:=.T.
+                for nField:=1 to nFields
+                    if (ValType(aRows[nField])!="A")
+                        lValid:=.F.
+                        exit
+                    endif
+                    if (Len(aRows[nField])<5)
+                        lValid:=.F.
+                        exit
+                    endif
+                    if (ValType(aRows[nField][1])!="C".or.;
+                        ValType(aRows[nField][2])!="C".or.;
+                        ValType(aRows[nField][3])!="N".or.;
+                        ValType(aRows[nField][4])!="N".or.;
+                        ValType(aRows[nField][5])!="C")
+                        lValid:=.F.
+                        exit
+                    endif
+                    cField:=Upper(AllTrim(aRows[nField][1]))
+                    cType:=Upper(AllTrim(aRows[nField][2]))
+                    if (!SX3MetadataIdentifier(cField).or.jFields:HasProperty(cField).or.;
+                        Len(cType)!=1.or.;
+                        aRows[nField][3]<0.or.aRows[nField][3]!=Int(aRows[nField][3]).or.;
+                        aRows[nField][4]<0.or.aRows[nField][4]!=Int(aRows[nField][4]))
+                        lValid:=.F.
+                        exit
+                    endif
+                    cContext:=GetSX3Cache(cField,"X3_CONTEXT")
+                    if (ValType(cContext)!="C")
+                        lValid:=.F.
+                        exit
+                    endif
+                    cContext:=Upper(AllTrim(cContext))
+                    if (!Empty(cContext).and.cContext!="R".and.cContext!="V")
+                        lValid:=.F.
+                        exit
+                    endif
+                    jField:=JSONObject():New()
+                    jField["position"]:=nField
+                    jField["name"]:=cField
+                    jField["type"]:=cType
+                    jField["length"]:=aRows[nField][3]
+                    jField["decimals"]:=aRows[nField][4]
+                    jField["picture"]:=aRows[nField][5]
+                    jField["caption"]:=FWX3Titulo(cField)
+                    jField["description"]:=FWSX3Util():GetDescription(cField)
+                    jField["context"]:=cContext
+                    jField["virtual"]:=(cContext=="V")
+                    jField["dictionaryOrder"]:=GetSX3Cache(cField,"X3_ORDEM")
+                    if (ValType(jField["caption"])!="C".or.;
+                        ValType(jField["description"])!="C".or.;
+                        ValType(jField["dictionaryOrder"])!="C")
+                        lValid:=.F.
+                        exit
+                    endif
+                    jFields[cField]:=jField
+                    jField:=nil
+                next nField
+            endif
+        endif
+    catch xError
+        lValid:=.F.
+        if (ValType(xError)=="O")
+            FreeObj(@xError)
+        endif
+    endtry
+    // Dictionary helpers must not change the caller's selected work area or
+    // the already-open SX3 cursor. No connection or dictionary area is opened.
+    if (ValType(aSX3Area)=="A")
+        FWRestArea(aSX3Area)
+    endif
+    if (ValType(aArea)=="A")
+        FWRestArea(aArea)
+    endif
+    if (lValid)
+        jResult:=JSONObject():New()
+        jResult["schemaVersion"]:=1
+        jResult["alias"]:=cTable
+        jResult["count"]:=nFields
+        jResult["fields"]:=jFields
+        jFields:=nil
+    endif
+    FWFreeArray(@aArea)
+    FWFreeArray(@aRows)
+    FWFreeArray(@aSX3Area)
+    FreeObj(@jField)
+    FreeObj(@jFields)
+
+return(jResult)
+
+static function SX3MetadataIdentifier(cIdentifier as character) as logical
+
+    local cLetters:="ABCDEFGHIJKLMNOPQRSTUVWXYZ_" as character
+    local cCharacters:="ABCDEFGHIJKLMNOPQRSTUVWXYZ_0123456789" as character
+
+    local nCharacter:=0 as numeric
+    local nCharacters:=Len(cIdentifier) as numeric
+
+    if (nCharacters==0)
+        return(.F.)
+    endif
+    if (!(Left(cIdentifier,1) $ cLetters))
+        return(.F.)
+    endif
+    for nCharacter:=1 to nCharacters
+        if (!(SubStr(cIdentifier,nCharacter,1) $ cCharacters))
+            return(.F.)
+        endif
+    next nCharacter
+
+return(.T.)

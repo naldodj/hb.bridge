@@ -5,6 +5,41 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Add UTF-8 JSON and MSSQL integrity coverage)"
  */
 
+2026-10-29 21:47 UTC naldodj (Extend dictionary presentation and review native source mappings)
+  + Add HBBridgeSX3Metadata snapshots and SRA/standalone SX3 browse examples.
+    Share presentation Build/Plan paths between live examples and tests;
+    preserve the complete dictionary inventory and explicit field exclusions.
+    Keep physical table, branch, predicates and dictionary CASTs in Protheus.
+  % Validate invariant schema metadata once per converted page and resolve
+    column positions before painting. Retain every value-integrity check;
+    the recorded conversion-only comparison is not an end-to-end SRA speedup.
+  + Support SQLITE_MEM as the default native destination, SQLITE_TMP and
+    explicit TOPCONN/FWBulk. Populate before creating one initial index;
+    create further search indexes on demand and preserve their actual orders.
+    Retain indexed storage across refills without implicit page requests.
+  + Separate projection/native/original names in field position, value and
+    caption access. Accept optional schema.projectionFields and explicit load
+    maps, with defensive ownership and consistent ambiguous-origin rejection.
+  ! Preserve dictionary names in MsMGet aFields and M-> variables for native
+    handling such as RA_BITMAP; resolve captions through projected names.
+    Reject empty projections, missing predicate/order fields and invalid
+    search options; align SRA tests with shared executable planning paths.
+  % Scope commit validation to changed/new files or staged indexed contents;
+    keep full policy invalidation and global third-party validation. Remove
+    copied staged sources and test fixtures in finally, including failures.
+  * Require immediate cleanup of temporary TLPP copies and translate reviewed
+    project comments to English. Align related EN/PT documentation and WIP.
+  ; Isolated AppServer: 78 sources/zero errors; 654 checks passed. Ordinary
+    dataset exit -4 after its 67 successful checks follows existing runner
+    policy; all other suites exited 0. Final MsMGet compiled separately;
+    expanded SRA planning recompiled and passed 66 checks. TOPCONN/FWBulk
+    crossed 1024 rows with 1025 writes; local RDDs passed separately.
+    Commit-selection/cleanup regression passed 57 checks. Record identities
+    in docs/validation/presentation.review.windows.json; earlier SRA evidence
+    retains its own scope. Revised interactive View and Linux acceptance
+    remain unproven; T05 stays open. Dedicated selected-field/JOIN examples
+    remain planned; no generic JOIN builder or SQL parser is added here.
+
 2026-10-26 17:07 UTC naldodj (Validate native presentation over real MSSQL queries)
   + Add the read-only U_HBBridgeNativeBrowseSX5 example over the same local
     dialog, with configurable TCP/HTTP/profile/page size. Protheus resolves

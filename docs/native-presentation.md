@@ -31,6 +31,51 @@ full storage readback is an optional diagnostic. See the official
 [DBCreate](https://tdn.totvs.com/display/tec/DBCreate)
 and [SDK numeric model](https://tdn.totvs.com/display/framework/SDK%2BMicrosiga%2BProtheus).
 
+`ConvertPage(header, schema, rows, @converted, @code, @message)` validates the
+unchanged schema once per page and preserves all per-row/value checks. It
+returns a new page only after every row succeeds; invalid input never publishes
+a partial page. `ConvertRow` retains its strict independent validation. The
+native adapter uses page conversion, and browse callbacks resolve invariant
+field positions when columns are created. Search indexes and defensive dataset
+snapshots remain in place.
+
+## Optional source-field mapping
+
+The logical schema can include an optional `projectionFields` object. Existing
+version-1 schemas containing only `schemaVersion` and `fields` remain valid.
+The map associates projected keys with original field names declared by the
+Protheus caller; it does not parse SQL or change the driver-reported header.
+For example, a query containing `RA_SALARIO AS AMOUNT` can declare:
+
+```advpl
+jLogicalSchema["projectionFields"] := {"AMOUNT":"RA_SALARIO"}
+oNative := HBBridge.Client.HBBridgeNativeTable():New(oDataSet, jLogicalSchema)
+```
+
+Every map key must name an existing logical-schema projection. Values must be
+nonempty strings without NUL characters. Empty/partial maps are valid, and
+different projections can name the same source field. This is local
+presentation metadata supplied by Protheus, not an ERP lookup performed by
+hbBridge or a new SQL-service parameter. The constructor takes a defensive
+copy of the schema, including this map.
+
+`LoadCurrentPage([cRDD], [jProjectionFields])` uses the explicit map when its
+second argument is a JSON object; otherwise it uses `schema.projectionFields`,
+when present. An explicit empty object therefore selects no caller mappings
+for that load. After collecting the accepted page's source-column metadata,
+the adapter applies the selected map through `SetSourceFieldName()` and fills
+only missing source names. This selection is repeated on each page load.
+Calling `SetSourceFieldName(jProjectionFields, .T.)` explicitly can replace an
+existing source name; `lForce` belongs to the setter, not `LoadCurrentPage()`.
+
+Explicit SELECT lists and JOINs use the same dataset/schema boundary: define
+only the returned projections, give every output a unique alias and supply
+each origin explicitly when the driver omits it. Dictionary metadata, business
+predicates and result-row ordering remain caller-owned. The current SRA/SX5
+builders enumerate one table's supported fields; selected-field/JOIN examples
+and their native UI acceptance are planned separately. See the
+[projection/JOIN scope and NULL policy](sx3-metadata.md#selected-fields-and-join-queries).
+
 ## Current-page table and browse
 
 ```advpl
@@ -47,13 +92,34 @@ if oNative:Destroy()
 endif
 ```
 
-`New(oDataSet, jLogicalSchema[, lVerifyStorage])` snapshots the schema and
-reserves one alias for the adapter's lifetime. The first successful
-`LoadCurrentPage()` creates its owned `FWTemporaryTable` and one native search
-index per mapped field. Later loads reuse the **same physical table, workarea,
-alias and indexes**, clearing rows through `FWTemporaryTable:Zap()` before
-refilling the current dataset page. Navigation never deletes/reopens the alias
-or replaces the browse's data source.
+`New(oDataSet, jLogicalSchema[, lVerifyStorage[, cRDD]])` snapshots the schema
+and reserves one alias for the adapter's lifetime. `cRDD` defaults to
+`SQLITE_MEM`; `SQLITE_TMP` and `TOPCONN` are explicit alternatives.
+
+| Native destination RDD | Storage/write path |
+| --- | --- |
+| `SQLITE_MEM` | Local SDK SQLite memory destination; record writes |
+| `SQLITE_TMP` | Local SDK SQLite temporary destination; record writes |
+| `TOPCONN` | Owned `FWTemporaryTable` through DBAccess; FWBulk when supported, otherwise record writes |
+
+This RDD selects **local presentation storage**, independently of the remote
+hbBridge SQL profile. An MSSQL query can populate `SQLITE_MEM`; the local
+SQLite destination does not require a DBAccess connection for storage. A real
+SRA definition may still use Protheus DBAccess to inspect its MSSQL physical
+catalog. Existing tests of FWBulk request `TOPCONN` explicitly.
+
+`RDD()` reports the configured destination. `LoadCurrentPage([cRDD],
+[jProjectionFields])` may
+choose a supported driver before native storage exists. An invalid driver or
+a switch while storage is live returns `INVALID_PRESENTATION_RDD` or
+`PRESENTATION_RDD_CHANGE_REJECTED` **before clearing the accepted page**.
+Close the owned storage before deliberately changing its driver.
+
+The first successful load fills the table and then creates one initial search
+index. Later loads reuse the **same native table, workarea, alias and already
+created indexes**, clearing owned rows before refilling the current dataset
+page. Navigation never deletes/reopens the alias or replaces the browse's
+data source. Additional indexes are created only when requested.
 
 `LoadCurrentPage()` does not query or move the dataset cursor. It validates all
 conversions and native field definitions before accepting a page. Only then
@@ -69,18 +135,42 @@ Names at the SQL, projection and temporary-table boundaries remain distinct:
 | Method | Input | Result for `X5_DESCRI AS DESCRIPTION` |
 | --- | --- | --- |
 | `FieldName()` | Projected key `DESCRIPTION` | Generated native value field `F...` |
-| `ProjectionName()` | Projection ordinal, native `F...` or projected key | `DESCRIPTION` |
-| `SourceFieldName()` | Native `F...` or projected key | `X5_DESCRI`, when reported in source metadata |
-| `SourceFieldCaption()` | Native `F...` or projected key | The caller's logical-schema caption |
+| `FieldPos()` / `FieldGet()` | Projected key `DESCRIPTION` or projection ordinal | Native field position / current native value |
+| `ProjectionName()` | Projection ordinal or native `F...` | `DESCRIPTION` |
+| `SourceFieldName()` | Projected key `DESCRIPTION` | `X5_DESCRI`, when reported in source metadata or declared by the caller |
+| `FieldCaption()` | Projected key `DESCRIPTION` | The caller's logical-schema caption |
+| `SourceFieldPos()` / `SourceFieldGet()` / `SourceFieldCaption()` | Original source name `X5_DESCRI` | Position / value / caption of its uniquely mapped projection |
 
-`SourceFieldName()` snapshots `header[projection].source.column` only when a
-page load is accepted. It does not reread a borrowed dataset after the caller
-moves it, parse SQL or infer origin from an alias. Unknown/computed origin
-returns an empty string. Unknown projection names, private logical shadow
+`SourceFieldName()` snapshots `header[projection].source.column` and applies
+the selected caller mapping when a page load is accepted. It does not reread
+a borrowed dataset after the caller moves it, parse SQL or infer origin from
+an alias. Origin absent from both sources returns an empty string. Unknown
+projection names, private logical shadow
 fields and a closed/invalid native page return empty mappings.
-`SourceFieldCaption()` replaces `FieldCaption()` and returns the schema's
-caption; it does **not** call SX3 or derive a dictionary title from source
-metadata. Existing callers must use the renamed method.
+`FieldCaption()` remains the direct projected-key lookup. The three inverse
+source methods first search every accepted source mapping; a unique origin
+selects its projection, while duplicate origins are rejected. If no origin
+matches, the optional second argument (default `.T.`) allows a projected-key
+fallback. Pass `.F.` for source-only resolution. Missing/ambiguous names return
+zero from `SourceFieldPos()`, `nil` from `SourceFieldGet()` and an empty string
+from `SourceFieldCaption()`. For example, with `RA_NOME` mapped to no source
+and `TEXT` mapped to `RA_NOME`, `SourceFieldGet("RA_NOME")` reads `TEXT`;
+`FieldGet("RA_NOME")` still reads the homonymous projection. Neither caption
+method calls SX3 or derives a dictionary title from source metadata.
+
+Mapping direction is explicit: a SQL projection may itself be named
+`F000000004`. `ProjectionName()` treats a string as a native generated name;
+`SourceFieldName()` and `FieldCaption()` use projected keys, while the inverse
+source methods use the resolution rule above. Convert between these namespaces
+explicitly rather than guessing from spelling.
+
+The `HBBridgeMsMGetEx` record-view helper uses the original dictionary name in
+`aFields` and its `M->` variables when a source mapping is available, falling
+back to the projection when origin is unknown. This preserves native Protheus
+field behavior, including fields such as `RA_BITMAP`. Dictionary queries use
+that same original name; captions use the projection's logical schema and
+values are read from the generated native field position. This UI integration
+does not change the dataset's projection keys or the server SQL contract.
 
 Protheus can explicitly use a reported source field to request its own
 dictionary metadata:
@@ -88,8 +178,8 @@ dictionary metadata:
 ```advpl
 cNative := oNative:FieldName("DESCRIPTION")
 cProjection := oNative:ProjectionName(cNative) // DESCRIPTION
-cField := oNative:SourceFieldName(cNative) // X5_DESCRI if supplied by ODBC
-cCaption := oNative:SourceFieldCaption(cNative) // Caller-supplied caption
+cField := oNative:SourceFieldName(cProjection) // X5_DESCRI if supplied or mapped
+cCaption := oNative:FieldCaption(cProjection) // Caller-supplied caption
 if !Empty(cField)
     cSX3Title := GetSX3Cache(cField,"X3_TITULO")
 endif
@@ -99,25 +189,32 @@ The dictionary lookup belongs to the Protheus caller. The core adapter makes
 no automatic SX3 requests and leaves missing source origin unresolved.
 
 Search has a separate mapping: `SearchFieldName(projection)` returns the native
-index field and `IndexOrder(projection)` returns its active-order number.
+search field. `IndexOrder(projection)` is a lookup with no allocation or index
+creation: it returns the actual physical order number, or zero when that index
+has not been created. `EnsureIndex(projection)` creates a missing index on
+demand and returns its physical order; repeating it is idempotent. It performs
+no SQL request and fetches no dataset page. Unknown projections or unavailable
+storage return zero with an explicit adapter error. Do not use a projection
+ordinal as a physical index-order number.
 Character, numeric and date projections use their value fields. A logical
 projection retains an L value field but uses a private C(5) `True`/`False`
-shadow for its index, because `FWTemporaryTable` does not create an index on L.
+shadow for its index, because the native index path does not index L directly.
 This helper is excluded from public projection counts and schema; use
 `FieldName()` to read the actual logical value. Date index expressions use
 `DTOS(field)`. Search order must use the explicit mapping, not physical field
 positions, and survives page refill.
 
-For a nonempty page, `FWBulk():CanBulk()` selects the write strategy once.
-Supported DBAccess profiles use `FWBulk` with the temporary table's
+For a nonempty `TOPCONN` page, `FWBulk():CanBulk()` selects the write strategy
+once. Supported DBAccess profiles use `FWBulk` with the temporary table's
 `GetTableNameForTCFunctions()` target and the validated field structure. Rows
 are submitted in that structure's order, then flushed and closed before
 `TCRefresh`. A failure in `AddData`, `Flush` or `Close` invalidates the page;
 the adapter explicitly clears a failed refill, or deletes a failed first
 creation. It never explicitly retries a bulk buffer or falls back to record
 inserts after a partial bulk operation. This is cleanup of an owned destination,
-not a claim that server work was cancelled. Unsupported profiles, including
-SQLite, retain the record-write path selected before insertion. Empty pages retain the schema
+not a claim that server work was cancelled. Unsupported TOPCONN profiles and
+the local SQLite RDDs use the record-write path selected before insertion.
+Empty pages retain the schema
 without opening a bulk writer. `WriteMode()` reports `bulk`, `record` or an
 empty string for no completed writes; close/failure clears it. This reports the
 selected path, not a performance measurement.
@@ -144,8 +241,12 @@ that invalidation/clear without releasing the bound storage or indexes. It
 leaves `Alias()` empty and `IsOpen()` false until another load succeeds.
 No full-result materialization, prefetch or cross-request snapshot is implied.
 
-`Close()` finally deletes the native table and indexes but retains schema and
-the reserved alias for a later explicit load. It is not a page-navigation API.
+`Close()` releases the owned alias, indexes and destination resources but
+retains schema and the reserved alias for a later explicit load. TOPCONN
+deletes its owned `FWTemporaryTable`. SQLite resource lifetime is managed by
+the SDK connection; closing a logical table/index name is not evidence that
+an underlying temporary file has been physically removed. Close is not a
+page-navigation API.
 `Destroy()` additionally releases configuration and the borrowed dataset
 reference. Both are explicit/idempotent; neither closes or frees the dataset or
 client. Failed deletion retains ownership for a retry and exposes
@@ -162,8 +263,12 @@ keeps ownership within the creating Protheus thread.
 
 The interactive example keeps one dialog open around a native `FWBrowse`.
 `SetAlias()` runs once during UI construction; page callbacks refill the same
-indexed table and refresh the existing widget. Every mapped search column has
-a corresponding native index, retained between page loads.
+table and refresh the existing widget. Selecting a search column calls
+`EnsureIndex()` before seeking; created indexes and the selected physical
+order survive page refill. FWSeek's logical option/projection is independent
+of that physical order. The callback reads the SDK-owned
+`aDetails[nOption][1][7]` mapping directly, without a defensive JSON copy in
+the seek path.
 First, Previous, Next, Last and Refresh reload the current native page inside
 that dialog. Close only ends the dialog; it does not request another page.
 View displays the current row within the example; visual acceptance of that
@@ -216,14 +321,16 @@ requests gzip. Run inside an already prepared Protheus company/branch context,
 such as FWWebEx. This entry does not prepare or switch ERP environments.
 
 [`HBBridgePresentationSX5:Definition()`](../src/tlpp/tests/protheus/hbbridge.presentation.test/hbbridge.presentation.sx5.tlpp)
-resolves `RetSQLName("SX5")`, `xFilial("SX5")` and `TamSX3()` in Protheus.
-It builds five explicit projections: `BRANCH`, `TABLE_CODE`, `ITEM_CODE`,
-`DESCRIPTION` and `RECNO`. The first four character widths come from the
-dictionary; RECNO has an explicit native numeric definition. The base SELECT
-always binds the undeleted marker and current branch. Ordering ends in RECNO
-to make page boundaries deterministic when business keys repeat. Search/filter
-changes cannot remove those base predicates. The query is read-only; its
-native destination is an owned temporary table, not an SX5 update.
+uses the shared `HBBridgePresentationTable():Definition("SX5")` dictionary/
+physical-catalog builder. The projections retain supported original SX3 names,
+including `X5_FILIAL`, `X5_TABELA`, `X5_CHAVE` and `X5_DESCRI`, plus available
+system fields such as `R_E_C_N_O_`; the column set follows the local dictionary.
+`schema.projectionFields` explicitly preserves their origin even when ODBC
+does not report it. Protheus resolves `RetSQLName("SX5")` and `xFilial("SX5")`.
+The wrapper binds the undeleted marker/current branch and orders by
+`X5_FILIAL,X5_TABELA,X5_CHAVE,R_E_C_N_O_`, with the record number breaking ties.
+Search/filter changes cannot remove these base predicates. The query is
+read-only; its native destination is separate presentation storage.
 
 [`HBBridgePresentationSQLSource`](../src/tlpp/tests/protheus/hbbridge.presentation.test/hbbridge.presentation.sql.source.tlpp)
 owns the example's trusted SQL, order, schema and base bindings. `Query()`
@@ -237,8 +344,35 @@ number bindings and do not promise exact decimal arithmetic. This controller
 keeps input text in the caller's encoding: the production client encodes the
 complete JSON request into UTF-8 once. Do not pre-encode individual bindings.
 It is example-owned, not a general SQL parser or a public generic browse API.
-The filter picker takes its fields from the current schema, so the five-column
-SX5 query and seven-column synthetic fixture share the dialog.
+The filter picker takes its fields from the current schema, so the
+dictionary-driven SX5 query and seven-column synthetic fixture share the dialog.
+
+## SRA fields and reusable SX3 metadata
+
+`U_HBBridgeNativeBrowseSRA("MSSQL/pData","TCP",100)` reuses this dialog for
+the wider SRA schema; replace TCP with HTTP for the gzip route. The Protheus
+definition combines a fresh `HBBridgeSX3Metadata:Read("SRA")` snapshot,
+physical `HBBridgeSqlTools:GetColumnMetadata()` results, `RetSQLName` and
+`xFilial`. Field names remain the original dictionary keys, making explicit
+SX3 lookups possible without inferring them from generated temporary names.
+
+The inventory retains all dictionary definitions and records an inclusion or
+exclusion reason for each field. Supported physical C/N/D/L values and available
+system fields form the SELECT; virtual, memo/binary, long-text and unsupported
+definitions are not silently converted or truncated. Numeric CASTs use the
+caller-resolved SX3 definition in this example. Empty Protheus dates use an
+explicit eight-space YYYYMMDD representation; SQL NULL remains distinct and
+still fails only when this native destination cannot represent it.
+
+`GetNonBlobColumns()` alone would retain long text, so the example uses the
+physical catalog as well as the dictionary. No LOB transport or automatic
+server-side ERP resolution is added. See the
+[metadata contract and SRA usage](sx3-metadata.md) for object ownership, field
+status, connector scope and validation requirements.
+The SRA-only **Field catalog** action displays every inventoried dictionary/
+physical field with its type, width, scale, title and inclusion/exclusion
+reason. It inspects the existing metadata snapshot rather than opening a raw
+SX3 table browser or requesting employee values again.
 
 ## Reproduce validation
 
@@ -349,6 +483,13 @@ by the client, complementing UTF-8 result/native storage checks. See the
 This real constant-row SELECT acceptance does not activate the SX5 dialog;
 the actual ERP-record and visual acceptance remains manual.
 
+Subsequent screenshots supplied on **2026-10-26** confirm the real SX5 browse
+displayed successfully over TCP and HTTP and the current-record View displayed
+successfully. This manual visual observation is separate from the attributed
+automated manifests: screenshots do not identify compiled hashes or prove all
+filter, failure and cleanup paths. The wider SRA extension requires separate
+compilation/regression and interactive acceptance.
+
 Before the subsequent browse/FWBulk revision, validation on 2026-10-25 passed
 64-source compilation with zero errors, 32
 conversion checks, 34 actual native-table checks, five SDK assertions and
@@ -358,6 +499,18 @@ sources, executable, RPOs and scope. Fixed-width character storage pads spaces;
 the adapter checks the padded native value against its explicit field width.
 Numeric formatter observations are separate from native-value equality and
 do not establish exact decimal storage for every declared numeric field.
+
+The **2026-10-29** review compiled **78 sources** without errors and passed
+**654 checks** across ten isolated SDK suites: conversion/page conversion
+76/31, SRA/SX5 planning 66, local RDDs 100, source mapping 36, datasets 77/67,
+SDK 5, TOPCONN/FWBulk 122 and headless browse 74. Both local RDDs and lazy
+indexes were exercised; the bulk write crossed its 1024-row buffer with 1025
+rows. The ordinary dataset process returned -4 after its 67 checks and
+APPLICATION END, accepted by the existing runner; the other suites exited 0.
+The final MsMGet dictionary-identity change compiled separately; the current
+SRA assertion layout was also recompiled and reran its 66 checks. See the
+[review manifest](validation/presentation.review.windows.json) for exact
+identities and scopes. These suites do not activate the revised record View.
 
 For visual acceptance, compile the
 [interactive fixture](../src/tlpp/tests/protheus/hbbridge.presentation.test/README.md)

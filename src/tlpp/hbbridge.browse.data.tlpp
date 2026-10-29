@@ -48,6 +48,7 @@ static function Browse(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as charact
     local bFilter as codeblock
     local bPrevius as codeblock
     local bUpdateData as codeblock
+    local bSeekChange as codeblock
 
     local cFilterExpr:="(1=1)" as character
     local cField as character
@@ -123,17 +124,16 @@ static function Browse(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as charact
             aAdd(aFWBrwModel,{cFieldTitle,cFieldPicture,nFieldLen,nFieldDec,if(cFieldType=="N",2,if(cFieldType=="C",1,0)),cFieldType})
         next nField
 
+        oFWBrowse:=FWBrowse():New()
+        oFWBrowse:SetDataArray()
+
         nFields:=Len(aFWBrwModel)
         for nField:=1 to nFields
 
-            aAdd(aFWBrwColumn,FWBrwColumn():New())
-
             cField:=aHeader[nField]
-            if (aFWBrwModel[nField][6]=="D")
-                aFWBrwColumn[nField]:SetData(&('{|oSelf|SToD(aFWBrwData[oFWBrowse:nAT]["'+cField+'"])}'))
-            else
-                aFWBrwColumn[nField]:SetData(&('{|oSelf|aFWBrwData[oFWBrowse:nAT]["'+cField+'"]}'))
-            endif
+
+            aAdd(aFWBrwColumn,FWBrwColumn():New())
+            aFWBrwColumn[nField]:SetData(BrowseCatalogColumn(oFWBrowse,aFWBrwData,cField,aFWBrwModel[nField][6]))
             aFWBrwColumn[nField]:SetTitle(aFWBrwModel[nField][1])
             aFWBrwColumn[nField]:SetType(aFWBrwModel[nField][6])
             aFWBrwColumn[nField]:SetPicture(aFWBrwModel[nField][2])
@@ -142,19 +142,19 @@ static function Browse(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as charact
             aFWBrwColumn[nField]:SetAlign(aFWBrwModel[nField][5])
 
             aFWBrwSeek:={;
-                aFWBrwModel[nField][1];//[n,1] Titulo da pesquisa
+                aFWBrwModel[nField][1];//[n,1] Search title
                 ,{;
                     {;
                         GetSX3Cache(cField,"X3_F3");//[n,2,n,1] LookUp (F3)
-                        ,aFWBrwModel[nField][6];//[n,2,n,2] Tipo de dados
-                        ,aFWBrwModel[nField][3];//[n,2,n,3] Tamanho
+                        ,aFWBrwModel[nField][6];//[n,2,n,2] Data type
+                        ,aFWBrwModel[nField][3];//[n,2,n,3] Length
                         ,aFWBrwModel[nField][4];//[n,2,n,4] Decimal
-                        ,aFWBrwModel[nField][1];//[n,2,n,5] Titulo do campo
-                        ,aFWBrwModel[nField][2];//[n,2,n,6] Mascara
-                        ,cField;//[n,2,n,7] Nome Fisico do campo
+                        ,aFWBrwModel[nField][1];//[n,2,n,5] Field caption
+                        ,aFWBrwModel[nField][2];//[n,2,n,6] Picture
+                        ,cField;//[n,2,n,7] Physical field name
                     };
                 };
-                ,nField;//Ordem da pesquisa
+                ,nField;//Search order
                 ,.T.;
             }
 
@@ -163,9 +163,6 @@ static function Browse(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as charact
 
         next nField
 
-        oFWBrowse:=FWBrowse():New()
-
-        oFWBrowse:SetDataArray()
         oFWBrowse:SetArray(aFWBrwData)
         oFWBrowse:SetColumns(aFWBrwColumn)
         oFWBrowse:SetSeek({|oSelf,oFWBrowse|__FWBrowseSeek(oSelf,oFWBrowse,@aFWBrwData,oHBBridgeDataSet,cHBBridgeDataSetSQL,jHBBridgeDataSetPage,cFilterExpr)},aFWBrowseSeek)
@@ -200,25 +197,29 @@ static function Browse(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as charact
             "Opening the browse...";
         )
 
+        bSeekChange:=oFWBrowse:bSeekChange
+        // The SDK only installs this callback after browse activation.
+        oFWBrowse:SetSeekChange({|oSeek|BrowseSeekChange(oFWBrowse,if(oSeek==NIL,oFWBrowse:oBrowseUI:oFWSeek,oSeek),bSeekChange)})
+
         /*
             FWDialogModal:AddButton
-            estrutura:
+            structure:
             [n]
-            [n][1] cTitle Titulo do Botao
-            [n][2] bBloco Bloco de codigo que sera executado
-            [n][3] cToolTip Comentario do botao
-            [n][4] nShortCut Tecla para se criar o ShortCurt
-            [n][5] lShowBar Indica que o botao estara visivel na barra
-            [n][6] lConfig Indica se botao estara visivel na configuracao
+            [n][1] cTitle Button title
+            [n][2] bBloco Codeblock to execute
+            [n][3] cToolTip Button tooltip
+            [n][4] nShortCut Shortcut key
+            [n][5] lShowBar Whether the button appears on the toolbar
+            [n][6] lConfig Whether the button appears in configuration
             [n][7] ?
         */
         oFWDialogModal:AddButton(;
-            "&Close",;//[n][1] cTitle Titulo do Botao
-            {|oBrwButton|oFWDialogModal:DeActivate(.T./*lFreeChildren*/)},;//[n][2] bBloco Bloco de codigo que sera executado
-            "Close",;//[n][3] cToolTip Comentario do botao
-            nil,;//[n][4] nShortCut Tecla para se criar o ShortCurt
-            .T.,;//[n][5] lShowBar Indica que o botao estara visivel na barra
-            .F.,;//[n][6] lConfig Indica se botao estara visivel na configuracao
+            "&Close",;//[n][1] cTitle Button title
+            {|oBrwButton|oFWDialogModal:DeActivate(.T./*lFreeChildren*/)},;//[n][2] bBloco Codeblock to execute
+            "Close",;//[n][3] cToolTip Button tooltip
+            nil,;//[n][4] nShortCut Shortcut key
+            .T.,;//[n][5] lShowBar Whether the button appears on the toolbar
+            .F.,;//[n][6] lConfig Whether the button appears in configuration
             .T.;//[n][7] ?
         )
 
@@ -231,12 +232,12 @@ static function Browse(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as charact
         }
 
         oFWDialogModal:AddButton(;
-            "&Refresh",;//[n][1] cTitle Titulo do Botao
-                bUpdateData,;//[n][2] bBloco Bloco de codigo que sera executado
-                "Refresh",;//[n][3] cToolTip Comentario do botao
-                nil,;//[n][4] nShortCut Tecla para se criar o ShortCurt
-                .T.,;//[n][5] lShowBar Indica que o botao estara visivel na barra
-                .F.,;//[n][6] lConfig Indica se botao estara visivel na configuracao
+            "&Refresh",;//[n][1] cTitle Button title
+                bUpdateData,;//[n][2] bBloco Codeblock to execute
+                "Refresh",;//[n][3] cToolTip Button tooltip
+                nil,;//[n][4] nShortCut Shortcut key
+                .T.,;//[n][5] lShowBar Whether the button appears on the toolbar
+                .F.,;//[n][6] lConfig Whether the button appears in configuration
                 .T.;//[n][7] ?
             )
 
@@ -251,12 +252,12 @@ static function Browse(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as charact
         }
 
         oFWDialogModal:AddButton(;
-            "&Filter",;//[n][1] cTitle Titulo do Botao
-                bFilter,;//[n][2] bBloco Bloco de codigo que sera executado
-                "Filter",;//[n][3] cToolTip Comentario do botao
-                nil,;//[n][4] nShortCut Tecla para se criar o ShortCurt
-                .T.,;//[n][5] lShowBar Indica que o botao estara visivel na barra
-                .F.,;//[n][6] lConfig Indica se botao estara visivel na configuracao
+            "&Filter",;//[n][1] cTitle Button title
+                bFilter,;//[n][2] bBloco Codeblock to execute
+                "Filter",;//[n][3] cToolTip Button tooltip
+                nil,;//[n][4] nShortCut Shortcut key
+                .T.,;//[n][5] lShowBar Whether the button appears on the toolbar
+                .F.,;//[n][6] lConfig Whether the button appears in configuration
                 .T.;//[n][7] ?
             )
 
@@ -271,12 +272,12 @@ static function Browse(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as charact
             }
 
             oFWDialogModal:AddButton(;
-                "<< &First",;//[n][1] cTitle Titulo do Botao
-                    bFirst,;//[n][2] bBloco Bloco de codigo que sera executado
-                    "First",;//[n][3] cToolTip Comentario do botao
-                    nil,;//[n][4] nShortCut Tecla para se criar o ShortCurt
-                    .T.,;//[n][5] lShowBar Indica que o botao estara visivel na barra
-                    .F.,;//[n][6] lConfig Indica se botao estara visivel na configuracao
+                "<< &First",;//[n][1] cTitle Button title
+                    bFirst,;//[n][2] bBloco Codeblock to execute
+                    "First",;//[n][3] cToolTip Button tooltip
+                    nil,;//[n][4] nShortCut Shortcut key
+                    .T.,;//[n][5] lShowBar Whether the button appears on the toolbar
+                    .F.,;//[n][6] lConfig Whether the button appears in configuration
                     .T.;//[n][7] ?
                 )
 
@@ -289,12 +290,12 @@ static function Browse(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as charact
             }
 
             oFWDialogModal:AddButton(;
-                "&< Previous",;//[n][1] cTitle Titulo do Botao
-                    bPrevius,;//[n][2] bBloco Bloco de codigo que sera executado
-                    "Previous",;//[n][3] cToolTip Comentario do botao
-                    nil,;//[n][4] nShortCut Tecla para se criar o ShortCurt
-                    .T.,;//[n][5] lShowBar Indica que o botao estara visivel na barra
-                    .F.,;//[n][6] lConfig Indica se botao estara visivel na configuracao
+                "&< Previous",;//[n][1] cTitle Button title
+                    bPrevius,;//[n][2] bBloco Codeblock to execute
+                    "Previous",;//[n][3] cToolTip Button tooltip
+                    nil,;//[n][4] nShortCut Shortcut key
+                    .T.,;//[n][5] lShowBar Whether the button appears on the toolbar
+                    .F.,;//[n][6] lConfig Whether the button appears in configuration
                     .T.;//[n][7] ?
                 )
 
@@ -307,12 +308,12 @@ static function Browse(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as charact
             }
 
             oFWDialogModal:AddButton(;
-                "&> Next",;//[n][1] cTitle Titulo do Botao
-                    bNext,;//[n][2] bBloco Bloco de codigo que sera executado
-                    "Next",;//[n][3] cToolTip Comentario do botao
-                    nil,;//[n][4] nShortCut Tecla para se criar o ShortCurt
-                    .T.,;//[n][5] lShowBar Indica que o botao estara visivel na barra
-                    .F.,;//[n][6] lConfig Indica se botao estara visivel na configuracao
+                "&> Next",;//[n][1] cTitle Button title
+                    bNext,;//[n][2] bBloco Codeblock to execute
+                    "Next",;//[n][3] cToolTip Button tooltip
+                    nil,;//[n][4] nShortCut Shortcut key
+                    .T.,;//[n][5] lShowBar Whether the button appears on the toolbar
+                    .F.,;//[n][6] lConfig Whether the button appears in configuration
                     .T.;//[n][7] ?
                 )
 
@@ -325,12 +326,12 @@ static function Browse(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as charact
             }
 
             oFWDialogModal:AddButton(;
-                ">> &Last",;//[n][1] cTitle Titulo do Botao
-                    bLast,;//[n][2] bBloco Bloco de codigo que sera executado
-                    "Last",;//[n][3] cToolTip Comentario do botao
-                    nil,;//[n][4] nShortCut Tecla para se criar o ShortCurt
-                    .T.,;//[n][5] lShowBar Indica que o botao estara visivel na barra
-                    .F.,;//[n][6] lConfig Indica se botao estara visivel na configuracao
+                ">> &Last",;//[n][1] cTitle Button title
+                    bLast,;//[n][2] bBloco Codeblock to execute
+                    "Last",;//[n][3] cToolTip Button tooltip
+                    nil,;//[n][4] nShortCut Shortcut key
+                    .T.,;//[n][5] lShowBar Whether the button appears on the toolbar
+                    .F.,;//[n][6] lConfig Whether the button appears in configuration
                     .T.;//[n][7] ?
                 )
 
@@ -340,12 +341,12 @@ static function Browse(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as charact
         for nButton:=1 to nButtons
             if (Len(aCustomButtons[nButton])>=7)
                 oFWDialogModal:AddButton(;
-                    aCustomButtons[nButton][1],;//[n][1] cTitle Titulo do Botao
-                    aCustomButtons[nButton][2],;//[n][2] bBloco Bloco de codigo que sera executado
-                    aCustomButtons[nButton][3],;//[n][3] cToolTip Comentario do botao
-                    aCustomButtons[nButton][4],;//[n][4] nShortCut Tecla para se criar o ShortCurt
-                    aCustomButtons[nButton][5],;//[n][5] lShowBar Indica que o botao estara visivel na barra
-                    aCustomButtons[nButton][6],;//[n][6] lConfig Indica se botao estara visivel na configuracao
+                    aCustomButtons[nButton][1],;//[n][1] cTitle Button title
+                    aCustomButtons[nButton][2],;//[n][2] bBloco Codeblock to execute
+                    aCustomButtons[nButton][3],;//[n][3] cToolTip Button tooltip
+                    aCustomButtons[nButton][4],;//[n][4] nShortCut Shortcut key
+                    aCustomButtons[nButton][5],;//[n][5] lShowBar Whether the button appears on the toolbar
+                    aCustomButtons[nButton][6],;//[n][6] lConfig Whether the button appears in configuration
                     aCustomButtons[nButton][7];//?
                 )
             endif
@@ -372,6 +373,51 @@ static function Browse(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as charact
     FreeObj(@oFWDialogModal)
 
 return(nil)
+
+static function BrowseSeekChange(oFWBrowse as object,oSeek as object,bSeekChange as variant,lNotify as logical) as numeric
+
+    local aRows as array
+    local aNames as array
+
+    local nRet:=1 as numeric
+    local nOption as numeric
+
+    local xError as variant
+
+    DEFAULT lNotify:=.T.
+    try
+        nOption:=oSeek:GetOrder()
+        aRows:=oFWBrowse:oData:GetArray()
+        if (Empty(aRows))
+            return(0)
+        endif
+        if (ValType(aRows[1])!="J")
+            return(0)
+        endif
+        aNames:=aRows[1]:GetNames()
+        aSort(aRows,nil,nil,{|x,y|x[aNames[nOption]]<y[aNames[nOption]]})
+        aRows:=nil
+        FWFreeArray(@aNames)
+        // Keep the framework's editor/mask updates. Its search option token
+        // need not be the index ordinal, so publish the real order afterwards.
+        if (ValType(bSeekChange)=="B")
+            Eval(bSeekChange,oSeek)
+        endif
+        FWMsgRun(nil,{||oFWBrowse:Refresh(.T.)},"Sort","Updating. Please wait...")
+    catch xError
+        if (lNotify)
+            ApMsgStop("Could not select the requested native search index.","hbBridge native search")
+        endif
+        if (ValType(xError)=="O")
+            FreeObj(@xError)
+        endif
+        //Keep the return after endtry: returning here produced nil instead of 0.
+        //TODO: document this SDK behavior and open an issue at https://github.com/naldodj/totvs-protheus-open-issues
+        //return(0)
+        nRet:=0
+    endtry
+
+return(nRet)
 
 static function BrowseGetData(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as character,jHBBridgeDataSetPage as json,cOption as character,cFilterExpr as character) as array
 
@@ -445,6 +491,7 @@ static procedure BrowseQueryError(oDataSet as object)
 return
 
 static procedure BrowseFilter(oFWBrowse as object,aFWBrwData as array,oDataSet as object,cSQL as character,jPage as json,cFilterExpr as character)
+
     local aNewData as array
 
     local cNewFilter:=cFilterExpr as character
@@ -459,9 +506,12 @@ static procedure BrowseFilter(oFWBrowse as object,aFWBrwData as array,oDataSet a
     else
         BrowseQueryError(oDataSet)
     endif
+
 return
 
 static function BrowseBuildCustomFilder(oHBBridgeDataSet as object,cHBBridgeDataSetSQL as character,jHBBridgeDataSetPage as json,cFilterExpr as character) as array
+
+    local aArea:=FWGetArea() as array
 
     local aField as array
     local aHeader as array
@@ -473,7 +523,8 @@ static function BrowseBuildCustomFilder(oHBBridgeDataSet as object,cHBBridgeData
     local cF3 as character
     local cField as character
     local cTitle as character
-    local cAliasTmp as character
+    local cTmpTable as character
+    local cTmpAlias as character
 
     local jF3 as json
     local jHeader as json
@@ -517,7 +568,7 @@ static function BrowseBuildCustomFilder(oHBBridgeDataSet as object,cHBBridgeData
         FWFReeArray(@aField)
         cF3:=GetSX3Cache(cField,"X3_F3")
         if (!Empty(cF3))
-            jF3[cField]:=cF3//Adicione + Field:F3 se necessario. Ex.: {"B1_COD":"SB1","B1_GRUPO":"SBM","B1_CODGRU":"SZ4Pro"}
+            jF3[cField]:=cF3//Add more Field:F3 mappings if needed. Example: {"B1_COD":"SB1","B1_GRUPO":"SBM","B1_CODGRU":"SZ4Pro"}
         endif
     next nField
 
@@ -525,7 +576,7 @@ static function BrowseBuildCustomFilder(oHBBridgeDataSet as object,cHBBridgeData
 
         nFilters:=Len(aFields)
 
-        // Adiciona Filtros Customizados
+        // Add custom filters
         jCustomFilter:=JSONObject():New()
         jCustomFilter:Set(Array(nFilters))
         for nFilter:=1 to nFilters
@@ -548,15 +599,29 @@ static function BrowseBuildCustomFilder(oHBBridgeDataSet as object,cHBBridgeData
         aCustomFilter:=HBBridge.Client.HBBridgeTOTVSFilter():BuildCustomFilder(jCustomFilter)
         FreeObj(@jCustomFilter)
 
-        cAliasTmp:=GetNextAlias()
-        oFWTemporaryTable:=FWTemporaryTable():New(@cAliasTmp,@aFields)
-        oFWTemporaryTable:Create()
+        cTmpAlias:=GetNextAlias()
+
+        //Mock: the standard filter requires an open table
+        if (.F.)
+            oFWTemporaryTable:=FWTemporaryTable():New(@cTmpAlias,@aFields)
+            oFWTemporaryTable:Create()
+        else //An in-memory table is more appropriate in this case.
+            cTmpTable:=cTmpAlias+"_"+CriaTrab(nil,.F.)
+            dbCreate(cTmpTable,aFields,"SQLITE_MEM")
+            dbUseArea(.T./*lNewArea*/,"SQLITE_MEM",cTmpTable,cTmpAlias,.F./*lShared*/,.T./*lReadOnly*/)
+        endif
+
         FWFreeArray(@aFields)
 
-        cFilterExpr:=HBBridge.Client.HBBridgeTOTVSFilter():BuildExpr(cAliasTmp,1,.T.,@jF3,aCustomFilter,1)
+        cFilterExpr:=HBBridge.Client.HBBridgeTOTVSFilter():BuildExpr(cTmpAlias,1,.T.,@jF3,aCustomFilter,1)
         FWFreeArray(@aCustomFilter)
-        oFWTemporaryTable:Delete()
-        FreeObj(@oFWTemporaryTable)
+
+        if (.F.)
+            oFWTemporaryTable:Delete()
+            FreeObj(@oFWTemporaryTable)
+        else
+            (cTmpAlias)->(dbCloseArea())
+        endif
 
     endif
 
@@ -571,6 +636,9 @@ static function BrowseBuildCustomFilder(oHBBridgeDataSet as object,cHBBridgeData
     endif
 
     aFWBrwData:=BrowseGetData(oHBBridgeDataSet,cHBBridgeDataSetSQL,jHBBridgeDataSetPage,"all",cFilterExpr)
+
+    FWRestArea(aArea)
+    FWFreeArray(@aArea)
 
 return(aFWBrwData)
 
@@ -761,7 +829,7 @@ static function __FWBrowseSeek(oFWSeek as object,oFWBrowse as object,aFWBrwData 
                     return(0)
                 endif
                 //TODO: Resolve this Workaround __cPrefixQryAlias
-                if (Type("__cPrefixQryAlias")=="C")//TODO: resolver Alias para campos comuns (R_E_C_N_O_,R_E_C_D_E_L_,D_E_L_E_T_,etc) com HBBridgeSqlTools():PrefixQryAlias ou FieldAlias ou FielPrefixdAlias?
+                if (Type("__cPrefixQryAlias")=="C")//TODO: resolve aliases for common fields (R_E_C_N_O_,R_E_C_D_E_L_,D_E_L_E_T_,etc.) with HBBridgeSqlTools():PrefixQryAlias, FieldAlias or FielPrefixdAlias?
                     BrowseCallBack(oFWBrowse,@aFWBrwData,oHBBridgeDataSet,cHBBridgeDataSetSQL,jHBBridgeDataSetPage,"all",HBBridgeSqlTools():PrefixQryAlias(__cPrefixQryAlias,"("+cFilterExpr+" AND ("+cSQLSeek+"))"))
                 else
                     BrowseCallBack(oFWBrowse,@aFWBrwData,oHBBridgeDataSet,cHBBridgeDataSetSQL,jHBBridgeDataSetPage,"all","("+cFilterExpr+" AND ("+cSQLSeek+"))")
@@ -773,3 +841,10 @@ static function __FWBrowseSeek(oFWSeek as object,oFWBrowse as object,aFWBrwData 
     endif
 
 return(1)
+
+static function BrowseCatalogColumn(oFWBrowse as object,aRows as array,cKey as character,cType as character) as codeblock
+if (cType=="D")
+    return({|oSelf|SToD(aRows[oFWBrowse:nAT][cKey])})
+else
+    return({|oSelf|aRows[oFWBrowse:nAT][cKey]})
+endif

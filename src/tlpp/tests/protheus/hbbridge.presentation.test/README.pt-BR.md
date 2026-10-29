@@ -15,20 +15,24 @@ dataset, formatos explícitos de data, largura/escala numérica sem
 arredondamento e snapshots defensivos das entradas/saídas. Essas verificações
 não exigem conexão SQL ou navegador.
 
-Os testes da tabela nativa exigem ambiente Protheus preparado com DBAccess e
-`FWTemporaryTable`. Validam o armazenamento real dos campos, página vazia com
+Os testes da tabela nativa usam ambiente Protheus preparado. Armazenamento
+`TOPCONN` e checks FWBulk exigem DBAccess/`FWTemporaryTable`; `SQLITE_MEM` e
+`SQLITE_TMP` escolhem armazenamento local do SDK. Validam o armazenamento real dos campos, página vazia com
 metadados, posse dos recursos, restauração da área selecionada e liberação.
 A apresentação consome um snapshot da página atual: não deve buscar a página
 seguinte, substituir bindings ou fechar o dataset/cliente/áreas do chamador.
-`HBBridgeNativeTable` escolhe FWBulk quando suportado e gravação por registro
-nos demais casos; o teste percorre independentemente cada linha gravada e
+`HBBridgeNativeTable` tem padrão `SQLITE_MEM`; `TOPCONN` explícito escolhe FWBulk
+quando suportado e gravação por registro nos demais casos. Os RDDs SQLite locais
+gravam por registro. O teste percorre independentemente cada linha gravada e
 compara os sete campos públicos. Checks separados de índice/pesquisa exercitam
 o auxiliar privado de pesquisa lógica.
 Releitura completa em produção é opcional pelo terceiro
 argumento do construtor, `lVerifyStorage` (padrão `.F.`); a fixture pequena
 também exercita `.T.`. O adapter reserva o alias uma vez e conserva a mesma
-tabela física temporária, área e índices por campo durante preenchimento/
-limpeza da página. Somente `Close()`/`Destroy()` final os exclui. Os testes
+tabela, área e índices já criados durante preenchimento/limpeza da página. Um
+índice inicial é criado após a primeira carga, com os demais sob demanda.
+`Close()`/`Destroy()` final libera os recursos nativos próprios; o SDK gerencia
+o ciclo do banco SQLite local pela conexão. Os testes
 verificam identidade estável, pesquisa por índice após recarga e recuperação
 sem substituir a fonte do browse. Consulte `WriteMode()` para identificar o
 caminho efetivo; compilação ou perfil sem bulk não comprovam aceite desse
@@ -39,17 +43,28 @@ As APIs de nomes nativos separam identidade da origem e alias SQL:
 | API | Significado |
 | --- | --- |
 | `FieldName("DESCRIPTION")` | Campo nativo de valor gerado `F...` |
-| `ProjectionName(nPosition)` ou `ProjectionName(cNative)` | Chave projetada, como `DESCRIPTION`; receber a chave projetada também devolve essa chave |
-| `SourceFieldName(cNative)` ou `SourceFieldName("DESCRIPTION")` | Metadado da coluna de origem aceita, como `X5_DESCRI`, ou vazio se desconhecida/calculada |
-| `SourceFieldCaption(cNative)` ou `SourceFieldCaption("DESCRIPTION")` | Legenda do esquema lógico fornecido pelo chamador; renomeado de `FieldCaption()` |
+| `FieldPos("DESCRIPTION")` / `FieldGet("DESCRIPTION")` | Posição nativa / valor atual desse campo projetado; posições da projeção também são aceitas |
+| `ProjectionName(nPosition)` ou `ProjectionName(cNative)` | Chave projetada, como `DESCRIPTION`; strings identificam apenas nomes nativos |
+| `SourceFieldName("DESCRIPTION")` | Metadado da coluna de origem aceita ou mapa explícito do chamador, como `X5_DESCRI`; vazio se desconhecida |
+| `FieldCaption("DESCRIPTION")` | Legenda desse campo projetado no esquema lógico fornecido pelo chamador |
+| `SourceFieldPos/Get/Caption("X5_DESCRI")` | Posição nativa / valor / legenda da projeção com essa origem única |
 
-Metadados da origem são capturados da página aceita, sem reler posteriormente
-o dataset emprestado. Mapeamentos desconhecidos/auxiliares lógicos privados/
-página fechada ficam vazios. Legendas não consultam SX3. Quando ODBC informa a
-coluna base para `X5_DESCRI AS DESCRIPTION`, o chamador Protheus pode usar:
+Metadados da origem são capturados da página aceita, com
+`schema.projectionFields` opcional ou o segundo argumento explícito de
+`LoadCurrentPage()` preenchendo origens ausentes. Esquemas sem esse mapa
+continuam válidos. O construtor o copia; o carregamento não relê um dataset
+posteriormente movido pelo chamador. Os métodos inversos de origem rejeitam
+origens duplicadas de forma uniforme e permitem usar a chave projetada apenas
+quando nenhuma origem corresponde (segundo argumento com padrão `.T.`; `.F.`
+resolve apenas a origem). Seus retornos de falha são zero, `nil` e string vazia,
+respectivamente. `FieldPos/Get/Caption` mantêm consulta direta pela chave
+projetada. Mapeamentos desconhecidos/auxiliares lógicos privados/página fechada
+ficam vazios. Legendas não consultam SX3. Para `X5_DESCRI AS DESCRIPTION`, com
+origem informada ou mapeada explicitamente:
 
 ```advpl
-cField := oNative:SourceFieldName(oNative:FieldName("DESCRIPTION"))
+cProjection := oNative:ProjectionName(oNative:FieldName("DESCRIPTION"))
+cField := oNative:SourceFieldName(cProjection)
 if !Empty(cField)
     cTitle := GetSX3Cache(cField,"X3_TITULO")
 endif
@@ -141,8 +156,12 @@ pesquisa e filtros tipados Field/Operator/Value são aplicados antes de selecion
 a página pelo [cliente da fixture](hbbridge.presentation.browse.client.tlpp),
 com Clear filters para remover filtros e pesquisa. Não implementam
 reescrita genérica de SQL. `FieldName()` mapeia valores; `SearchFieldName()` e
-`IndexOrder()` mapeiam o campo/ordem nativa de pesquisa correspondente. Cada
-projeção pública possui índice. Flag exibe `True`/`False` e conserva campo
+`IndexOrder()` mapeiam o campo/ordem nativa de pesquisa correspondente.
+`IndexOrder()` não cria índices e devolve zero para um índice ainda ausente.
+O diálogo chama `EnsureIndex()` ao selecionar uma coluna de pesquisa, usando
+o mapa de campo `aDetails[nOption][1][7]` do SDK. Opções lógicas de pesquisa e
+ordens físicas dos índices são distintas; o adapter mantém estáveis as ordens
+físicas já criadas. Flag exibe `True`/`False` e conserva campo
 nativo lógico; um auxiliar privado C(5) fornece seu índice de pesquisa, sem
 ser coluna pública. Índices de data usam `DTOS(field)`. Verifique acentos,
 datas, máscaras, alinhamento de Flag/Day/Float, sequência de ID_CODE, troca de
@@ -167,13 +186,16 @@ configure `[hbBridge] SQLProfile` no INI AppServer ativo; não há fallback de
 demonstração. A configuração cliente fornece endpoints e autorização;
 a rota HTTP solicita gzip.
 
-[`HBBridgePresentationSX5:Definition()`](hbbridge.presentation.sx5.tlpp) resolve
-tabela física por `RetSQLName`, filial por `xFilial` e larguras caractere por
-`TamSX3`, sempre no Protheus. Seu SELECT de cinco colunas retorna `BRANCH`,
-`TABLE_CODE`, `ITEM_CODE`, `DESCRIPTION` e `RECNO`, com predicados base
-vinculados e imutáveis de não excluído/filial atual, além de RECNO como último
-desempate na ordenação. Não grava na SX5. É consulta real, distinta da fixture
-de sete colunas.
+[`HBBridgePresentationSX5:Definition()`](hbbridge.presentation.sx5.tlpp) usa o
+builder compartilhado de dicionário/catálogo
+`HBBridgePresentationTable():Definition("SX5")`. Projeções suportadas conservam
+nomes originais, incluindo `X5_FILIAL`, `X5_TABELA`, `X5_CHAVE` e `X5_DESCRI`,
+além de campos de sistema disponíveis. O dicionário local determina o conjunto
+completo; os cinco aliases antigos foram substituídos pelas chaves do dicionário.
+Protheus resolve tabela física e filial; predicados vinculados de não excluído/
+filial atual permanecem fixos, com `R_E_C_N_O_` como último desempate.
+`schema.projectionFields` mantém explicitamente os nomes de origem. Não grava
+na SX5. É consulta real, distinta da fixture de sete colunas.
 
 [`HBBridgePresentationSQLSource`](hbbridge.presentation.sql.source.tlpp)
 fornece ao diálogo local `Query()` com SQL, ordenação e bindings confiáveis.
@@ -202,6 +224,44 @@ continuam separados do aceite visual manual da SX5.
 Os valores textuais de entrada usam a codificação do AppServer; os clientes
 codificam a requisição completa em UTF-8 uma única vez. Não pré-codificar cada
 valor de binding.
+
+## Dicionário SRA e cobertura dos campos
+
+Use `U_HBBridgeNativeBrowseSRA("MSSQL/pData","TCP",100)` ou a mesma chamada
+com HTTP no contexto Protheus de empresa/filial preparado. Reutiliza esse
+diálogo, pesquisa, filtros tipados, paginação explícita e View com as chaves
+originais SRA. HTTP exige gzip; perfil/página/transporte omitidos seguem as
+regras da SX5.
+
+[`HBBridgeSX3Metadata:Read("SRA")`](../../../hbbridge.sx3.metadata.tlpp)
+retorna inventário novo em `JSONObject` por FWSX3Util e APIs do dicionário.
+`HBBridgePresentationSRA:Definition()` combina-o com o catálogo físico real
+pelo `HBBridgePresentationTable:Definition()` compartilhado, usando
+`HBBridgeSqlTools:GetColumnMetadata()`, atualmente MSSQL, e tabela/filial
+resolvidas no Protheus. Campos físicos suportados do dicionário e campos de
+sistema disponíveis formam o SELECT somente leitura. Cada campo virtual,
+memo, binário, texto longo, ausente ou incompatível recebe motivo explícito de
+exclusão; os metadados retêm o inventário completo. O exemplo exibe quantidades.
+Não adiciona transporte memo/BLOB nem trunca valores silenciosamente.
+
+O exemplo cria CASTs numéricos a partir de tamanho/escala SX3 do chamador, sem
+parser SQL genérico ou acesso ao dicionário no servidor. Datas têm contrato
+YYYYMMDD explícito, incluindo oito espaços para data vazia. NULL SQL é
+preservado no dataset tipado e rejeitado apenas pelo destino nativo.
+Veja o [contrato de metadados e uso SRA](../../../../../docs/sx3-metadata.pt-BR.md).
+O diálogo SRA também oferece **Field catalog**: linhas somente leitura de
+Field/Type/Length/Decimals/Caption/Status/Reason do snapshot, incluindo itens
+excluídos. Não é editor da SX3 bruta e não busca valores dos funcionários.
+A API de metadados permanece reutilizável independentemente dessa visão.
+
+`U_HBBridgePresentationSRATest()` fornece snapshots determinísticos ao
+`HBBridgePresentationTable:Build()` compartilhado e aos métodos `Plan()` de
+SRA/SX5. Verifica exclusões comuns de campos, nomes originais/mapas de origem,
+projeções somente com campos de sistema e vazias, além dos campos obrigatórios
+usados em WHERE/ORDER BY de cada wrapper. Não consulta valores dos funcionários
+nem lê o dicionário ativo; os exemplos interativos exercitam essa integração
+separada. Os wrappers devolvem definição inválida antes de executar SQL quando
+esses requisitos não são atendidos. Veja o [contrato da definição compartilhada](../../../../../docs/sx3-metadata.pt-BR.md#definição-compartilhada-de-apresentação).
 
 ## Validação registrada
 
@@ -235,5 +295,17 @@ sem leases ativos. O SELECT da integração executa no MSSQL sobre linhas
 constantes; confere transporte real, codificação Unicode de entrada uma vez,
 paginação/critérios e armazenamento nativo, sem ler dados ERP. Veja o
 [manifesto SQL real](../../../../../docs/validation/native.presentation.sql.windows.json).
-A entrada SX5 está compilada; aceite visual manual com registros SX5 reais
-pelos dois transportes permanece aberto.
+Capturas posteriores fornecidas em **2026-10-26** confirmam exibição do browse
+SX5 real por TCP/HTTP e View do registro atual. Essa observação visual não
+fornece hashes compilados nem comprova isoladamente todos os caminhos de
+filtro/falha/liberação. O
+[manifesto anterior SRA/metadados](../../../../../docs/validation/sra.presentation.windows.json)
+registra uma regressão posterior identificada e medição restrita à conversão,
+com identidades próprias dos fontes. Suas limitações excluem explicitamente
+as alterações posteriores de RDD local/índices sob demanda. O [manifesto da revisão de 2026-10-29](../../../../../docs/validation/presentation.review.windows.json)
+registra compilação atual de 78 fontes e 654 checks isolados, incluindo RDDs
+locais 100, mapeamento 36, planejamento SRA/SX5 66, TOPCONN/FWBulk 122 e
+callbacks do browse 74. A identidade final das variáveis do dicionário em
+MsMGet compilou separadamente; o desdobramento atual das asserções SRA passou
+novamente nos 66 checks. O aceite mais amplo com dicionário ativo/interface
+permanece separado.

@@ -1,0 +1,438 @@
+/* Released to Public Domain. */
+#include "totvs.ch"
+
+// Deterministic metadata/catalog planning only: no employee rows, DBAccess
+// connection, SQL execution or active Protheus company is required.
+function U_HBBridgePresentationSRATest()
+
+    // JSONObject exposes its property names through this native array API.
+    local aNames as array
+
+    local cMetadata:="" as character
+    local cColumns:="" as character
+    local cSQL:="" as character
+    local cField:="" as character
+
+    local jChecks:=JSONObject():New() as json
+    local jMetadata:=PresentationSRATestMetadata() as json
+    local jColumns:=PresentationSRATestColumns() as json
+    local jResult as json
+    local jChanged as json
+    local jRead as json
+    local jExpected as json
+
+    local lOK:=.T. as logical
+
+    local nCheck:=0 as numeric
+    local nChecks:=0 as numeric
+    local nField:=0 as numeric
+    local nFields:=0 as numeric
+
+    local xError as variant
+
+    try
+        jRead:=HBBridge.Protheus.HBBridgeSX3Metadata():Read("invalid alias")
+        jChecks["invalidDictionaryAliasNeedsNoEnvironment"]:=ValType(jRead)=="U"
+        cMetadata:=HBBridge.Client.HBBridgeJSON():Encode(jMetadata)
+        cColumns:=HBBridge.Client.HBBridgeJSON():Encode(jColumns)
+        jResult:=HBBridge.Examples.HBBridgePresentationSRA():Plan(jMetadata,jColumns,"SRA990","01")
+        jChecks["definitionBuilt"]:=ValType(jResult)=="J"
+        if (!jChecks["definitionBuilt"])
+            throw "SRA_DEFINITION_MISSING"
+        endif
+        jChecks["definitionSucceeded"]:=jResult["success"]==.T.
+        if (!jChecks["definitionSucceeded"])
+            throw "SRA_DEFINITION_REJECTED"
+        endif
+        cSQL:=jResult["sql"]
+        jChecks["metadataInputUnchanged"]:=HBBridge.Client.HBBridgeJSON():Encode(jMetadata)==cMetadata
+        jChecks["catalogInputUnchanged"]:=HBBridge.Client.HBBridgeJSON():Encode(jColumns)==cColumns
+        jChecks["metadataRetainsAllDictionaryFields"]:=jResult["metadata"]["schemaVersion"]==1.and.;
+            jResult["metadata"]["alias"]=="SRA".and.jResult["metadata"]["count"]==19
+        jChecks["allStatusesCounted"]:=jResult["includedCount"]==13.and.jResult["excludedCount"]==10
+        aNames:=jResult["fieldStatus"]:GetNames()
+        jChecks["everyFieldHasVisibleStatus"]:=Len(aNames)==23
+        FWFreeArray(@aNames)
+        aNames:=jResult["schema"]["fields"]:GetNames()
+        jChecks["schemaContainsEveryIncludedColumn"]:=Len(aNames)==13
+        jChecks["projectionUsesDictionaryPosition"]:=aNames[1]=="RA_FILIAL".and.;
+            aNames[2]=="RA_MAT".and.aNames[3]=="RA_NOME"
+        FWFreeArray(@aNames)
+        jChecks["sqlUsesExplicitProjection"]:=!Empty(cSQL).and.At("*",cSQL)==0
+        jChecks["sqlUsesTrustedPhysicalTable"]:="SRA990" $ cSQL
+        jChecks["sqlProjectionFollowsMetadataPosition"]:=At("RA_FILIAL",cSQL)>0.and.;
+            At("RA_FILIAL",cSQL)<At("RA_MAT",cSQL).and.At("RA_MAT",cSQL)<At("RA_NOME",cSQL)
+        jChecks["numericProjectionUsesDeclaredScale"]:="DECIMAL(12,2)" $ Upper(StrTran(cSQL," ",""))
+        jChecks["largeNumericDefinitionIsNotClamped"]:=jResult["schema"]["fields"]["RA_BIG"]["length"]==32.and.;
+            jResult["schema"]["fields"]["RA_BIG"]["decimals"]==0.and.;
+            "DECIMAL(32,0)" $ Upper(StrTran(cSQL," ",""))
+        jChecks["recordNumberUsesBigint"]:="BIGINT" $ Upper(cSQL)
+        jChecks["stableOrderIncludesSourceRecord"]:=jResult["orderBy"]==;
+            "RA_FILIAL ASC,RA_MAT ASC,R_E_C_N_O_ ASC"
+        jChecks["deletedAndBranchAreBound"]:=jResult["bindings"]["1"]["type"]=="text".and.;
+            jResult["bindings"]["1"]["isNull"]==.F..and.jResult["bindings"]["1"]["value"]==" ".and.;
+            jResult["bindings"]["2"]["type"]=="text".and.;
+            jResult["bindings"]["2"]["isNull"]==.F..and.jResult["bindings"]["2"]["value"]=="01"
+        jChecks["logicalMetadataKeepsOriginalFieldKeys"]:=;
+            jResult["schema"]["fields"]:HasProperty("RA_NOME").and.;
+            jResult["schema"]["fields"]:HasProperty("RA_SALARIO").and.;
+            !jResult["schema"]["fields"]:HasProperty("NAME")
+        jChecks["projectionMappingKeepsOriginalFields"]:=;
+            jResult["schema"]["projectionFields"]["RA_NOME"]=="RA_NOME".and.;
+            jResult["schema"]["projectionFields"]["RA_SALARIO"]=="RA_SALARIO"
+        jChecks["dictionaryWidthScaleAndPicture"]:=;
+            jResult["schema"]["fields"]["RA_SALARIO"]["type"]=="numeric".and.;
+            jResult["schema"]["fields"]["RA_SALARIO"]["length"]==12.and.;
+            jResult["schema"]["fields"]["RA_SALARIO"]["decimals"]==2.and.;
+            jResult["schema"]["fields"]["RA_SALARIO"]["picture"]=="@E 999,999,999.99"
+        jChecks["dictionaryCaptionIsNativeText"]:=;
+            jResult["schema"]["fields"]["RA_NOME"]["caption"]=="Name"
+        jChecks["characterDateDeclaresSourceFormat"]:=;
+            jResult["schema"]["fields"]["RA_ADMISSA"]["type"]=="date".and.;
+            jResult["schema"]["fields"]["RA_ADMISSA"]["inputFormat"]=="YYYYMMDD"
+        jChecks["sqlDateDeclaresSourceFormat"]:=;
+            jResult["schema"]["fields"]["RA_DATE"]["type"]=="date".and.;
+            jResult["schema"]["fields"]["RA_DATE"]["inputFormat"]=="YYYY-MM-DD"
+        jChecks["logicalSourcesAreExplicit"]:=;
+            jResult["schema"]["fields"]["RA_FLAG"]["type"]=="logical".and.;
+            jResult["schema"]["fields"]["RA_NUMFLAG"]["type"]=="logical".and.;
+            jResult["schema"]["fields"]["RA_CHARFLAG"]["type"]=="logical".and.;
+            "CASE" $ Upper(cSQL)
+        jExpected:=JSONObject():New()
+        jExpected["RA_MEMO"]:="memo"
+        jExpected["RA_VIRTUAL"]:="virtual"
+        jExpected["RA_BINARY"]:="binary"
+        jExpected["RA_MISSING"]:="missingColumn"
+        jExpected["RA_WIDE"]:="invalidDefinition"
+        jExpected["RA_LONG"]:="longText"
+        jExpected["RA_UNKNOWN"]:="unsupportedStorage"
+        jExpected["RA_INVALID"]:="invalidDefinition"
+        jExpected["RA_UNSUPPORTED"]:="unsupportedType"
+        jExpected["EXTRA_COLUMN"]:="notInDictionary"
+        aNames:=jExpected:GetNames()
+        nFields:=Len(aNames)
+        for nField:=1 to nFields
+            cField:=aNames[nField]
+            jChecks["exclusion."+cField]:=jResult["fieldStatus"][cField]["status"]=="excluded".and.;
+                jResult["fieldStatus"][cField]["reason"]==jExpected[cField].and.;
+                !jResult["schema"]["fields"]:HasProperty(cField)
+        next nField
+        FWFreeArray(@aNames)
+        jChecks["ordinaryFieldStatus"]:=jResult["fieldStatus"]["RA_NOME"]["status"]=="included".and.;
+            Empty(jResult["fieldStatus"]["RA_NOME"]["reason"])
+        jChecks["systemFieldsAreExplicit"]:=;
+            jResult["fieldStatus"]["R_E_C_N_O_"]["status"]=="included".and.;
+            jResult["fieldStatus"]["R_E_C_N_O_"]["reason"]=="system".and.;
+            jResult["fieldStatus"]["D_E_L_E_T_"]["status"]=="included".and.;
+            jResult["fieldStatus"]["D_E_L_E_T_"]["reason"]=="system".and.;
+            jResult["fieldStatus"]["R_E_C_D_E_L_"]["status"]=="included".and.;
+            jResult["fieldStatus"]["R_E_C_D_E_L_"]["reason"]=="system"
+        jMetadata["fields"]["RA_NOME"]["caption"]:="Caller changed"
+        jChecks["metadataSnapshotIsDefensive"]:=jResult["metadata"]["fields"]["RA_NOME"]["caption"]=="Name"
+        jResult["metadata"]["fields"]["RA_NOME"]["description"]:="Result changed"
+        jChecks["returnedMetadataDoesNotMutateCaller"]:=;
+            jMetadata["fields"]["RA_NOME"]["description"]=="Dictionary RA_NOME"
+        FreeObj(@jResult)
+        FreeObj(@jMetadata)
+        jMetadata:=PresentationSRATestMetadata()
+        jResult:=HBBridge.Examples.HBBridgePresentationSRA():Plan(jMetadata,jColumns,"SRA990","'")
+        jChecks["branchTextRemainsBound"]:=jResult["success"]==.T..and.;
+            jResult["bindings"]["2"]["value"]=="'".and.jResult["sql"]==cSQL
+        FreeObj(@jResult)
+        jChecks["rejectTableExpression"]:=PresentationSRATestFailure(jMetadata,jColumns,"SRA990;DROP TABLE SRA990","01")
+        jChecks["rejectEmptyTable"]:=PresentationSRATestFailure(jMetadata,jColumns,"","01")
+        jChecks["rejectOversizeBranch"]:=PresentationSRATestFailure(jMetadata,jColumns,"SRA990","123")
+        jChecks["rejectNulBranch"]:=PresentationSRATestFailure(jMetadata,jColumns,"SRA990","0"+Chr(0)+"1")
+        jChanged:=PresentationSRATestWithout(jColumns,"RA_FILIAL")
+        jChecks["rejectMissingPhysicalBranch"]:=PresentationSRATestFailure(jMetadata,jChanged,"SRA990","01")
+        FreeObj(@jChanged)
+        jChanged:=PresentationSRATestWithout(jColumns,"RA_MAT")
+        jChecks["rejectMissingPhysicalKey"]:=PresentationSRATestFailure(jMetadata,jChanged,"SRA990","01")
+        FreeObj(@jChanged)
+        jChanged:=PresentationSRATestWithout(jColumns,"R_E_C_N_O_")
+        jChecks["rejectMissingRecordNumber"]:=PresentationSRATestFailure(jMetadata,jChanged,"SRA990","01")
+        FreeObj(@jChanged)
+        jChanged:=PresentationSRATestWithout(jColumns,"D_E_L_E_T_")
+        jChecks["rejectMissingDeletedPredicate"]:=PresentationSRATestFailure(jMetadata,jChanged,"SRA990","01")
+        FreeObj(@jChanged)
+        jChanged:=PresentationSRATestWithout(jMetadata["fields"],"RA_FILIAL")
+        jRead:=jMetadata["fields"]
+        jMetadata["fields"]:=jChanged
+        jChanged:=nil
+        jMetadata["count"]:=18
+        jChecks["rejectMissingDictionaryBranch"]:=PresentationSRATestFailure(jMetadata,jColumns,"SRA990","01")
+        jChanged:=jMetadata["fields"]
+        jMetadata["fields"]:=jRead
+        jRead:=nil
+        jMetadata["count"]:=19
+        FreeObj(@jChanged)
+        jMetadata["fields"]["RA_MAT"]["virtual"]:=.T.
+        jMetadata["fields"]["RA_MAT"]["context"]:="V"
+        jChecks["rejectVirtualMandatoryKey"]:=PresentationSRATestFailure(jMetadata,jColumns,"SRA990","01")
+        jMetadata["fields"]["RA_MAT"]["virtual"]:=.F.
+        jMetadata["fields"]["RA_MAT"]["context"]:="R"
+        jMetadata["fields"]["RA_FILIAL"]["type"]:="N"
+        jColumns["RA_FILIAL"]["type"]:="int"
+        jChecks["rejectNumericBranchDefinition"]:=PresentationSRATestFailure(jMetadata,jColumns,"SRA990","01")
+        PresentationPlanningChecks(jChecks)
+    catch xError
+        jChecks["unexpectedRuntimeFailure"]:=.F.
+        ConOut("hbBridge SRA metadata test failed; inspect the owned local log.")
+        if (ValType(xError)=="O")
+            FreeObj(@xError)
+        endif
+    endtry
+    FWFreeArray(@aNames)
+    FreeObj(@jRead)
+    FreeObj(@jResult)
+    FreeObj(@jChanged)
+    FreeObj(@jExpected)
+    FreeObj(@jMetadata)
+    FreeObj(@jColumns)
+    aNames:=jChecks:GetNames()
+    nChecks:=Len(aNames)
+    for nCheck:=1 to nChecks
+        lOK:=jChecks[aNames[nCheck]].and.lOK
+        ConOut("hbBridge SRA metadata check "+aNames[nCheck]+": "+if(jChecks[aNames[nCheck]],"PASS","FAILED"))
+    next nCheck
+    ConOut("hbBridge SRA metadata checks: "+tlpp.ToStr(nChecks)+"; "+if(lOK,"OK","FAILED"))
+    FWFreeArray(@aNames)
+    FreeObj(@jChecks)
+
+return(if(lOK,0,1))
+
+static function PresentationSRATestMetadata() as json
+
+    local jMetadata:=JSONObject():New() as json
+    local jFields:=JSONObject():New() as json
+
+    // Insert out of ordinal order: planning must use metadata.position.
+    jFields["RA_NOME"]:=PresentationSRATestField("RA_NOME",3,"C",40,0)
+    jFields["RA_FILIAL"]:=PresentationSRATestField("RA_FILIAL",1,"C",2,0)
+    jFields["RA_MAT"]:=PresentationSRATestField("RA_MAT",2,"C",6,0)
+    jFields["RA_SALARIO"]:=PresentationSRATestField("RA_SALARIO",4,"N",12,2)
+    jFields["RA_SALARIO"]["picture"]:="@E 999,999,999.99"
+    jFields["RA_ADMISSA"]:=PresentationSRATestField("RA_ADMISSA",5,"D",8,0)
+    jFields["RA_FLAG"]:=PresentationSRATestField("RA_FLAG",6,"L",1,0)
+    jFields["RA_MEMO"]:=PresentationSRATestField("RA_MEMO",7,"M",10,0)
+    jFields["RA_VIRTUAL"]:=PresentationSRATestField("RA_VIRTUAL",8,"C",20,0)
+    jFields["RA_VIRTUAL"]["context"]:="V"
+    jFields["RA_VIRTUAL"]["virtual"]:=.T.
+    jFields["RA_BINARY"]:=PresentationSRATestField("RA_BINARY",9,"C",10,0)
+    jFields["RA_MISSING"]:=PresentationSRATestField("RA_MISSING",10,"C",10,0)
+    jFields["RA_WIDE"]:=PresentationSRATestField("RA_WIDE",11,"C",255,0)
+    jFields["RA_LONG"]:=PresentationSRATestField("RA_LONG",12,"C",40,0)
+    jFields["RA_UNKNOWN"]:=PresentationSRATestField("RA_UNKNOWN",13,"C",10,0)
+    jFields["RA_INVALID"]:=PresentationSRATestField("RA_INVALID",14,"N",2,3)
+    jFields["RA_UNSUPPORTED"]:=PresentationSRATestField("RA_UNSUPPORTED",15,"X",10,0)
+    jFields["RA_BIG"]:=PresentationSRATestField("RA_BIG",16,"N",32,0)
+    jFields["RA_DATE"]:=PresentationSRATestField("RA_DATE",17,"D",8,0)
+    jFields["RA_NUMFLAG"]:=PresentationSRATestField("RA_NUMFLAG",18,"L",1,0)
+    jFields["RA_CHARFLAG"]:=PresentationSRATestField("RA_CHARFLAG",19,"L",1,0)
+    jFields["RA_NOME"]["caption"]:="Name"
+    jMetadata["schemaVersion"]:=1
+    jMetadata["alias"]:="SRA"
+    jMetadata["count"]:=19
+    jMetadata["fields"]:=jFields
+
+return(jMetadata)
+
+static function PresentationSRATestField(cName as character,nPosition as numeric,cType as character,nLength as numeric,nDecimals as numeric) as json
+
+    local jField:=JSONObject():New() as json
+
+    jField["position"]:=nPosition
+    jField["name"]:=cName
+    jField["type"]:=cType
+    jField["length"]:=nLength
+    jField["decimals"]:=nDecimals
+    jField["picture"]:=""
+    jField["caption"]:=cName
+    jField["description"]:="Dictionary "+cName
+    jField["context"]:="R"
+    jField["virtual"]:=.F.
+    jField["dictionaryOrder"]:=StrZero(nPosition,3)
+
+return(jField)
+
+static function PresentationSRATestColumns() as json
+
+    local jColumns:=JSONObject():New() as json
+
+    jColumns["RA_FILIAL"]:=PresentationSRATestColumn("RA_FILIAL",1,"char",2)
+    jColumns["RA_MAT"]:=PresentationSRATestColumn("RA_MAT",2,"char",6)
+    jColumns["RA_NOME"]:=PresentationSRATestColumn("RA_NOME",3,"varchar",40)
+    jColumns["RA_SALARIO"]:=PresentationSRATestColumn("RA_SALARIO",4,"float",8)
+    jColumns["RA_ADMISSA"]:=PresentationSRATestColumn("RA_ADMISSA",5,"char",8)
+    jColumns["RA_FLAG"]:=PresentationSRATestColumn("RA_FLAG",6,"bit",1)
+    jColumns["RA_MEMO"]:=PresentationSRATestColumn("RA_MEMO",7,"varchar",-1)
+    jColumns["RA_VIRTUAL"]:=PresentationSRATestColumn("RA_VIRTUAL",8,"varchar",20)
+    jColumns["RA_BINARY"]:=PresentationSRATestColumn("RA_BINARY",9,"varbinary",10)
+    jColumns["RA_WIDE"]:=PresentationSRATestColumn("RA_WIDE",11,"varchar",255)
+    jColumns["RA_LONG"]:=PresentationSRATestColumn("RA_LONG",12,"nvarchar",-1)
+    jColumns["RA_UNKNOWN"]:=PresentationSRATestColumn("RA_UNKNOWN",13,"xml",10)
+    jColumns["RA_INVALID"]:=PresentationSRATestColumn("RA_INVALID",14,"float",8)
+    jColumns["RA_UNSUPPORTED"]:=PresentationSRATestColumn("RA_UNSUPPORTED",15,"char",10)
+    jColumns["RA_BIG"]:=PresentationSRATestColumn("RA_BIG",16,"float",8)
+    jColumns["RA_DATE"]:=PresentationSRATestColumn("RA_DATE",17,"date",3)
+    jColumns["RA_NUMFLAG"]:=PresentationSRATestColumn("RA_NUMFLAG",18,"int",4)
+    jColumns["RA_CHARFLAG"]:=PresentationSRATestColumn("RA_CHARFLAG",19,"char",1)
+    jColumns["D_E_L_E_T_"]:=PresentationSRATestColumn("D_E_L_E_T_",20,"char",1)
+    jColumns["R_E_C_N_O_"]:=PresentationSRATestColumn("R_E_C_N_O_",21,"bigint",8)
+    jColumns["R_E_C_D_E_L_"]:=PresentationSRATestColumn("R_E_C_D_E_L_",22,"bigint",8)
+    jColumns["EXTRA_COLUMN"]:=PresentationSRATestColumn("EXTRA_COLUMN",23,"char",10)
+
+return(jColumns)
+
+static function PresentationSRATestColumn(cName as character,nPosition as numeric,cType as character,nLength as numeric) as json
+
+    local jColumn:=JSONObject():New() as json
+
+    jColumn["name"]:=cName
+    jColumn["type"]:=cType
+    jColumn["length"]:=nLength
+    jColumn["precision"]:=if(cType=="float",53,0)
+    jColumn["scale"]:=0
+    jColumn["position"]:=nPosition
+    jColumn["binary"]:=("|"+cType+"|")$"|image|binary|varbinary|timestamp|rowversion|"
+    jColumn["longText"]:=cType=="text".or.cType=="ntext".or.;
+        ((cType=="varchar".or.cType=="nvarchar").and.nLength==-1)
+
+return(jColumn)
+
+static function PresentationSRATestFailure(jMetadata as json,jColumns as json,cTable as character,cBranch as character) as logical
+
+    local jResult:=HBBridge.Examples.HBBridgePresentationSRA():Plan(jMetadata,jColumns,cTable,cBranch) as json
+
+    local lRejected:=.F. as logical
+
+    if (ValType(jResult)=="J")
+        lRejected:=jResult["success"]==.F..and.jResult["code"]=="INVALID_SRA_DEFINITION".and.Empty(jResult["sql"])
+        FreeObj(@jResult)
+    endif
+
+return(lRejected)
+
+static function PresentationPlanningChecks(jChecks as json)
+
+    local jMetadata:=JSONObject():New() as json
+    local jColumns:=JSONObject():New() as json
+    local jResult as json
+    local jChanged as json
+
+    jMetadata["schemaVersion"]:=1
+    jMetadata["alias"]:="SRA"
+    jMetadata["count"]:=1
+    jMetadata["fields"]:=JSONObject():New()
+    jMetadata["fields"]["RA_VIRTUAL"]:=PresentationSRATestField("RA_VIRTUAL",1,"C",10,0)
+    jMetadata["fields"]["RA_VIRTUAL"]["virtual"]:=.T.
+    jColumns["D_E_L_E_T_"]:=PresentationSRATestColumn("D_E_L_E_T_",1,"char",1)
+    jColumns["R_E_C_N_O_"]:=PresentationSRATestColumn("R_E_C_N_O_",2,"bigint",8)
+    jColumns["R_E_C_D_E_L_"]:=PresentationSRATestColumn("R_E_C_D_E_L_",3,"bigint",8)
+    jResult:=HBBridge.Client.HBBridgePresentationTable():Build(jMetadata,jColumns,"SRA","SRA990")
+    jChecks["systemOnlyProjectionHasNoLeadingComma"]:=jResult["success"]==.T..and.;
+        Left(AllTrim(jResult["projection"]),1)!=",".and.jResult["includedCount"]==3
+    jChecks["systemOnlyProjectionKeepsSourceMap"]:=;
+        jResult["schema"]["projectionFields"]["R_E_C_N_O_"]=="R_E_C_N_O_"
+    FreeObj(@jResult)
+    jResult:=HBBridge.Examples.HBBridgePresentationSRA():Plan(jMetadata,jColumns,"SRA990","01")
+    jChecks["sraSystemOnlyProjectionCannotCreateQuery"]:=jResult["success"]==.F..and.;
+        jResult["code"]=="INVALID_SRA_DEFINITION".and.Empty(jResult["sql"]).and.Empty(jResult["orderBy"])
+    FreeObj(@jResult)
+    FreeObj(@jColumns)
+    jColumns:=JSONObject():New()
+    jResult:=HBBridge.Client.HBBridgePresentationTable():Build(jMetadata,jColumns,"SRA","SRA990")
+    jChecks["rejectCompletelyExcludedProjection"]:=jResult["success"]==.F.
+    jChecks["rejectCompletelyExcludedProjection"]:=jChecks["rejectCompletelyExcludedProjection"].and.jResult["code"]=="INVALID_SRA_DEFINITION"
+    jChecks["rejectCompletelyExcludedProjection"]:=jChecks["rejectCompletelyExcludedProjection"].and.Empty(jResult["sql"])
+    jChecks["rejectCompletelyExcludedProjection"]:=jChecks["rejectCompletelyExcludedProjection"].and.ValType(jResult["schema"])=="U"
+    FreeObj(@jResult)
+    FreeObj(@jMetadata)
+    FreeObj(@jColumns)
+
+    jMetadata:=JSONObject():New()
+    jMetadata["schemaVersion"]:=1
+    jMetadata["alias"]:="SX5"
+    jMetadata["count"]:=3
+    jMetadata["fields"]:=JSONObject():New()
+    jMetadata["fields"]["X5_FILIAL"]:=PresentationSRATestField("X5_FILIAL",1,"C",2,0)
+    jMetadata["fields"]["X5_TABELA"]:=PresentationSRATestField("X5_TABELA",2,"C",2,0)
+    jMetadata["fields"]["X5_CHAVE"]:=PresentationSRATestField("X5_CHAVE",3,"C",6,0)
+    jColumns:=JSONObject():New()
+    jColumns["X5_FILIAL"]:=PresentationSRATestColumn("X5_FILIAL",1,"char",2)
+    jColumns["X5_TABELA"]:=PresentationSRATestColumn("X5_TABELA",2,"char",2)
+    jColumns["X5_CHAVE"]:=PresentationSRATestColumn("X5_CHAVE",3,"char",6)
+    jColumns["D_E_L_E_T_"]:=PresentationSRATestColumn("D_E_L_E_T_",4,"char",1)
+    jColumns["R_E_C_N_O_"]:=PresentationSRATestColumn("R_E_C_N_O_",5,"bigint",8)
+    jResult:=HBBridge.Examples.HBBridgePresentationSX5():Plan(jMetadata,jColumns,"SX5990","01")
+    jChecks["sx5UsesSharedPlanning"]:=jResult["success"]==.T..and.;
+        jResult["orderBy"]=="X5_FILIAL ASC,X5_TABELA ASC,X5_CHAVE ASC,R_E_C_N_O_ ASC"
+    jChecks["sx5BranchAndDeletedRemainBound"]:=jResult["bindings"]["1"]["value"]==" ".and.;
+        jResult["bindings"]["2"]["value"]=="01".and.At("?",jResult["sql"])>0
+    FreeObj(@jResult)
+    jResult:=HBBridge.Examples.HBBridgePresentationSX5():Plan(jMetadata,jColumns,"SX5990","")
+    jChecks["sx5SharedBranchIsAccepted"]:=jResult["success"]==.T..and.;
+        jResult["bindings"]["2"]["value"]==""
+    FreeObj(@jResult)
+    jResult:=HBBridge.Examples.HBBridgePresentationSX5():Plan(jMetadata,jColumns,"SX5990","123")
+    jChecks["sx5RejectOversizeBranch"]:=jResult["success"]==.F..and.Empty(jResult["sql"])
+    FreeObj(@jResult)
+    jResult:=HBBridge.Examples.HBBridgePresentationSX5():Plan(jMetadata,jColumns,"SX5990","0"+Chr(0)+"1")
+    jChecks["sx5RejectNulBranch"]:=jResult["success"]==.F..and.Empty(jResult["sql"])
+    FreeObj(@jResult)
+    jChanged:=PresentationSRATestWithout(jColumns,"X5_FILIAL")
+    jResult:=HBBridge.Examples.HBBridgePresentationSX5():Plan(jMetadata,jChanged,"SX5990","01")
+    jChecks["sx5RejectMissingBranch"]:=jResult["success"]==.F..and.Empty(jResult["sql"])
+    FreeObj(@jResult)
+    FreeObj(@jChanged)
+    jChanged:=PresentationSRATestWithout(jColumns,"X5_TABELA")
+    jResult:=HBBridge.Examples.HBBridgePresentationSX5():Plan(jMetadata,jChanged,"SX5990","01")
+    jChecks["sx5RejectMissingTableKey"]:=jResult["success"]==.F..and.Empty(jResult["sql"])
+    FreeObj(@jResult)
+    FreeObj(@jChanged)
+    jChanged:=PresentationSRATestWithout(jColumns,"X5_CHAVE")
+    jResult:=HBBridge.Examples.HBBridgePresentationSX5():Plan(jMetadata,jChanged,"SX5990","01")
+    jChecks["sx5RejectMissingItemKey"]:=jResult["success"]==.F..and.Empty(jResult["sql"])
+    FreeObj(@jResult)
+    FreeObj(@jChanged)
+    jChanged:=PresentationSRATestWithout(jColumns,"D_E_L_E_T_")
+    jResult:=HBBridge.Examples.HBBridgePresentationSX5():Plan(jMetadata,jChanged,"SX5990","01")
+    jChecks["sx5RejectMissingDeletedPredicate"]:=jResult["success"]==.F..and.Empty(jResult["sql"])
+    FreeObj(@jResult)
+    FreeObj(@jChanged)
+    jChanged:=PresentationSRATestWithout(jColumns,"R_E_C_N_O_")
+    jResult:=HBBridge.Examples.HBBridgePresentationSX5():Plan(jMetadata,jChanged,"SX5990","01")
+    jChecks["sx5RejectMissingRecordOrder"]:=jResult["success"]==.F..and.;
+        jResult["code"]=="INVALID_SX5_DEFINITION".and.Empty(jResult["sql"]).and.Empty(jResult["orderBy"])
+    FreeObj(@jResult)
+    FreeObj(@jChanged)
+    jMetadata["fields"]["X5_CHAVE"]["virtual"]:=.T.
+    jResult:=HBBridge.Examples.HBBridgePresentationSX5():Plan(jMetadata,jColumns,"SX5990","01")
+    jChecks["sx5RejectExcludedOrderField"]:=jResult["success"]==.F..and.Empty(jResult["sql"])
+    FreeObj(@jResult)
+    FreeObj(@jMetadata)
+    FreeObj(@jColumns)
+
+return
+
+static function PresentationSRATestWithout(jObject as json,cRemoved as character) as json
+
+    // JSONObject exposes its property names through this native array API.
+    local aNames:=jObject:GetNames() as array
+
+    local cName:="" as character
+
+    local jCopy:=JSONObject():New() as json
+
+    local nName:=0 as numeric
+    local nNames:=Len(aNames) as numeric
+
+    for nName:=1 to nNames
+        cName:=aNames[nName]
+        if (cName!=cRemoved)
+            jCopy[cName]:=jObject[cName]
+        endif
+    next nName
+    FWFreeArray(@aNames)
+
+return(jCopy)

@@ -410,8 +410,11 @@ and preserved NULL. Exact int64/decimal values remain strings; caller business
 scale stays explicit. Windows native SQLite/MSSQL and TCP/gzip HTTP checks are
 recorded separately from AppServer mock tests. T04 adds an explicit caller-schema
 native table adapter and a local browse example, with actual AppServer
-conversion/storage checks. Page loads refill the same physical native table,
-workarea, alias and search indexes; full post-write readback is opt-in diagnosis.
+conversion/storage checks. Page loads refill the same native table, workarea,
+alias and created search indexes. Local `SQLITE_MEM` is the default destination;
+`SQLITE_TMP` and DBAccess `TOPCONN` are explicit alternatives, independent of the
+remote SQL profile. One index is created after the initial load; additional
+search indexes are created on demand. Full post-write readback is opt-in diagnosis.
 A generic public native browse API remains deferred.
 The synthetic example accepts `U_HBBridgeNativeBrowse(10000,100)` for source
 size/page size (defaults 1000/13). Its visible zero-padded `ID_CODE` preserves
@@ -421,7 +424,25 @@ exact text. The storage fixture accepts `U_HBBridgePresentationTableTest(10000)`
 T05 adds `U_HBBridgeNativeBrowseSX5("MSSQL/pData","TCP",100)` for a real
 read-only SX5 query, also available over HTTP. Protheus resolves its table,
 branch and dictionary schema. Actual MSSQL TCP/gzip HTTP/AppServer/native
-storage passed 83 integration checks; interactive SX5 acceptance remains open.
+storage passed 83 integration checks. Subsequent supplied screenshots confirm
+SX5 TCP/HTTP browse display and current-record View. The new SRA example uses
+`U_HBBridgeNativeBrowseSRA("MSSQL/pData","TCP",100)` or HTTP, with caller-side
+SX3 metadata and a physical catalog to select supported fields and report all
+exclusions explicitly; its wider field profile needs separate acceptance.
+SRA/SX5 share `HBBridgePresentationTable():Definition()` and retain original
+dictionary field names plus supported system fields. An explicit local source
+map preserves origin when ODBC does not report it; schema captions and source
+lookups remain separate APIs. Mandatory query fields are checked before SQL
+is accepted.
+`HBBridge.Protheus.HBBridgeSX3Metadata:Read("SRA")` exposes a reusable metadata
+snapshot without moving dictionary/business resolution into the server. See
+the [SX3 metadata guide](docs/sx3-metadata.md).
+Generic SQL calls also accept explicit field lists and backend-supported
+JOINs. Dedicated dictionary-backed native examples for those cases remain
+planned; the current SRA/SX5 builders enumerate one table's supported fields.
+The caller defines unique output aliases, matching schema/source mappings,
+deterministic joined-row ordering and any native-presentation NULL handling.
+See the [projection/JOIN scope](docs/sx3-metadata.md#selected-fields-and-join-queries).
 See the
 [native presentation guide](docs/native-presentation.md), [typed contract](docs/typed-sql.md),
 [connector limits](docs/typed-sql-connectors.md) and [WIP](WIP.md).

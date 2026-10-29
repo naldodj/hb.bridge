@@ -1,5 +1,7 @@
 /* Released to Public Domain. */
 #include "totvs.ch"
+#include "dbinfo.ch"
+#include "dbstruct.ch"
 #include "parmtype.ch"
 
 namespace HBBridge.Client
@@ -8,7 +10,10 @@ namespace HBBridge.Client
 // caller-owned. No query, cursor movement or dictionary lookup occurs here.
 class HBBridgeNativeTable
 
+    private data cRDD as character
     private data cAlias as character
+    private data cStorageName as character
+    private data cIndexStem as character
     private data cErrorCode as character
     private data cErrorMessage as character
     private data cWriteMode as character
@@ -18,6 +23,8 @@ class HBBridgeNativeTable
     private data jColumns as json
     private data jSourceFields as json
     private data jIndexes as json
+    private data jCreatedIndexes as json
+    private data jOwnedFiles as json
 
     private data lReady as logical
     private data lVerifyStorage as logical
@@ -27,14 +34,22 @@ class HBBridgeNativeTable
     private data oDataSet as object
     private data oTable as object
 
-    public method New(oDataSet as object,jLogicalSchema as json,lVerifyStorage as logical) as object
-    public method LoadCurrentPage() as logical
+    public method New(oDataSet as object,jLogicalSchema as json,lVerifyStorage as logical,cRDD as character) as object
+    public method LoadCurrentPage(cRDD as character,jProjectionFields as json) as logical
     public method Alias() as character
+    public method FieldPos(xProjection as variant) as numeric
+    public method FieldGet(xProjection as variant) as variant
     public method FieldName(cProjection as character) as character
+    public method FieldCaption(cProjection as character) as character
+    public method SourceFieldPos(cProjection as character,lUseProjetcionRet as logical) as numeric
+    public method SourceFieldGet(cProjection as character,lUseProjetcionRet as logical) as variant
     public method SourceFieldName(cProjection as character) as character
-    public method SourceFieldCaption(cProjection as character) as character
+    public method SourceFieldCaption(cProjection,lUseProjetcionRet as logical) as character
+    public method SetSourceFieldName(jProjectionFields as json,lForce as logical)
     public method SearchFieldName(cProjection as character) as character
     public method IndexOrder(cProjection as character) as numeric
+    public method EnsureIndex(cProjection as character) as numeric
+    public method RDD() as character
     public method FieldCount() as numeric
     public method ProjectionName(xPosition as variant) as character
     public method Schema() as json
@@ -49,15 +64,19 @@ class HBBridgeNativeTable
 
 endclass
 
-method New(oDataSet,jLogicalSchema,lVerifyStorage) class HBBridgeNativeTable
+method New(oDataSet,jLogicalSchema,lVerifyStorage,cRDD) class HBBridgeNativeTable
 
     local cJSON:="" as character
 
     paramtype 1 var oDataSet as object
     paramtype 2 var jLogicalSchema as json optional
     paramtype 3 var lVerifyStorage as logical optional default .F.
+    paramtype 4 var cRDD as character optional default "SQLITE_MEM"
 
+    self:cRDD:=Upper(AllTrim(cRDD))
     self:cAlias:=GetNextAlias()
+    self:cStorageName:=""
+    self:cIndexStem:="HBB"+SubStr(StrTran(UUIDRandom(),"-",""),1,16)
     self:cErrorCode:=""
     self:cErrorMessage:=""
     self:cWriteMode:=""
@@ -66,6 +85,8 @@ method New(oDataSet,jLogicalSchema,lVerifyStorage) class HBBridgeNativeTable
     self:jColumns:=nil
     self:jSourceFields:=nil
     self:jIndexes:=nil
+    self:jCreatedIndexes:=JSONObject():New()
+    self:jOwnedFiles:=JSONObject():New()
     self:lReady:=.F.
     self:lVerifyStorage:=((ValType(lVerifyStorage)=="L").and.(lVerifyStorage))
     self:nRows:=0
@@ -81,7 +102,7 @@ method New(oDataSet,jLogicalSchema,lVerifyStorage) class HBBridgeNativeTable
 
 return(self)
 
-method LoadCurrentPage() class HBBridgeNativeTable
+method LoadCurrentPage(cRDD,jProjectionFields) class HBBridgeNativeTable
 
     // FWTemporaryTable/DbStruct/FWBulk require positional arrays.
     local aFields as array
@@ -94,11 +115,9 @@ method LoadCurrentPage() class HBBridgeNativeTable
     local cNative:="" as character
     local cSearch:="" as character
     local cType:="" as character
-    local cRowKey:="" as character
     local cWriteMode:="" as character
     local cTableName:="" as character
-    local cIndex:="" as character
-    local cIndexDigits:="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ" as character
+    local cPreviousProjection:="" as character
 
     local jHeader as json
     local jRows as json
@@ -131,6 +150,25 @@ method LoadCurrentPage() class HBBridgeNativeTable
 
     local xError as variant
 
+    paramtype 1 var cRDD as character optional default self:cRDD
+    paramtype 2 var jProjectionFields as json optional
+    cRDD:=Upper(AllTrim(cRDD))
+
+    // A rejected driver request must not evict a page already bound to a UI.
+    if (!NativeTableRDD(cRDD).or.;
+        (cRDD!=self:cRDD.and.(!Empty(self:cStorageName).or.Select(cAlias)>0.or.ValType(self:oTable)=="O")))
+        self:cErrorCode:=if(!NativeTableRDD(cRDD),"INVALID_PRESENTATION_RDD","PRESENTATION_RDD_CHANGE_REJECTED")
+        self:cErrorMessage:=if(!NativeTableRDD(cRDD),;
+            "Use TOPCONN, SQLITE_MEM or SQLITE_TMP for native storage.",;
+            "Close the native table before changing its storage driver.")
+        FreeObj(@jFields)
+        FreeObj(@jColumns)
+        FreeObj(@jSourceFields)
+        FreeObj(@jIndexes)
+        FreeObj(@jWriteColumns)
+        FreeObj(@jPositions)
+        return(.F.)
+    endif
     if (Select(cAlias)>0)
         nOrder:=(cAlias)->(IndexOrd())
     endif
@@ -147,6 +185,12 @@ method LoadCurrentPage() class HBBridgeNativeTable
     endif
     self:cErrorCode:=""
     self:cErrorMessage:=""
+    if (ValType(self:jCreatedIndexes)!="J")
+        self:jCreatedIndexes:=JSONObject():New()
+    endif
+    if (ValType(self:jOwnedFiles)!="J")
+        self:jOwnedFiles:=JSONObject():New()
+    endif
     try
         cCode:="INVALID_PRESENTATION_METADATA"
         cMessage:="A native table requires an open typed dataset."
@@ -159,19 +203,13 @@ method LoadCurrentPage() class HBBridgeNativeTable
         if (nFields<1.or.nFields>999999999)
             throw cCode
         endif
-        if (!HBBridgePresentationSchema():Validate(jHeader,self:jSchema,@cCode,@cMessage))
+        jRows:=self:oDataSet:GetRows()
+        if (!HBBridgePresentationSchema():ConvertPage(jHeader,self:jSchema,jRows,@jConverted,@cCode,@cMessage))
             throw cCode
         endif
-        jRows:=self:oDataSet:GetRows()
-        for nRow:=1 to nRows
-            cRowKey:=tlpp.ToStr(nRow)
-            if (!HBBridgePresentationSchema():ConvertRow(jHeader,self:jSchema,;
-                jRows[cRowKey],@jConverted,@cCode,@cMessage))
-                throw cCode
-            endif
-            jRows[cRowKey]:=jConverted
-            jConverted:=nil
-        next nRow
+        FreeObj(@jRows)
+        jRows:=jConverted
+        jConverted:=nil
         aFields:=Array(nFields)
         for nField:=1 to nFields
             cField:=self:oDataSet:FieldName(nField)
@@ -195,30 +233,44 @@ method LoadCurrentPage() class HBBridgeNativeTable
             endif
             jIndex:=JSONObject():New()
             jIndex["field"]:=cSearch
-            jIndex["order"]:=nField
+            jIndex["expression"]:=if(cType=="D","DTOS("+cSearch+")",cSearch)
+            jIndex["order"]:=0
+            // Existing physical orders belong to stable native columns. A
+            // borrowed dataset may rename a projection between accepted pages.
+            if (ValType(self:jColumns)=="J".and.ValType(self:jIndexes)=="J")
+                if (self:jColumns:HasProperty(cNative))
+                    cPreviousProjection:=self:jColumns[cNative]
+                    if (self:jIndexes:HasProperty(cPreviousProjection))
+                        jIndex["order"]:=self:jIndexes[cPreviousProjection]["order"]
+                    endif
+                endif
+            endif
             jIndexes[cField]:=jIndex
             jIndex:=nil
         next nField
         nWriteFields:=Len(aFields)
         cCode:="PRESENTATION_CREATE_FAILED"
         cMessage:="Could not create the native result table."
-        if (ValType(self:oTable)=="O")
+        if (Select(cAlias)>0)
             oPending:=self:oTable
         else
             lCreated:=.T.
-            oPending:=FWTemporaryTable():New(cAlias,aFields)
-            for nField:=1 to nFields
-                // FWTemporaryTable index names have at most two characters.
-                cIndex:=NativeTableIndexName(nField,cIndexDigits)
-                if (Empty(cIndex))
-                    cCode:="PRESENTATION_INDEX_UNSUPPORTED"
-                    cMessage:="The native index namespace cannot represent every search field."
-                    throw cCode
-                endif
-                cField:=self:oDataSet:FieldName(nField)
-                oPending:AddIndex(cIndex,{jIndexes[cField]["field"]})
-            next nField
-            oPending:Create()
+            self:cRDD:=cRDD
+            self:cIndexStem:="HBB"+SubStr(StrTran(UUIDRandom(),"-",""),1,16)
+            if (cRDD=="TOPCONN")
+                oPending:=FWTemporaryTable():New(cAlias,aFields)
+                self:cStorageName:=cAlias
+                // Create storage without eager indexes. Indexing follows the
+                // completed write, and only requested columns are indexed.
+                oPending:Create()
+                self:cStorageName:=oPending:GetTableNameForTCFunctions()
+            else
+                cTableName:=Lower("hbb_"+StrTran(UUIDRandom(),"-",""))
+                self:cStorageName:=cTableName
+                dbCreate(cTableName,aFields,cRDD)
+                dbUseArea(.T./*lNewArea*/,cRDD,cTableName,cAlias,.F./*lShared*/,.F./*lReadOnly*/)
+                NativeTableRememberFiles(cAlias,self:cStorageName,self:cIndexStem,self:jOwnedFiles)
+            endif
         endif
         if (Select(cAlias)==0)
             throw cCode
@@ -230,35 +282,25 @@ method LoadCurrentPage() class HBBridgeNativeTable
             throw cCode
         endif
         for nField:=1 to nWriteFields
-            nPosition:=(cAlias)->(FieldPos(aFields[nField][1]))
+            nPosition:=(cAlias)->(FieldPos(aFields[nField][DBS_NAME]))
             if (nPosition<1)
                 throw cCode
             endif
-            jPositions[aFields[nField][1]]:=nPosition
-            if (aActual[nPosition][2]!=aFields[nField][2].or.;
-                aActual[nPosition][3]!=aFields[nField][3].or.;
-                aActual[nPosition][4]!=aFields[nField][4])
+            jPositions[aFields[nField][DBS_NAME]]:=nPosition
+            if (aActual[nPosition][DBS_TYPE]!=aFields[nField][DBS_TYPE].or.;
+                aActual[nPosition][DBS_LEN]!=aFields[nField][DBS_LEN].or.;
+                aActual[nPosition][DBS_DEC]!=aFields[nField][DBS_DEC])
                 cCode:="PRESENTATION_STORAGE_MISMATCH"
                 cMessage:="The native table changed a requested field definition."
-                throw cCode
-            endif
-        next nField
-        for nField:=1 to nFields
-            // IndexOrder is an explicit map, never an assumed browse column
-            // ordinal after a silently skipped unsupported field.
-            cField:=self:oDataSet:FieldName(nField)
-            cIndex:=Upper(StrTran(AllTrim((cAlias)->(IndexKey(nField)))," ",""))
-            cSearch:=jIndexes[cField]["field"]
-            if (cIndex!=cSearch.and.cIndex!="DTOS("+cSearch+")")
-                cCode:="PRESENTATION_INDEX_UNSUPPORTED"
-                cMessage:="The native table did not create a requested search index."
                 throw cCode
             endif
         next nField
         cCode:="PRESENTATION_WRITE_FAILED"
         cMessage:="Could not populate the native result table."
         if (nRows>0)
-            lBulk:=FWBulk():CanBulk()
+            if (cRDD=="TOPCONN")
+                lBulk:=FWBulk():CanBulk()
+            endif
             if (lBulk)
                 cTableName:=oPending:GetTableNameForTCFunctions()
                 if (!NativeTableBulk(cTableName,aFields,jRows,jWriteColumns,nRows))
@@ -275,9 +317,9 @@ method LoadCurrentPage() class HBBridgeNativeTable
                         throw cCode
                     endif
                     for nField:=1 to nWriteFields
-                        cField:=jWriteColumns[aFields[nField][1]]
-                        nPosition:=jPositions[aFields[nField][1]]
-                        (cAlias)->(FieldPut(nPosition,NativeTableWriteValue(jRow[cField],aFields[nField][2])))
+                        cField:=jWriteColumns[aFields[nField][DBS_NAME]]
+                        nPosition:=jPositions[aFields[nField][DBS_NAME]]
+                        (cAlias)->(FieldPut(nPosition,NativeTableWriteValue(jRow[cField],aFields[nField][DBS_TYPE])))
                     next nField
                     (cAlias)->(DbCommit())
                     (cAlias)->(DbUnlock())
@@ -293,10 +335,21 @@ method LoadCurrentPage() class HBBridgeNativeTable
                 throw cCode
             endif
         endif
+        if (lCreated)
+            cCode:="PRESENTATION_INDEX_FAILED"
+            cMessage:="Could not create the initial native search index."
+            cField:=self:oDataSet:FieldName(1)
+            if (NativeTableEnsureOrder(cAlias,self:cIndexStem,self:cStorageName,;
+                cField,jIndexes,self:jCreatedIndexes,self:jOwnedFiles)==0)
+                throw cCode
+            endif
+            nOrder:=jIndexes[cField]["order"]
+        endif
         (cAlias)->(DbSetOrder(nOrder))
         (cAlias)->(DbGoTop())
         if (lCreated)
             self:oTable:=oPending
+            self:cRDD:=cRDD
         endif
         oPending:=nil
         FreeObj(@self:jFields)
@@ -308,6 +361,11 @@ method LoadCurrentPage() class HBBridgeNativeTable
         self:jColumns:=jColumns
         jColumns:=nil
         self:jSourceFields:=jSourceFields
+        if (ValType(jProjectionFields)=="J")
+            self:SetSourceFieldName(jProjectionFields)
+        elseif (self:jSchema:HasProperty("projectionFields").and.(ValType(self:jSchema["projectionFields"])=="J"))
+            self:SetSourceFieldName(self:jSchema["projectionFields"])
+        endif
         jSourceFields:=nil
         self:jIndexes:=jIndexes
         jIndexes:=nil
@@ -323,14 +381,24 @@ method LoadCurrentPage() class HBBridgeNativeTable
         endif
     endtry
     if (!lOK)
-        if (lCreated.and.ValType(oPending)=="O")
-            lClean:=NativeTableDelete(@oPending,cAlias)
-            if (!lClean)
-                self:oTable:=oPending
+        if (lCreated)
+            if (cRDD=="TOPCONN".and.ValType(oPending)=="O")
+                lClean:=NativeTableDelete(@oPending,cAlias)
+                if (!lClean)
+                    self:oTable:=oPending
+                endif
+            elseif (cRDD!="TOPCONN")
+                lClean:=NativeTableLocalDelete(cAlias,self:cStorageName,self:cIndexStem,self:jOwnedFiles)
+            endif
+            if (lClean)
+                self:cStorageName:=""
+                FreeObj(@self:jCreatedIndexes)
+                FreeObj(@self:jOwnedFiles)
+            else
                 self:cErrorCode:="PRESENTATION_CLOSE_FAILED"
                 self:cErrorMessage:="Could not release the unpublished native result table."
             endif
-        elseif (ValType(self:oTable)=="O")
+        elseif (Select(cAlias)>0.or.ValType(self:oTable)=="O")
             // Do not publish a partial refill; preserve the empty bound alias.
             lClean:=self:ClearPage()
             oPending:=nil
@@ -392,6 +460,24 @@ method ClearPage() class HBBridgeNativeTable
                 FreeObj(@xError)
             endif
         endtry
+    elseif (Select(self:cAlias)>0)
+        try
+            nOrder:=(self:cAlias)->(IndexOrd())
+            // Clear rows without deleting/recreating the alias or its indexes.
+            (self:cAlias)->(__dbZap())
+            (self:cAlias)->(DbSetOrder(nOrder))
+            (self:cAlias)->(DbGoTop())
+            if ((self:cAlias)->(!Eof()))
+                throw "PRESENTATION_CLEAR_FAILED"
+            endif
+        catch xError
+            lOK:=.F.
+            self:cErrorCode:="PRESENTATION_CLEAR_FAILED"
+            self:cErrorMessage:="Could not clear the native current-page table."
+            if (ValType(xError)=="O")
+                FreeObj(@xError)
+            endif
+        endtry
     endif
     if (Select()!=nPreviousArea)
         DbSelectArea(if(nPreviousArea>0,nPreviousArea,nil))
@@ -409,6 +495,8 @@ method Close() class HBBridgeNativeTable
     self:cWriteMode:=""
     if (ValType(self:oTable)=="O")
         lOK:=NativeTableDelete(@self:oTable,self:cAlias)
+    elseif (self:cRDD=="SQLITE_MEM".or.self:cRDD=="SQLITE_TMP")
+        lOK:=NativeTableLocalDelete(self:cAlias,self:cStorageName,self:cIndexStem,self:jOwnedFiles)
     endif
     if (Select()!=nPreviousArea)
         DbSelectArea(if(nPreviousArea>0,nPreviousArea,nil))
@@ -418,10 +506,13 @@ method Close() class HBBridgeNativeTable
             (self:cAlias)->(dbCloseArea())
         endif
         self:nRows:=0
+        self:cStorageName:=""
         FreeObj(@self:jFields)
         FreeObj(@self:jColumns)
         FreeObj(@self:jSourceFields)
         FreeObj(@self:jIndexes)
+        FreeObj(@self:jCreatedIndexes)
+        FreeObj(@self:jOwnedFiles)
     else
         self:cErrorCode:="PRESENTATION_CLOSE_FAILED"
         self:cErrorMessage:="Could not release the native result table."
@@ -443,6 +534,34 @@ return(lOK)
 method Alias() class HBBridgeNativeTable
 return(if(self:IsOpen(),self:cAlias,""))
 
+method FieldPos(xProjection) class HBBridgeNativeTable
+    local nFieldPos:=0 as numeric
+    paramtype 1 var xProjection as character,numeric
+    if (self:IsOpen())
+        if (ValType(xProjection)=="N")
+            xProjection:=self:ProjectionName(xProjection)
+        endif
+        nFieldPos:=(self:cAlias)->(FieldPos(self:FieldName(xProjection)))
+        return(nFieldPos)
+    endif
+return(nFieldPos)
+
+method FieldGet(xProjection) class HBBridgeNativeTable
+    local nFieldPos as numeric
+    local xFieldGet as variant
+    paramtype 1 var xProjection as character,numeric
+    if (self:IsOpen())
+        if (ValType(xProjection)=="N")
+            xProjection:=self:ProjectionName(xProjection)
+        endif
+        nFieldPos:=self:FieldPos(xProjection)
+        if (nFieldPos>0)
+            xFieldGet:=(self:cAlias)->(FieldGet(nFieldPos))
+            return(xFieldGet)
+        endif
+    endif
+return(xFieldGet)
+
 method FieldName(cProjection) class HBBridgeNativeTable
     paramtype 1 var cProjection as character
     if (self:IsOpen().and.ValType(self:jFields)=="J")
@@ -452,34 +571,104 @@ method FieldName(cProjection) class HBBridgeNativeTable
     endif
 return("")
 
-method SourceFieldName(cProjection) class HBBridgeNativeTable
-
-    local cName:="" as character
+method FieldCaption(cProjection) class HBBridgeNativeTable
 
     paramtype 1 var cProjection as character
-    cName:=self:ProjectionName(cProjection)
-    if (!Empty(cName).and.ValType(self:jSourceFields)=="J")
-        if (self:jSourceFields:HasProperty(cName))
-            if (ValType(self:jSourceFields[cName])=="C")
-                return(self:jSourceFields[cName])
+
+    if (self:IsOpen().and.ValType(self:jFields)=="J")
+        if (self:jFields:HasProperty(cProjection))
+            return(self:jSchema["fields"][cProjection]["caption"])
+        endif
+    endif
+
+return("")
+
+method SourceFieldPos(cProjection,lUseProjetcionRet) class HBBridgeNativeTable
+
+    local cResolved:="" as character
+
+    paramtype 1 var cProjection as character
+    paramtype 2 var lUseProjetcionRet as logical optional default .T.
+
+    if (self:IsOpen().and.ValType(self:jSourceFields)=="J")
+        cResolved:=NativeTableSourceProjection(self:jSourceFields,cProjection,lUseProjetcionRet)
+        if (!Empty(cResolved))
+            return(self:FieldPos(cResolved))
+        endif
+    endif
+
+return(0)
+
+method SourceFieldGet(cProjection,lUseProjetcionRet) class HBBridgeNativeTable
+
+    local nPosition:=0 as numeric
+
+    paramtype 1 var cProjection as character
+    paramtype 2 var lUseProjetcionRet as logical optional default .T.
+
+    nPosition:=self:SourceFieldPos(cProjection,lUseProjetcionRet)
+    if (nPosition>0)
+        return((self:cAlias)->(FieldGet(nPosition)))
+    endif
+
+return(nil)
+
+method SourceFieldName(cProjection) class HBBridgeNativeTable
+
+    paramtype 1 var cProjection as character
+
+    if (self:IsOpen().and.ValType(self:jSourceFields)=="J")
+        if (self:jSourceFields:HasProperty(cProjection))
+            if (;
+                    (ValType(self:jSourceFields[cProjection])=="C");
+                    .and.;
+                    (!Empty(self:jSourceFields[cProjection]));
+            )
+                return(self:jSourceFields[cProjection])
             endif
         endif
     endif
 
 return("")
 
-method SourceFieldCaption(cProjection) class HBBridgeNativeTable
+method SourceFieldCaption(cProjection,lUseProjetcionRet) class HBBridgeNativeTable
 
-    local cName:="" as character
+    local cResolved:="" as character
 
     paramtype 1 var cProjection as character
-    cName:=self:ProjectionName(cProjection)
-    // An exposed projection belongs to the accepted, validated schema.
-    if (!Empty(cName))
-        return(self:jSchema["fields"][cName]["caption"])
+    paramtype 2 var lUseProjetcionRet as logical optional default .T.
+
+    if (self:IsOpen().and.ValType(self:jSourceFields)=="J")
+        cResolved:=NativeTableSourceProjection(self:jSourceFields,cProjection,lUseProjetcionRet)
+        if (!Empty(cResolved))
+            return(self:FieldCaption(cResolved))
+        endif
     endif
 
 return("")
+
+method SetSourceFieldName(jProjectionFields,lForce) class HBBridgeNativeTable
+    local jSourceFields as json
+    paramtype 1 var jProjectionFields as json
+    paramtype 2 var lForce as logical optional default .F.
+    if (ValType(self:jSourceFields)=="J")
+        //Fix: "Invalid call to a PRIVATE data named JSOURCEFIELDS"
+        jSourceFields:=self:jSourceFields
+        aEval(jProjectionFields:GetNames(),;
+            {|cName|;
+                if(;
+                    jSourceFields:HasProperty(cName).and.(Empty(jSourceFields[cName]).or.lForce),;
+                    jSourceFields[cName]:=jProjectionFields[cName],;
+                    nil;
+                );
+            };
+        )
+        jSourceFields:=nil
+    else
+        self:jSourceFields:=JSONObject():New()
+        self:jSourceFields:FromJSON(jProjectionFields:ToJSON())
+    endif
+return
 
 method SearchFieldName(cProjection) class HBBridgeNativeTable
     paramtype 1 var cProjection as character
@@ -498,6 +687,40 @@ method IndexOrder(cProjection) class HBBridgeNativeTable
         endif
     endif
 return(0)
+
+method EnsureIndex(cProjection) class HBBridgeNativeTable
+
+    local nPreviousArea:=Select() as numeric
+    local nOrder:=0 as numeric
+
+    paramtype 1 var cProjection as character
+
+    if (!self:IsOpen())
+        self:cErrorCode:="PRESENTATION_STORAGE_CLOSED"
+        self:cErrorMessage:="Open a native page before requesting a search index."
+        return(0)
+    endif
+    if (!self:jIndexes:HasProperty(cProjection))
+        self:cErrorCode:="PRESENTATION_INDEX_UNKNOWN"
+        self:cErrorMessage:="Select a projected native column for indexing."
+        return(0)
+    endif
+    self:cErrorCode:=""
+    self:cErrorMessage:=""
+    nOrder:=NativeTableEnsureOrder(self:cAlias,self:cIndexStem,self:cStorageName,;
+        cProjection,self:jIndexes,self:jCreatedIndexes,self:jOwnedFiles)
+    if (nOrder==0)
+        self:cErrorCode:="PRESENTATION_INDEX_FAILED"
+        self:cErrorMessage:="Could not create the requested native search index."
+    endif
+    if (Select()!=nPreviousArea)
+        DbSelectArea(if(nPreviousArea>0,nPreviousArea,nil))
+    endif
+
+return(nOrder)
+
+method RDD() class HBBridgeNativeTable
+return(self:cRDD)
 
 method IsOpen() class HBBridgeNativeTable
 return(self:lReady.and.!Empty(self:cAlias).and.Select(self:cAlias)>0)
@@ -522,9 +745,6 @@ method ProjectionName(xPosition) class HBBridgeNativeTable
         if (ValType(xPosition)=="C")
             if (self:jColumns:HasProperty(xPosition))
                 return(self:jColumns[xPosition])
-            endif
-            if (self:jFields:HasProperty(xPosition))
-                return(xPosition)
             endif
         elseif (ValType(xPosition)=="N")
             if (xPosition>=1.and.xPosition==Int(xPosition).and.xPosition<=999999999)
@@ -587,17 +807,226 @@ static function NativeTableWriteValue(xValue as variant,cNativeType as character
     endif
 return(xValue)
 
-static function NativeTableIndexName(nPosition as numeric,cDigits as character) as character
+static function NativeTableRDD(cRDD as character) as logical
+return(cRDD=="TOPCONN".or.cRDD=="SQLITE_MEM".or.cRDD=="SQLITE_TMP")
 
-    local nRadix:=Len(cDigits) as numeric
-    local nValue:=0 as numeric
+static function NativeTableCreatedCount(jCreated as json) as numeric
 
-    if (nPosition<1.or.nPosition>nRadix*nRadix)
-        return("")
+    // GetNames is the JSONObject enumeration boundary.
+    local aNames:=jCreated:GetNames() as array
+
+    local nCount:=Len(aNames) as numeric
+
+    FWFreeArray(@aNames)
+
+return(nCount)
+
+static function NativeTableOpenOrders(cAlias as character,jCreated as json,cNewBag as character,cNewExpression as character) as logical
+
+    local cKey:="" as character
+    local cExpression:="" as character
+
+    local nOrder:=0 as numeric
+    local nOrders:=NativeTableCreatedCount(jCreated) as numeric
+
+    (cAlias)->(DbClearIndex())
+    for nOrder:=1 to nOrders
+        cKey:=tlpp.ToStr(nOrder)
+        (cAlias)->(DbSetIndex(jCreated[cKey]["bag"]))
+        cExpression:=Upper(StrTran(AllTrim((cAlias)->(IndexKey(nOrder)))," ",""))
+        if (cExpression!=jCreated[cKey]["expression"])
+            return(.F.)
+        endif
+    next nOrder
+    if (!Empty(cNewBag))
+        (cAlias)->(DbSetIndex(cNewBag))
+        cExpression:=Upper(StrTran(AllTrim((cAlias)->(IndexKey(nOrders+1)))," ",""))
+        if (cExpression!=cNewExpression)
+            return(.F.)
+        endif
+        nOrders++
     endif
-    nValue:=nPosition%(nRadix*nRadix)
 
-return(SubStr(cDigits,Int(nValue/nRadix)+1,1)+SubStr(cDigits,nValue%nRadix+1,1))
+return((cAlias)->(DbOrderInfo(9))==nOrders)
+
+static function NativeTableEnsureOrder(cAlias as character,cIndexStem as character,cStorageName as character,;
+    cProjection as character,jIndexes as json,jCreated as json,jOwnedFiles as json) as numeric
+
+    local bExpression as codeblock
+
+    local cBag:="" as character
+    local cExpression:="" as character
+    local cPath:="" as character
+
+    local jIndex as json
+    local jCreatedIndex as json
+
+    local lOK:=.F. as logical
+
+    local nOrder:=0 as numeric
+    local nOrders:=NativeTableCreatedCount(jCreated) as numeric
+    local nPreviousOrder:=(cAlias)->(IndexOrd()) as numeric
+    local nPreviousRecord:=(cAlias)->(RecNo()) as numeric
+
+    local xError as variant
+
+    jIndex:=jIndexes[cProjection]
+    nOrder:=jIndex["order"]
+    cExpression:=jIndex["expression"]
+    if (nOrder>0)
+        if (Upper(StrTran(AllTrim((cAlias)->(IndexKey(nOrder)))," ",""))==cExpression)
+            return(nOrder)
+        endif
+        return(0)
+    endif
+    // The private table owns these orders. Do not close an unexpected external
+    // index or infer physical order numbers from projection positions.
+    if ((cAlias)->(DbOrderInfo(9))!=nOrders)
+        return(0)
+    endif
+    nOrder:=nOrders+1
+    cBag:=cIndexStem+"_"+StrZero(nOrder,9)
+    try
+        // All identifiers originate in generated native fields. Compile the
+        // expression value now; a {||cField} block would return a name string.
+        bExpression:=&("{||"+cExpression+"}")
+        // No TAG: OrdCreate follows documented DBCreateIndex behavior on
+        // TOPCONN and SQLite, including closing previously opened orders.
+        (cAlias)->(OrdCreate(cBag,nil,cExpression,bExpression,.F.))
+        cPath:=(cAlias)->(DbOrderInfo(20))
+        NativeTableRememberPath(cPath,cStorageName,cIndexStem,jOwnedFiles)
+        NativeTableRememberPath(cBag,cStorageName,cIndexStem,jOwnedFiles)
+        NativeTableRememberPath(cBag+".sdb",cStorageName,cIndexStem,jOwnedFiles)
+        NativeTableRememberPath(cBag+".cdx",cStorageName,cIndexStem,jOwnedFiles)
+        NativeTableRememberPath(cBag+".idx",cStorageName,cIndexStem,jOwnedFiles)
+        if (!NativeTableOpenOrders(cAlias,jCreated,cBag,cExpression))
+            throw "PRESENTATION_INDEX_FAILED"
+        endif
+        jCreatedIndex:=JSONObject():New()
+        jCreatedIndex["bag"]:=cBag
+        jCreatedIndex["expression"]:=cExpression
+        jCreated[tlpp.ToStr(nOrder)]:=jCreatedIndex
+        jCreatedIndex:=nil
+        jIndex["order"]:=nOrder
+        lOK:=.T.
+    catch xError
+        if (ValType(xError)=="O")
+            FreeObj(@xError)
+        endif
+        // A driver can create an index artifact before reporting failure.
+        NativeTableRememberPath(cBag,cStorageName,cIndexStem,jOwnedFiles)
+        NativeTableRememberPath(cBag+".sdb",cStorageName,cIndexStem,jOwnedFiles)
+        NativeTableRememberPath(cBag+".cdx",cStorageName,cIndexStem,jOwnedFiles)
+        NativeTableRememberPath(cBag+".idx",cStorageName,cIndexStem,jOwnedFiles)
+        // Reopen only published, owned indexes if creating a new one failed.
+        try
+            NativeTableOpenOrders(cAlias,jCreated,"","")
+        catch xError
+            if (ValType(xError)=="O")
+                FreeObj(@xError)
+            endif
+        endtry
+    endtry
+    if (Select(cAlias)>0)
+        (cAlias)->(DbSetOrder(if(nPreviousOrder<=(cAlias)->(DbOrderInfo(9)),nPreviousOrder,0)))
+        if (nPreviousRecord>0)
+            (cAlias)->(DbGoTo(nPreviousRecord))
+        endif
+    endif
+    FreeObj(@jCreatedIndex)
+
+return(if(lOK,nOrder,0))
+
+static function NativeTableBaseName(cPath as character) as character
+
+    local cName:=StrTran(cPath,"/","\") as character
+
+    local nSeparator:=RAt("\",cName) as numeric
+
+return(if(nSeparator>0,SubStr(cName,nSeparator+1),cName))
+
+static function NativeTableOwnPath(cPath as character,cStorageName as character,cIndexStem as character) as logical
+
+    local cName:=Lower(NativeTableBaseName(cPath)) as character
+    local cTable:=Lower(NativeTableBaseName(cStorageName)) as character
+    local cIndex:=Lower(cIndexStem) as character
+
+    if (Empty(cName).or.(Chr(0)$cName))
+        return(.F.)
+    endif
+    // A shared SQLite connection/container is never an owned file merely
+    // because DBInfo returned it. Match the generated unique owner namespace.
+return((!Empty(cTable).and.(cName==cTable.or.Left(cName,Len(cTable)+1)==cTable+".".or.;
+    Left(cName,Len(cTable)+1)==cTable+"-")).or.;
+    (!Empty(cIndex).and.Left(cName,Len(cIndex)+1)==cIndex+"_"))
+
+static function NativeTableRememberPath(cPath as character,cStorageName as character,cIndexStem as character,jOwnedFiles as json)
+
+    if (ValType(cPath)=="C".and.ValType(jOwnedFiles)=="J")
+        if (NativeTableOwnPath(cPath,cStorageName,cIndexStem).and.File(cPath,1,.F.))
+            jOwnedFiles[cPath]:=.T.
+        endif
+    endif
+
+return
+
+static function NativeTableRememberFiles(cAlias as character,cStorageName as character,cIndexStem as character,jOwnedFiles as json)
+
+    local cPath:="" as character
+
+    if (!Empty(cAlias).and.Select(cAlias)>0)
+        cPath:=(cAlias)->(DbInfo(DBI_FULLPATH))
+        NativeTableRememberPath(cPath,cStorageName,cIndexStem,jOwnedFiles)
+    endif
+    NativeTableRememberPath(cStorageName,cStorageName,cIndexStem,jOwnedFiles)
+    NativeTableRememberPath(cStorageName+".sdb",cStorageName,cIndexStem,jOwnedFiles)
+    NativeTableRememberPath(cStorageName+".db",cStorageName,cIndexStem,jOwnedFiles)
+    NativeTableRememberPath(cStorageName+".dbf",cStorageName,cIndexStem,jOwnedFiles)
+
+return
+
+static function NativeTableLocalDelete(cAlias as character,cStorageName as character,cIndexStem as character,jOwnedFiles as json) as logical
+
+    local aFiles as array
+
+    local cPath:="" as character
+
+    local lOK:=.T. as logical
+
+    local nFile:=0 as numeric
+    local nFiles:=0 as numeric
+
+    local xError as variant
+
+    try
+        NativeTableRememberFiles(cAlias,cStorageName,cIndexStem,jOwnedFiles)
+        if (!Empty(cAlias).and.Select(cAlias)>0)
+            (cAlias)->(DbCloseArea())
+        endif
+        if (ValType(jOwnedFiles)=="J")
+            // Enumerate only exact files captured for this table/index owner.
+            aFiles:=jOwnedFiles:GetNames()
+            nFiles:=Len(aFiles)
+            for nFile:=1 to nFiles
+                cPath:=aFiles[nFile]
+                if (!NativeTableOwnPath(cPath,cStorageName,cIndexStem))
+                    lOK:=.F.
+                elseif (File(cPath,1,.F.))
+                    if (FErase(cPath,nil,.F.)!=0)
+                        lOK:=.F.
+                    endif
+                endif
+            next nFile
+        endif
+    catch xError
+        lOK:=.F.
+        if (ValType(xError)=="O")
+            FreeObj(@xError)
+        endif
+    endtry
+    FWFreeArray(@aFiles)
+
+return(lOK.and.(Empty(cAlias).or.Select(cAlias)==0))
 
 static function NativeTableVerify(cAlias as character,aFields as array,jRows as json,jColumns as json,jPositions as json,nRows as numeric) as logical
 
@@ -621,10 +1050,10 @@ static function NativeTableVerify(cAlias as character,aFields as array,jRows as 
         endif
         jRow:=jRows[tlpp.ToStr(nRow)]
         for nField:=1 to nFields
-            cField:=jColumns[aFields[nField][1]]
-            nPosition:=jPositions[aFields[nField][1]]
+            cField:=jColumns[aFields[nField][DBS_NAME]]
+            nPosition:=jPositions[aFields[nField][DBS_NAME]]
             xStored:=(cAlias)->(FieldGet(nPosition))
-            if (!NativeTableSame(xStored,NativeTableWriteValue(jRow[cField],aFields[nField][2]),aFields[nField][2],aFields[nField][3]))
+            if (!NativeTableSame(xStored,NativeTableWriteValue(jRow[cField],aFields[nField][DBS_TYPE]),aFields[nField][DBS_TYPE],aFields[nField][DBS_LEN]))
                 return(.F.)
             endif
         next nField
@@ -632,6 +1061,42 @@ static function NativeTableVerify(cAlias as character,aFields as array,jRows as 
     next nRow
 
 return((cAlias)->(Eof()))
+
+static function NativeTableSourceProjection(jSourceFields as json,cName as character,lUseProjectionRet as logical) as character
+
+    // JSONObject exposes property names through this native array API. One
+    // snapshot avoids repeated allocations while resolving an original name.
+    local aNames:=jSourceFields:GetNames() as array
+
+    local cProjection:="" as character
+    local cCurrent:="" as character
+
+    local nName:=0 as numeric
+    local nNames:=Len(aNames) as numeric
+    local nMatches:=0 as numeric
+
+    for nName:=1 to nNames
+        cCurrent:=aNames[nName]
+        if (ValType(jSourceFields[cCurrent])=="C")
+            if (!Empty(jSourceFields[cCurrent]).and.jSourceFields[cCurrent]==cName)
+                nMatches++
+                cProjection:=cCurrent
+                if (nMatches>1)
+                    cProjection:=""
+                    exit
+                endif
+            endif
+        endif
+    next nName
+    // A known unique origin takes precedence over a homonymous projection,
+    // including when that projection has no reported origin. Ambiguity never
+    // falls back silently; callers can use FieldPos/Get/Caption explicitly.
+    if (nMatches==0.and.lUseProjectionRet.and.jSourceFields:HasProperty(cName))
+        cProjection:=cName
+    endif
+    FWFreeArray(@aNames)
+
+return(cProjection)
 
 static function NativeTableBulk(cTableName as character,aFields as array,jRows as json,jColumns as json,nRows as numeric) as logical
 
@@ -664,8 +1129,8 @@ static function NativeTableBulk(cTableName as character,aFields as array,jRows a
             jRow:=jRows[tlpp.ToStr(nRow)]
             aValues:=Array(nFields)
             for nField:=1 to nFields
-                cField:=jColumns[aFields[nField][1]]
-                aValues[nField]:=NativeTableWriteValue(jRow[cField],aFields[nField][2])
+                cField:=jColumns[aFields[nField][DBS_NAME]]
+                aValues[nField]:=NativeTableWriteValue(jRow[cField],aFields[nField][DBS_TYPE])
             next nField
             // True covers both queued data and an automatic buffer flush.
             if (!oBulk:AddData(aValues))

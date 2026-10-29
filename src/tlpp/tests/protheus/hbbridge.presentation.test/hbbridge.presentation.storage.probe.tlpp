@@ -1,0 +1,91 @@
+/* Released to Public Domain. */
+#include "totvs.ch"
+#include "dbinfo.ch"
+
+// Observes only freshly owned local tables/indexes, never a business alias.
+function U_HBBridgePresentationStorageProbe()
+
+    local cRDD:="" as character
+    local cAlias:="" as character
+    local cTable:="" as character
+    local cBag:="" as character
+
+    local jReport:=JSONObject():New() as json
+    local jObservation as json
+
+    local lOK:=.T. as logical
+
+    local nRDD:=0 as numeric
+    local nArea:=Select() as numeric
+
+    local xError as variant
+
+    try
+        for nRDD:=1 to 2
+            cRDD:=if(nRDD==1,"SQLITE_MEM","SQLITE_TMP")
+            cAlias:=GetNextAlias()
+            cTable:="hbb_probe_"+cAlias+"_"+StrTran(CriaTrab(nil,.F.),"\", "_")
+            cBag:=cTable+"_01"
+            DbCreate(cTable,{{"F000000001","C",10,0}},cRDD)
+            DbUseArea(.T.,cRDD,cTable,cAlias,.F.,.F.)
+            (cAlias)->(DbAppend(.F.))
+            (cAlias)->(FieldPut(1,"probe"))
+            (cAlias)->(DbCommit())
+            (cAlias)->(DbUnlock())
+            jObservation:=JSONObject():New()
+            jObservation["requestedRDD"]:=cRDD
+            jObservation["actualRDD"]:=(cAlias)->(RDDName())
+            jObservation["tableName"]:=cTable
+            jObservation["fullPath"]:=(cAlias)->(DbInfo(DBI_FULLPATH))
+            jObservation["tableExtension"]:=(cAlias)->(DbInfo(DBI_TABLEEXT))
+            (cAlias)->(OrdCreate(cBag,nil,"F000000001",{||FieldGet(1)},.F.))
+            (cAlias)->(OrdListAdd(cBag))
+            jObservation["indexFullPath"]:=(cAlias)->(DbOrderInfo(20))
+            jObservation["indexKey"]:=(cAlias)->(IndexKey(1))
+            (cAlias)->(DbSetOrder(1))
+            jObservation["seek"]:=(cAlias)->(DbSeek(PadR("probe",10),.F.))
+            (cAlias)->(DbCloseArea())
+            jObservation["nameExistsAfterClose"]:=File(cTable)
+            jObservation["sdbExistsAfterClose"]:=File(cTable+".sdb")
+            if (ValType(jObservation["fullPath"])=="C")
+                jObservation["fullPathExistsAfterClose"]:=File(jObservation["fullPath"])
+            endif
+            if (ValType(jObservation["indexFullPath"])=="C")
+                jObservation["bagExistsAfterClose"]:=File(jObservation["indexFullPath"])
+            endif
+            jObservation["canReopenAfterClose"]:=.F.
+            try
+                DbUseArea(.T.,cRDD,cTable,cAlias,.F.,.T.)
+                jObservation["canReopenAfterClose"]:=Select(cAlias)>0
+                if (Select(cAlias)>0)
+                    jObservation["rowsAfterReopen"]:=(cAlias)->(LastRec())
+                    (cAlias)->(DbCloseArea())
+                endif
+            catch xError
+                if (ValType(xError)=="O")
+                    FreeObj(@xError)
+                endif
+            endtry
+            lOK:=jObservation["seek"].and.lOK
+            jReport[cRDD]:=jObservation
+            jObservation:=nil
+        next nRDD
+    catch xError
+        lOK:=.F.
+        if (ValType(xError)=="O")
+            ConOut("hbBridge storage probe error: "+xError:Description)
+            FreeObj(@xError)
+        endif
+    endtry
+    if (!Empty(cAlias).and.Select(cAlias)>0)
+        (cAlias)->(DbCloseArea())
+    endif
+    if (Select()!=nArea)
+        DbSelectArea(if(nArea>0,nArea,nil))
+    endif
+    ConOut("hbBridge storage observations: "+HBBridge.Client.HBBridgeJSON():Encode(jReport))
+    ConOut("hbBridge storage probe: "+if(lOK,"OK","FAILED"))
+    FreeObj(@jReport)
+    FreeObj(@jObservation)
+
+return(if(lOK,0,1))

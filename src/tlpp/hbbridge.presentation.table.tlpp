@@ -1,0 +1,379 @@
+/* Released to Public Domain. */
+#include "totvs.ch"
+#include "parmtype.ch"
+
+namespace HBBridge.Client
+
+// ERP-specific query construction stays in this Protheus example. Neither
+// the generic SQL executor nor the native table discovers business metadata.
+class HBBridgePresentationTable
+    static method Definition(cAlias as character) as json
+    static method Build(jMetadata as json,jColumns as json,cAlias as character,cTable as character) as json
+endclass
+
+static method Definition(cAlias) class HBBridgePresentationTable
+
+    local cTable:="" as character
+
+    local jMetadata as json
+    local jColumns as json
+    local jDefinition as json
+
+    local xError as variant
+
+    paramtype 1 var cAlias as character
+
+    try
+        if (Select("SX2")==0.or.Type("cEmpAnt")!="C".or.Type("cFilAnt")!="C".or.;
+            !TCIsConnected().or.TCGetDB()!="MSSQL")
+            return(TableDefinitionFailure(cAlias,"Prepare a Protheus company/branch with an active MSSQL DBAccess connection."))
+        endif
+        jMetadata:=HBBridge.Protheus.HBBridgeSX3Metadata():Read(cAlias)
+        cTable:=RetSQLName(cAlias)
+        jColumns:=HBBridge.SQL.Tools.HBBridgeSqlTools():GetColumnMetadata(cTable)
+        jDefinition:=HBBridgePresentationTable():Build(jMetadata,jColumns,cAlias,cTable)
+    catch xError
+        jDefinition:=TableDefinitionFailure(cAlias,"Could not obtain the "+cAlias+" dictionary and physical column metadata.")
+        if (ValType(xError)=="O")
+            FreeObj(@xError)
+        endif
+    endtry
+    FreeObj(@jMetadata)
+    FreeObj(@jColumns)
+
+return(jDefinition)
+
+// Pure builder: deterministic fixtures exercise the same production example
+// without opening employee tables or creating a second SQL implementation.
+static method Build(jMetadata,jColumns,cAlias,cTable) class HBBridgePresentationTable
+
+    local aNames as array
+
+    local cField:="" as character
+    local cKey:="" as character
+    local cReason:="" as character
+    local cExpression:="" as character
+    local cProjection:="" as character
+
+    local jResult:=TableDefinitionFailure(cAlias,"The "+cAlias+" dictionary, columns or mandatory fields are invalid.") as json
+    local jPositions:=JSONObject():New() as json
+    local jFields:=JSONObject():New() as json
+    local jStatus:=JSONObject():New() as json
+    local jSchema:=JSONObject():New() as json
+    local jBindings:=JSONObject():New() as json
+    local jField as json
+    local jLogical as json
+    local jProjectionFields as json
+
+    local lValid:=.T. as logical
+
+    local nField:=0 as numeric
+    local nFields:=0 as numeric
+    local nIncluded:=0 as numeric
+    local nExcluded:=0 as numeric
+
+    if (ValType(jMetadata)!="J".or.ValType(jColumns)!="J".or.;
+        ValType(cAlias)!="C".or.ValType(cTable)!="C")
+        lValid:=.F.
+    elseif (!Identifier(cAlias).or.!TableIdentifier(cTable))
+        lValid:=.F.
+    elseif (jMetadata["schemaVersion"]!=1.or.jMetadata["alias"]!=cAlias.or.;
+        ValType(jMetadata["fields"])!="J")
+        lValid:=.F.
+    endif
+    if (lValid)
+        // GetNames is a native enumeration boundary. Ordering is explicit,
+        // independent of JSON object iteration or alphabetical column names.
+        aNames:=jMetadata["fields"]:GetNames()
+        nFields:=Len(aNames)
+        lValid:=(nFields>0.and.jMetadata["count"]==nFields)
+        for nField:=1 to nFields
+            cField:=aNames[nField]
+            jField:=jMetadata["fields"][cField]
+            if (!Identifier(cField).or.ValType(jField)!="J")
+                lValid:=.F.
+                exit
+            endif
+            if (ValType(jField["position"])!="N")
+                lValid:=.F.
+                exit
+            endif
+            if (jField["position"]<1.or.jField["position"]>nFields.or.;
+                jField["position"]!=Int(jField["position"]))
+                lValid:=.F.
+                exit
+            endif
+            cKey:=tlpp.ToStr(jField["position"])
+            if (jPositions:HasProperty(cKey))
+                lValid:=.F.
+                exit
+            endif
+            jPositions[cKey]:=cField
+        next nField
+        FWFreeArray(@aNames)
+    endif
+    if (lValid)
+        jProjectionFields:=JSONObject():New()
+        for nField:=1 to nFields
+            cField:=jPositions[tlpp.ToStr(nField)]
+            jField:=jMetadata["fields"][cField]
+            cReason:=""
+            cExpression:=""
+            jLogical:=TableFieldDefinition(cAlias,cField,jField,jColumns,@cExpression,@cReason)
+            if (ValType(jLogical)=="J")
+                jFields[cField]:=jLogical
+                jProjectionFields[cField]:=cField
+                jLogical:=nil
+                jStatus[cField]:={"status":"included","reason":""}
+                if (!Empty(cProjection))
+                    cProjection+=", "
+                endif
+                cProjection+=cExpression+" AS ["+cField+"]"
+                nIncluded++
+            else
+                jStatus[cField]:={"status":"excluded","reason":cReason}
+                nExcluded++
+            endif
+        next nField
+        // Account for every physical field too. Unknown custom SQL columns
+        // cannot acquire an inferred SX3 type, width or business scale.
+        aNames:=jColumns:GetNames()
+        nFields:=Len(aNames)
+        for nField:=1 to nFields
+            cField:=aNames[nField]
+            if (jStatus:HasProperty(cField))
+                loop
+            endif
+            if (!Identifier(cField))
+                lValid:=.F.
+                exit
+            endif
+            if (cField=="D_E_L_E_T_".or.cField=="R_E_C_N_O_".or.cField=="R_E_C_D_E_L_")
+                if (cField=="D_E_L_E_T_")
+                    jField:={"type":"C","length":1,"decimals":0,"caption":"Deleted","picture":"","virtual":.F.}
+                else
+                    jField:={"type":"N","length":16,"decimals":0,"caption":if(cField=="R_E_C_N_O_","Record","Deleted record"),"picture":"","virtual":.F.}
+                endif
+                cExpression:=""
+                cReason:=""
+                jLogical:=TableFieldDefinition(cAlias,cField,jField,jColumns,@cExpression,@cReason)
+                if (ValType(jLogical)=="J")
+                    if (cField!="D_E_L_E_T_")
+                        cExpression:="CAST("+cAlias+".["+cField+"] AS BIGINT)"
+                    endif
+                    jFields[cField]:=jLogical
+                    jProjectionFields[cField]:=cField
+                    jLogical:=nil
+                    jStatus[cField]:={"status":"included","reason":"system"}
+                    if (!Empty(cProjection))
+                        cProjection+=", "
+                    endif
+                    cProjection+=cExpression+" AS ["+cField+"]"
+                    nIncluded++
+                else
+                    jStatus[cField]:={"status":"excluded","reason":cReason}
+                    nExcluded++
+                endif
+            else
+                jStatus[cField]:={"status":"excluded","reason":"notInDictionary"}
+                nExcluded++
+            endif
+        next nField
+        FWFreeArray(@aNames)
+    endif
+    jResult["metadata"]:=TableCopy(jMetadata)
+    jResult["fieldStatus"]:=jStatus
+    jStatus:=nil
+    jResult["includedCount"]:=nIncluded
+    jResult["excludedCount"]:=nExcluded
+    if (lValid.and.nIncluded>0.and.!Empty(cProjection))
+        jSchema["schemaVersion"]:=1
+        jSchema["fields"]:=jFields
+        jSchema["projectionFields"]:=jProjectionFields
+        jProjectionFields:=nil
+        jFields:=nil
+        jResult["schema"]:=jSchema
+        jSchema:=nil
+        jResult["bindings"]:=jBindings
+        jBindings:=nil
+        jResult["alias"]:=cAlias
+        jResult["table"]:=cTable
+        jResult["projection"]:=cProjection
+        jResult["sql"]:=""
+        jResult["orderBy"]:=""
+        jResult["success"]:=.T.
+        jResult["code"]:=""
+        jResult["message"]:=""
+    endif
+    FreeObj(@jPositions)
+    FreeObj(@jFields)
+    FreeObj(@jStatus)
+    FreeObj(@jSchema)
+    FreeObj(@jBindings)
+    FreeObj(@jLogical)
+    FreeObj(@jProjectionFields)
+
+return(jResult)
+
+static function TableFieldDefinition(cAlias as character,cName as character,jField as json,jColumns as json,cExpression as character,cReason as character) as json
+
+    local cType:="" as character
+    local cStorage:="" as character
+    local cColumn:=cAlias+".["+cName+"]" as character
+
+    local jLogical as json
+    local jColumn as json
+
+    cReason:="invalidDefinition"
+    if (ValType(jField["type"])!="C".or.ValType(jField["virtual"])!="L")
+        return(nil)
+    endif
+    if (jField["virtual"])
+        cReason:="virtual"
+        return(nil)
+    endif
+    if (!jColumns:HasProperty(cName))
+        cReason:="missingColumn"
+        return(nil)
+    endif
+    jColumn:=jColumns[cName]
+    if (ValType(jColumn)!="J")
+        return(nil)
+    endif
+    if (jColumn["binary"]==.T.)
+        cReason:="binary"
+        return(nil)
+    endif
+    cType:=jField["type"]
+    if (cType=="M")
+        cReason:="memo"
+        return(nil)
+    endif
+    if (jColumn["longText"]==.T.)
+        cReason:="longText"
+        return(nil)
+    endif
+    if (Len(cType)!=1.or.!(cType$"CNDL"))
+        cReason:="unsupportedType"
+        return(nil)
+    endif
+    if (ValType(jField["length"])!="N".or.ValType(jField["decimals"])!="N".or.;
+        ValType(jField["caption"])!="C".or.ValType(jField["picture"])!="C")
+        return(nil)
+    endif
+    if (jField["length"]<1.or.jField["length"]!=Int(jField["length"]).or.;
+        jField["decimals"]<0.or.jField["decimals"]!=Int(jField["decimals"]))
+        return(nil)
+    endif
+    if ((cType=="C".and.jField["length"]>254).or.;
+        (cType!="N".and.jField["decimals"]!=0).or.;
+        (cType=="N".and.(jField["length"]>32.or.jField["decimals"]>16.or.;
+        (jField["decimals"]>0.and.jField["length"]<jField["decimals"]+2))).or.;
+        (cType=="D".and.jField["length"]!=8).or.(cType=="L".and.jField["length"]!=1))
+        return(nil)
+    endif
+    if (ValType(jColumn["type"])!="C")
+        return(nil)
+    endif
+    cStorage:=jColumn["type"]
+    cReason:="unsupportedStorage"
+    cExpression:=cColumn
+    do case
+    case cType=="C"
+        if (!("|"+cStorage+"|" $ "|char|varchar|nchar|nvarchar|"))
+            return(nil)
+        endif
+    case cType=="N"
+        if (!("|"+cStorage+"|" $ "|tinyint|smallint|int|bigint|decimal|numeric|money|smallmoney|float|real|"))
+            return(nil)
+        endif
+        // This explicit caller query applies the dictionary's business scale.
+        // It is not automatic SQL rewriting or a change to the generic codec.
+        cExpression:="CAST("+cColumn+" AS DECIMAL("+tlpp.ToStr(jField["length"])+","+;
+            tlpp.ToStr(jField["decimals"])+"))"
+    case cType=="D"
+        if (!("|"+cStorage+"|" $ "|char|varchar|nchar|nvarchar|date|"))
+            return(nil)
+        endif
+    case cType=="L"
+        do case
+        case cStorage=="bit"
+            cExpression:="CAST("+cColumn+" AS BIT)"
+        case ("|"+cStorage+"|")$"|char|varchar|nchar|nvarchar|"
+            cExpression:="CASE "+cColumn+" WHEN 'T' THEN CAST(1 AS BIT) WHEN 'F' THEN CAST(0 AS BIT) ELSE NULL END"
+        case ("|"+cStorage+"|")$"|tinyint|smallint|int|bigint|decimal|numeric|float|real|"
+            cExpression:="CASE "+cColumn+" WHEN 1 THEN CAST(1 AS BIT) WHEN 0 THEN CAST(0 AS BIT) ELSE NULL END"
+        otherwise
+            return(nil)
+        endcase
+    endcase
+    jLogical:=JSONObject():New()
+    jLogical["type"]:=if(cType=="C","character",if(cType=="N","numeric",if(cType=="D","date","logical")))
+    jLogical["length"]:=jField["length"]
+    jLogical["decimals"]:=jField["decimals"]
+    jLogical["caption"]:=if(Empty(jField["caption"]),cName,jField["caption"])
+    jLogical["picture"]:=jField["picture"]
+    jLogical["nullable"]:=.F.
+    jLogical["nullPolicy"]:="reject"
+    jLogical["roundingPolicy"]:="reject"
+    jLogical["inputFormat"]:=nil
+    if (cType=="D")
+        jLogical["inputFormat"]:=if(cStorage=="date","YYYY-MM-DD","YYYYMMDD")
+    endif
+    cReason:=""
+
+return(jLogical)
+
+static function TableDefinitionFailure(cAlias as character,cMessage as character) as json
+
+    local jResult:=JSONObject():New() as json
+
+    jResult["success"]:=.F.
+    jResult["code"]:="INVALID_"+cAlias+"_DEFINITION"
+    jResult["message"]:=cMessage
+    jResult["sql"]:=""
+    jResult["schema"]:=nil
+
+return(jResult)
+
+static function TableCopy(jValue as json) as json
+
+    local jCopy as json
+
+    if (ValType(jValue)=="J")
+        jCopy:=JSONObject():New()
+        if (!HBBridge.Client.HBBridgeJSON():Parse(HBBridge.Client.HBBridgeJSON():Encode(jValue),jCopy))
+            FreeObj(@jCopy)
+        endif
+    endif
+
+return(jCopy)
+
+static function TableIdentifier(cTable as character) as logical
+
+    local nDot:=At(".",cTable) as numeric
+
+    if (nDot==0)
+        return(Identifier(cTable))
+    endif
+
+return(Identifier(Left(cTable,nDot-1)).and.Identifier(SubStr(cTable,nDot+1)))
+
+static function Identifier(cName as character) as logical
+
+    local cAllowed:="ABCDEFGHIJKLMNOPQRSTUVWXYZ_0123456789" as character
+
+    local nCharacter:=0 as numeric
+    local nLength:=Len(cName) as numeric
+
+    if (nLength<1.or.!(Upper(Left(cName,1))$"ABCDEFGHIJKLMNOPQRSTUVWXYZ_"))
+        return(.F.)
+    endif
+
+    for nCharacter:=1 to nLength
+        if (!(Upper(SubStr(cName,nCharacter,1))$cAllowed))
+            return(.F.)
+        endif
+    next nCharacter
+
+return(.T.)

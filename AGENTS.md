@@ -14,6 +14,12 @@
   keep sanitized acceptance summaries in `docs/validation/`. Historical tmp
   log paths are provenance, never retention requirements. `out/` is generated;
   managed build dependencies belong in `.deps/`.
+- Compile TLPP from its maintained source path whenever possible. If a test
+  or validation needs copied/generated `.tlpp` files under `tmp/`, remove them
+  immediately after use, including failures, with `try`/`finally` or equivalent
+  cleanup. Retained duplicate sources confuse the TOTVS extension's source
+  resolution. Keep logs, source lists and hashes as evidence instead of copies;
+  never delete the maintained originals during this cleanup.
 - Use `#include "totvs.ch"` as the default TLPP header. Add `tlpp-core.th`,
   `tlpp-rest.th` or other headers only for declarations/macros actually used,
   not merely because a source has the `.tlpp` extension.
@@ -35,7 +41,9 @@
   lowercase words separated by dots:
   `HBBridgeClient` lives in `hbbridge.client.tlpp`. Removing the dots must
   yield the class name in lowercase; dots do not denote namespace segments.
-- Write project-owned error messages, logs and UI labels in English. Preserve
+- Write project-owned source comments, error messages, logs and UI labels in
+  English. Translate Portuguese comments encountered while editing or reviewing
+  sources, preserving their technical meaning and external API names. Preserve
   external API text and intentional language/encoding test data. Portuguese
   documentation remains in the paired `.pt-BR` files.
 - Write documentation in an impersonal style, focused on decisions, results
@@ -88,3 +96,6 @@
 - Before every commit, run `scripts/commit-check.ps1`: it must pass
   `.hbcommit/check.hb`, `.hbcommit/commit.hb` and the read-only validation mode
   of `.hbcommit/3rdpatch.hb`. Do not bypass failed checks or mutate the index.
+  Default scope is changed/new files; `-Staged` validates changed indexed
+  contents and `-All` requests a full review. Policy/tool/configuration changes
+  force full validation; third-party checks always retain their global scope.

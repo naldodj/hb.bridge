@@ -39,7 +39,9 @@ This explicit use also lets the compiler recognize the captured variable.
 Source basenames separate lowercase words with dots, for example
 `hbbridge.rpc.dataset.tlpp`. Removing dots must match the lowercase class
 name `HBBridgeRPCDataSet`. This word segmentation does not change namespaces.
-Own error messages, logs and UI labels are English; external text and intentional
+Own source comments, error messages, logs and UI labels are English. Translate
+Portuguese comments encountered during source edits/reviews without changing
+their technical meaning or external API names. External text and intentional
 accent/encoding fixtures retain their original language. Portuguese documentation
 uses its paired `.pt-BR` files.
 
@@ -130,6 +132,12 @@ run. Reusable programs/probes belong to `src/`, `addons/`, `scripts/` or `tests/
 public templates belong to `config/examples/`. `out/` contains generated
 deliverables, and `.deps/` contains dependencies resolved from pinned inputs.
 Neither tmp nor out is a location for versioned source or permanent evidence.
+
+Compile TLPP directly from maintained sources whenever possible. Remove any
+copied/generated `.tlpp` files in tmp immediately after use, including failed
+tests or validation, through `try`/`finally` or equivalent cleanup. Duplicate
+sources left in the workspace confuse the TOTVS extension's source resolution.
+Keep logs, source lists and hashes for evidence; preserve maintained originals.
 
 Keep sanitized acceptance summaries, source/dependency identities, commands and
 external prerequisites in [validation documentation](validation/README.md).

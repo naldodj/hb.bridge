@@ -1,0 +1,174 @@
+/* Released to Public Domain. */
+#include "totvs.ch"
+
+// Synthetic typed data and private SQLite storage; no ERP data or SQL service.
+function U_HBBridgePresentationMappingTest()
+
+    // JSONObject exposes property names through this native array API.
+    local aNames as array
+
+    local cOriginal:="" as character
+
+    local jChecks:=JSONObject():New() as json
+    local jBindings:=JSONObject():New() as json
+    local jResponse as json
+    local jSchema as json
+    local jProjectionFields as json
+    local jOverride as json
+    local jSnapshot as json
+
+    local lOK:=.T. as logical
+
+    local nCheck:=0 as numeric
+    local nChecks:=0 as numeric
+
+    local oClient as object
+    local oDataSet as object
+    local oNative as object
+
+    local xError as variant
+
+    oClient:=HBBridge.Tests.HBBridgeDataSetMockClient():New()
+    oDataSet:=HBBridge.RDD.HBBridgeRPCDataSet():New(oClient)
+    oDataSet:SetAliasProfile("presentation/mapping")
+    try
+        jResponse:=HBBridge.Tests.HBBridgePresentationFixture():Result(0,1,1)
+        jResponse["header"]:=PresentationMappingRename(jResponse["header"],"ID","RA_NOME")
+        jResponse["rows"]["1"]:=PresentationMappingRename(jResponse["rows"]["1"],"ID","RA_NOME")
+        jResponse["header"]["TEXT"]["source"]["column"]:="RA_NOME"
+        oClient:Queue(jResponse)
+        FreeObj(@jResponse)
+        jChecks["typedCollisionFixture"]:=oDataSet:OpenSQLTyped("SELECT mapping_fixture",jBindings)
+        if (!jChecks["typedCollisionFixture"])
+            throw "MAPPING_FIXTURE_FAILED"
+        endif
+        jSchema:=HBBridge.Tests.HBBridgePresentationFixture():Schema()
+        jSchema["fields"]:=PresentationMappingRename(jSchema["fields"],"ID","RA_NOME")
+        jProjectionFields:=JSONObject():New()
+        jProjectionFields["AMOUNT"]:="RA_SALARIO"
+        jProjectionFields["TEXT"]:="SCHEMA_TEXT"
+        jSchema["projectionFields"]:=jProjectionFields
+        jProjectionFields:=nil
+        oNative:=HBBridge.Client.HBBridgeNativeTable():New(oDataSet,jSchema,.T.,"SQLITE_MEM")
+        jSchema["projectionFields"]["AMOUNT"]:="CALLER_MUTATION"
+        jChecks["schemaMapLoad"]:=oNative:LoadCurrentPage()
+        if (!jChecks["schemaMapLoad"])
+            throw "MAPPING_NATIVE_LOAD_FAILED"
+        endif
+        jChecks["schemaMapIsDefensive"]:=oNative:SourceFieldName("AMOUNT")=="RA_SALARIO"
+        jChecks["reportedOriginWinsSchemaDefault"]:=oNative:SourceFieldName("TEXT")=="RA_NOME"
+        jChecks["unknownOriginIsNotInferred"]:=Empty(oNative:SourceFieldName("RA_NOME"))
+        jChecks["directProjectionPositionIsDistinct"]:=oNative:FieldPos("RA_NOME")==2.and.oNative:FieldPos("TEXT")==4
+        jChecks["directProjectionValueIsDistinct"]:=RTrim(oNative:FieldGet("RA_NOME"))=="1"
+        jChecks["uniqueSourceWinsUnknownHomonym"]:=oNative:SourceFieldPos("RA_NOME")==4
+        jChecks["strictSourceWinsUnknownHomonym"]:=oNative:SourceFieldPos("RA_NOME",.F.)==4
+        jChecks["sourceValueUsesUniqueProjection"]:=oNative:SourceFieldGet("RA_NOME")==oNative:FieldGet("TEXT")
+        jChecks["strictSourceValueUsesUniqueProjection"]:=oNative:SourceFieldGet("RA_NOME",.F.)==oNative:FieldGet("TEXT")
+        jChecks["sourceCaptionUsesUniqueProjection"]:=oNative:SourceFieldCaption("RA_NOME")=="Text"
+        jChecks["strictSourceCaptionUsesUniqueProjection"]:=oNative:SourceFieldCaption("RA_NOME",.F.)=="Text"
+        jChecks["directCaptionUsesProjection"]:=oNative:FieldCaption("RA_NOME")=="Identifier"
+        jChecks["projectionFallbackRemainsAvailable"]:=oNative:SourceFieldPos("TEXT")==4.and.;
+            oNative:SourceFieldGet("TEXT")==oNative:FieldGet("TEXT").and.oNative:SourceFieldCaption("TEXT")=="Text"
+        jChecks["strictModeDisablesProjectionFallback"]:=oNative:SourceFieldPos("TEXT",.F.)==0.and.;
+            ValType(oNative:SourceFieldGet("TEXT",.F.))=="U".and.Empty(oNative:SourceFieldCaption("TEXT",.F.))
+        jOverride:=JSONObject():New()
+        jOverride["RA_NOME"]:="RA_NOME"
+        cOriginal:=HBBridge.Client.HBBridgeJSON():Encode(jOverride)
+        oNative:SetSourceFieldName(jOverride)
+        jChecks["setterPreservesCallerMap"]:=HBBridge.Client.HBBridgeJSON():Encode(jOverride)==cOriginal
+        jChecks["duplicateOriginRejectsPosition"]:=oNative:SourceFieldPos("RA_NOME")==0.and.oNative:SourceFieldPos("RA_NOME",.F.)==0
+        jChecks["duplicateOriginRejectsValue"]:=ValType(oNative:SourceFieldGet("RA_NOME"))=="U".and.;
+            ValType(oNative:SourceFieldGet("RA_NOME",.F.))=="U"
+        jChecks["duplicateOriginRejectsCaption"]:=Empty(oNative:SourceFieldCaption("RA_NOME")).and.;
+            Empty(oNative:SourceFieldCaption("RA_NOME",.F.))
+        jChecks["duplicateOriginKeepsProjectionAccess"]:=oNative:FieldPos("RA_NOME")==2.and.;
+            oNative:FieldPos("TEXT")==4.and.oNative:FieldCaption("RA_NOME")=="Identifier"
+        jOverride["TEXT"]:="RA_APELIDO"
+        oNative:SetSourceFieldName(jOverride)
+        jChecks["setterKeepsReportedOriginWithoutForce"]:=oNative:SourceFieldName("TEXT")=="RA_NOME"
+        oNative:SetSourceFieldName(jOverride,.T.)
+        jChecks["setterForceChangesOrigin"]:=oNative:SourceFieldName("TEXT")=="RA_APELIDO".and.;
+            oNative:SourceFieldPos("RA_APELIDO",.F.)==4
+        FreeObj(@jOverride)
+        jOverride:=JSONObject():New()
+        jOverride["AMOUNT"]:="EXPLICIT_AMOUNT"
+        cOriginal:=HBBridge.Client.HBBridgeJSON():Encode(jOverride)
+        jChecks["explicitMapRefill"]:=oNative:LoadCurrentPage("SQLITE_MEM",jOverride)
+        jChecks["explicitMapOverridesSchemaFallback"]:=oNative:SourceFieldName("AMOUNT")=="EXPLICIT_AMOUNT"
+        jChecks["refillRestoresReportedOrigin"]:=oNative:SourceFieldName("TEXT")=="RA_NOME".and.;
+            Empty(oNative:SourceFieldName("RA_NOME"))
+        jChecks["explicitMapRemainsOwnedByCaller"]:=HBBridge.Client.HBBridgeJSON():Encode(jOverride)==cOriginal
+        jOverride["AMOUNT"]:="LATER_MUTATION"
+        jChecks["explicitMapDoesNotAliasNativeState"]:=oNative:SourceFieldName("AMOUNT")=="EXPLICIT_AMOUNT"
+        FreeObj(@jOverride)
+        jOverride:=JSONObject():New()
+        jChecks["emptyExplicitMapRefill"]:=oNative:LoadCurrentPage("SQLITE_MEM",jOverride)
+        jChecks["emptyExplicitMapSuppressesSchemaFallback"]:=Empty(oNative:SourceFieldName("AMOUNT"))
+        jChecks["schemaMapReappliesOnRefill"]:=oNative:LoadCurrentPage().and.oNative:SourceFieldName("AMOUNT")=="RA_SALARIO"
+        jSnapshot:=oNative:Schema()
+        jSnapshot["projectionFields"]["AMOUNT"]:="RETURNED_MUTATION"
+        jChecks["returnedSchemaMapIsDefensive"]:=oNative:SourceFieldName("AMOUNT")=="RA_SALARIO"
+        FreeObj(@jSnapshot)
+        jSnapshot:=oDataSet:FieldInfo("AMOUNT")
+        jChecks["datasetMetadataRemainsUnchanged"]:=Empty(jSnapshot["source"]["column"])
+        FreeObj(@jSnapshot)
+        jSnapshot:=oDataSet:FieldInfo("RA_NOME")
+        jChecks["datasetMetadataRemainsUnchanged"]:=jChecks["datasetMetadataRemainsUnchanged"].and.;
+            Empty(jSnapshot["source"]["column"])
+        jChecks["nativeMappingCleanup"]:=oNative:Destroy()
+        jChecks["closedSourceLookupsAreEmpty"]:=oNative:SourceFieldPos("RA_NOME")==0.and.;
+            ValType(oNative:SourceFieldGet("RA_NOME"))=="U".and.Empty(oNative:SourceFieldCaption("RA_NOME"))
+    catch xError
+        jChecks["unexpectedRuntimeFailure"]:=.F.
+        ConOut("hbBridge source mapping test failed; inspect the owned local log.")
+        if (ValType(xError)=="O")
+            FreeObj(@xError)
+        endif
+    endtry
+    if (ValType(oNative)=="O")
+        jChecks["finalCleanup"]:=oNative:Destroy()
+        if (jChecks["finalCleanup"])
+            FreeObj(@oNative)
+        endif
+    endif
+    oDataSet:Close()
+    FreeObj(@oDataSet)
+    oClient:Close()
+    FreeObj(@oClient)
+    FreeObj(@jResponse)
+    FreeObj(@jSchema)
+    FreeObj(@jProjectionFields)
+    FreeObj(@jOverride)
+    FreeObj(@jSnapshot)
+    FreeObj(@jBindings)
+    aNames:=jChecks:GetNames()
+    nChecks:=Len(aNames)
+    for nCheck:=1 to nChecks
+        lOK:=jChecks[aNames[nCheck]].and.lOK
+        ConOut("hbBridge source mapping check "+aNames[nCheck]+": "+if(jChecks[aNames[nCheck]],"PASS","FAILED"))
+    next nCheck
+    ConOut("hbBridge source mapping checks: "+tlpp.ToStr(nChecks)+"; "+if(lOK,"OK","FAILED"))
+    FWFreeArray(@aNames)
+    FreeObj(@jChecks)
+
+return(if(lOK,0,1))
+
+static function PresentationMappingRename(jObject as json,cOld as character,cNew as character) as json
+
+    // JSONObject exposes property names through this native array API.
+    local aNames:=jObject:GetNames() as array
+
+    local cName:="" as character
+
+    local jRenamed:=JSONObject():New() as json
+
+    local nName:=0 as numeric
+    local nNames:=Len(aNames) as numeric
+
+    for nName:=1 to nNames
+        cName:=aNames[nName]
+        jRenamed[if(cName==cOld,cNew,cName)]:=jObject[cName]
+    next nName
+    FWFreeArray(@aNames)
+
+return(jRenamed)

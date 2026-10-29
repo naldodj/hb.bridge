@@ -21,13 +21,77 @@ HTTPS ou BLOB JSON. Veja [encerramento, artefatos e limites](docs/acceptance.pt-
 | Item | Valor atual |
 | --- | --- |
 | ID | `002-typed-sql-presentation` |
-| Abertura / atualização | 2026-10-21 / 2026-10-26 |
-| Situação | T01–T04 validadas nos escopos registrados. T05 passou no caminho real MSSQL → TCP/HTTP gzip → dataset tipado AppServer → armazenamento nativo. Browse SX5 real compilado para aceite interativo; T05 continua aberto. |
+| Abertura / atualização | 2026-10-21 / 2026-10-29 |
+| Situação | T01–T04 validadas nos escopos registrados. T05 passou no caminho real MSSQL → TCP/HTTP gzip → dataset tipado AppServer → armazenamento nativo; capturas fornecidas confirmam exibição do browse/View SX5. A extensão SRA/SX3 mais ampla solicitada está em validação; T05 continua aberto. |
 | Objetivo | Definir valores SQL/metadados tipados explícitos e adapter de apresentação nativa pertencente ao chamador Protheus sobre Query/dataset homologados. |
 | Referência | Base `8db2823`; artefatos da árvore de trabalho validados no pacote 001 identificados no manifesto de encerramento. Não é nova tag de release. |
-| Próxima tarefa | T05: homologar browse SX5 real na empresa/filial Protheus ativa por TCP e HTTP, incluindo pesquisa/filtro, paginação e fechamento; revisar critérios restantes antes de encerrar o pacote. |
+| Próxima tarefa | Continuação T05: confirmar browse/View, pesquisa e filtros SRA/SX3 revisados com dados reais. RDDs locais, índices sob demanda, mapeamento e planejamento SQL compartilhado passaram nas regressões do SDK isolado; manter aceite interativo separado antes do encerramento. |
 
 ### Manutenção preparatória
+
+- [x] 2026-10-29: resolver os apontamentos restantes de origem, MsMGet,
+  builder compartilhado e teste SRA desatualizado. Busca por origem rejeita
+  ambiguidades uniformemente e encontra uma origem única mesmo com projeção
+  homônima sem origem. Manter identidade do dicionário em `aFields`/`M->` do
+  MsMGet, incluindo `RA_BITMAP`, e título pela projeção. Compartilhar caminhos
+  puros Build/Plan com os exemplos, rejeitar projeções vazias e campos de
+  filtro/ordenação ausentes e recusar opções inválidas de pesquisa sem mudar
+  a ordem atual. Compilados 78 fontes TLPP, zero erros; checks isolados
+  aprovados: esquema 76, conversão por página 31, planejamento SRA/SX5 66,
+  RDDs locais 100, mapeamento 36, datasets tipado/comum 77/67, SDK 5,
+  TOPCONN/FWBulk 122 e callbacks do browse 74. Dataset comum retornou -4 após
+  os 67 checks e APPLICATION END, aceito pela política existente do runner;
+  demais suítes retornaram 0. Ajuste final das variáveis do dicionário em
+  MsMGet compilado separadamente, zero erros. Preservar escopo interativo
+  separado do View e [identidades/resultados sanitizados](docs/validation/presentation.review.windows.json).
+
+- [x] 2026-10-29: documentar limpeza imediata de TLPP copiado/gerado em tmp,
+  inclusive em falhas, e tradução de comentários em português para inglês
+  durante revisões/edições. Validação do índice agora remove sua cópia dos
+  fontes em `finally`; a regressão de seleção remove suas fixtures. Tradução
+  nos três fontes TLPP revisados preservou código executável e strings.
+  Seleção/limpeza passaram 57 checks; validação real do índice passou nos
+  três utilitários com seleção vazia, índice preservado e nenhuma cópia TLPP
+  temporária remanescente. Links de 104 documentos passaram. Essa manutenção
+  não encerra T05.
+
+- [x] 2026-10-29: manter `projectionFields` opcional no esquema lógico versão
+  1. Aceitar esquemas anteriores com duas propriedades e validar os mapas
+  fornecidos: chaves projetadas existentes e origens textuais não vazias e
+  sem NUL; mapas vazios/parciais e origens repetidas continuam válidos.
+  Preservar valores/metadados do chamador durante a conversão e transferir
+  o mapa do builder para seu esquema. Validação focada no AppServer isolado:
+  nove fontes compilados, zero erros; 76 checks de esquema/conversão e 31
+  de conversão por página passaram, saída 0. Esse escopo não encerra os
+  testes SRA, buscas por origem, validação do builder ou apresentação
+  interativa ainda pendentes.
+
+- [x] 2026-10-27: adicionar metadados SX3 reutilizáveis e exemplos SRA/SX3
+  independente. Registrar inventário completo e exclusões explícitas; manter
+  CASTs do dicionário e resolução de tabela/filial no Protheus. Preservar os
+  sentidos origem/projeção/nativo, datas compactas vazias e NULL. Compilados
+  73 fontes TLPP, zero erros; checks no AppServer isolado: conversão 54,
+  página 31, planejamento SRA 49, datasets tipado/comum 77/67, SDK 5,
+  armazenamento nativo 89 e callbacks do browse 59. Conversão por página
+  valida invariantes uma vez e mantém checks dos valores; posições resolvidas
+  antes do desenho. Comparação local de 100 colunas, 100 linhas e três rodadas:
+  médias 8842,354 ms por linha e 1936,071 ms por página, excluindo SQL,
+  transporte, DDL nativo e interface. Precede a revisão de RDD/índices
+  solicitada e não mede ganho completo da SRA. Commit-check seleciona
+  alterados/novos e preserva snapshot do índice, revisão completa por mudança
+  de política e três validadores obrigatórios. Seleção Git passou 41 checks
+  isolados, sem alterar o índice. Veja a
+  [evidência sanitizada](docs/validation/sra.presentation.windows.json).
+
+- [x] 2026-10-27, validado em 2026-10-29: revisar os caminhos SQLITE_MEM/SQLITE_TMP adicionados e adotar
+  um índice inicial após popular, com os demais criados sob demanda pelo
+  adaptador. Mapear detalhes FWSeek para projeções/ordens físicas, preservar
+  aliases indexados nas recargas e liberar recursos próprios. Manter cobertura
+  TOPCONN/FWBulk explícita e validar separadamente os dois RDDs locais.
+  RDDs locais passaram 100 checks; TOPCONN/FWBulk passou 122 checks, com
+  escrita bulk de 1025 linhas; callbacks do browse passaram 74 checks.
+  Liberação SQLite ao fim da conexão permanece como comportamento documentado
+  do SDK, sem classificar vazamento confirmado.
 
 - [x] 2026-10-21: revisar fontes próprios conforme AGENTS: agrupar declarações por tipo,
   preservar ordem das inicializações e antecipar invariantes comprovados.
@@ -184,6 +248,17 @@ codepage preservaram bytes e SETs, sem comprovar aceleração estável.
   interface nativa. Definir decode textual uma vez, políticas de NULL/tipo/escala,
   navegação e liberação após sucesso, falha e fechamento da interface.
   Preservar exemplos e posse dos recursos existentes.
+- [ ] **T05a — Demonstrar campos específicos do dicionário.** Adicionar exemplo
+  de projeção com colunas/aliases selecionados pelo chamador e esquema lógico/
+  mapa de origem por saída. Reutilizar dataset tipado e apresentação atuais;
+  o builder de tabela completa ainda não possui uma API de seleção de campos.
+- [ ] **T05b — Demonstrar resultados de JOIN explícito.** Adicionar exemplos
+  INNER/LEFT JOIN com aliases únicos, metadados/regras resolvidos pelo chamador,
+  paginação determinística por linha resultante e política explícita de NULL/
+  apresentação nativa. Validar origens duplicadas pelo acesso projetado e
+  preservar identidade do dicionário no MsMGet sem confundir campos repetidos.
+  Esses exemplos estão planejados; execução SQL genérica não comprova seu
+  aceite na interface. Veja o [plano de projeções/JOIN](docs/sx3-metadata.pt-BR.md#campos-específicos-e-consultas-com-join).
 - [ ] **T05 — Homologar e encerrar.** Executar checks nativos e AppServer real
   TCP/HTTP/apresentação, recuperação e liberação. Passar pelos três crivos de
   commit; atualizar documentos EN/PT e artefatos atribuíveis.
@@ -284,6 +359,24 @@ esta ainda precisa de execução visual manual no ambiente Protheus preparado.
 INI/RPOs da instalação e serviços existentes não foram substituídos.
 Os três validadores passaram em 320 arquivos e links em 102 documentos;
 o índice não foi alterado nesta continuação.
+
+2026-10-26 aceite visual posterior: capturas fornecidas confirmam exibição do
+browse SX5 real por TCP/HTTP e do View do registro atual. Essa observação manual
+não fornece hashes compilados nem comprova isoladamente todos os caminhos de
+filtro/falha/liberação.
+
+O próximo exemplo solicitado amplia T05 para SRA e um snapshot reutilizável
+`HBBridge.Protheus.HBBridgeSX3Metadata:Read()`. A resolução de dicionário/
+tabela/filial permanece no Protheus. Combinar metadados FWSX3Util e catálogo
+físico MSSQL para selecionar todo campo físico suportado do dicionário e campo
+de sistema disponível; informar motivos explícitos para campos virtuais, memo/
+binários, texto longo, ausentes e incompatíveis, sem truncamento silencioso.
+Manter inventário completo mesmo quando os valores forem excluídos. CASTs
+numéricos são definições explícitas do exemplo no chamador, sem parser SQL
+genérico ou processamento SX3 automático no servidor. Transporte LOB permanece
+futuro. Veja o [guia SX3/SRA](docs/sx3-metadata.pt-BR.md). A extensão requer
+compilação, regressões e aceite interativo próprios antes de encerrar T05;
+hashes e quantidades anteriores permanecem como evidência histórica.
 
 Continuação em 2026-10-24 após publicar o commit HTTP `98054b45`: a
 [especificação T01](docs/typed-sql.pt-BR.md) fixa versões de entrada/resultado,

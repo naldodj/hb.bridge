@@ -1,0 +1,471 @@
+/* Released to Public Domain. */
+#include "totvs.ch"
+
+// Pure conversion checks: no SQL, transport, native table or employee data.
+function U_HBBridgePresentationPageTest()
+
+    // JSONObject exposes property names through this native array API.
+    local aNames as array
+
+    local cCode:="" as character
+    local cMessage:="" as character
+    local cOriginal:="" as character
+    local cCase:="" as character
+
+    local jFixture:=PresentationPageFixture(7,4) as json
+    local jConverted as json
+    local jRepeated as json
+    local jRows as json
+    local jRow as json
+    local jChecks:=JSONObject():New() as json
+    local jCases:=JSONObject():New() as json
+
+    local lOK:=.T. as logical
+    local lConverted:=.F. as logical
+
+    local nCheck:=0 as numeric
+    local nChecks:=0 as numeric
+    local nCase:=0 as numeric
+    local nCases:=0 as numeric
+
+    local xError as variant
+
+    try
+        cOriginal:=HBBridge.Client.HBBridgeJSON():Encode(jFixture)
+        lConverted:=HBBridge.Client.HBBridgePresentationSchema():ConvertPage(;
+            jFixture["header"],jFixture["schema"],jFixture["rows"],@jConverted,@cCode,@cMessage)
+        jChecks["completePageConverted"]:=lConverted
+        if (!lConverted)
+            throw "PRESENTATION_PAGE_CONVERSION_FAILED"
+        endif
+        jChecks["rowLoopConverted"]:=PresentationPageRows(jFixture["header"],jFixture["schema"],;
+            jFixture["rows"],4,@jRepeated,@cCode,@cMessage)
+        jChecks["pageMatchesStrictRowConversions"]:=PresentationPageSame(jConverted,jRepeated,4,7)
+        jChecks["nativeTextDecodedOnce"]:=jConverted["1"]["C0004"]==DecodeUTF8(jFixture["rows"]["1"]["C0004"])
+        jChecks["nativeDecimalRetainsScale"]:=ValType(jConverted["1"]["C0003"])=="N".and.;
+            jConverted["1"]["C0003"]==-123.25.and.jConverted["2"]["C0003"]==123.25
+        jChecks["nativeDateRetainsCalendar"]:=ValType(jConverted["1"]["C0006"])=="D".and.;
+            DToS(jConverted["1"]["C0006"])=="20240229".and.DToS(jConverted["2"]["C0006"])=="20000229"
+        jChecks["nativeLogicalRetainsFalseAndTrue"]:=ValType(jConverted["1"]["C0005"])=="L".and.;
+            !jConverted["1"]["C0005"].and.jConverted["2"]["C0005"]
+        jChecks["nativeFloatRetainsValue"]:=jConverted["1"]["C0007"]==0.25.and.jConverted["4"]["C0007"]==1
+        jChecks["sourceSnapshotUnchanged"]:=HBBridge.Client.HBBridgeJSON():Encode(jFixture)==cOriginal
+        jConverted["1"]["C0004"]:="Changed by consumer"
+        jChecks["convertedPageIsDefensive"]:=HBBridge.Client.HBBridgeJSON():Encode(jFixture)==cOriginal
+        FreeObj(@jConverted)
+        FreeObj(@jRepeated)
+        jRows:=JSONObject():New()
+        jChecks["emptyPageAcceptsValidMetadata"]:=HBBridge.Client.HBBridgePresentationSchema():ConvertPage(;
+            jFixture["header"],jFixture["schema"],jRows,@jConverted,@cCode,@cMessage)
+        aNames:=jConverted:GetNames()
+        jChecks["emptyPageReturnsNewEmptyObject"]:=Len(aNames)==0.and.Empty(cCode)
+        FWFreeArray(@aNames)
+        FreeObj(@jConverted)
+        jFixture["schema"]["fields"]["C0004"]["length"]:=255
+        jChecks["emptyPageStillValidatesSchema"]:=!HBBridge.Client.HBBridgePresentationSchema():ConvertPage(;
+            jFixture["header"],jFixture["schema"],jRows,@jConverted,@cCode,@cMessage).and.;
+            ValType(jConverted)=="U".and.cCode=="PRESENTATION_RANGE_ERROR"
+        jFixture["schema"]["fields"]["C0004"]["length"]:=20
+        jFixture["header"]["C0007"]["position"]:=1
+        jChecks["emptyPageStillValidatesPositions"]:=!HBBridge.Client.HBBridgePresentationSchema():ConvertPage(;
+            jFixture["header"],jFixture["schema"],jRows,@jConverted,@cCode,@cMessage).and.;
+            ValType(jConverted)=="U".and.cCode=="INVALID_PRESENTATION_METADATA"
+        FreeObj(@jRows)
+        FreeObj(@jFixture)
+        jCases["hole"]:=""
+        jCases["noncanonicalKey"]:=""
+        jCases["zeroKey"]:=""
+        jCases["nonObjectRow"]:=""
+        jCases["missingColumn"]:="INVALID_PRESENTATION_ROW"
+        jCases["extraColumn"]:="INVALID_PRESENTATION_ROW"
+        jCases["lastRowNull"]:="PRESENTATION_NULL_REJECTED"
+        jCases["lastRowInvalidUTF8"]:="PRESENTATION_ENCODING_ERROR"
+        jCases["lastRowRoundedNumber"]:="PRESENTATION_RANGE_ERROR"
+        jCases["lastRowInvalidDate"]:="PRESENTATION_TYPE_MISMATCH"
+        aNames:=jCases:GetNames()
+        nCases:=Len(aNames)
+        for nCase:=1 to nCases
+            cCase:=aNames[nCase]
+            jFixture:=PresentationPageFixture(7,4)
+            jRows:=jFixture["rows"]
+            do case
+            case cCase=="hole"
+                jRows:=PresentationPageWithout(jFixture["rows"],"2")
+            case cCase=="noncanonicalKey"
+                jRows:=PresentationPageWithout(jFixture["rows"],"1")
+                jRows["01"]:=jFixture["rows"]["1"]
+            case cCase=="zeroKey"
+                jRows:=PresentationPageWithout(jFixture["rows"],"1")
+                jRows["0"]:=jFixture["rows"]["1"]
+            case cCase=="nonObjectRow"
+                jRows["4"]:="not a row"
+            case cCase=="missingColumn"
+                jRow:=PresentationPageWithout(jRows["4"],"C0004")
+                jRows["4"]:=jRow
+                jRow:=nil
+            case cCase=="extraColumn"
+                jRows["4"]["EXTRA"]:="unexpected"
+            case cCase=="lastRowNull"
+                jRows["4"]["C0004"]:=nil
+            case cCase=="lastRowInvalidUTF8"
+                jRows["4"]["C0004"]:=Chr(255)
+            case cCase=="lastRowRoundedNumber"
+                jRows["4"]["C0007"]:=1.251
+            case cCase=="lastRowInvalidDate"
+                jRows["4"]["C0006"]:="2023-02-29"
+            endcase
+            // A caller-supplied old output must never survive rejection.
+            jConverted:=JSONObject():New()
+            jConverted["stale"]:=.T.
+            lConverted:=HBBridge.Client.HBBridgePresentationSchema():ConvertPage(;
+                jFixture["header"],jFixture["schema"],jRows,@jConverted,@cCode,@cMessage)
+            jChecks["rejectPage."+cCase]:=!lConverted.and.ValType(jConverted)=="U"
+            if (!Empty(jCases[cCase]))
+                jChecks["sameFailureCode."+cCase]:=cCode==jCases[cCase]
+            endif
+            if (cCase=="lastRowNull")
+                jChecks["nullSourceIsPreserved"]:=ValType(jRows["4"]["C0004"])=="U"
+            endif
+            FreeObj(@jRows)
+            FreeObj(@jFixture)
+            FreeObj(@jConverted)
+        next nCase
+    catch xError
+        jChecks["unexpectedRuntimeFailure"]:=.F.
+        ConOut("hbBridge presentation page test failed; inspect the owned local log.")
+        if (ValType(xError)=="O")
+            FreeObj(@xError)
+        endif
+    endtry
+    FWFreeArray(@aNames)
+    FreeObj(@jFixture)
+    FreeObj(@jConverted)
+    FreeObj(@jRepeated)
+    FreeObj(@jRows)
+    FreeObj(@jRow)
+    FreeObj(@jCases)
+    aNames:=jChecks:GetNames()
+    nChecks:=Len(aNames)
+    for nCheck:=1 to nChecks
+        lOK:=jChecks[aNames[nCheck]].and.lOK
+        ConOut("hbBridge page conversion check "+aNames[nCheck]+": "+if(jChecks[aNames[nCheck]],"PASS","FAILED"))
+    next nCheck
+    ConOut("hbBridge page conversion checks: "+tlpp.ToStr(nChecks)+"; "+if(lOK,"OK","FAILED"))
+    FWFreeArray(@aNames)
+    FreeObj(@jChecks)
+
+return(if(lOK,0,1))
+
+function U_HBBridgePresentationPagePerf()
+
+    local cCode:="" as character
+    local cMessage:="" as character
+    local cOriginal:="" as character
+
+    local jFixture:=PresentationPageFixture(100,100) as json
+    local jRows as json
+    local jPage as json
+    local jSamples:=JSONObject():New() as json
+    local jSample as json
+    local jReport:=JSONObject():New() as json
+
+    local lOK:=.T. as logical
+    local lRows:=.F. as logical
+    local lPage:=.F. as logical
+    local lSame:=.F. as logical
+
+    local nRun:=0 as numeric
+    local nStage:=0 as numeric
+    local nRoute:=0 as numeric
+    local nStarted:=0 as numeric
+    local nElapsed:=0 as numeric
+    local nRowTotal:=0 as numeric
+    local nPageTotal:=0 as numeric
+    local nCompleted:=0 as numeric
+
+    local xError as variant
+
+    try
+        cOriginal:=HBBridge.Client.HBBridgeJSON():Encode(jFixture)
+        for nRun:=1 to 3
+            jSample:=JSONObject():New()
+            jSample["order"]:=if((nRun%2)==1,"row,page","page,row")
+            for nStage:=1 to 2
+                nRoute:=if((nRun%2)==1,nStage,3-nStage)
+                nStarted:=HBBridge.Client.HBBridgeTime():HBBridgeTimeMs()
+                if (nRoute==1)
+                    lRows:=PresentationPageRows(jFixture["header"],jFixture["schema"],;
+                        jFixture["rows"],100,@jRows,@cCode,@cMessage)
+                else
+                    lPage:=HBBridge.Client.HBBridgePresentationSchema():ConvertPage(;
+                        jFixture["header"],jFixture["schema"],jFixture["rows"],@jPage,@cCode,@cMessage)
+                endif
+                nElapsed:=HBBridge.Client.HBBridgeTime():HBBridgeTimeMs()-nStarted
+                if (nRoute==1)
+                    jSample["rowMs"]:=nElapsed
+                    jSample["rowSuccess"]:=lRows
+                    nRowTotal+=nElapsed
+                else
+                    jSample["pageMs"]:=nElapsed
+                    jSample["pageSuccess"]:=lPage
+                    nPageTotal+=nElapsed
+                endif
+                if (nElapsed<0)
+                    lOK:=.F.
+                endif
+            next nStage
+            // Equality is outside both timed regions. A timing improvement
+            // never substitutes for complete native value/type equivalence.
+            lSame:=PresentationPageSame(jRows,jPage,100,100)
+            jSample["identicalNativeValues"]:=lSame
+            lOK:=lRows.and.lPage.and.lSame.and.lOK
+            jSamples[tlpp.ToStr(nRun)]:=jSample
+            jSample:=nil
+            nCompleted++
+            FreeObj(@jRows)
+            FreeObj(@jPage)
+        next nRun
+        lOK:=(HBBridge.Client.HBBridgeJSON():Encode(jFixture)==cOriginal).and.lOK
+    catch xError
+        lOK:=.F.
+        if (ValType(xError)=="O")
+            FreeObj(@xError)
+        endif
+    endtry
+    jReport["schemaVersion"]:=1
+    jReport["fixture"]:="presentation.conversion.wide.v1"
+    jReport["scope"]:="conversion only; same immutable inputs and SDK; excludes fixture construction, SQL, transport, native DDL, UI and equality checks"
+    jReport["clock"]:="HBBridgeTime.TimeCounter.normalized.ms"
+    jReport["columns"]:=100
+    jReport["rows"]:=100
+    jReport["runs"]:=3
+    jReport["completedRuns"]:=nCompleted
+    jReport["success"]:=lOK
+    jReport["timingWinRequired"]:=.F.
+    jReport["rowAverageMs"]:=if(nCompleted==3,nRowTotal/3,nil)
+    jReport["pageAverageMs"]:=if(nCompleted==3,nPageTotal/3,nil)
+    jReport["rowToPageRatio"]:=nil
+    if (nCompleted==3.and.nPageTotal>0)
+        jReport["rowToPageRatio"]:=nRowTotal/nPageTotal
+    endif
+    jReport["samples"]:=jSamples
+    jSamples:=nil
+    ConOut("hbBridge page conversion measurements: "+HBBridge.Client.HBBridgeJSON():Encode(jReport))
+    ConOut("hbBridge page conversion performance: "+if(lOK,"OK","FAILED"))
+    FreeObj(@jFixture)
+    FreeObj(@jRows)
+    FreeObj(@jPage)
+    FreeObj(@jSamples)
+    FreeObj(@jSample)
+    FreeObj(@jReport)
+
+return(if(lOK,0,1))
+
+static function PresentationPageFixture(nColumns as numeric,nRows as numeric) as json
+
+    // Existing typed fixture templates cross the framework's native array
+    // enumeration boundary once; all generated records remain keyed JSON.
+    local aNames as array
+    local aColumns as array
+
+    local cColumn:="" as character
+    local cTemplate:="" as character
+    local cRow:="" as character
+    local cText:="a"+Chr(195)+Chr(167)+Chr(195)+Chr(163)+"o " as character
+
+    local jTemplateHeader:=HBBridge.Tests.HBBridgePresentationFixture():Header() as json
+    local jTemplateSchema:=HBBridge.Tests.HBBridgePresentationFixture():Schema() as json
+    local jFixture:=JSONObject():New() as json
+    local jHeader:=JSONObject():New() as json
+    local jSchema:=JSONObject():New() as json
+    local jFields:=JSONObject():New() as json
+    local jRows:=JSONObject():New() as json
+    local jRow as json
+    local jMetadata as json
+    local jLogical as json
+    local jTemplates:=JSONObject():New() as json
+
+    local lEven:=.F. as logical
+
+    local nColumn:=0 as numeric
+    local nRow:=0 as numeric
+    local nTemplate:=0 as numeric
+    local nTemplates:=0 as numeric
+
+    aNames:=jTemplateHeader:GetNames()
+    nTemplates:=Len(aNames)
+    for nColumn:=1 to nColumns
+        cColumn:="C"+StrZero(nColumn,4)
+        nTemplate:=((nColumn-1)%nTemplates)+1
+        cTemplate:=aNames[nTemplate]
+        jTemplates[cColumn]:=cTemplate
+        jMetadata:=PresentationPageCopy(jTemplateHeader[cTemplate])
+        jMetadata["position"]:=nColumn
+        jHeader[cColumn]:=jMetadata
+        jMetadata:=nil
+        jLogical:=PresentationPageCopy(jTemplateSchema["fields"][cTemplate])
+        jFields[cColumn]:=jLogical
+        jLogical:=nil
+    next nColumn
+    aColumns:=jHeader:GetNames()
+    for nRow:=1 to nRows
+        cRow:=tlpp.ToStr(nRow)
+        lEven:=(nRow%2)==0
+        jRow:=JSONObject():New()
+        for nColumn:=1 to nColumns
+            cColumn:=aColumns[nColumn]
+            cTemplate:=jTemplates[cColumn]
+            do case
+            case cTemplate=="ID_CODE"
+                jRow[cColumn]:=StrZero(nRow,10)
+            case cTemplate=="ID"
+                jRow[cColumn]:=cRow
+            case cTemplate=="AMOUNT"
+                jRow[cColumn]:=if(lEven,"123.25","-123.25")
+            case cTemplate=="TEXT"
+                jRow[cColumn]:=cText+cRow
+            case cTemplate=="FLAG"
+                jRow[cColumn]:=lEven
+            case cTemplate=="DAY"
+                jRow[cColumn]:=if(lEven,"2000-02-29","2024-02-29")
+            case cTemplate=="FLOAT"
+                jRow[cColumn]:=nRow/4
+            endcase
+        next nColumn
+        jRows[cRow]:=jRow
+        jRow:=nil
+    next nRow
+    jSchema["schemaVersion"]:=1
+    jSchema["fields"]:=jFields
+    jFixture["header"]:=jHeader
+    jFixture["schema"]:=jSchema
+    jFixture["rows"]:=jRows
+    FWFreeArray(@aNames)
+    FWFreeArray(@aColumns)
+    FreeObj(@jTemplateHeader)
+    FreeObj(@jTemplateSchema)
+    FreeObj(@jTemplates)
+
+return(jFixture)
+
+static function PresentationPageRows(jHeader as json,jSchema as json,jRows as json,nRows as numeric,jConverted as json,cCode as character,cMessage as character) as logical
+
+    local cRow:="" as character
+
+    local jPending:=JSONObject():New() as json
+    local jRow as json
+
+    local lOK:=.T. as logical
+
+    local nRow:=0 as numeric
+
+    jConverted:=nil
+    for nRow:=1 to nRows
+        cRow:=tlpp.ToStr(nRow)
+        if (!HBBridge.Client.HBBridgePresentationSchema():ConvertRow(jHeader,jSchema,jRows[cRow],;
+            @jRow,@cCode,@cMessage))
+            lOK:=.F.
+            exit
+        endif
+        jPending[cRow]:=jRow
+        jRow:=nil
+    next nRow
+    if (lOK)
+        jConverted:=jPending
+        jPending:=nil
+    endif
+    FreeObj(@jPending)
+    FreeObj(@jRow)
+
+return(lOK)
+
+static function PresentationPageSame(jLeft as json,jRight as json,nRows as numeric,nColumns as numeric) as logical
+
+    // JSONObject exposes its property names through this native array API.
+    local aNames as array
+
+    local cRow:="" as character
+    local cColumn:="" as character
+
+    local nRow:=0 as numeric
+    local nColumn:=0 as numeric
+
+    if (ValType(jLeft)!="J".or.ValType(jRight)!="J")
+        return(.F.)
+    endif
+    aNames:=jLeft:GetNames()
+    if (Len(aNames)!=nRows)
+        FWFreeArray(@aNames)
+        return(.F.)
+    endif
+    FWFreeArray(@aNames)
+    aNames:=jRight:GetNames()
+    if (Len(aNames)!=nRows)
+        FWFreeArray(@aNames)
+        return(.F.)
+    endif
+    FWFreeArray(@aNames)
+    for nRow:=1 to nRows
+        cRow:=tlpp.ToStr(nRow)
+        if (!jLeft:HasProperty(cRow).or.!jRight:HasProperty(cRow))
+            return(.F.)
+        endif
+        aNames:=jLeft[cRow]:GetNames()
+        if (Len(aNames)!=nColumns)
+            FWFreeArray(@aNames)
+            return(.F.)
+        endif
+        FWFreeArray(@aNames)
+        aNames:=jRight[cRow]:GetNames()
+        if (Len(aNames)!=nColumns)
+            FWFreeArray(@aNames)
+            return(.F.)
+        endif
+        FWFreeArray(@aNames)
+        for nColumn:=1 to nColumns
+            cColumn:="C"+StrZero(nColumn,4)
+            if (!jLeft[cRow]:HasProperty(cColumn).or.!jRight[cRow]:HasProperty(cColumn))
+                return(.F.)
+            endif
+            if (ValType(jLeft[cRow][cColumn])!=ValType(jRight[cRow][cColumn]))
+                return(.F.)
+            endif
+            if (jLeft[cRow][cColumn]!=jRight[cRow][cColumn])
+                return(.F.)
+            endif
+        next nColumn
+    next nRow
+
+return(.T.)
+
+static function PresentationPageCopy(jValue as json) as json
+
+    local jCopy:=JSONObject():New() as json
+
+    if (!HBBridge.Client.HBBridgeJSON():Parse(HBBridge.Client.HBBridgeJSON():Encode(jValue),jCopy))
+        FreeObj(@jCopy)
+    endif
+
+return(jCopy)
+
+static function PresentationPageWithout(jValue as json,cRemoved as character) as json
+
+    // JSONObject exposes its property names through this native array API.
+    local aNames:=jValue:GetNames() as array
+
+    local cName:="" as character
+
+    local jCopy:=JSONObject():New() as json
+
+    local nName:=0 as numeric
+    local nNames:=Len(aNames) as numeric
+
+    for nName:=1 to nNames
+        cName:=aNames[nName]
+        if (cName!=cRemoved)
+            jCopy[cName]:=jValue[cName]
+        endif
+    next nName
+    FWFreeArray(@aNames)
+
+return(jCopy)

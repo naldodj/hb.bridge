@@ -540,6 +540,15 @@ and Oracle require their own evidence.
 
 ### Native presentation and shared query results
 
+- [ ] Extend dictionary-backed native examples with selected fields and JOINs
+  over TCP/gzip HTTP. Define schema/source mappings per unique output alias,
+  correct SX3 origins and explicit computed fields; test one-to-many ordering/
+  totals, LEFT JOIN NULL preservation and the native destination's rejection
+  policy. Preserve caller-owned tables, branches, business predicates, bindings
+  and CASTs; no automatic SQL parser or server-side ERP inference. Generic
+  SELECT execution already accepts backend-supported projections/JOINs;
+  dedicated native-presentation acceptance remains pending. See
+  [the scope](docs/sx3-metadata.md#selected-fields-and-join-queries) and active WIP.
 - [ ] Future MEMIO result reuse: materialize once, publish immutable results
   behind authorized opaque handles and read through independent areas, with
   explicit lifetime/memory/cleanup and type-integrity acceptance. The native
