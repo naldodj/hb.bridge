@@ -29,6 +29,7 @@ Os resumos JSON mantêm identidades/contagens sanitizadas do momento da mediçã
 - [MSSQL TCP/HTTP gzip real até apresentação tipada/nativa AppServer](native.presentation.sql.windows.json).
 - [Metadados SRA/SX3, conversão por página e validação incremental de commit](sra.presentation.windows.json).
 - [Correções da revisão de apresentação, RDDs locais, índices sob demanda e mapeamento de origem](presentation.review.windows.json).
+- [Projeções selecionadas do dicionário, testes rigorosos de aliases e snapshots SQLite nativos](selected.presentation.windows.json).
 
 Essas identidades descrevem o snapshot datado, não o checkout atual. Menções
 históricas a `tmp/...` registram onde a saída foi gravada, sem garantir sua

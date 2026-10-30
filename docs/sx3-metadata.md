@@ -47,13 +47,15 @@ same projection/schema from explicit snapshots, without database or dictionary
 access. SRA and SX5 use this shared implementation; they do not maintain
 separate copies of field conversion rules.
 
-The successful result includes `alias`, `table`, `projection`, `schema`,
+The successful result includes `alias`, `table`, `projection`, `expressions`, `schema`,
 `metadata`, `fieldStatus` and included/excluded counts. Fields retain their
 original dictionary names; `schema.projectionFields` explicitly maps each
 projection to its source. Supported system fields can form the first projected
 columns even when dictionary fields are all excluded. An empty usable
 projection is a failed definition. `Build()` leaves `sql` and `orderBy` empty:
 the table-specific wrapper supplies predicates and deterministic ordering.
+`expressions` records the trusted SQL expression for each included source
+field, before its output alias, so selection reuses the same conversion rules.
 
 `HBBridgePresentationSRA():Plan(jMetadata,jColumns,cTable,cBranch)` and the
 equivalent `HBBridgePresentationSX5():Plan(...)` complete those explicit
@@ -73,10 +75,61 @@ planning methods execute no query and do not discover company/branch context.
 `RPCRDD.QueryTyped` accepts caller-supplied SELECT SQL, including explicit
 column lists and JOINs supported by the configured backend and the service's
 single-statement contract. It does not require selecting a complete table.
-The SRA/SX5 dictionary builders above currently enumerate every supported
-physical field of one table; they do not expose a caller-selected projection
-or a multi-table definition builder. Dedicated native-presentation examples
-and acceptance for those cases remain planned.
+The whole-table builders enumerate supported physical fields of one table.
+`HBBridgePresentationTable():Project(jDefinition,jSelection)` creates an
+independent selected definition from a successful, unplanned `Build()` result
+whose `sql` is still empty. This is a single selection pass: an already
+projected result is marked `selectionApplied` and cannot be projected again.
+It does not select from a completed query or build a multi-table definition.
+Explicit JOIN examples remain planned.
+
+The selection is a `JSONObject` keyed by output alias. Each entry contains
+exactly `source` and `position`; positions must be unique contiguous integers
+from 1 through the number of selected fields. Identifiers are validated,
+output aliases must be unique without case distinctions, and every source
+must be an included, supported field of the original definition. An empty
+selection, unknown/unsupported source or malformed entry fails the complete
+selection. No field or system column is inserted automatically, and entries
+cannot contain arbitrary SQL expressions.
+
+```advpl
+jSelection := JSONObject():New()
+jSelection["REGISTRATION"] := {"source":"RA_MAT","position":1}
+jSelection["NAME"] := {"source":"RA_NOME","position":2}
+jSelection["AMOUNT"] := {"source":"RA_SALARIO","position":3}
+jSelection["ADMISSION_DATE"] := {"source":"RA_ADMISSA","position":4}
+jSelection["RECORD_ID"] := {"source":"R_E_C_N_O_","position":5}
+jDefinition := HBBridge.Examples.HBBridgePresentationSRA():Definition(jSelection)
+```
+
+The selected schema contains only the output aliases, in the requested SQL
+projection order, with `schema.projectionFields["AMOUNT"] == "RA_SALARIO"`.
+Dictionary type, caption, picture and numeric CAST remain those of the source;
+the record-number expression retains its BIGINT conversion. The complete
+metadata inventory remains available. `fieldStatus` remains keyed by source,
+and supported fields omitted from the selection receive `notSelected`.
+The input definition, selection and metadata are not mutated or borrowed by
+the result. Sources cannot repeat in this bounded native-presentation path:
+MsMGet deliberately uses the original dictionary name in `aFields` and `M->`
+to retain dictionary-specific behavior.
+
+SRA `Definition(jSelection)` and
+`Plan(jMetadata,jColumns,cTable,cBranch,jSelection)` accept this optional
+selection. With no selection, the all-supported-fields behavior is unchanged.
+The wrapper validates its mandatory source/predicate fields before selection,
+even when branch/deletion fields are omitted from the output. A selected SRA
+definition must include `R_E_C_N_O_` under any valid alias; ordering uses that
+output alias as the unique key, for example `RECORD_ID ASC`. Search and filter
+names also come from output aliases. The branch and undeleted predicates stay
+bound to the original physical fields.
+
+The [2026-10-30 isolated validation](validation/selected.presentation.windows.json)
+compiled 78 sources and passed 730 checks across ten suites, including 142
+SRA planning/selection/native SQLite checks. A controlled typed result was
+loaded into actual local native storage. Separate manual visual acceptance
+was confirmed on 2026-10-30; see the [reported scope](acceptance.md#selected-sra-visual-acceptance-on-2026-10-30).
+That report supplies no per-transport logs or compiled source identities and
+does not extend automated backend/platform coverage.
 
 For a restricted or joined result, Protheus must supply one logical-schema
 entry per output alias, with unique output names and explicit positions. Read
@@ -99,6 +152,13 @@ in the caller. Table/branch resolution, JOIN predicates, deleted-row policy,
 bindings and dictionary-based CASTs also remain Protheus responsibilities.
 No automatic SQL parser or server-side dictionary inference is added.
 
+SX9 can provide relationship candidates alongside these per-field SX3
+definitions. Inspect both domain and counter-domain directions; the local
+SRA/CTT relation is stored as CTT to SRA. See the [SX9 analysis](sx9-relationships.md)
+for the observed SRA/SRB and CTT/SRA expression pairs, sharing considerations
+and the proposed read-only Protheus snapshot. It does not yet implement a
+JOIN generator or evaluate arbitrary dictionary expressions.
+
 ## SRA native browse
 
 Run inside an already prepared Protheus company/branch context, with a matching
@@ -107,13 +167,24 @@ hbBridge SQL profile and existing client endpoint/authentication settings:
 ```advpl
 U_HBBridgeNativeBrowseSRA("MSSQL/pData","TCP",100)
 U_HBBridgeNativeBrowseSRA("MSSQL/pData","HTTP",100)
+U_HBBridgeNativeBrowseSRASelected("MSSQL/pData","TCP",100)
+U_HBBridgeNativeBrowseSRASelected("MSSQL/pData","HTTP",100)
 ```
 
-Defaults are TCP and 100 rows per page. An omitted SQL profile uses
+Defaults are TCP and 13 rows per page; the calls above explicitly request
+100. An omitted SQL profile uses
 `[hbBridge] SQLProfile` in the active AppServer INI, without a demo fallback.
 HTTP requires gzip. The example reuses the same local native browse as SX5,
 with explicit paging, search, typed filters and View; no generic public browse
 API is introduced.
+
+`U_HBBridgeNativeBrowseSRASelected([cProfile],[cTransport],[nPageSize],[jSelection])`
+uses `HBBridgePresentationSRA():SelectedFields()` when the selection is omitted.
+That sample selects registration, name, salary, admission date and record
+number under the five aliases shown above. A caller selection replaces the
+sample. It reuses the same native browse, projected-field search/filter and
+current-record View; HTTP still requires gzip. Compile the maintained examples
+into the interactive test RPO before running them.
 
 `HBBridge.Examples.HBBridgePresentationSRA():Definition()` uses the shared
 definition builder to combine the metadata snapshot with the physical catalog from
@@ -163,6 +234,14 @@ remains distinct in the typed result/dataset; the native adapter still rejects
 it under its explicit presentation policy.
 
 ## Validation scope
+
+Selected-field planning and native-storage regression are separate from
+live-dictionary/UI acceptance. Deterministic fixtures can check projection
+order, aliases/source identity, CASTs, defensive ownership, mandatory source
+validation and failure cases without reading employee values. Actual SRA
+acceptance still requires the selected browse over TCP and gzip HTTP, with
+paging, search/filter, captions, accents, date/amount values and View. Earlier
+all-field SRA/SX5 observations do not establish acceptance of this selection.
 
 Run `U_HBBridgeSX3Browse("SRA")` (default alias: SRA) to inspect the dictionary
 fields for a table without opening its SQL data browse. This uses the same

@@ -6,32 +6,56 @@ namespace HBBridge.Examples
 // ERP-specific query construction stays in this Protheus example. Neither
 // the generic SQL executor nor the native table discovers business metadata.
 class HBBridgePresentationSRA
-    static method Definition() as json
-    static method Plan(jMetadata as json,jColumns as json,cTable as character,cBranch as character) as json
+    static method Definition(jSelection as json) as json
+    static method Plan(jMetadata as json,jColumns as json,cTable as character,cBranch as character,jSelection as json) as json
+    static method SelectedFields() as json
 endclass
 
-static method Definition() class HBBridgePresentationSRA
+static method Definition(jSelection) class HBBridgePresentationSRA
 
     local jDefinition:=HBBridge.Client.HBBridgePresentationTable():Definition("SRA") as json
 
     if (ValType(jDefinition)=="J".and.jDefinition["success"]==.T.)
-        jDefinition:=PresentationSRAQuery(jDefinition,xFilial("SRA"))
+        jDefinition:=PresentationSRAQuery(jDefinition,xFilial("SRA"),jSelection)
     endif
 
 return(jDefinition)
 
 // Deterministic planning uses the same builder and query completion as Definition.
-static method Plan(jMetadata,jColumns,cTable,cBranch) class HBBridgePresentationSRA
+static method Plan(jMetadata,jColumns,cTable,cBranch,jSelection) class HBBridgePresentationSRA
 
     local jDefinition:=HBBridge.Client.HBBridgePresentationTable():Build(jMetadata,jColumns,"SRA",cTable) as json
 
-return(PresentationSRAQuery(jDefinition,cBranch))
+return(PresentationSRAQuery(jDefinition,cBranch,jSelection))
 
-static function PresentationSRAQuery(jDefinition as json,cBranch as character) as json
+// Every invocation returns caller-owned choices, not a shared mutable preset.
+static method SelectedFields() class HBBridgePresentationSRA
+
+    local jSelection:=JSONObject():New() as json
+
+    jSelection["REGISTRATION"]:={"source":"RA_MAT","position":1}
+    jSelection["NAME"]:={"source":"RA_NOME","position":2}
+    jSelection["AMOUNT"]:={"source":"RA_SALARIO","position":3}
+    jSelection["ADMISSION_DATE"]:={"source":"RA_ADMISSA","position":4}
+    jSelection["RECORD_ID"]:={"source":"R_E_C_N_O_","position":5}
+
+return(jSelection)
+
+static function PresentationSRAQuery(jDefinition as json,cBranch as character,jSelection as json) as json
+
+    local aNames as array
+
+    local cRecord:="" as character
+    local cOutput:="" as character
 
     local jFields as json
+    local jSelected as json
 
     local lValid:=.F. as logical
+    local lSelected:=ValType(jSelection)!="U" as logical
+
+    local nField:=0 as numeric
+    local nFields:=0 as numeric
 
     if (ValType(jDefinition)!="J")
         return(jDefinition)
@@ -56,6 +80,31 @@ static function PresentationSRAQuery(jDefinition as json,cBranch as character) a
         endif
     endif
     if (lValid)
+        // Validate physical predicates against the complete definition first.
+        // They need not appear among the fields returned to the client.
+        if (lSelected)
+            jSelected:=HBBridge.Client.HBBridgePresentationTable():Project(jDefinition,jSelection)
+            jFields:=nil
+            FreeObj(@jDefinition)
+            jDefinition:=jSelected
+            jSelected:=nil
+            if (jDefinition["success"]!=.T.)
+                return(jDefinition)
+            endif
+            aNames:=jDefinition["schema"]["projectionFields"]:GetNames()
+            nFields:=Len(aNames)
+            for nField:=1 to nFields
+                cOutput:=aNames[nField]
+                if (jDefinition["schema"]["projectionFields"][cOutput]=="R_E_C_N_O_")
+                    cRecord:=cOutput
+                    exit
+                endif
+            next nField
+            FWFreeArray(@aNames)
+            lValid:=!Empty(cRecord)
+        endif
+    endif
+    if (lValid)
         jDefinition["bindings"]["1"]:={"type":"text","isNull":.F.,"value":" "}
         jDefinition["bindings"]["2"]:={"type":"text","isNull":.F.,"value":cBranch}
         beginContent var jDefinition["sql"]
@@ -69,11 +118,11 @@ static function PresentationSRAQuery(jDefinition as json,cBranch as character) a
             {"@@TABLE@@",jDefinition["table"]},;
             {"@@ALIAS@@",jDefinition["alias"]};
         )
-        jDefinition["orderBy"]:="RA_FILIAL ASC,RA_MAT ASC,R_E_C_N_O_ ASC"
+        jDefinition["orderBy"]:=if(lSelected,cRecord+" ASC","RA_FILIAL ASC,RA_MAT ASC,R_E_C_N_O_ ASC")
     else
         jDefinition["success"]:=.F.
         jDefinition["code"]:="INVALID_SRA_DEFINITION"
-        jDefinition["message"]:="The SRA query requires valid branch, registration, deleted and record fields."
+        jDefinition["message"]:="The SRA query requires valid branch, registration, deleted and record fields; a selection must include the record identity."
     endif
 
 return(jDefinition)

@@ -2,6 +2,43 @@
 
 [Português](README.pt-BR.md)
 
+## Wiki portal
+
+The root READMEs present the project and first run. Technical guides stay in
+`docs/`, versioned with the implementation. The two documentation indexes are
+the authored source of the Wiki navigation; do not maintain guide copies there.
+
+```powershell
+pwsh ./scripts/prepare-wiki.ps1
+```
+
+This deterministic local generator writes `Home.md`, `Home.pt-BR.md`,
+`_Sidebar.md` and `_Footer.md` to disposable `out/wiki`. Relative guide links
+become repository links, retaining fragments; language links select the Wiki
+home page for that language. `-OutputDirectory out/wiki-preview` selects another
+preview location under `out/`. No repository is cloned, committed or published.
+
+Before publishing, commit/publish the referenced guides to `main` and pass
+`scripts/check-doc-links.ps1` and all three `scripts/commit-check.ps1` gates.
+The Wiki has its own Git repository. Enable it in repository settings and,
+for the first publication, create its initial page in the GitHub UI as described
+in the [GitHub instructions](https://docs.github.com/en/communities/documenting-your-project-with-wikis/adding-or-editing-wiki-pages).
+After initialization, use a fresh Wiki checkout and copy only the generated
+four pages into it:
+
+```powershell
+git clone https://github.com/naldodj/hb.bridge.wiki.git out/wiki-repository
+Copy-Item -LiteralPath out/wiki/Home.md,out/wiki/Home.pt-BR.md,out/wiki/_Sidebar.md,out/wiki/_Footer.md -Destination out/wiki-repository
+git -C out/wiki-repository diff --check
+git -C out/wiki-repository add -- Home.md Home.pt-BR.md _Sidebar.md _Footer.md
+git -C out/wiki-repository commit -m "Refresh hbBridge documentation navigation"
+git -C out/wiki-repository push origin HEAD
+```
+
+Use an unused checkout path for each reproduction. Keep existing unrelated
+Wiki pages. Edit the versioned indexes/guides for subsequent updates and
+regenerate; no personal token or additional CI secret is required by the generator.
+
 ## Isolated native Protheus presentation
 
 `test-protheus-presentation.ps1` receives explicit `-AppServerDirectory`,

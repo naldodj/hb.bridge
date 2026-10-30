@@ -176,6 +176,65 @@ negotiated codecs/compression, types/session resources and persistence/pools.
 Gzip remains mandatory until both peers implement negotiation.
 Removing application ceilings does not implement block transfers.
 
+### Planned negotiation and versioned envelopes
+
+The following design remains future work. It does not change the active
+`HBBRIDGE/1` contract above. Service semantics stay shared: native Harbour
+values over NETIO and an interoperable representation over the Protheus
+adapter. Transport versions and service versions are distinct.
+
+Start a future Protheus connection with a small capability exchange using a
+known uncompressed frame. Select version, codec, compression, block size and
+transfer modes. Harbour service discovery follows NETIO's native handshake.
+Peers advertise capacities they can enforce; unknown effective AppServer
+limits require an explicitly accepted installation profile.
+
+| Envelope element | Required semantics |
+| --- | --- |
+| Call | ID, service/version, parameters, authorized context and execution deadline. |
+| Response | Correlation, success/result/metadata and an error with code, origin and retry semantics. |
+| Types | Explicit null/empty, logical, integer, decimal/currency, date/timestamp, text, binary and container conversions between runtimes. |
+| Text and numbers | Encoding, byte count, precision and timezone/date rules. |
+| Remote resources | Owned session/cursor/stream/job IDs, expiry, closure and cooperative cancellation. |
+| Compatibility | Versioned service/dataset behavior and identifiable incompatibility errors. |
+
+Future outer framing identifies each block's call, version, codec/compression,
+wire length and expanded length. Specify and test the exact format with both
+peers before implementation; `Receive` boundaries are not message boundaries.
+A call ID alone does not make retry safe: mutations require idempotency or
+lookup of a previous result. Persistence, context ownership and optional TLS/
+JWT transports are discussed in [the transport review](transports-sessions-security.md).
+
+### Planned logical volume and compression
+
+Separate three concerns: technical peer/API capacities, configurable
+connection/process budgets and total logical operation volume. Pages, blocks
+and streams can exceed an individual string/message capacity, while each
+expanded block and the number of in-flight blocks must fit accepted memory
+budgets. Flow control, deadlines and explicit resource closure are required.
+
+AppServer [MAXSTRINGSIZE](https://tdn.totvs.com/pages/viewpage.action?pageId=161349793)
+depends on build/configuration. Account for expanded content, JSON/base64,
+temporary buffers and copies. Concatenating all received blocks into one TLPP
+string still reaches that limit. A large field/file instead needs incremental
+consumption, a file sink or an owned remote resource. Services requiring a
+single materialized value must declare that requirement and fail clearly when
+the peer cannot receive it.
+
+Negotiate `none`/`gzip`, with optional automatic selection based on measured
+size, compression gain, CPU and latency. Small or already compressed content
+may stay uncompressed. Each gzip block must be an independent unit that fits
+the client's capacities; validate empty/binary content and distinguish gzip
+from zlib/raw DEFLATE. No threshold or automatic policy is established by this
+proposal.
+
+Declared expanded length does not impose an allocation bound on a decompressor.
+Validate actual expansion/memory; APIs without bounded expansion may require
+trusted blocks or `none` under the accepted connection policy. Native NETIO
+keeps its own connection compression without Protheus frame headers. Evaluate
+`HB_SERIALIZE_COMPRESS` separately to avoid duplicate compression. Compare
+local/remote traffic, JSON/binary content and different compression ratios.
+
 Primary references:
 [Receive](https://tdn.totvs.com/display/tec/TSocketClient%3AReceive),
 [Send](https://tdn.totvs.com/display/tec/TSocketClient%3ASend),

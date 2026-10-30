@@ -263,6 +263,75 @@ nem lê o dicionário ativo; os exemplos interativos exercitam essa integração
 separada. Os wrappers devolvem definição inválida antes de executar SQL quando
 esses requisitos não são atendidos. Veja o [contrato da definição compartilhada](../../../../../docs/sx3-metadata.pt-BR.md#definição-compartilhada-de-apresentação).
 
+A mesma suíte passa uma fixture tipada selecionada com cinco colunas pelo
+dataset real e pelo destino próprio `SQLITE_MEM`. Verifica ordem de saída,
+valores nativos decimal/data/lógico, decodificação UTF-8, nomes originais do
+dicionário e limpeza sem fechar o dataset emprestado. Aliases inválidos como
+`VALUE;DROP`, `[VALUE]` e chave vazia são atribuídos por indexação em
+`JSONObject`: literais JSON TLPP não representam essas chaves. A rejeição é
+obrigatória, sem fallback para alias válido nem aprovação incondicional.
+
+## Campos específicos do dicionário SRA
+
+O exemplo de campos selecionados lê dados reais da SRA no mesmo browse nativo:
+
+```advpl
+U_HBBridgeNativeBrowseSRASelected("MSSQL/pData","TCP",100)
+U_HBBridgeNativeBrowseSRASelected("MSSQL/pData","HTTP",100)
+```
+
+O quarto argumento omitido usa `HBBridgePresentationSRA():SelectedFields()`:
+`REGISTRATION` de `RA_MAT`, `NAME` de `RA_NOME`, `AMOUNT` de `RA_SALARIO`,
+`ADMISSION_DATE` de `RA_ADMISSA` e `RECORD_ID` de `R_E_C_N_O_`, nessa ordem.
+Perfil, empresa/filial preparada, endpoints e requisito de gzip no HTTP são
+os mesmos do exemplo SRA com tabela inteira. Essa entrada não consulta a
+fixture sintética nem altera o comportamento sem seleção da entrada SRA
+existente.
+
+O chamador pode fornecer seu `JSONObject` indexado como quarto argumento:
+
+```advpl
+jSelection := JSONObject():New()
+jSelection["NAME"] := {"source":"RA_NOME","position":1}
+jSelection["AMOUNT"] := {"source":"RA_SALARIO","position":2}
+jSelection["RECORD_ID"] := {"source":"R_E_C_N_O_","position":3}
+U_HBBridgeNativeBrowseSRASelected("MSSQL/pData","TCP",100,jSelection)
+```
+
+`HBBridgePresentationSRA():Definition(jSelection)` e seu método determinístico
+`Plan(...,jSelection)` validam primeiro os campos obrigatórios de origem e a
+filial e depois usam `HBBridgePresentationTable():Project(jDefinition,jSelection)`
+na definição compartilhada ainda não planejada. Aliases de saída são
+explícitos; pesquisa/filtro e chaves do esquema usam esses aliases. Legendas,
+pictures e CASTs vêm da origem no dicionário, registrada em
+`schema.projectionFields`. View conserva o nome original do dicionário em
+MsMGet e suas variáveis de memória.
+
+Cada entrada deve conter exatamente `source` e `position`, com posições
+inteiras únicas e contíguas, identificadores válidos e aliases de saída únicos
+sem distinção de maiúsculas/minúsculas. Origens repetidas são rejeitadas para
+evitar identidades conflitantes do dicionário em MsMGet. Campo solicitado
+ausente/não suportado ou seleção vazia/malformada falha por completo. Não acrescenta
+expressão SQL arbitrária nem campo de sistema automaticamente. A SRA exige a
+origem do número de registro com um alias selecionado para ordenar de forma
+determinística, por exemplo `RECORD_ID ASC`; predicados de filial/exclusão
+permanecem vinculados mesmo quando esses campos não são exibidos.
+
+O resultado retém o catálogo/inventário completo de metadados; origens
+suportadas não selecionadas recebem motivo `notSelected`. Entradas e snapshots
+do resultado selecionado têm posse independente. `Project()` aceita um
+resultado válido de `Build()` antes do planejamento SQL, não uma consulta já
+planejada ou definição já projetada. Veja o [contrato da seleção](../../../../../docs/sx3-metadata.pt-BR.md#campos-específicos-e-consultas-com-join).
+A API continua limitada a uma tabela; exemplos explícitos com JOIN permanecem
+planejados.
+
+Checks isolados de planejamento/armazenamento exercitam aliases, ordem,
+conversão e posse com fixtures controladas. Não comprovam aceite do dicionário
+ativo ou da interface. Executar os dois transportes no ambiente SRA preparado
+e conferir paginação, pesquisa/filtro por campo projetado, legendas, acentos,
+valores de data/salário e View; observações anteriores da tabela inteira não
+substituem esse aceite.
+
 ## Validação registrada
 
 A saída manual do AppServer fornecida em **2026-10-26** registrou **50/50
@@ -306,6 +375,14 @@ as alterações posteriores de RDD local/índices sob demanda. O [manifesto da r
 registra compilação atual de 78 fontes e 654 checks isolados, incluindo RDDs
 locais 100, mapeamento 36, planejamento SRA/SX5 66, TOPCONN/FWBulk 122 e
 callbacks do browse 74. A identidade final das variáveis do dicionário em
-MsMGet compilou separadamente; o desdobramento atual das asserções SRA passou
-novamente nos 66 checks. O aceite mais amplo com dicionário ativo/interface
-permanece separado.
+MsMGet compilou separadamente; o desdobramento das asserções SRA daquela
+revisão passou novamente nos 66 checks. O
+[manifesto de projeções selecionadas de 2026-10-30](../../../../../docs/validation/selected.presentation.windows.json)
+registra 78 fontes compilados e 730 checks de dez suítes, incluindo 142 de
+planejamento/seleção/SQLite nativo SRA. As três fixtures de aliases inválidos
+preservam as chaves reais e exigem rejeição. Definições e seleções de entrada
+permanecem inalteradas, incluindo propriedades opcionais ausentes. O aceite
+visual da SRA selecionada foi confirmado separadamente em 2026-10-30; veja o
+[escopo informado](../../../../../docs/acceptance.pt-BR.md#validação-visual-sra-selecionada-em-2026-10-30).
+O relato não informa logs por transporte ou identidades compiladas e não
+amplia a cobertura automatizada de backends/plataformas.

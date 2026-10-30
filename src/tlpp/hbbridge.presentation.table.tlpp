@@ -9,6 +9,7 @@ namespace HBBridge.Client
 class HBBridgePresentationTable
     static method Definition(cAlias as character) as json
     static method Build(jMetadata as json,jColumns as json,cAlias as character,cTable as character) as json
+    static method Project(jDefinition as json,jSelection as json) as json
 endclass
 
 static method Definition(cAlias) class HBBridgePresentationTable
@@ -61,6 +62,7 @@ static method Build(jMetadata,jColumns,cAlias,cTable) class HBBridgePresentation
     local jStatus:=JSONObject():New() as json
     local jSchema:=JSONObject():New() as json
     local jBindings:=JSONObject():New() as json
+    local jExpressions:=JSONObject():New() as json
     local jField as json
     local jLogical as json
     local jProjectionFields as json
@@ -122,6 +124,7 @@ static method Build(jMetadata,jColumns,cAlias,cTable) class HBBridgePresentation
             jLogical:=TableFieldDefinition(cAlias,cField,jField,jColumns,@cExpression,@cReason)
             if (ValType(jLogical)=="J")
                 jFields[cField]:=jLogical
+                jExpressions[cField]:=cExpression
                 jProjectionFields[cField]:=cField
                 jLogical:=nil
                 jStatus[cField]:={"status":"included","reason":""}
@@ -162,6 +165,7 @@ static method Build(jMetadata,jColumns,cAlias,cTable) class HBBridgePresentation
                         cExpression:="CAST("+cAlias+".["+cField+"] AS BIGINT)"
                     endif
                     jFields[cField]:=jLogical
+                    jExpressions[cField]:=cExpression
                     jProjectionFields[cField]:=cField
                     jLogical:=nil
                     jStatus[cField]:={"status":"included","reason":"system"}
@@ -199,6 +203,8 @@ static method Build(jMetadata,jColumns,cAlias,cTable) class HBBridgePresentation
         jResult["alias"]:=cAlias
         jResult["table"]:=cTable
         jResult["projection"]:=cProjection
+        jResult["expressions"]:=jExpressions
+        jExpressions:=nil
         jResult["sql"]:=""
         jResult["orderBy"]:=""
         jResult["success"]:=.T.
@@ -212,6 +218,180 @@ static method Build(jMetadata,jColumns,cAlias,cTable) class HBBridgePresentation
     FreeObj(@jBindings)
     FreeObj(@jLogical)
     FreeObj(@jProjectionFields)
+    FreeObj(@jExpressions)
+
+return(jResult)
+
+// Select from a successful unplanned definition, never by parsing SQL text.
+// Output positions are explicit; dictionary origins remain unique for MsMGet.
+static method Project(jDefinition,jSelection) class HBBridgePresentationTable
+
+    // JSONObject enumeration is a required native array boundary.
+    local aNames as array
+    local aMembers as array
+
+    local cAlias:="" as character
+    local cOutput:="" as character
+    local cSource:="" as character
+    local cKey:="" as character
+    local cProjection:="" as character
+
+    local jResult as json
+    local jEntry as json
+    local jFields:=JSONObject():New() as json
+    local jMap:=JSONObject():New() as json
+    local jExpressions:=JSONObject():New() as json
+    local jPositions:=JSONObject():New() as json
+    local jOutputs:=JSONObject():New() as json
+    local jSources:=JSONObject():New() as json
+    local jSchema as json
+    local jStatus as json
+    local jMetadata as json
+
+    local lValid:=.F. as logical
+
+    local nField:=0 as numeric
+    local nFields:=0 as numeric
+    local nPosition:=0 as numeric
+    local nSelected:=0 as numeric
+
+    if (ValType(jDefinition)=="J")
+        if (ValType(jDefinition["alias"])=="C")
+            cAlias:=jDefinition["alias"]
+        endif
+    endif
+    jResult:=TableDefinitionFailure(cAlias,"Supply a nonempty selection of available fields with unique aliases, origins and positions.")
+    jResult["code"]:="INVALID_FIELD_SELECTION"
+    if (ValType(jDefinition)=="J".and.ValType(jSelection)=="J")
+        if (jDefinition["success"]==.T..and.jDefinition["sql"]=="".and.;
+            !jDefinition:HasProperty("selectionApplied").and.;
+            ValType(jDefinition["schema"])=="J".and.;
+            ValType(jDefinition["expressions"])=="J".and.;
+            ValType(jDefinition["fieldStatus"])=="J".and.;
+            ValType(jDefinition["metadata"])=="J")
+            lValid:=ValType(jDefinition["schema"]["fields"])=="J".and.;
+                Left(HBBridgeJSON():Encode(jSelection),1)=="{"
+        endif
+    endif
+    if (lValid)
+        aNames:=jSelection:GetNames()
+        nFields:=Len(aNames)
+        nSelected:=nFields
+        lValid:=nFields>0
+        for nField:=1 to nFields
+            cOutput:=aNames[nField]
+            cKey:=Upper(cOutput)
+            if (!Identifier(cOutput).or.jOutputs:HasProperty(cKey))
+                lValid:=.F.
+                exit
+            endif
+            jEntry:=jSelection[cOutput]
+            if (ValType(jEntry)!="J")
+                lValid:=.F.
+                exit
+            endif
+            aMembers:=jEntry:GetNames()
+            lValid:=Len(aMembers)==2.and.jEntry:HasProperty("source").and.;
+                jEntry:HasProperty("position")
+            FWFreeArray(@aMembers)
+            if (!lValid)
+                exit
+            endif
+            if (ValType(jEntry["source"])!="C".or.ValType(jEntry["position"])!="N")
+                lValid:=.F.
+                exit
+            endif
+            cSource:=jEntry["source"]
+            nPosition:=jEntry["position"]
+            if (!Identifier(cSource).or.nPosition<1.or.nPosition>nFields.or.;
+                nPosition!=Int(nPosition).or.jSources:HasProperty(Upper(cSource)))
+                lValid:=.F.
+                exit
+            endif
+            cKey:=tlpp.ToStr(nPosition)
+            if (jPositions:HasProperty(cKey).or.;
+                !jDefinition["schema"]["fields"]:HasProperty(cSource).or.;
+                !jDefinition["expressions"]:HasProperty(cSource))
+                lValid:=.F.
+                exit
+            endif
+            if (ValType(jDefinition["expressions"][cSource])!="C")
+                lValid:=.F.
+                exit
+            endif
+            jPositions[cKey]:=cOutput
+            jOutputs[Upper(cOutput)]:=.T.
+            jSources[Upper(cSource)]:=.T.
+        next nField
+        FWFreeArray(@aNames)
+    endif
+    if (lValid)
+        for nField:=1 to nFields
+            cOutput:=jPositions[tlpp.ToStr(nField)]
+            cSource:=jSelection[cOutput]["source"]
+            jFields[cOutput]:=TableCopy(jDefinition["schema"]["fields"][cSource])
+            if (ValType(jFields[cOutput])!="J")
+                lValid:=.F.
+                exit
+            endif
+            jMap[cOutput]:=cSource
+            jExpressions[cOutput]:=jDefinition["expressions"][cSource]
+            if (!Empty(cProjection))
+                cProjection+=", "
+            endif
+            cProjection+=jExpressions[cOutput]+" AS ["+cOutput+"]"
+        next nField
+    endif
+    if (lValid)
+        jMetadata:=TableCopy(jDefinition["metadata"])
+        jStatus:=TableCopy(jDefinition["fieldStatus"])
+        lValid:=ValType(jMetadata)=="J".and.ValType(jStatus)=="J"
+    endif
+    if (lValid)
+        aNames:=jStatus:GetNames()
+        nFields:=Len(aNames)
+        for nField:=1 to nFields
+            cSource:=aNames[nField]
+            if (jStatus[cSource]["status"]=="included".and.;
+                !jSources:HasProperty(Upper(cSource)))
+                jStatus[cSource]["status"]:="excluded"
+                jStatus[cSource]["reason"]:="notSelected"
+            endif
+        next nField
+        FWFreeArray(@aNames)
+        jSchema:={"schemaVersion":1,"fields":jFields,"projectionFields":jMap}
+        jFields:=nil
+        jMap:=nil
+        jResult["schema"]:=jSchema
+        jSchema:=nil
+        jResult["metadata"]:=jMetadata
+        jMetadata:=nil
+        jResult["fieldStatus"]:=jStatus
+        jStatus:=nil
+        jResult["expressions"]:=jExpressions
+        jExpressions:=nil
+        jResult["alias"]:=cAlias
+        jResult["table"]:=jDefinition["table"]
+        jResult["projection"]:=cProjection
+        jResult["includedCount"]:=nSelected
+        jResult["excludedCount"]:=jDefinition["includedCount"]+jDefinition["excludedCount"]-nSelected
+        jResult["selectionApplied"]:=.T.
+        jResult["bindings"]:=JSONObject():New()
+        jResult["orderBy"]:=""
+        jResult["success"]:=.T.
+        jResult["code"]:=""
+        jResult["message"]:=""
+    endif
+    // jEntry is borrowed from the caller; never free that reference.
+    FreeObj(@jFields)
+    FreeObj(@jMap)
+    FreeObj(@jExpressions)
+    FreeObj(@jPositions)
+    FreeObj(@jOutputs)
+    FreeObj(@jSources)
+    FreeObj(@jSchema)
+    FreeObj(@jStatus)
+    FreeObj(@jMetadata)
 
 return(jResult)
 

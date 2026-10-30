@@ -2,6 +2,46 @@
 
 [English](README.md)
 
+## Portal Wiki
+
+Os READMEs principais apresentam o projeto e a primeira execução. Os guias
+técnicos permanecem em `docs/`, versionados com a implementação. Os dois
+índices da documentação são a fonte mantida da navegação Wiki; não manter
+cópias independentes dos guias ali.
+
+```powershell
+pwsh ./scripts/prepare-wiki.ps1
+```
+
+O gerador local determinístico escreve `Home.md`, `Home.pt-BR.md`, `_Sidebar.md`
+e `_Footer.md` em `out/wiki` descartável. Links relativos dos guias viram links
+do repositório, preservando fragmentos; os de idioma escolhem a página inicial
+Wiki correspondente. `-OutputDirectory out/wiki-preview` escolhe outro local
+de prévia sob `out/`. Não clona, commita nem publica repositórios.
+
+Antes de publicar, commitar/publicar os guias referenciados em `main` e passar
+por `scripts/check-doc-links.ps1` e pelos três crivos de
+`scripts/commit-check.ps1`. A Wiki tem repositório Git próprio. Habilitá-la nas
+configurações do repositório e, na primeira publicação, criar a página inicial
+pela interface GitHub, conforme as
+[instruções oficiais](https://docs.github.com/en/communities/documenting-your-project-with-wikis/adding-or-editing-wiki-pages).
+Após inicializar, usar checkout novo da Wiki e copiar somente as quatro páginas
+geradas para ele:
+
+```powershell
+git clone https://github.com/naldodj/hb.bridge.wiki.git out/wiki-repository
+Copy-Item -LiteralPath out/wiki/Home.md,out/wiki/Home.pt-BR.md,out/wiki/_Sidebar.md,out/wiki/_Footer.md -Destination out/wiki-repository
+git -C out/wiki-repository diff --check
+git -C out/wiki-repository add -- Home.md Home.pt-BR.md _Sidebar.md _Footer.md
+git -C out/wiki-repository commit -m "Refresh hbBridge documentation navigation"
+git -C out/wiki-repository push origin HEAD
+```
+
+Usar caminho de checkout ainda não utilizado em cada reprodução. Preservar
+páginas Wiki existentes não relacionadas. Nas atualizações, editar índices/
+guias versionados e gerar novamente; o gerador não exige token pessoal nem
+segredo adicional de CI.
+
 ## Apresentação nativa Protheus isolada
 
 `test-protheus-presentation.ps1` recebe pré-requisitos explícitos por

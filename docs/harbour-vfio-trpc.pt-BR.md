@@ -128,4 +128,4 @@ NETIO, comparando bytes binários. A fachada de arquivos TLPP, recursos por
 sessão e homologação dos RDDs/DBF permanecem no marco 3.
 
 As entregas e os critérios de aceite estão no [TODO](../TODO.pt-BR.md); a arquitetura
-geral permanece no [README](../README.pt-BR.md).
+geral permanece no [guia de arquitetura](architecture.pt-BR.md).

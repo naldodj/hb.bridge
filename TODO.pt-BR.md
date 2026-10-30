@@ -156,7 +156,7 @@ o desenvolvimento do HBDAP não bloqueia essa primeira entrega.
 
 ## Marco 0 — organizar produto, launcher de exemplo e regressões
 
-A [estrutura atual](README.pt-BR.md#estrutura-atual) materializa a organização prevista.
+A [estrutura atual](docs/reorganization.pt-BR.md#mapa-de-responsabilidades) materializa a organização prevista.
 A reorganização preservou o comportamento da revisão de referência; sua
 validação histórica está registrada separadamente da evolução do produto.
 O [registro da mudança](docs/reorganization.pt-BR.md) contém o mapa de
@@ -210,7 +210,7 @@ marco 1 foram exercitadas no AppServer em 2026-10-03; resultado na [matriz](docs
 
 ## Depuração — frente transversal do produto
 
-A [estratégia de depuração](README.pt-BR.md#depuração-hbdebug-primeiro-hbdap-como-evolução)
+A [estratégia de depuração](docs/debugging.pt-BR.md)
 usa os mesmos fontes e serviços do produto. `hbdebug` existe no Harbour, mas
 o build/loader atuais ainda não habilitam o perfil descrito abaixo.
 

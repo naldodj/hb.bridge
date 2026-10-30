@@ -6,8 +6,8 @@ O [cliente HTTP](../../src/tlpp/hbbridge.http.client.tlpp) disponibiliza
 `HBBridge.Client.HBBridgeHTTPClient` usando o `FWRest` nativo do Protheus.
 O [teste Protheus](../../src/tlpp/tests/protheus/hbbridge.http.test/hbbridge.http.test.tlpp)
 exercita os mesmos serviços hbBridge usados pelo Harbour e pelo cliente TCP.
-HTTP usa JSON UTF-8 e autenticação bearer; não usa o frame TCP
-`HBBRIDGE/1` nem gzip. Consulte [o contrato HTTP](../../docs/http.pt-BR.md).
+HTTP usa JSON UTF-8, autenticação bearer e respostas gzip negociadas.
+Não usa o frame TCP `HBBRIDGE/1`. Consulte [o contrato HTTP](../../docs/http.pt-BR.md).
 
 ## Configurar e iniciar o servidor
 

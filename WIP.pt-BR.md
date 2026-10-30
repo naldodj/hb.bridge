@@ -21,13 +21,56 @@ HTTPS ou BLOB JSON. Veja [encerramento, artefatos e limites](docs/acceptance.pt-
 | Item | Valor atual |
 | --- | --- |
 | ID | `002-typed-sql-presentation` |
-| Abertura / atualização | 2026-10-21 / 2026-10-29 |
-| Situação | T01–T04 validadas nos escopos registrados. T05 passou no caminho real MSSQL → TCP/HTTP gzip → dataset tipado AppServer → armazenamento nativo; capturas fornecidas confirmam exibição do browse/View SX5. A extensão SRA/SX3 mais ampla solicitada está em validação; T05 continua aberto. |
+| Abertura / atualização | 2026-10-21 / 2026-10-30 |
+| Situação | T01–T04 validadas nos escopos registrados. T05a de campos selecionados passou checks isolados e teve aceite visual manual confirmado. T05b de JOIN explícito e encerramento final do pacote permanecem abertos. |
 | Objetivo | Definir valores SQL/metadados tipados explícitos e adapter de apresentação nativa pertencente ao chamador Protheus sobre Query/dataset homologados. |
 | Referência | Base `8db2823`; artefatos da árvore de trabalho validados no pacote 001 identificados no manifesto de encerramento. Não é nova tag de release. |
-| Próxima tarefa | Continuação T05: confirmar browse/View, pesquisa e filtros SRA/SX3 revisados com dados reais. RDDs locais, índices sob demanda, mapeamento e planejamento SQL compartilhado passaram nas regressões do SDK isolado; manter aceite interativo separado antes do encerramento. |
+| Próxima tarefa | T05b: implementar exemplos JOIN SRA/SRB e SRA/CTT explícitos conforme análise SX9, com metadados resolvidos pelo chamador e paginação determinística por linha resultante; manter política explícita de NULL/apresentação nativa. |
 
 ### Manutenção preparatória
+
+- [x] 2026-10-30: enxugar os READMEs principais EN/PT para propósito, escolha
+  de Harbour/C/Zig, recursos atuais, primeira execução e navegação dos guias.
+  Manter documentação técnica versionada em docs; preservar os detalhes de
+  depuração, arquitetura, enquadramento futuro e suporte corporativo em guias
+  pareados. Organizar índices equivalentes por tarefa e redirecionar links das
+  antigas seções dos READMEs. Gerar quatro arquivos de navegação Wiki bilíngue
+  a partir dos índices por `scripts/prepare-wiki.ps1`, com destinos absolutos
+  do repositório e saída determinística. O gerador não publica nem duplica a
+  manutenção dos guias. Não reinicia o pacote 002 nem encerra seu aceite real
+  de apresentação pendente.
+
+- [x] 2026-10-30: implementar projeções selecionadas do dicionário T05a por
+  `HBBridgePresentationTable.Project()` e seleção opcional na SRA. Reutilizar
+  expressões confiáveis e CASTs do dicionário; preservar mapas saída/origem,
+  inventário completo e motivos `notSelected` explícitos. Exigir posições,
+  aliases e origens únicos, sem acrescentar campos de sistema implicitamente.
+  Validar predicados de negócio antes da seleção e exigir identidade projetada
+  do registro para paginação determinística. Adicionar entrada de browse SRA
+  selecionado por TCP/HTTP gzip sobre pesquisa/filtro/View existentes. Criar
+  fixtures de aliases inválidos por atribuição em JSONObject, evitando literais
+  TLPP inválidos e macros, com rejeição real e sem aprovação incondicional.
+  Usar HasProperty para não adicionar flag opcional ausente ao snapshot de
+  entrada. Compilação final de 78 fontes e 730 checks de dez suítes passaram,
+  incluindo 142 de planejamento/seleção/SQLite nativo SRA. Preservar as
+  [evidências sanitizadas](docs/validation/selected.presentation.windows.json).
+  Aceite visual manual confirmado posteriormente em 2026-10-30; seu
+  [escopo informado](docs/acceptance.pt-BR.md#validação-visual-sra-selecionada-em-2026-10-30)
+  permanece separado das identidades automatizadas dos fontes. T05b e o
+  encerramento T05 continuam abertos.
+
+- [x] 2026-10-29: revisar SX9Tools e os sete utilitários FWWebEx fornecidos.
+  Inspeção local somente leitura do dicionário encontrou SRA para SRB
+  (`RA_MAT/RB_MAT`, 1:N) e a relação de entrada CTT para SRA
+  (`CTT_CUSTO/RA_CC`, 1:N). Registrar metadados bidirecionais, resolução de
+  filial/compartilhamento e restrições de JOIN explícito na
+  [análise SX9](docs/sx9-relationships.pt-BR.md). Registrar na
+  [revisão dos utilitários](docs/fwwebex-tools-review.pt-BR.md) o clone JSON
+  defensivo e restrito como primeiro candidato, sujeito a regressões de
+  correção e medição. Reutilizar o relógio atual para fases de tempo opcionais;
+  adiar merge/flatten até existir contrato concreto e evitar clonagem genérica
+  de recursos. A análise não adiciona APIs em execução ou dependência ao núcleo,
+  não encerra T05 nem altera sua próxima tarefa de aceite interativo.
 
 - [x] 2026-10-29: resolver os apontamentos restantes de origem, MsMGet,
   builder compartilhado e teste SRA desatualizado. Busca por origem rejeita
@@ -248,15 +291,24 @@ codepage preservaram bytes e SETs, sem comprovar aceleração estável.
   interface nativa. Definir decode textual uma vez, políticas de NULL/tipo/escala,
   navegação e liberação após sucesso, falha e fechamento da interface.
   Preservar exemplos e posse dos recursos existentes.
-- [ ] **T05a — Demonstrar campos específicos do dicionário.** Adicionar exemplo
+- [x] **T05a — Demonstrar campos específicos do dicionário.** Adicionar exemplo
   de projeção com colunas/aliases selecionados pelo chamador e esquema lógico/
-  mapa de origem por saída. Reutilizar dataset tipado e apresentação atuais;
-  o builder de tabela completa ainda não possui uma API de seleção de campos.
+  mapa de origem por saída. A API Project e o exemplo SRA selecionado estão
+  implementados e passaram checks isolados de planejamento/armazenamento
+  nativo. Validação visual manual confirmada em 2026-10-30, sem logs por
+  transporte ou identidades compiladas dessa rodada. Preservar esse escopo
+  separado da fixture automatizada; veja o
+  [guia da seleção](docs/sx3-metadata.pt-BR.md#campos-específicos-e-consultas-com-join).
 - [ ] **T05b — Demonstrar resultados de JOIN explícito.** Adicionar exemplos
   INNER/LEFT JOIN com aliases únicos, metadados/regras resolvidos pelo chamador,
   paginação determinística por linha resultante e política explícita de NULL/
   apresentação nativa. Validar origens duplicadas pelo acesso projetado e
   preservar identidade do dicionário no MsMGet sem confundir campos repetidos.
+  Usar a [revisão SX9](docs/sx9-relationships.pt-BR.md) como referência:
+  incluir relações de entrada/saída, resolver compartilhamento no Protheus e
+  manter exclusão lógica do lado direito no ON de LEFT JOIN. O snapshot SX9
+  somente leitura continua proposto; expressões arbitrárias do dicionário
+  não são SQL.
   Esses exemplos estão planejados; execução SQL genérica não comprova seu
   aceite na interface. Veja o [plano de projeções/JOIN](docs/sx3-metadata.pt-BR.md#campos-específicos-e-consultas-com-join).
 - [ ] **T05 — Homologar e encerrar.** Executar checks nativos e AppServer real

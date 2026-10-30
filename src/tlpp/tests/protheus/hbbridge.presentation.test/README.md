@@ -252,6 +252,73 @@ dictionary; the interactive examples exercise that separate integration.
 The wrappers return failed definitions before SQL execution when those
 requirements are absent. See the [shared definition contract](../../../../../docs/sx3-metadata.md#shared-presentation-definition).
 
+The same suite passes a selected five-column typed fixture through the real
+dataset and owned `SQLITE_MEM` destination. It verifies output order, native
+decimal/date/logical values, UTF-8 decoding, original dictionary names and
+cleanup without closing the borrowed dataset. Invalid aliases such as
+`VALUE;DROP`, `[VALUE]` and the empty key are assigned through `JSONObject`
+indexing: TLPP JSON literals cannot express those keys. Their rejection is
+required; no valid-alias fallback or unconditional passing assertion is used.
+
+## Selected SRA dictionary fields
+
+The selected-field example reads real SRA data using the same native browse:
+
+```advpl
+U_HBBridgeNativeBrowseSRASelected("MSSQL/pData","TCP",100)
+U_HBBridgeNativeBrowseSRASelected("MSSQL/pData","HTTP",100)
+```
+
+An omitted fourth argument uses
+`HBBridgePresentationSRA():SelectedFields()`: `REGISTRATION` from `RA_MAT`,
+`NAME` from `RA_NOME`, `AMOUNT` from `RA_SALARIO`, `ADMISSION_DATE` from
+`RA_ADMISSA` and `RECORD_ID` from `R_E_C_N_O_`, in that order. The profile,
+prepared company/branch, endpoint settings and HTTP gzip requirements are the
+same as the whole-table SRA example. This entry does not query the synthetic
+fixture and does not change the no-selection behavior of the existing SRA
+entry.
+
+A caller can supply its own keyed `JSONObject` as the fourth argument:
+
+```advpl
+jSelection := JSONObject():New()
+jSelection["NAME"] := {"source":"RA_NOME","position":1}
+jSelection["AMOUNT"] := {"source":"RA_SALARIO","position":2}
+jSelection["RECORD_ID"] := {"source":"R_E_C_N_O_","position":3}
+U_HBBridgeNativeBrowseSRASelected("MSSQL/pData","TCP",100,jSelection)
+```
+
+`HBBridgePresentationSRA():Definition(jSelection)` and its deterministic
+`Plan(...,jSelection)` first validate the mandatory source fields and branch,
+then use `HBBridgePresentationTable():Project(jDefinition,jSelection)` on the
+unplanned shared definition. Output aliases are explicit; search/filter and
+schema keys use those aliases. Dictionary captions, pictures and CASTs come
+from the original source, recorded in `schema.projectionFields`. View retains
+the original dictionary name for MsMGet and its memory variables.
+
+Every entry must contain exactly `source` and `position`, with unique
+contiguous integer positions, valid identifiers and case-insensitively unique
+output aliases. Repeated sources are rejected to avoid conflicting MsMGet
+dictionary identities. Missing, unsupported, empty or malformed selections
+fail completely. No arbitrary SQL expression or automatic system column is
+added. SRA requires the record-number source under a selected alias for
+deterministic order, for example `RECORD_ID ASC`; branch/deleted predicates
+remain bound even when those fields are not displayed.
+
+The result retains the complete metadata/field catalog; unselected supported
+sources receive reason `notSelected`. Inputs and selected result snapshots
+have independent ownership. `Project()` accepts a successful `Build()` result
+before SQL planning, not an already planned query or projected definition. See the
+[selection contract](../../../../../docs/sx3-metadata.md#selected-fields-and-join-queries).
+This API remains limited to one table; explicit JOIN examples remain planned.
+
+Isolated planning/storage checks exercise aliases, order, conversion and
+ownership with controlled fixtures. They do not establish live-dictionary or
+interactive acceptance. Run both transports in the prepared SRA environment
+and verify paging, projected-field search/filter, captions, accents,
+date/amount values and View; earlier whole-table observations do not replace
+this acceptance.
+
 ## Recorded validation
 
 Manual AppServer output supplied on **2026-10-26** recorded **50/50 native
@@ -291,5 +358,13 @@ local-RDD/lazy-index changes. The [2026-10-29 review manifest](../../../../../do
 records the current 78-source compilation and 654 isolated checks, including
 local RDDs 100, source mapping 36, SRA/SX5 planning 66, TOPCONN/FWBulk 122 and
 browse callbacks 74. Final MsMGet dictionary-variable identity compiled
-separately; the current SRA assertion layout passed its 66 checks again.
-Wider live-dictionary/UI acceptance remains separate.
+separately; the SRA assertion layout at that revision passed its 66 checks again.
+The [2026-10-30 selected-projection manifest](../../../../../docs/validation/selected.presentation.windows.json)
+records 78 compiled sources and 730 checks across ten suites, including 142
+SRA planning/selection/native SQLite assertions. The three malformed-alias
+fixtures retain their actual keys and must be rejected. Source definitions
+and selections remain unchanged, including absent optional properties.
+Separate selected-SRA visual acceptance was confirmed on 2026-10-30; see the
+[reported scope](../../../../../docs/acceptance.md#selected-sra-visual-acceptance-on-2026-10-30).
+The report does not supply per-transport logs or compiled identities and does
+not extend the automated backend/platform coverage.

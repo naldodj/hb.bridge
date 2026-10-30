@@ -2005,3 +2005,17 @@ versioned; scratch logs and copied SDK/RPO remain disposable. Direct TLS/Linux,
 per-stage CPU/memory and production capacity are not accepted by these checks.
 The [T01 SQL contract](typed-sql.md) remains a draft, and MEMIO persistence is
 recorded only as [future work](evolution.md#in-memory-results-between-requests).
+
+## Selected SRA visual acceptance on 2026-10-30
+
+Manual visual validation of the selected-field SRA example was confirmed with
+an OK result. T05a is accepted for that reported visual scope; T05b explicit
+JOIN examples and final package closure remain open in [WIP](../WIP.md).
+
+The confirmation did not supply invocation arguments, per-transport logs,
+compiled hashes or a detailed UI checklist. Do not infer additional backend,
+platform, failure or performance coverage from it. The separate isolated
+[selection manifest](validation/selected.presentation.windows.json) identifies
+78 compiled sources and 730 checks, including 142 SRA planning/selection/native
+SQLite checks. Those source identities describe the automated run, not an
+independently identified manual RPO.

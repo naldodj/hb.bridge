@@ -21,13 +21,54 @@ is inferred. See [closure, exact artifacts and limitations](docs/acceptance.md#p
 | Item | Current value |
 | --- | --- |
 | ID | `002-typed-sql-presentation` |
-| Opened / updated | 2026-10-21 / 2026-10-29 |
-| Status | T01–T04 validated in their recorded scopes. T05 actual MSSQL → TCP/gzip HTTP → AppServer typed dataset → native storage passed; supplied screenshots confirm SX5 browse/View display. The requested wider SRA/SX3 extension is under validation; T05 remains open. |
+| Opened / updated | 2026-10-21 / 2026-10-30 |
+| Status | T01–T04 validated in their recorded scopes. T05a selected dictionary fields passed isolated checks and confirmed manual visual acceptance. T05b explicit JOIN examples and final package closure remain open. |
 | Goal | Define explicit typed SQL values/result metadata and a caller-owned native Protheus presentation adapter using the accepted Query/dataset. |
 | Reference | Base `8db2823`; package 001 validated working-tree artifacts are identified in its closure manifest. This is not a new release tag. |
-| Next task | T05 continuation: confirm the revised SRA/SX3 browse/View, search and filters with real data. Local RDDs, lazy indexes, mapping and shared SQL planning passed isolated SDK regressions; retain separate interactive acceptance before closure. |
+| Next task | T05b: implement explicit SRA/SRB and SRA/CTT JOIN examples using the SX9 review, caller-resolved metadata and deterministic joined-row paging; retain explicit NULL/native-presentation policy. |
 
 ### Preparatory maintenance
+
+- [x] 2026-10-30: shorten the root EN/PT READMEs to project purpose, the
+  Harbour/C/Zig rationale, current capabilities, first run and guide navigation.
+  Keep technical guides versioned under docs; preserve the detailed debugging,
+  architecture, planned framing and corporate support material in paired
+  guides. Replace the documentation indexes with matching task-oriented
+  portals and retarget former README section links. Generate four bilingual
+  Wiki navigation files from those indexes through `scripts/prepare-wiki.ps1`,
+  with absolute repository targets and deterministic output. The generator
+  does not publish or duplicate guide maintenance. This documentation work
+  does not reset package 002 or close its pending live presentation acceptance.
+
+- [x] 2026-10-30: implement T05a selected dictionary projections through
+  `HBBridgePresentationTable.Project()` and the optional SRA selection. Reuse
+  trusted expressions and dictionary CASTs; retain output/source mappings,
+  the full inventory and explicit `notSelected` reasons. Require unique
+  positions, aliases and origins without adding system columns implicitly.
+  Validate business predicates before selection; require the projected record
+  identity for deterministic paging. Add the selected SRA TCP/gzip HTTP browse
+  entry over the existing search/filter/View path. Build invalid alias fixtures
+  by JSONObject assignment instead of invalid TLPP literals or macros, and
+  require actual rejection without unconditional passing assertions. Avoid
+  adding an absent optional flag to the input snapshot by using HasProperty.
+  The final 78-source compile and 730 checks across ten suites passed,
+  including 142 SRA planning/selection/native SQLite checks. Retain the
+  [sanitized evidence](docs/validation/selected.presentation.windows.json).
+  Manual visual acceptance was subsequently confirmed on 2026-10-30;
+  [its reported scope](docs/acceptance.md#selected-sra-visual-acceptance-on-2026-10-30)
+  remains separate from automated source identities. T05b and T05 closure remain open.
+
+- [x] 2026-10-29: review the supplied SX9Tools and seven FWWebEx utilities.
+  Read-only local dictionary inspection found SRA to SRB (`RA_MAT/RB_MAT`,
+  1:N) and the incoming CTT to SRA relation (`CTT_CUSTO/RA_CC`, 1:N).
+  Record bidirectional metadata, branch/sharing resolution and explicit JOIN
+  constraints in the [SX9 analysis](docs/sx9-relationships.md). Record the
+  [utility review](docs/fwwebex-tools-review.md): a narrow defensive JSON
+  clone is the first reuse candidate, subject to correctness regressions and
+  measurement. Reuse the existing clock for optional timing phases; defer
+  merge/flatten until a concrete contract exists and avoid generic resource
+  cloning. This analysis adds no runtime APIs or new core dependency and does
+  not close T05 or change its next interactive acceptance task.
 
 - [x] 2026-10-29: resolve the remaining source-mapping, MsMGet, shared-builder
   and stale SRA-test findings. Source lookup consistently rejects ambiguous
@@ -245,15 +286,22 @@ HTTP 406 rejection (exit 1), with no identity fallback.
   path to caller-resolved schema and owned FWTemporaryTable/native UI resources.
   Define text decode-once, NULL/type/scale policies, page traversal and cleanup
   after success, failure and UI close. Preserve existing examples and ownership.
-- [ ] **T05a — Demonstrate selected dictionary fields.** Add an explicit
+- [x] **T05a — Demonstrate selected dictionary fields.** Add an explicit
   projection example with caller-selected columns, aliases and per-output
-  logical schema/source mappings. Reuse the current typed dataset and native
-  presentation; do not assume the whole-table builder already has a selection API.
+  logical schema/source mappings. The Project API and selected SRA example are
+  implemented and passed isolated planning/native-storage checks. Manual visual
+  validation was confirmed on 2026-10-30; no per-transport logs or compiled
+  identities were supplied for that run. Preserve that scope separately from
+  the automated fixture; see the [selection guide](docs/sx3-metadata.md#selected-fields-and-join-queries).
 - [ ] **T05b — Demonstrate explicit JOIN results.** Add INNER/LEFT JOIN examples
   with unique output aliases, caller-resolved metadata and business predicates,
   deterministic paging at the joined-row granularity and explicit NULL/native
   presentation policy. Validate duplicate origins through projected access;
   preserve dictionary-specific MsMGet identity without conflating repeated fields.
+  Use the [SX9 review](docs/sx9-relationships.md) as relationship input:
+  include incoming and outgoing candidates, resolve sharing in Protheus and
+  keep right-side deletion predicates in ON for LEFT JOIN. A read-only SX9
+  snapshot remains proposed; arbitrary dictionary expressions are not SQL.
   These requested examples are planned; generic SQL execution does not establish
   their native UI acceptance. See the [projection/JOIN plan](docs/sx3-metadata.md#selected-fields-and-join-queries).
 - [ ] **T05 — Validate and close.** Run appropriate native and real AppServer

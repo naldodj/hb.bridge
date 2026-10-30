@@ -1,8 +1,8 @@
 /* Released to Public Domain. */
 #include "totvs.ch"
 
-// Deterministic metadata/catalog planning only: no employee rows, DBAccess
-// connection, SQL execution or active Protheus company is required.
+// Deterministic metadata/catalog planning and selected native SQLite storage:
+// no employee rows, DBAccess connection or active Protheus company is required.
 function U_HBBridgePresentationSRATest()
 
     // JSONObject exposes its property names through this native array API.
@@ -175,6 +175,7 @@ function U_HBBridgePresentationSRATest()
         jColumns["RA_FILIAL"]["type"]:="int"
         jChecks["rejectNumericBranchDefinition"]:=PresentationSRATestFailure(jMetadata,jColumns,"SRA990","01")
         PresentationPlanningChecks(jChecks)
+        PresentationSelectionChecks(jChecks)
     catch xError
         jChecks["unexpectedRuntimeFailure"]:=.F.
         ConOut("hbBridge SRA metadata test failed; inspect the owned local log.")
@@ -434,5 +435,414 @@ static function PresentationSRATestWithout(jObject as json,cRemoved as character
         endif
     next nName
     FWFreeArray(@aNames)
+
+return(jCopy)
+
+static function PresentationSelectionChecks(jChecks as json)
+
+    // GetNames is the native boundary used to verify the published order.
+    local aNames as array
+
+    local cDefinition:="" as character
+    local cSelection:="" as character
+    local cMetadata:="" as character
+    local cColumns:="" as character
+    local cQuery:="" as character
+    local cProjection:="" as character
+    local cLiteral:="' OR 1=1 --%_[]~" as character
+
+    local jMetadata:=PresentationSRATestMetadata() as json
+    local jColumns:=PresentationSRATestColumns() as json
+    local jBase as json
+    local jSelected as json
+    local jSelection:=PresentationSelectionFixture() as json
+    local jInvalid as json
+    local jPlan as json
+    local jQuery as json
+
+    local oSource as object
+
+    jBase:=HBBridge.Client.HBBridgePresentationTable():Build(jMetadata,jColumns,"SRA","SRA990")
+    jChecks["selectionBaseIsUnplanned"]:=jBase["success"]==.T..and.Empty(jBase["sql"])
+    if (!jChecks["selectionBaseIsUnplanned"])
+        throw "SELECTION_BASE_MISSING"
+    endif
+    jChecks["selectionBaseRetainsNumericExpression"]:=;
+        "CAST(SRA.[RA_SALARIO]ASDECIMAL(12,2))" $ Upper(StrTran(jBase["expressions"]["RA_SALARIO"]," ",""))
+    jChecks["selectionBaseRetainsRecordExpression"]:=;
+        "CAST(SRA.[R_E_C_N_O_]ASBIGINT)" $ Upper(StrTran(jBase["expressions"]["R_E_C_N_O_"]," ",""))
+    cDefinition:=HBBridge.Client.HBBridgeJSON():Encode(jBase)
+    cSelection:=HBBridge.Client.HBBridgeJSON():Encode(jSelection)
+    jSelected:=HBBridge.Client.HBBridgePresentationTable():Project(jBase,jSelection)
+    jChecks["selectedDefinitionSucceeded"]:=jSelected["success"]==.T..and.Empty(jSelected["sql"])
+    if (!jChecks["selectedDefinitionSucceeded"])
+        throw "SELECTED_DEFINITION_REJECTED"
+    endif
+    jChecks["selectionDoesNotMutateDefinition"]:=HBBridge.Client.HBBridgeJSON():Encode(jBase)==cDefinition
+    jChecks["selectionDoesNotMutateRequest"]:=HBBridge.Client.HBBridgeJSON():Encode(jSelection)==cSelection
+    aNames:=jSelected["schema"]["fields"]:GetNames()
+    jChecks["selectionOrderUsesExplicitPositions"]:=Len(aNames)==5.and.;
+        aNames[1]=="AMOUNT".and.aNames[2]=="EMPLOYEE".and.aNames[3]=="ADMISSION".and.;
+        aNames[4]=="FLAG".and.aNames[5]=="RECORD_ID"
+    FWFreeArray(@aNames)
+    cProjection:=Upper(StrTran(jSelected["projection"]," ",""))
+    jChecks["selectionProjectionUsesOutputAliases"]:=;
+        "CAST(SRA.[RA_SALARIO]ASDECIMAL(12,2))AS[AMOUNT]" $ cProjection.and.;
+        "SRA.[RA_NOME]AS[EMPLOYEE]" $ cProjection.and.;
+        "CAST(SRA.[R_E_C_N_O_]ASBIGINT)AS[RECORD_ID]" $ cProjection
+    jChecks["selectionProjectionOrderMatchesSchema"]:=At("AS[AMOUNT]",cProjection)<At("AS[EMPLOYEE]",cProjection).and.;
+        At("AS[EMPLOYEE]",cProjection)<At("AS[ADMISSION]",cProjection).and.;
+        At("AS[ADMISSION]",cProjection)<At("AS[FLAG]",cProjection).and.;
+        At("AS[FLAG]",cProjection)<At("AS[RECORD_ID]",cProjection)
+    jChecks["selectionKeepsDictionaryScaleAndPicture"]:=;
+        jSelected["schema"]["fields"]["AMOUNT"]["type"]=="numeric".and.;
+        jSelected["schema"]["fields"]["AMOUNT"]["length"]==12.and.;
+        jSelected["schema"]["fields"]["AMOUNT"]["decimals"]==2.and.;
+        jSelected["schema"]["fields"]["AMOUNT"]["picture"]=="@E 999,999,999.99"
+    jChecks["selectionKeepsDateAndLogicalDefinitions"]:=;
+        jSelected["schema"]["fields"]["ADMISSION"]["type"]=="date".and.;
+        jSelected["schema"]["fields"]["ADMISSION"]["inputFormat"]=="YYYYMMDD".and.;
+        jSelected["schema"]["fields"]["FLAG"]["type"]=="logical"
+    jChecks["selectionMapsEveryOutputToOriginal"]:=;
+        jSelected["schema"]["projectionFields"]["AMOUNT"]=="RA_SALARIO".and.;
+        jSelected["schema"]["projectionFields"]["EMPLOYEE"]=="RA_NOME".and.;
+        jSelected["schema"]["projectionFields"]["ADMISSION"]=="RA_ADMISSA".and.;
+        jSelected["schema"]["projectionFields"]["FLAG"]=="RA_FLAG".and.;
+        jSelected["schema"]["projectionFields"]["RECORD_ID"]=="R_E_C_N_O_"
+    jChecks["selectionAddsNoAutomaticSystemFields"]:=;
+        !jSelected["schema"]["fields"]:HasProperty("D_E_L_E_T_").and.;
+        !jSelected["schema"]["fields"]:HasProperty("R_E_C_D_E_L_").and.;
+        !jSelected["schema"]["fields"]:HasProperty("R_E_C_N_O_")
+    aNames:=jSelected["fieldStatus"]:GetNames()
+    jChecks["selectionRetainsCompleteSourceInventory"]:=Len(aNames)==23.and.;
+        jSelected["metadata"]["count"]==19.and.jSelected["includedCount"]==5.and.;
+        jSelected["excludedCount"]==18
+    FWFreeArray(@aNames)
+    jChecks["selectionStatusUsesOriginalNames"]:=;
+        jSelected["fieldStatus"]["RA_SALARIO"]["status"]=="included".and.;
+        !jSelected["fieldStatus"]:HasProperty("AMOUNT").and.;
+        jSelected["fieldStatus"]["RA_FILIAL"]["status"]=="excluded".and.;
+        jSelected["fieldStatus"]["RA_FILIAL"]["reason"]=="notSelected"
+    jChecks["selectionPreservesPriorExclusionReasons"]:=;
+        jSelected["fieldStatus"]["RA_MEMO"]["reason"]=="memo".and.;
+        jSelected["fieldStatus"]["RA_MISSING"]["reason"]=="missingColumn"
+    jSelected["schema"]["fields"]["AMOUNT"]["decimals"]:=1
+    jSelected["metadata"]["fields"]["RA_NOME"]["caption"]:="Selected mutation"
+    jSelected["fieldStatus"]["RA_FILIAL"]["reason"]:="Selected mutation"
+    jChecks["selectionResultOwnsNestedSnapshots"]:=HBBridge.Client.HBBridgeJSON():Encode(jBase)==cDefinition
+    FreeObj(@jSelected)
+    jSelected:=HBBridge.Client.HBBridgePresentationTable():Project(jBase,jSelection)
+    jSelection["AMOUNT"]["position"]:=5
+    jChecks["selectionResultSurvivesRequestMutation"]:=;
+        Left(Upper(StrTran(jSelected["projection"]," ","")),Len("CAST(SRA.[RA_SALARIO]ASDECIMAL(12,2))AS[AMOUNT]"))==;
+        "CAST(SRA.[RA_SALARIO]ASDECIMAL(12,2))AS[AMOUNT]"
+    jSelection["AMOUNT"]["position"]:=1
+    FreeObj(@jSelected)
+
+    cMetadata:=HBBridge.Client.HBBridgeJSON():Encode(jMetadata)
+    cColumns:=HBBridge.Client.HBBridgeJSON():Encode(jColumns)
+    jPlan:=HBBridge.Examples.HBBridgePresentationSRA():Plan(jMetadata,jColumns,"SRA990","01",jSelection)
+    jChecks["selectedSraPlanSucceeded"]:=jPlan["success"]==.T..and.!Empty(jPlan["sql"])
+    if (!jChecks["selectedSraPlanSucceeded"])
+        throw "SELECTED_SRA_PLAN_REJECTED"
+    endif
+    jChecks["selectedSraUsesProjectedUniqueOrder"]:=jPlan["orderBy"]=="RECORD_ID ASC"
+    jChecks["selectedSraRetainsUnselectedBusinessPredicates"]:=;
+        "SRA.[D_E_L_E_T_] = ?" $ jPlan["sql"].and."SRA.[RA_FILIAL] = ?" $ jPlan["sql"].and.;
+        jPlan["bindings"]["1"]["value"]==" ".and.jPlan["bindings"]["2"]["value"]=="01".and.;
+        !jPlan["schema"]["fields"]:HasProperty("RA_FILIAL").and.;
+        !jPlan["schema"]["fields"]:HasProperty("RA_MAT")
+    jChecks["selectedPlanningOwnsCallerInputs"]:=HBBridge.Client.HBBridgeJSON():Encode(jMetadata)==cMetadata.and.;
+        HBBridge.Client.HBBridgeJSON():Encode(jColumns)==cColumns.and.;
+        HBBridge.Client.HBBridgeJSON():Encode(jSelection)==cSelection
+    PresentationSelectionNativeChecks(jChecks,jPlan)
+    oSource:=HBBridge.Examples.HBBridgePresentationSQLSource():New(;
+        jPlan["sql"],jPlan["orderBy"],jPlan["schema"],jPlan["bindings"])
+    jChecks["selectedAliasNumericFilter"]:=oSource:AddFilter("AMOUNT","at least","10.25")
+    jChecks["selectedAliasLiteralSearch"]:=oSource:SetSearch("EMPLOYEE",cLiteral)
+    jQuery:=oSource:Query()
+    jChecks["selectedAliasCriteriaUseProjectedColumns"]:=;
+        "HBBR_SOURCE.[AMOUNT] >= ?" $ jQuery["sql"].and.;
+        "HBBR_SOURCE.[EMPLOYEE] LIKE ?" $ jQuery["sql"].and.;
+        jQuery["orderBy"]=="RECORD_ID ASC"
+    jChecks["selectedAliasLiteralsStayBound"]:=!(cLiteral$jQuery["sql"]).and.;
+        jQuery["bindings"]["1"]["value"]==" ".and.jQuery["bindings"]["2"]["value"]=="01".and.;
+        jQuery["bindings"]["3"]["type"]=="number".and.jQuery["bindings"]["3"]["value"]==10.25.and.;
+        jQuery["bindings"]["4"]["type"]=="text".and.;
+        jQuery["bindings"]["4"]["value"]=="%' OR 1=1 --~%~_~[~]~~%"
+    cQuery:=HBBridge.Client.HBBridgeJSON():Encode(jQuery)
+    FreeObj(@jQuery)
+    jChecks["selectedAliasRejectsUnselectedOrigin"]:=!oSource:SetSearch("RA_NOME","Name")
+    jChecks["selectedAliasRejectsExpression"]:=!oSource:AddFilter("AMOUNT","equal","1+1")
+    jQuery:=oSource:Query()
+    jChecks["selectedAliasInvalidCriteriaKeepState"]:=HBBridge.Client.HBBridgeJSON():Encode(jQuery)==cQuery
+    FreeObj(@jQuery)
+    oSource:Close()
+    FreeObj(@oSource)
+    FreeObj(@jPlan)
+
+    jInvalid:=JSONObject():New()
+    jInvalid["AMOUNT"]:=PresentationSelectionEntry("RA_SALARIO",1)
+    jSelected:=HBBridge.Client.HBBridgePresentationTable():Project(jBase,jInvalid)
+    aNames:=jSelected["schema"]["fields"]:GetNames()
+    jChecks["standaloneSelectionDoesNotRequireSystemFields"]:=jSelected["success"]==.T..and.;
+        Len(aNames)==1.and.aNames[1]=="AMOUNT"
+    FWFreeArray(@aNames)
+    FreeObj(@jSelected)
+    jPlan:=HBBridge.Examples.HBBridgePresentationSRA():Plan(jMetadata,jColumns,"SRA990","01",jInvalid)
+    jChecks["selectedSraRejectsMissingIdentity"]:=jPlan["success"]==.F..and.;
+        jPlan["code"]=="INVALID_SRA_DEFINITION".and.Empty(jPlan["sql"])
+    FreeObj(@jPlan)
+    FreeObj(@jInvalid)
+    jInvalid:=PresentationSRATestWithout(jColumns,"RA_FILIAL")
+    jPlan:=HBBridge.Examples.HBBridgePresentationSRA():Plan(jMetadata,jInvalid,"SRA990","01",jSelection)
+    jChecks["selectedSraStillValidatesBusinessColumns"]:=jPlan["success"]==.F..and.;
+        jPlan["code"]=="INVALID_SRA_DEFINITION".and.Empty(jPlan["sql"])
+    FreeObj(@jPlan)
+    FreeObj(@jInvalid)
+
+    PresentationSelectionInvalidChecks(jChecks,jBase)
+    jChecks["invalidSelectionsLeaveBaseUnchanged"]:=HBBridge.Client.HBBridgeJSON():Encode(jBase)==cDefinition
+    FreeObj(@jSelection)
+    FreeObj(@jBase)
+    FreeObj(@jMetadata)
+    FreeObj(@jColumns)
+
+return
+
+static function PresentationSelectionFixture() as json
+
+    local jSelection:=JSONObject():New() as json
+
+    // Deliberately insert in an order different from the requested output.
+    jSelection["RECORD_ID"]:=PresentationSelectionEntry("R_E_C_N_O_",5)
+    jSelection["EMPLOYEE"]:=PresentationSelectionEntry("RA_NOME",2)
+    jSelection["FLAG"]:=PresentationSelectionEntry("RA_FLAG",4)
+    jSelection["AMOUNT"]:=PresentationSelectionEntry("RA_SALARIO",1)
+    jSelection["ADMISSION"]:=PresentationSelectionEntry("RA_ADMISSA",3)
+
+return(jSelection)
+
+static function PresentationSelectionEntry(cSource as character,nPosition as numeric) as json
+
+    local jEntry:=JSONObject():New() as json
+
+    jEntry["source"]:=cSource
+    jEntry["position"]:=nPosition
+
+return(jEntry)
+
+static function PresentationSelectionInvalidChecks(jChecks as json,jBase as json)
+
+    // Native enumeration is required to execute named invalid fixtures.
+    local aNames as array
+
+    local cCase:="" as character
+    local cSelection:="" as character
+
+    local jCases:=JSONObject():New() as json
+    local jCase as json
+    local jSelected as json
+    local jPlanned as json
+
+    local nCase:=0 as numeric
+    local nCases:=0 as numeric
+
+    jCases["empty"]:=JSONObject():New()
+    jCases["missingSource"]:={"VALUE":{"position":1}}
+    jCases["missingPosition"]:={"VALUE":{"source":"RA_NOME"}}
+    jCases["extraMember"]:={"VALUE":{"source":"RA_NOME","position":1,"sql":"RA_NOME"}}
+    jCases["nonObjectEntry"]:={"VALUE":"RA_NOME"}
+    jCases["numericSource"]:={"VALUE":{"source":1,"position":1}}
+    jCases["unknownSource"]:={"VALUE":{"source":"UNKNOWN","position":1}}
+    jCases["excludedMemo"]:={"VALUE":{"source":"RA_MEMO","position":1}}
+    jCases["excludedVirtual"]:={"VALUE":{"source":"RA_VIRTUAL","position":1}}
+    jCases["sourceExpression"]:={"VALUE":{"source":"RA_NOME;DROP TABLE SRA990","position":1}}
+    // TLPP JSON literals reject these property names at compile time.
+    // Runtime assignment preserves the actual invalid alias without macros.
+    jCases["aliasExpression"]:=JSONObject():New()
+    jCases["aliasExpression"]["VALUE;DROP"]:=PresentationSelectionEntry("RA_NOME",1)
+    jCases["aliasDelimited"]:=JSONObject():New()
+    jCases["aliasDelimited"]["[VALUE]"]:=PresentationSelectionEntry("RA_NOME",1)
+    jCases["aliasEmpty"]:=JSONObject():New()
+    jCases["aliasEmpty"][""]:=PresentationSelectionEntry("RA_NOME",1)
+    jChecks["invalidAliasInputsPreserved"]:=;
+        jCases["aliasExpression"]:HasProperty("VALUE;DROP").and.;
+        jCases["aliasDelimited"]:HasProperty("[VALUE]").and.;
+        jCases["aliasEmpty"]:HasProperty("")
+    jCases["aliasNul"]:=JSONObject():New()
+    jCases["aliasNul"]["VA"+Chr(0)+"LUE"]:=PresentationSelectionEntry("RA_NOME",1)
+    jCases["aliasCaseCollision"]:={"VALUE":{"source":"RA_NOME","position":1},;
+        "value":{"source":"RA_SALARIO","position":2}}
+    jCases["repeatedSource"]:={"FIRST":{"source":"RA_NOME","position":1},;
+        "SECOND":{"source":"RA_NOME","position":2}}
+    jCases["duplicatePosition"]:={"FIRST":{"source":"RA_NOME","position":1},;
+        "SECOND":{"source":"RA_SALARIO","position":1}}
+    jCases["positionGap"]:={"FIRST":{"source":"RA_NOME","position":1},;
+        "SECOND":{"source":"RA_SALARIO","position":3}}
+    jCases["zeroPosition"]:={"VALUE":{"source":"RA_NOME","position":0}}
+    jCases["negativePosition"]:={"VALUE":{"source":"RA_NOME","position":-1}}
+    jCases["fractionalPosition"]:={"VALUE":{"source":"RA_NOME","position":1.5}}
+    jCases["textPosition"]:={"VALUE":{"source":"RA_NOME","position":"1"}}
+    jCases["nullPosition"]:={"VALUE":{"source":"RA_NOME","position":nil}}
+    aNames:=jCases:GetNames()
+    nCases:=Len(aNames)
+    for nCase:=1 to nCases
+        cCase:=aNames[nCase]
+        jCase:=jCases[cCase]
+        cSelection:=HBBridge.Client.HBBridgeJSON():Encode(jCase)
+        jSelected:=HBBridge.Client.HBBridgePresentationTable():Project(jBase,jCase)
+        jChecks["invalidSelection."+cCase]:=PresentationSelectionRejected(jSelected)
+        jChecks["invalidSelection."+cCase]:=jChecks["invalidSelection."+cCase].and.HBBridge.Client.HBBridgeJSON():Encode(jCase)==cSelection
+        FreeObj(@jSelected)
+    next nCase
+    FWFreeArray(@aNames)
+    // These values deliberately violate the JSON-object selector boundary.
+    jSelected:=HBBridge.Client.HBBridgePresentationTable():Project(jBase,nil)
+    jChecks["invalidSelection.nullSelector"]:=PresentationSelectionRejected(jSelected)
+    FreeObj(@jSelected)
+    jSelected:=HBBridge.Client.HBBridgePresentationTable():Project(jBase,"RA_NOME")
+    jChecks["invalidSelection.textSelector"]:=PresentationSelectionRejected(jSelected)
+    FreeObj(@jSelected)
+    jSelected:=HBBridge.Client.HBBridgePresentationTable():Project(jBase,{"RA_NOME"})
+    jChecks["invalidSelection.nativeArraySelector"]:=PresentationSelectionRejected(jSelected)
+    FreeObj(@jSelected)
+    jCase:=JSONObject():New()
+    jCase:FromJSON("[]")
+    jSelected:=HBBridge.Client.HBBridgePresentationTable():Project(jBase,jCase)
+    jChecks["invalidSelection.jsonArraySelector"]:=PresentationSelectionRejected(jSelected)
+    FreeObj(@jSelected)
+    FreeObj(@jCase)
+    jCase:=JSONObject():New()
+    jCase["VALUE"]:=PresentationSelectionEntry("RA_NOME",1)
+    jPlanned:=JSONObject():New()
+    HBBridge.Client.HBBridgeJSON():Parse(HBBridge.Client.HBBridgeJSON():Encode(jBase),jPlanned)
+    jPlanned["sql"]:="SELECT RA_NOME FROM SRA990"
+    jSelected:=HBBridge.Client.HBBridgePresentationTable():Project(jPlanned,jCase)
+    jChecks["invalidSelection.alreadyPlannedDefinition"]:=PresentationSelectionRejected(jSelected)
+    FreeObj(@jSelected)
+    jPlanned["sql"]:=""
+    jPlanned["success"]:=.F.
+    jSelected:=HBBridge.Client.HBBridgePresentationTable():Project(jPlanned,jCase)
+    jChecks["invalidSelection.failedDefinition"]:=PresentationSelectionRejected(jSelected)
+    FreeObj(@jSelected)
+    FreeObj(@jPlanned)
+    jPlanned:=HBBridge.Client.HBBridgePresentationTable():Project(jBase,jCase)
+    FreeObj(@jCase)
+    jCase:=JSONObject():New()
+    jCase["RENAMED"]:=PresentationSelectionEntry("VALUE",1)
+    jSelected:=HBBridge.Client.HBBridgePresentationTable():Project(jPlanned,jCase)
+    jChecks["invalidSelection.alreadyProjectedDefinition"]:=PresentationSelectionRejected(jSelected)
+    FreeObj(@jSelected)
+    FreeObj(@jPlanned)
+    FreeObj(@jCase)
+    FreeObj(@jCases)
+
+return
+
+static function PresentationSelectionRejected(jResult as json) as logical
+
+    if (ValType(jResult)!="J")
+        return(.F.)
+    endif
+
+return(jResult["success"]==.F..and.jResult["code"]=="INVALID_FIELD_SELECTION".and.;
+    Empty(jResult["sql"]).and.ValType(jResult["schema"])=="U")
+
+static function PresentationSelectionNativeChecks(jChecks as json,jDefinition as json)
+
+    local cWireText:="a"+Chr(195)+Chr(167)+Chr(195)+Chr(163)+"o" as character
+
+    local jResponse:=HBBridge.Tests.HBBridgePresentationFixture():Result(0,1,1) as json
+    local jHeader:=HBBridge.Tests.HBBridgePresentationFixture():Header() as json
+    local jSelectedHeader:=JSONObject():New() as json
+    local jRow:=JSONObject():New() as json
+
+    local oClient:=HBBridge.Tests.HBBridgeDataSetMockClient():New() as object
+    local oDataSet:=HBBridge.RDD.HBBridgeRPCDataSet():New(oClient) as object
+    local oNative as object
+
+    local xError as variant
+
+    try
+        jSelectedHeader["AMOUNT"]:=PresentationSelectionWire(jHeader["AMOUNT"],1)
+        jSelectedHeader["EMPLOYEE"]:=PresentationSelectionWire(jHeader["TEXT"],2)
+        jSelectedHeader["ADMISSION"]:=PresentationSelectionWire(jHeader["TEXT"],3)
+        jSelectedHeader["FLAG"]:=PresentationSelectionWire(jHeader["FLAG"],4)
+        jSelectedHeader["RECORD_ID"]:=PresentationSelectionWire(jHeader["ID"],5)
+        jResponse["header"]:=jSelectedHeader
+        jSelectedHeader:=nil
+        jRow["AMOUNT"]:="123.25"
+        jRow["EMPLOYEE"]:=cWireText
+        jRow["ADMISSION"]:="20240229"
+        jRow["FLAG"]:=.F.
+        jRow["RECORD_ID"]:="42"
+        jResponse["rows"]["1"]:=jRow
+        jRow:=nil
+        oClient:Queue(jResponse)
+        oDataSet:SetAliasProfile("presentation/selected")
+        jChecks["selectedNativeTypedPage"]:=oDataSet:OpenSQLTyped(jDefinition["sql"],jDefinition["bindings"])
+        if (!jChecks["selectedNativeTypedPage"])
+            throw "SELECTED_NATIVE_PAGE_REJECTED"
+        endif
+        oNative:=HBBridge.Client.HBBridgeNativeTable():New(oDataSet,jDefinition["schema"],.T.,"SQLITE_MEM")
+        jChecks["selectedNativeStorage"]:=oNative:LoadCurrentPage()
+        if (!jChecks["selectedNativeStorage"])
+            throw "SELECTED_NATIVE_STORAGE_REJECTED"
+        endif
+        jChecks["selectedNativeContainsOnlyFiveOutputs"]:=oNative:FieldCount()==5.and.oNative:RowCount()==1
+        jChecks["selectedNativePositionsMatchSQL"]:=oNative:FieldPos("AMOUNT")==1.and.;
+            oNative:FieldPos("EMPLOYEE")==2.and.oNative:FieldPos("ADMISSION")==3.and.;
+            oNative:FieldPos("FLAG")==4.and.oNative:FieldPos("RECORD_ID")==5
+        jChecks["selectedNativeAmountAndIdentity"]:=oNative:FieldGet("AMOUNT")==123.25.and.;
+            oNative:FieldGet("RECORD_ID")==42
+        jChecks["selectedNativeDateAndLogical"]:=oNative:FieldGet("ADMISSION")==SToD("20240229").and.;
+            oNative:FieldGet("FLAG")==.F.
+        jChecks["selectedNativeUTF8DecodeOnce"]:=RTrim(oNative:FieldGet("EMPLOYEE"))==DecodeUTF8(cWireText)
+        jChecks["selectedNativeOriginalDictionaryNames"]:=oNative:SourceFieldName("AMOUNT")=="RA_SALARIO".and.;
+            oNative:SourceFieldName("EMPLOYEE")=="RA_NOME".and.;
+            oNative:SourceFieldName("RECORD_ID")=="R_E_C_N_O_"
+        jChecks["selectedNativeSourceLookup"]:=oNative:SourceFieldPos("RA_SALARIO",.F.)==1.and.;
+            oNative:SourceFieldGet("RA_SALARIO",.F.)==123.25.and.;
+            oNative:SourceFieldCaption("RA_NOME",.F.)=="Name"
+        jChecks["selectedNativeDoesNotExposeOmittedFields"]:=oNative:FieldPos("RA_FILIAL")==0.and.;
+            oNative:SourceFieldPos("RA_FILIAL",.F.)==0
+        jChecks["selectedNativeCleanup"]:=oNative:Destroy()
+        jChecks["selectedNativeKeepsBorrowedDataset"]:=oDataSet:RowCount()==1.and.;
+            oDataSet:FieldGet("EMPLOYEE")==cWireText
+    catch xError
+        jChecks["selectedNativeUnexpectedRuntimeFailure"]:=.F.
+        ConOut("hbBridge selected native storage failed; inspect the owned local log.")
+        if (ValType(xError)=="O")
+            FreeObj(@xError)
+        endif
+    endtry
+    if (ValType(oNative)=="O")
+        if (oNative:Destroy())
+            FreeObj(@oNative)
+        else
+            jChecks["selectedNativeFinalCleanup"]:=.F.
+        endif
+    endif
+    oDataSet:Close()
+    FreeObj(@oDataSet)
+    oClient:Close()
+    FreeObj(@oClient)
+    FreeObj(@jResponse)
+    FreeObj(@jHeader)
+    FreeObj(@jSelectedHeader)
+    FreeObj(@jRow)
+
+return
+
+static function PresentationSelectionWire(jField as json,nPosition as numeric) as json
+
+    local jCopy:=JSONObject():New() as json
+
+    if (!HBBridge.Client.HBBridgeJSON():Parse(HBBridge.Client.HBBridgeJSON():Encode(jField),jCopy))
+        FreeObj(@jCopy)
+        return(nil)
+    endif
+    jCopy["position"]:=nPosition
 
 return(jCopy)

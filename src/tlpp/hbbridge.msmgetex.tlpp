@@ -32,7 +32,6 @@ static method ViewData(cAlias,nRecNo,cTitle,aButtons,aAcho,oNativeTable) class H
     local aFields as array
     local adbStruct as array
     local aMsMGetPos as array
-    local aFieldsNoSX3 as array
 
     local bMsMGet as codeblock
     local bErrorBlock as codeblock
@@ -124,14 +123,10 @@ static method ViewData(cAlias,nRecNo,cTitle,aButtons,aAcho,oNativeTable) class H
             endif
 
             aFields:=Array(0)
-            aFieldsNoSX3:=Array(0)
             adbStruct:=(cAlias)->(dbStruct())
             nFields:=Len(adbStruct)
             for nField:=1 to nFields
                 cField:=adbStruct[nField][DBS_NAME]
-                if ((lAcho).and.(!jAcho:HasProperty(cField)))
-                    loop
-                endif
                 cProjection:=cField
                 cDictionaryField:=cField
                 if (lNativeTable)
@@ -145,11 +140,15 @@ static method ViewData(cAlias,nRecNo,cTitle,aButtons,aAcho,oNativeTable) class H
                         cDictionaryField:=cProjection
                     endif
                 endif
+                if (lAcho)
+                    if (!jAcho:HasProperty(cDictionaryField).and.;
+                        !jAcho:HasProperty(cProjection).and.!jAcho:HasProperty(cField))
+                        loop
+                    endif
+                endif
                 // Use the original field in MsMGet and M-> so Protheus keeps
                 // its dictionary-specific behavior, including RA_BITMAP.
                 // The projection still resolves the caption and native value.
-                aAdd(aFields,cDictionaryField)
-                nATField:=Len(aFields)
                 cVar:=("M->"+cDictionaryField)
                 xValue:=(cAlias)->(FieldGet(nField))
                 if ((empty(xValue).and.!Empty(cX3Relacao:=GetSX3Cache(cDictionaryField,"X3_RELACAO"))))
@@ -160,51 +159,52 @@ static method ViewData(cAlias,nRecNo,cTitle,aButtons,aAcho,oNativeTable) class H
                     ErrorBlock(bErrorBlock)
                 endif
                 private &(cVar):=xValue as variant
-                aAdd(aFieldsNoSX3,Array(18))
+                aAdd(aFields,Array(18))
+                nATField:=Len(aFields)
                 if (lNativeTable)
-                    aFieldsNoSX3[nATField][1]:=oNativeTable:FieldCaption(cProjection)//-> caption
-                    if (Empty(aFieldsNoSX3[nATField][1]))
-                        aFieldsNoSX3[nATField][1]:=GetSX3Cache(cDictionaryField,"X3_TITULO")//-> caption
+                    aFields[nATField][1]:=oNativeTable:FieldCaption(cProjection)//-> caption
+                    if (Empty(aFields[nATField][1]))
+                        aFields[nATField][1]:=GetSX3Cache(cDictionaryField,"X3_TITULO")//-> caption
                     endif
                 else
-                    aFieldsNoSX3[nATField][1]:=GetSX3Cache(cDictionaryField,"X3_TITULO")//-> caption
+                    aFields[nATField][1]:=GetSX3Cache(cDictionaryField,"X3_TITULO")//-> caption
                 endif
-                DEFAULT aFieldsNoSX3[nATField][1]:=cProjection
-                aFieldsNoSX3[nATField][2]:=cProjection//-> field
-                aFieldsNoSX3[nATField][3]:=GetSX3Cache(cDictionaryField,"X3_TIPO")//-> type
-                DEFAULT aFieldsNoSX3[nATField][3]:=adbStruct[nField][DBS_TYPE]
-                if (aFieldsNoSX3[nATField][3]<>adbStruct[nField][DBS_TYPE])
-                    aFieldsNoSX3[nATField][3]:=adbStruct[nField][DBS_TYPE]
+                DEFAULT aFields[nATField][1]:=cDictionaryField//cProjection
+                aFields[nATField][2]:=cDictionaryField//-> field
+                aFields[nATField][3]:=GetSX3Cache(cDictionaryField,"X3_TIPO")//-> type
+                DEFAULT aFields[nATField][3]:=adbStruct[nField][DBS_TYPE]
+                if (aFields[nATField][3]<>adbStruct[nField][DBS_TYPE])
+                    aFields[nATField][3]:=adbStruct[nField][DBS_TYPE]
                 endif
-                aFieldsNoSX3[nATField][4]:=GetSX3Cache(cDictionaryField,"X3_TAMANHO")//-> length
-                DEFAULT aFieldsNoSX3[nATField][4]:=adbStruct[nField][DBS_LEN]
-                if (aFieldsNoSX3[nATField][4]<>adbStruct[nField][DBS_LEN])
-                    aFieldsNoSX3[nATField][4]:=adbStruct[nField][DBS_LEN]
+                aFields[nATField][4]:=GetSX3Cache(cDictionaryField,"X3_TAMANHO")//-> length
+                DEFAULT aFields[nATField][4]:=adbStruct[nField][DBS_LEN]
+                if (aFields[nATField][4]<>adbStruct[nField][DBS_LEN])
+                    aFields[nATField][4]:=adbStruct[nField][DBS_LEN]
                 endif
-                aFieldsNoSX3[nATField][5]:=GetSX3Cache(cDictionaryField,"X3_DECIMAL")//-> decimal
-                DEFAULT aFieldsNoSX3[nATField][5]:=adbStruct[nField][DBS_DEC]
-                aFieldsNoSX3[nATField][6]:=GetSX3Cache(cDictionaryField,"X3_PICTURE")//-> picture
-                DEFAULT aFieldsNoSX3[nATField][6]:=""
-                aFieldsNoSX3[nATField][7]:=GetSX3Cache(cDictionaryField,"X3_VALID")//-> valid
-                DEFAULT aFieldsNoSX3[nATField][7]:="allWaysTrue()"
-                aFieldsNoSX3[nATField][8]:=.F.//-> required
-                aFieldsNoSX3[nATField][9]:=GetSX3Cache(cDictionaryField,"X3_NIVEL")//-> level
-                DEFAULT aFieldsNoSX3[nATField][9]:=0
-                aFieldsNoSX3[nATField][10]:=GetSX3Cache(cDictionaryField,"X3_RELACAO")//-> default initializer
-                DEFAULT aFieldsNoSX3[nATField][10]:=getValType(adbStruct[nField][DBS_TYPE])
-                aFieldsNoSX3[nATField][11]:=GetSX3Cache(cDictionaryField,"X3_F3")//-> F3
-                DEFAULT aFieldsNoSX3[nATField][11]:=""
-                aFieldsNoSX3[nATField][12]:=GetSX3Cache(cDictionaryField,"X3_WHEN")//-> when
-                DEFAULT aFieldsNoSX3[nATField][12]:=""
-                aFieldsNoSX3[nATField][13]:=.T.//-> visual
-                aFieldsNoSX3[nATField][14]:=.F.//-> key
-                aFieldsNoSX3[nATField][15]:=GetSX3Cache(cDictionaryField,"X3_CBOX") //-> box
-                DEFAULT aFieldsNoSX3[nATField][15]:=""
-                aFieldsNoSX3[nATField][16]:=GetSX3Cache(cDictionaryField,"X3_FOLDER")//-> folder
-                DEFAULT aFieldsNoSX3[nATField][16]:=""
-                aFieldsNoSX3[nATField][17]:=.T.//-> read-only
-                aFieldsNoSX3[nATField][18]:=GetSX3Cache(cDictionaryField,"X3_PICTVAR")//-> pictvar
-                DEFAULT aFieldsNoSX3[nATField][18]:=""
+                aFields[nATField][5]:=GetSX3Cache(cDictionaryField,"X3_DECIMAL")//-> decimal
+                DEFAULT aFields[nATField][5]:=adbStruct[nField][DBS_DEC]
+                aFields[nATField][6]:=GetSX3Cache(cDictionaryField,"X3_PICTURE")//-> picture
+                DEFAULT aFields[nATField][6]:=""
+                aFields[nATField][7]:=GetSX3Cache(cDictionaryField,"X3_VALID")//-> valid
+                DEFAULT aFields[nATField][7]:="allWaysTrue()"
+                aFields[nATField][8]:=.F.//-> required
+                aFields[nATField][9]:=GetSX3Cache(cDictionaryField,"X3_NIVEL")//-> level
+                DEFAULT aFields[nATField][9]:=0
+                aFields[nATField][10]:=GetSX3Cache(cDictionaryField,"X3_RELACAO")//-> default initializer
+                DEFAULT aFields[nATField][10]:=getValType(adbStruct[nField][DBS_TYPE])
+                aFields[nATField][11]:=GetSX3Cache(cDictionaryField,"X3_F3")//-> F3
+                DEFAULT aFields[nATField][11]:=""
+                aFields[nATField][12]:=GetSX3Cache(cDictionaryField,"X3_WHEN")//-> when
+                DEFAULT aFields[nATField][12]:=""
+                aFields[nATField][13]:=.T.//-> visual
+                aFields[nATField][14]:=.F.//-> key
+                aFields[nATField][15]:=GetSX3Cache(cDictionaryField,"X3_CBOX") //-> box
+                DEFAULT aFields[nATField][15]:=""
+                aFields[nATField][16]:=GetSX3Cache(cDictionaryField,"X3_FOLDER")//-> folder
+                DEFAULT aFields[nATField][16]:=""
+                aFields[nATField][17]:=.T.//-> read-only
+                aFields[nATField][18]:=GetSX3Cache(cDictionaryField,"X3_PICTVAR")//-> pictvar
+                DEFAULT aFields[nATField][18]:=""
             next nField
 
             FreeObj(@jAcho)
@@ -242,7 +242,33 @@ static method ViewData(cAlias,nRecNo,cTitle,aButtons,aAcho,oNativeTable) class H
                     endif
                 endif
 
-                bMsMGet:={||oMsMGet:=MsMGet():New(cAlias,nRecNo,2,aFields,nil,nil,nil,aMsMGetPos,nil,nil,nil,nil,nil,nil,nil,.F.,nil,nil,nil,lProperty,aFieldsNoSX3,nil,nil,nil,nil)}
+                bMsMGet:={||oMsMGet:=MsMGet():New(;
+                    cAlias,;//cAlias
+                    nRecNo,;//nReg
+                    2,;//nOpc
+                    nil,;//aCRA
+                    nil,;//cLetras
+                    nil,;//cTexto
+                    nil,;//aACho
+                    aMsMGetPos,;//aPos
+                    nil,;//aCpos
+                    nil,;//nModelo
+                    nil,;//nColMens
+                    nil,;//cMensagem
+                    nil,;//cTudoOk
+                    nil,;//oWnd
+                    nil,;//lF3
+                    .T.,;//lMemoria
+                    nil,;//lColumn
+                    nil,;//caTela
+                    nil,;//lNoFolder
+                    lProperty,;//lProperty
+                    aFields,;//aField
+                    nil,;//aFolder
+                    nil,;//lCreate
+                    nil,;//lNoMDIStretch
+                    nil;//cTela
+                )}
 
                 //An error may occur in creating the MsMGet if the content assigned to a field with X3_CBOX is different from the expected content...
                 bErrorBlock:=ErrorBlock({|e|Break(e)})
@@ -299,7 +325,6 @@ static method ViewData(cAlias,nRecNo,cTitle,aButtons,aAcho,oNativeTable) class H
         FWFreeArray(@aFields)
         FWFreeArray(@adbStruct)
         FWFreeArray(@aMsMGetPos)
-        FWFreeArray(@aFieldsNoSX3)
 
         DelClassIntF()
 

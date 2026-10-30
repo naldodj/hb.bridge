@@ -228,6 +228,67 @@ enquadramento incremental do protocolo. Gzip continuará obrigatório até a
 negociação de compressão ser implementada nos dois lados. Remover um teto
 adicional de aplicação não substitui transferência em blocos.
 
+### Negociação e envelopes versionados previstos
+
+O desenho abaixo permanece futuro. Ele não altera o contrato ativo
+`HBBRIDGE/1` descrito acima. A semântica dos serviços continua compartilhada:
+valores Harbour nativos via NETIO e representação interoperável no adaptador
+Protheus. Versões de transporte e de serviço são distintas.
+
+Iniciar uma futura conexão Protheus com uma troca pequena de capacidades em
+frame conhecido sem compressão. Selecionar versão, codec, compressão, tamanho
+dos blocos e modos de transferência. A descoberta de serviços Harbour sucede
+o handshake nativo NETIO. Os peers anunciam capacidades que conseguem cumprir;
+limites efetivos desconhecidos do AppServer exigem perfil explícito homologado
+para a instalação.
+
+| Parte do envelope | Semântica necessária |
+| --- | --- |
+| Chamada | ID, serviço/versão, parâmetros, contexto autorizado e prazo de execução. |
+| Resposta | Correlação, sucesso/resultado/metadados e erro com código, origem e semântica de nova tentativa. |
+| Tipos | Conversões explícitas entre runtimes para nulo/vazio, lógico, inteiro, decimal/moeda, data/timestamp, texto, binário e contêineres. |
+| Texto e números | Encoding, contagem de bytes, precisão e regras de data/fuso horário. |
+| Recursos remotos | IDs de sessão/cursor/stream/job com proprietário, expiração, fechamento e cancelamento cooperativo. |
+| Compatibilidade | Comportamento versionado de serviço/dataset e erros identificáveis de incompatibilidade. |
+
+O futuro enquadramento externo identifica chamada, versão, codec/compressão,
+tamanho transmitido e tamanho expandido de cada bloco. Especificar e testar
+o formato exato nos dois peers antes da implementação; limites de `Receive`
+não são limites de mensagem. Um ID de chamada não torna a repetição segura:
+alterações exigem idempotência ou consulta do resultado anterior. Persistência,
+propriedade do contexto e transportes opcionais TLS/JWT estão na
+[análise de transportes](transports-sessions-security.pt-BR.md).
+
+### Volume lógico e compressão previstos
+
+Separar três questões: capacidades técnicas do peer/API, orçamentos
+configuráveis por conexão/processo e volume lógico total da operação.
+Páginas, blocos e streams podem superar uma string/mensagem individual,
+enquanto cada bloco expandido e a quantidade de blocos em trânsito precisam
+caber nos orçamentos de memória homologados. São necessários controle de
+fluxo, prazos e fechamento explícito dos recursos.
+
+O [MAXSTRINGSIZE](https://tdn.totvs.com/pages/viewpage.action?pageId=161349793)
+do AppServer depende do build/configuração. Considerar conteúdo expandido,
+JSON/base64, buffers temporários e cópias. Concatenar todos os blocos recebidos
+em uma string TLPP continua sujeito a esse limite. Um campo/arquivo grande
+exige consumo incremental, gravação em arquivo ou recurso remoto com
+proprietário. Serviços que necessitam de um único valor materializado devem
+declarar esse requisito e falhar claramente quando o peer não puder recebê-lo.
+
+Negociar `none`/`gzip`, com seleção automática opcional por tamanho, ganho de
+compressão, CPU e latência medidos. Conteúdo pequeno ou já comprimido poderá
+seguir sem compressão. Cada bloco gzip deverá ser independente e caber nas
+capacidades do cliente; validar conteúdo vazio/binário e distinguir gzip de
+zlib/DEFLATE puro. Esta proposta não estabelece limiar ou política automática.
+
+Declarar o tamanho expandido não impõe limite de alocação ao descompressor.
+Validar expansão e memória efetivas; APIs sem expansão limitada podem exigir
+blocos confiáveis ou `none` conforme a política homologada da conexão. NETIO
+nativo mantém sua compressão da conexão, sem cabeçalhos Protheus. Avaliar
+`HB_SERIALIZE_COMPRESS` separadamente para evitar compressão duplicada.
+Comparar tráfego local/remoto, JSON/binário e diferentes taxas de compressão.
+
 Referências: [TSocketClient:Receive](https://tdn.totvs.com/display/tec/TSocketClient%3AReceive),
 [TSocketClient:Send](https://tdn.totvs.com/display/tec/TSocketClient%3ASend),
 [TSocketClient:GetError](https://tdn.totvs.com/display/tec/TSocketClient%3AGetError),

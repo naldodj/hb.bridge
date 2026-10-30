@@ -1,187 +1,77 @@
-# Documentacao
+# Documentação do hbBridge
 
-[English](README.md)
+[English](README.md) · [Projeto](../README.pt-BR.md) · [Trabalho atual](../WIP.pt-BR.md)
 
-[Conexões SQL](sql-connections.pt-BR.md) registra a análise futura de conexões
-persistentes/pooling ODBC, medições, estado de sessão e propriedade dos recursos.
+Escolha o guia pela tarefa. Estes arquivos em inglês/português são a
+documentação técnica mantida, versionada junto ao código. A Wiki apresenta
+este índice como [portal de navegação](https://github.com/naldodj/hb.bridge/wiki/Home.pt-BR),
+sem manter outra cópia de cada guia.
 
-O [guia de consumidores Protheus](../examples/protheus/README.pt-BR.md) reúne
-testes reorganizados, checks puros e browses SRA/SX5. A
-[análise de extensões](extensions-review.pt-BR.md) trata SQLRDD, Duktape e
-CCHarbour como possibilidades futuras, sem novos motores implementados.
+## Começar e configurar
 
-O [pacote ativo](../WIP.pt-BR.md) registra escopo atual, próxima tarefa,
-decisões, evidências e renovação. O primeiro pacote é MSSQL real; TODO
-permanece o roadmap completo, sem copiar todas as pendências para o WIP.
+| Guia | Utilize para |
+| --- | --- |
+| [Dependências e bootstrap](dependencies.pt-BR.md) | Resolver hb_compile, Harbour, Zig, drivers externos e requisitos de plataforma. |
+| [Scripts de build, execução e validação](../scripts/README.pt-BR.md) | Compilar host/TLPP, iniciar exemplos e reproduzir checks isolados. |
+| [Configuração do servidor e AppServer](configuration.pt-BR.md) | Definir INI/JSON/CLI, listeners, timeouts, políticas de recursos e padrões dos clientes. |
+| [Credenciais](credentials.pt-BR.md) | Entender armazenamento atual, entradas da instalação e proteção portátil planejada. |
+| [Exemplos Protheus](../examples/protheus/README.pt-BR.md) | Localizar entradas de cliente, dataset, query, browse e benchmark. |
+| [Exemplo HTTP](../examples/http/README.pt-BR.md) | Consumir serviços por TLPP/FWRest com as credenciais HTTP configuradas. |
 
-[Arquitetura](architecture.pt-BR.md) fixa a divisão: Protheus resolve regras,
-tenant, empresa, filial/xFilial e nomes físicos; hbBridge executa parâmetros
-explícitos. Perfis são aliases opacos por chamada, sem banco demo fixo.
+## SQL, datasets e apresentação
 
-O hbBridge disponibiliza recursos de Harbour, C e Zig ao Protheus e a clientes
-Harbour nativos. O [README principal](../README.pt-BR.md) distingue a implementação
-do produto da arquitetura pretendida e o [TODO](../TODO.pt-BR.md) registra as entregas e os aceites.
+| Guia | Utilize para |
+| --- | --- |
+| [Serviço SQL e paginação](milestone3-sql.pt-BR.md) | Configurar perfis MSSQL/SQLite e páginas no SGBD. |
+| [Dataset](dataset.pt-BR.md) | Ler headers/campos/linhas e percorrer páginas com posse explícita. |
+| [Contrato SQL tipado](typed-sql.pt-BR.md) | Informar parâmetros tipados e distinguir tipos de origem, transporte e lógicos, NULL e valores exatos. |
+| [Capacidades dos conectores](typed-sql-connectors.pt-BR.md) | Conferir bindings nativos e metadados dos resultados suportados. |
+| [Apresentação nativa Protheus](native-presentation.pt-BR.md) | Converter páginas atuais em tabelas nativas próprias e exibi-las no browse. |
+| [Metadados SX3 e campos selecionados](sx3-metadata.pt-BR.md) | Resolver definições do dicionário, exemplos SRA, aliases e nomes originais no Protheus. |
+| [Relacionamentos SX9](sx9-relationships.pt-BR.md) | Analisar candidatos SRA/SRB e CTT/SRA para futuros exemplos de JOIN explícito. |
+| [Posse de conexões SQL e pooling](sql-connections.pt-BR.md) | Entender posse por chamada, reutilização física e avaliações futuras. |
 
-A analise [Harbour VF IO e TRPC](harbour-vfio-trpc.pt-BR.md) detalha o suporte
-planejado a `hb_vf*` e o reaproveitamento seletivo de `contrib/xhb/trpc.prg`.
+## Arquitetura e transportes
 
-A análise [Transportes, sessões e segurança](transports-sessions-security.pt-BR.md)
-avalia as propostas locais de `brainstorming/brainstorming.md`: conexões
-persistentes, contexto, TLS/JWT, limitações de `tGrpc` e AMQP opcional.
-As decisões ainda dependem de implementação e homologação, conforme o TODO.
+| Guia | Utilize para |
+| --- | --- |
+| [Arquitetura](architecture.pt-BR.md) | Entender executor genérico, regras do chamador, host único e adaptadores separados. |
+| [Núcleo de serviços e NETIO incorporado](milestone1.pt-BR.md) | Acompanhar registro, ciclo do host, administração e gateway Harbour nativo. |
+| [Enquadramento TCP Protheus](milestone2-framing.pt-BR.md) | Entender HBBRIDGE/1, JSON/gzip, capacidades do runtime e evolução da transferência. |
+| [HTTP/REST e administração web](http.pt-BR.md) | Configurar hbhttpd, rotas, gzip, orçamento de envio e TLS opcional. |
+| [Transporte NETIO nativo](../src/hb/transports/netio/README.pt-BR.md) | Utilizar RPC/arquivos Harbour nativos e conferir limites do upstream. |
+| [Harbour VF IO e reutilização seletiva de TRPC](harbour-vfio-trpc.pt-BR.md) | Distinguir recursos nativos de arquivos das fachadas TLPP planejadas. |
+| [Transportes, sessões e segurança](transports-sessions-security.pt-BR.md) | Analisar persistência/contexto, TLS/JWT e adaptadores opcionais futuros. |
 
-O [registro da reorganização](reorganization.pt-BR.md) descreve a estrutura aplicada,
-o mapa de fontes e as verificações antes/depois da extração dos componentes.
+## Desenvolver, depurar e medir
 
-[HTTP e administração web](http.pt-BR.md) descreve hbhttpd incorporado,
-rotas HTTP/JSON para o registro comum, painel de status autenticado,
-dependências e HTTPS opcional. Os [padrões](standards.pt-BR.md) usam arquivos
-em minúsculas e funções, procedures, métodos, namespaces e classes em
-PascalCase. [Dependências](dependencies.pt-BR.md) explica o bootstrap do
-Harbour/hb_compile/Zig do próprio projeto, sem caminhos pessoais fixos.
+| Guia | Utilize para |
+| --- | --- |
+| [Padrões dos fontes e crivos de commit](standards.pt-BR.md) | Aplicar nomes, indentação, mapas, posse e os três checks obrigatórios. |
+| [Mapa de responsabilidades dos fontes](reorganization.pt-BR.md) | Localizar host, serviços, transportes, clientes, addons e testes reutilizáveis. |
+| [Depuração](debugging.pt-BR.md) | Planejar aceite do hbdebug nativo e futura integração HBDAP/editor opcional. |
+| [Benchmark](benchmarking.pt-BR.md) | Executar medições e comparar o escopo das rotas cliente e servidor. |
+| [Evolução do benchmark](benchmark-evolution.pt-BR.md) | Analisar processadores nativos C/Zig e extensões de ambiente propostos. |
+| [Benchmark visual](../src/tlpp/tests/protheus/hbbridge.benchmark.test/README.pt-BR.md) | Selecionar rotas, visualizar gráficos e exportar resultados. |
+| [Testes reutilizáveis](../tests/README.pt-BR.md) | Localizar suítes nativas, de contrato e integração. |
+| [Validação reproduzível](validation/README.pt-BR.md) | Localizar manifests sanitizados e recriar rodadas a partir dos fontes mantidos. |
 
-O [exemplo HTTP TLPP](../examples/http/README.pt-BR.md) apresenta cliente
-FWRest, configuração AppServer, bearer, RPC genérico e dataset SQL paginado,
-com 13 checks homologados manualmente no AppServer em 2026-10-07.
+## Decisões, andamento e contribuição
 
-[Dataset](dataset.pt-BR.md) descreve acesso a campos/header, varredura com
-`MoreToRead()` e as correções de integridade UTF-8/FLOAT ainda pendentes.
-[Credenciais](credentials.pt-BR.md) abrange SQL, NETIO, administração e HTTP
-no servidor e nos clientes; o armazenamento criptografado não está implementado.
+| Guia | Utilize para |
+| --- | --- |
+| [Pacote de trabalho ativo](../WIP.pt-BR.md) | Retomar a próxima tarefa delimitada e seus critérios de conclusão. |
+| [Roadmap](../TODO.pt-BR.md) | Conferir entregas futuras, pré-requisitos e critérios de aceite. |
+| [Histórico de homologação](acceptance.pt-BR.md) | Consultar resultados datados, identidades, plataformas e limitações. |
+| [Análise de evolução](evolution.pt-BR.md) | Analisar estado de workers, motores HTTP opcionais, apresentação e resultados em memória futuros. |
+| [Análise de extensões](extensions-review.pt-BR.md) | Avaliar ideias opcionais de SQLRDD, Duktape e CCHarbour. |
+| [Revisão dos utilitários FWWebEx](fwwebex-tools-review.pt-BR.md) | Analisar candidatos de clone JSON, merge, flatten e medição antes de reutilizar. |
+| [Licenciamento e proveniência](licensing.pt-BR.md) | Consultar decisão global pendente e termos dos fontes/dependências existentes. |
+| [Apoio ao projeto e suporte corporativo](support.pt-BR.md) | Contribuir com feedback ou contatar a DNA Tech para serviços especializados. |
 
-A [análise de evolução](evolution.pt-BR.md) trata `THREAD STATIC`, HTTP Zig
-opcional, resolução externa pelo hb_compile e tabelas para apresentação
-Protheus, separando comportamento verificado de implementações futuras.
+## Manter este portal
 
-O [Marco 1](milestone1.pt-BR.md) documenta a implementação do registro nativo,
-NETIO incorporado, configuração e administração. A [matriz de homologação](acceptance.pt-BR.md)
-identifica o ambiente Protheus informado e o toolchain do servidor.
-
-A [proposta de licenciamento](licensing.pt-BR.md) distingue a licença do
-código autoral das dependências Harbour/Zig/zlib e registra a procedência
-que precisa ser esclarecida antes da formalização. A escolha permanece pendente.
-
-O [Marco 2 — fluxo TCP do produto](milestone2-framing.pt-BR.md) registra a primeira entrega:
-gzip incremental no Harbour, leitura completa no TLPP, validação estrita e
-contrato único `HBBRIDGE/1`, JSON e gzip. A rodada manual AppServer de 2026-10-03
-confirmou Health, ADDON.Execute e dois Echo de 200.000 bytes idênticos,
-incluindo gzip de requisição de 152.964 bytes. Handshake, blocos e compressão
-negociada virão depois; homologação de timeout/falhas TLPP permanece pendente.
-Na nova rodada manual AppServer registrada na sessão de 2026-10-04, foram
-confirmados novamente esse fluxo e o relógio Windows normalizado após
-`Sleep(1000)`, com `result=OK`.
-
-## Contrato implementado no produto
-
-O [Marco 3 — SQL e paginação](milestone3-sql.pt-BR.md) descreve `RPCRDD.Query` sobre
-SQLMIX, perfis SQLite/MSSQL, resultados por chave e páginas calculadas no SGBD
-com `ROW_NUMBER`/`BETWEEN`. O cliente `HBBridgeRPCDataSet` e `U_HBBridgeQueryTest`
-passaram no AppServer com SQLite em 2026-10-04: 29 checks verdadeiros,
-incluindo páginas. A [homologação](acceptance.pt-BR.md) registra os aceites
-MSSQL/SQLite TCP e HTTP de 2026-10-08 e as limitações de tipos ainda pendentes.
-
-[Configuração](configuration.pt-BR.md) descreve INI/JSON, arquivo padrão ao lado do
-executável, precedência CLI, seções/perfis e metadados sem credenciais.
-Também descreve `[hbBridge]` no INI do AppServer para os padrões do cliente
-Protheus. A nova leitura TLPP foi aceita em validação manual AppServer na
-sessão de 2026-10-04, com todos os 13 checks de configuração verdadeiros, incluindo
-`activeAppServerIni`, junto de Health, ADDON, Echo e Query `sqlite_demo`.
-O relato não informa argumentos das chamadas nem log de compilação; destinos
-diferentes dos padrões continuam pendentes, conforme a matriz de homologação.
-
-O cliente `src/tlpp/hbbridge.client.tlpp` envia requisicoes JSON com `service`
-e `params`. O servidor escuta em `0.0.0.0:1512` (cliente local: `127.0.0.1`) e usa dispatcher
-compartilhado com NETIO. `Health` responde pela biblioteca Zig; `Echo` devolve
-os parametros recebidos e `ADDON.Execute` compila/carrega e executa modulos
-Harbour, com `module` e `params` no objeto de parâmetros.
-
-Antes da compressao, cada mensagem tem este formato:
-
-```text
-HBBRIDGE/1|JSON|<tamanho-em-bytes-do-JSON>\n<payload-json>
-```
-
-O cliente e o servidor usam somente `HBBRIDGE/1`, JSON enquadrado e gzip.
-As constantes ficam em [includes/hbbridge.h](../includes/hbbridge.h),
-compartilhadas pelos componentes e seus testes. A assinatura atual não implica
-negociação de capacidades. Cada chamada abre uma conexão e o servidor fecha
-após a resposta.
-
-O frame inteiro, incluindo o cabecalho, e comprimido para envio. A indicacao
-`JSON` descreve a representacao dos dados; o comprimento interno descreve o
-JSON descomprimido, nao o total de bytes transmitidos pelo socket.
-
-| Direcao | Compressao | Descompressao |
-| --- | --- | --- |
-| Protheus para Harbour | `GzStrComp` no TLPP | zlib incremental pela API C Harbour |
-| Harbour para Protheus | Compressor gzip incremental pela API C Harbour | `GzStrDecomp` no TLPP |
-
-Essa compressao e descompressao de strings está implementada no produto. O
-cliente nao depende de arquivos temporarios nem das APIs de arquivos
-`GzCompress`/`GzDecomp`.
-
-O contrato não impõe tetos fixos de 16 MiB, oito dígitos de tamanho ou cabeçalho
-de 128 bytes. O comprimento decimal canônico é comparado ao corpo efetivo;
-a capacidade do cabeçalho deriva da estrutura e dos dígitos do runtime.
-`protheusMaxPayloadBytes` e `protheusMaxWireBytes` usam `0` por padrão, sem
-acrescentar um teto do aplicativo. O buffer de leitura padrão é 65.536 bytes
-e o prazo operacional por fase é 30 segundos; o prazo `0` desativa o deadline
-do servidor Harbour. `HBBridgeRuntimeLimits()` informa as capacidades reais
-de strings, chunks de socket/zlib e timeout NETIO do build. O buffer cabe no
-menor limite entre socket e codec; não limita o total da mensagem.
-Os prazos e o uptime do servidor usam `HBBridgeMonotonicMs()`, sem relógio civil.
-O TLPP passou a usar `TimeCounter()` pelos métodos estáticos da classe
-`HBBridge.Client.HBBridgeTime`, em [hbbridge.time.tlpp](../src/tlpp/hbbridge.time.tlpp),
-com regressão expirando o orçamento e teste de escala/espera no AppServer.
-A normalização Unix × 1000 corrige a diferença de unidades reproduzida na
-[issue #12](https://github.com/naldodj/totvs-protheus-open-issues/issues/12).
-A validação manual AppServer confirmou o adapter no Windows alvo na sessão
-de 2026-10-04:
-`Unix=false`, delta `1097.692700` e `1097.773500 ms` normalizados após
-`Sleep(1000)`, com resultado `OK`. Outras plataformas permanecem pendentes.
-
-O Harbour comprime/descomprime incrementalmente pela API C, respeitando
-capacidades do runtime e políticas positivas configuradas. O TLPP acumula
-gzip até o fechamento, confere retornos e frame exato; `GzStrComp`/`GzStrDecomp`
-continuam sujeitos ao `MAXSTRINGSIZE` real do AppServer e à memória disponível.
-A API TOTVS não limita a expansão durante a descompressão. Os dois lados
-tratam envios positivos incompletos. O fluxo normal do cliente atualizado foi
-confirmado manualmente no AppServer; timeout/falhas ainda precisam ser exercitados.
-O corpo JSON ainda é materializado inteiro;
-blocos lógicos e negociação permanecem no roadmap.
-
-## Integracao nativa Harbour
-
-O servidor hospeda RPC/arquivos nativos pela biblioteca `hbnetio`, no mesmo
-processo do adaptador Protheus. O frame `HBBRIDGE/1` segue no
-endpoint Protheus; clientes Harbour usam o protocolo NETIO no endpoint próprio.
-
-O núcleo usa valores Harbour, registro versionado, tipos e permissões por
-canal. `HBBridge.Call` permite chamar os serviços pelo NETIO; a descoberta
-`Service.List` compartilha metadados com o adaptador JSON. O
-serviço SQL reutiliza RDDSQL/SQLMIX e as contribs `sddsqlt3`/`sddodbc`,
-vinculadas ao build do produto.
-
-`hb_Serialize()`/`hb_Deserialize()` e `HB_SERIALIZE_COMPRESS` sao recursos
-nativos do Harbour. O adaptador Protheus recebe JSON enquadrado em
-`HBBRIDGE/1` após a descompressão gzip. A serialização binária Harbour usa o
-transporte NETIO e tem teste de roundtrip explícito.
-Datas, timestamps e bytes binários são preservados nos testes nativos.
-
-O timeout NETIO padrão do host é `0`, convertido para `-1` nativo, sem prazo;
-valores positivos configuram milissegundos. Os fontes examinados estabelecem
-senha de até 64 bytes, 8.192 arquivos abertos por conexão e comprimentos
-`uint32` em determinadas unidades RPC/streams. Essas capacidades pertencem ao
-NETIO, independentemente do comprimento decimal do frame Protheus. Detalhes
-e referências no [transporte incorporado](../src/hb/transports/netio/README.pt-BR.md).
-
-## Syslog
-
-O modulo `src/hb/telemetry/hbbridge.syslog.hb` implementa envio UDP para
-`127.0.0.1:514` e esta incluido no build. O fluxo atual do servidor nao
-chama `SyslogOpen`, `SyslogWrite` ou `SyslogClose`; portanto, nao ha emissao
-Syslog integrada ao atendimento RPC. A conexao desse modulo ao ciclo de
-vida do servidor e a validacao com o receptor ainda precisam ser feitas.
-
-Os documentos de protocolo, arquitetura, seguranca, API de addons e
-implantacao serao detalhados conforme a integracao nativa for estabilizada.
+Edite estes índices versionados e o guia pertinente nos dois idiomas. Gere a
+navegação Wiki com `pwsh ./scripts/prepare-wiki.ps1`; veja o
+[fluxo de publicação](../scripts/README.pt-BR.md#portal-wiki).
+As páginas geradas ficam em `out/` descartável; os guias-fonte permanecem aqui.

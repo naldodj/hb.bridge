@@ -15,5 +15,8 @@ return(HBBridge.Examples.U_HBBridgeNativeBrowseSX5(cProfile,cTransport,nPageSize
 function U_HBBridgeNativeBrowseSRA(cProfile,cTransport,nPageSize)
 return(HBBridge.Examples.U_HBBridgeNativeBrowseSRA(cProfile,cTransport,nPageSize))
 
+function U_HBBridgeNativeBrowseSRASelected(cProfile,cTransport,nPageSize,jSelection)
+return(HBBridge.Examples.U_HBBridgeNativeBrowseSRASelected(cProfile,cTransport,nPageSize,jSelection))
+
 function U_HBBridgeSX3Browse(cAlias)
 return(HBBridge.Examples.U_HBBridgeSX3Browse(cAlias))

@@ -49,7 +49,7 @@ function U_HBBridgeNativeBrowse(nRecords,nPageSize)
             cMessage:=oNative:ErrorMessage()
             throw "NATIVE_PAGE_FAILED"
         endif
-        lOK:=BrowseNative(oNative,oDataSet,oClient,cTitle,@cCode,@cMessage)
+        lOK:=BrowseNative(nil,oNative,oDataSet,oClient,cTitle,@cCode,@cMessage)
     catch xError
         lOK:=.F.
         if (Empty(cCode))
@@ -86,6 +86,22 @@ return(BrowseNativeDictionary("SX5",cProfile,cTransport,nPageSize))
 
 function U_HBBridgeNativeBrowseSRA(cProfile,cTransport,nPageSize)
 return(BrowseNativeDictionary("SRA",cProfile,cTransport,nPageSize))
+
+function U_HBBridgeNativeBrowseSRASelected(cProfile,cTransport,nPageSize,jSelection)
+
+    local lOwnSelection:=ValType(jSelection)=="U" as logical
+
+    local nResult:=1 as numeric
+
+    if (lOwnSelection)
+        jSelection:=HBBridgePresentationSRA():SelectedFields()
+    endif
+    nResult:=BrowseNativeDictionary("SRA",cProfile,cTransport,nPageSize,jSelection)
+    if (lOwnSelection)
+        FreeObj(@jSelection)
+    endif
+
+return(nResult)
 
 // Dictionary content for the requested table; no SQL employee read or native
 // temporary destination is needed to inspect SX3 field definitions.
@@ -134,11 +150,11 @@ static function BrowseNativeDictionaryStatus(jMetadata as json) as json
 
 return(jStatus)
 
-static function BrowseNativeDictionary(cTable as character,cProfile,cTransport,nPageSize) as numeric
+static function BrowseNativeDictionary(cAliasDictionary as character,cProfile,cTransport,nPageSize,jSelection) as numeric
 
     local cCode:="" as character
     local cMessage:="" as character
-    local cTitle:="hbBridge "+cTable as character
+    local cTitle:="hbBridge "+cAliasDictionary as character
 
     local jConfig as json
     local jDefinition as json
@@ -178,21 +194,23 @@ static function BrowseNativeDictionary(cTable as character,cProfile,cTransport,n
         return(1)
     endif
     try
-        if (cTable=="SRA")
-            jDefinition:=HBBridgePresentationSRA():Definition()
-            if (!jDefinition["success"])
-                cCode:=jDefinition["code"]
-                cMessage:=jDefinition["message"]
-                throw cCode
-            endif
-            cTitle+=": "+tlpp.ToStr(jDefinition["includedCount"])+" columns; "+;
-                tlpp.ToStr(jDefinition["excludedCount"])+" fields outside native presentation"
+        if (cAliasDictionary=="SRA")
+            jDefinition:=HBBridgePresentationSRA():Definition(jSelection)
         else
             jDefinition:=HBBridgePresentationSX5():Definition()
         endif
         if (ValType(jDefinition)!="J")
             cMessage:="Prepare the Protheus company/branch and dictionary before opening this example."
             throw "PROTHEUS_CONTEXT_REQUIRED"
+        endif
+        if (!jDefinition["success"])
+            cCode:=jDefinition["code"]
+            cMessage:=jDefinition["message"]
+            throw cCode
+        endif
+        if (cAliasDictionary=="SRA")
+            cTitle+=": "+tlpp.ToStr(jDefinition["includedCount"])+" columns; "+;
+                tlpp.ToStr(jDefinition["excludedCount"])+" fields outside native presentation"
         endif
         if (cTransport=="HTTP")
             oClient:=HBBridge.Client.HBBridgeHTTPClient():New(nil,nil,nil,"gzip",.T.)
@@ -220,7 +238,7 @@ static function BrowseNativeDictionary(cTable as character,cProfile,cTransport,n
             cMessage:=oNative:ErrorMessage()
             throw cCode
         endif
-        lOK:=BrowseNative(oNative,oDataSet,oSource,cTitle+": real SELECT via "+cTransport,@cCode,@cMessage,jDefinition)
+        lOK:=BrowseNative(cAliasDictionary,oNative,oDataSet,oSource,cTitle+": real SELECT via "+cTransport,@cCode,@cMessage,jDefinition)
     catch xError
         if (Empty(cCode))
             cCode:="REAL_PRESENTATION_FAILED"
@@ -508,7 +526,7 @@ return(if(lOK,0,1))
 
 // One modal hosts the browse throughout paging, searching and filtering.
 // It borrows the adapter, dataset and fixture client; closing only closes UI.
-static function BrowseNative(oNativeTable as object,oDataSet as object,oClient as object,cTitle as character,cCode as character,cMessage as character,jDefinition as json) as logical
+static function BrowseNative(cAliasDictionary,oNativeTable as object,oDataSet as object,oClient as object,cTitle as character,cCode as character,cMessage as character,jDefinition as json) as logical
 
     local aAcho as array
     local aColumns as array
@@ -561,7 +579,7 @@ static function BrowseNative(oNativeTable as object,oDataSet as object,oClient a
         oDialog:AddButton("< &Previous",{|oButton|BrowseNativeMove(oBrowse,oNativeTable,oDataSet,"previous",oClient)},"Previous page",nil,.T.,.F.,.T.)
         oDialog:AddButton("&Next >",{|oButton|BrowseNativeMove(oBrowse,oNativeTable,oDataSet,"next",oClient)},"Next page",nil,.T.,.F.,.T.)
         oDialog:AddButton("&Last >>",{|oButton|BrowseNativeMove(oBrowse,oNativeTable,oDataSet,"last",oClient)},"Last page",nil,.T.,.F.,.T.)
-        oDialog:AddButton("&View",{|oButton|MGetExResolveView(oNativeTable,aAcho)},"View",nil,.T.,.F.,.T.)
+        oDialog:AddButton("&View",{|oButton|MGetExResolveView(cAliasDictionary,oNativeTable,aAcho)},"View",nil,.T.,.F.,.T.)
         if (ValType(jDefinition)=="J")
             if (jDefinition:HasProperty("fieldStatus"))
                 oDialog:AddButton("Field &catalog",{|oButton|BrowseNativeCatalog(jDefinition)},"Dictionary and physical field coverage",nil,.T.,.F.,.T.)
@@ -590,14 +608,12 @@ static function BrowseNative(oNativeTable as object,oDataSet as object,oClient a
 
 return(lOK)
 
-static procedure MGetExResolveView(oNativeTable as object,aAcho as array)
+static procedure MGetExResolveView(cAliasDictionary,oNativeTable as object,aAcho as array)
 
     local cAlias as character
     local cFieldRecNo as character
 
-    local lSourceTableSRA:=FWIsINCallStack("HBBRIDGE.EXAMPLES.U_HBBRIDGENATIVEBROWSESRA") as logical
-    local lSourceTableSX5:=!lSourceTableSRA.and.FWIsINCallStack("HBBRIDGE.EXAMPLES.U_HBBRIDGENATIVEBROWSESX5") as logical
-    local lSourceTable:=lSourceTableSRA.or.lSourceTableSX5 as logical
+    local lSourceTable:=(!Empty(cAliasDictionary)) as logical
 
     local nRecNo as numeric
     local nFieldPos as numeric
@@ -608,12 +624,11 @@ static procedure MGetExResolveView(oNativeTable as object,aAcho as array)
     if ((lSourceTable).and.(lSourceTable:=APMsgYesNo("Check the data in the system table?","ViewData")))
         cFieldRecNo:="R_E_C_N_O_"
         nFieldPos:=(oNativeTable:FieldPos(cFieldRecNo))
+        if (nFieldPos==0)
+            nFieldPos:=(oNativeTable:SourceFieldPos(cFieldRecNo))
+        endif
         if (nFieldPos>0)
-            if (lSourceTableSRA)
-                cAlias:="SRA"
-            else
-                cAlias:="SX5"
-            endif
+            cAlias:=cAliasDictionary
             lSourceTable:=ChkFile(cAlias)
             if (lSourceTable)
                 nRecNo:=oNativeTable:FieldGet(nFieldPos)

@@ -6,6 +6,47 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Adicionar cobertura de integridade para JSON UTF-8 e MSSQL)"
  */
 
+2026-10-30 10:55 UTC naldodj (Organizar documentação bilíngue e preparar o portal Wiki)
+  * Enxugar os READMEs preservando familiaridade Harbour/xBase, integração
+    nativa C, modernização Zig e a fronteira de executor genérico. Manter
+    primeira execução, escopo atual e links para guias específicos.
+  * Organizar índices EN/PT equivalentes por tarefa; mover detalhes de
+    depuração e suporte para guias próprios, preservando arquitetura,
+    operação e transferência futura em docs. Redirecionar âncoras antigas
+    dos READMEs e corrigir o resumo gzip do exemplo HTTP.
+  + Adicionar prepare-wiki.ps1 determinístico: gerar páginas Home bilíngues,
+    barra lateral e rodapé a partir dos índices canônicos, com links GitHub.
+    Manter gerados descartáveis em out e manutenção dos guias em docs;
+    documentar inicialização/publicação Wiki separadas, sem credenciais de CI.
+  ; A reorganização preserva o escopo registrado de aceite do pacote 002.
+    Validar identidades dos fontes finais separadamente do aceite visual manual.
+
+2026-10-30 10:32 UTC naldodj (Adicionar projeções selecionadas do dicionário e testes rigorosos de aliases)
+  + Adicionar HBBridgePresentationTable.Project sobre definições Build ainda
+    não planejadas, preservando expressões confiáveis, CASTs e mapas de origem.
+    Aceitar posições explícitas e aliases/origens únicos; rejeitar seleção
+    inválida integralmente, sem acrescentar campos de sistema implicitamente.
+  + Adicionar seleção opcional SRA e U_HBBridgeNativeBrowseSRASelected sobre
+    browse TCP/HTTP gzip, paginação, pesquisa/filtro e View existentes. Validar
+    predicados físicos antes da seleção e usar identidade projetada do registro
+    para ordenação determinística. Preservar inventário completo do dicionário.
+  ! Criar fixtures de aliases inválidos por atribuição em JSONObject para
+    compilação TLPP sem literais com nomes de propriedades incompatíveis.
+    Remover macros/fallbacks de alias válido e aprovações incondicionais;
+    preservar e rejeitar as chaves realmente inválidas. Usar HasProperty para
+    não alterar entrada na verificação opcional de projeção única.
+  ! Preservar alias explícito do dicionário no View do browse e nomes originais
+    nas definições/variáveis de memória MsMGet. Aplicar seleção aAcho de forma
+    consistente aos nomes do dicionário, projetados e nativos.
+  ; AppServer isolado compilou 78 fontes sem erros e passou 730 checks em dez
+    suítes, incluindo 142 de planejamento/seleção/SQLite nativo SRA. Registrar
+    identidades em selected.presentation.windows.json. Aceite visual SRA
+    selecionada confirmado em 2026-10-30, com escopo informado separado.
+    T05b e encerramento T05 continuam abertos.
+  ; Registrar relacionamentos SX9 locais somente leitura e os sete utilitários
+    FWWebEx analisados, com candidatos, restrições e proveniência em guias EN/PT.
+    Não adiciona regras SX9, gerador de JOIN ou dependência FWWebEx copiada.
+
 2026-10-29 21:47 UTC naldodj (Ampliar apresentação do dicionário e revisar mapas de origem nativos)
   + Adicionar snapshots HBBridgeSX3Metadata e exemplos SRA/browse SX3 isolado.
     Compartilhar Build/Plan da apresentação entre exemplos reais e testes;

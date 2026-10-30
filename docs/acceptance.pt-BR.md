@@ -2096,3 +2096,17 @@ são versionados; logs e cópias SDK/RPO continuam descartáveis. Estes checks
 não homologam TLS direto/Linux, CPU/memória por etapa nem capacidade de produção.
 O [contrato SQL T01](typed-sql.pt-BR.md) permanece rascunho, e persistência MEMIO
 fica registrada apenas como [trabalho futuro](evolution.pt-BR.md#resultados-em-memoria-entre-requisicoes).
+
+## Validação visual SRA selecionada em 2026-10-30
+
+Confirmada a validação visual manual do exemplo SRA com campos selecionados,
+com resultado OK. T05a aceita no escopo visual informado; exemplos JOIN T05b e
+encerramento final do pacote permanecem abertos no [WIP](../WIP.pt-BR.md).
+
+A confirmação não fornece argumentos de execução, logs por transporte,
+hashes compilados ou checklist detalhado da interface. Não deduzir cobertura
+adicional de backend, plataforma, falhas ou desempenho. O
+[manifesto isolado da seleção](validation/selected.presentation.windows.json)
+identifica 78 fontes compilados e 730 checks, incluindo 142 de planejamento/
+seleção/SQLite nativo SRA. Essas identidades descrevem a rodada automatizada,
+sem identificar independentemente o RPO manual.

@@ -5,6 +5,47 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Add UTF-8 JSON and MSSQL integrity coverage)"
  */
 
+2026-10-30 10:55 UTC naldodj (Organize bilingual documentation and prepare the Wiki portal)
+  * Shorten root READMEs while preserving Harbour/xBase familiarity, native
+    C interoperability, Zig modernization and the generic-executor boundary.
+    Keep first-run instructions, current scope and links to focused guides.
+  * Organize matching task-oriented EN/PT documentation indexes; move the
+    detailed debugger and support material into dedicated guides and retain
+    architecture, service-operation and planned transfer details in docs.
+    Retarget former README anchors and correct the HTTP example gzip summary.
+  + Add deterministic prepare-wiki.ps1: generate bilingual Home, sidebar and
+    footer pages from the canonical indexes, rewriting guide links to GitHub.
+    Keep generated files disposable under out and guide maintenance in docs;
+    document separate Wiki initialization/publication without CI credentials.
+  ; Documentation restructuring preserves the recorded package 002 acceptance
+    scope. Validate the final source identities separately from manual UI checks.
+
+2026-10-30 10:32 UTC naldodj (Add selected dictionary projections and strict alias tests)
+  + Add HBBridgePresentationTable.Project over unplanned Build definitions,
+    retaining trusted field expressions, dictionary CASTs and source mappings.
+    Accept explicit output positions and unique aliases/origins; reject an
+    invalid selection atomically and never add system columns implicitly.
+  + Add optional SRA selection and U_HBBridgeNativeBrowseSRASelected over the
+    existing TCP/gzip HTTP browse, paging, search/filter and View. Validate
+    physical predicates before selecting outputs; use the projected record
+    identity for deterministic order. Preserve full dictionary inventory.
+  ! Build invalid alias fixtures through JSONObject assignment so TLPP can
+    compile them without invalid property-name literals. Remove macro/valid
+    alias fallbacks and unconditional passing conditions; preserve and reject
+    the actual malformed keys. Use HasProperty to avoid mutating input during
+    the optional single-projection guard.
+  ! Preserve the explicit dictionary alias in the browse View and dictionary
+    names in MsMGet definitions/memory variables. Apply the aAcho selection
+    consistently to dictionary, projection and native field names.
+  ; Isolated AppServer compiled 78 sources with zero errors and passed 730
+    checks across ten suites, including 142 SRA planning/selection/native
+    SQLite checks. Record source identities in selected.presentation.windows.json.
+    Manual selected-SRA visual acceptance was confirmed on 2026-10-30;
+    record its reported scope separately. T05b and T05 closure remain open.
+  ; Record read-only local SX9 relationship findings and the seven FWWebEx
+    utility reuse candidates, constraints and provenance in paired EN/PT guides.
+    No SX9 rule engine, JOIN generator or copied FWWebEx dependency is added.
+
 2026-10-29 21:47 UTC naldodj (Extend dictionary presentation and review native source mappings)
   + Add HBBridgeSX3Metadata snapshots and SRA/standalone SX3 browse examples.
     Share presentation Build/Plan paths between live examples and tests;
