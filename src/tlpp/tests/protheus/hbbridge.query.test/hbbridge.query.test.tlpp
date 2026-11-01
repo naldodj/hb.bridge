@@ -1,18 +1,78 @@
 #include "totvs.ch"
 #include "hbbridge.h"
 
+procedure U_HBBridgeQueryTestCli(oArguments as variadic)
+
+    local aDefaults:=Array(0) as array
+    local aFWGetTopInfo:=FWGetTopInfo() as array
+
+    local cFlag := "" as character
+    local cIniFile:=GetSrvIniName() as character
+
+    local nAT as numeric
+    local nDefault as numeric
+    local nDefaults := 0 as numeric
+    local nFlagLength := 0 as numeric
+
+    local xValue as variant
+
+    aAdd(aDefaults,{"--profile=",(aFWGetTopInfo[4]+"/"+aFWGetTopInfo[5])})
+    FWFreeArray(@aFWGetTopInfo)
+    aAdd(aDefaults,{"--host=",GetPvProfString("hbBridge", "Host", "127.0.0.1", cIniFile)})
+    aAdd(aDefaults,{"--port=",GetPvProfString("hbBridge", "Port", "1512", cIniFile)})
+    aAdd(aDefaults,{"--timeout=","300"})
+    aAdd(aDefaults,{"--runerptst=","1"})
+    nDefaults := Len(aDefaults)
+    for nDefault:=1 to nDefaults
+        cFlag := aDefaults[nDefault][1]
+        nFlagLength := Len(cFlag)
+        if ((nAT:=aScan(oArguments:vArgs,{|x|Left(Lower(x),nFlagLength)==cFlag}))==0)
+            aAdd(oArguments:vArgs,aDefaults[nDefault][1]+aDefaults[nDefault][2])
+            nAT:=Len(oArguments:vArgs)
+        endif
+        xValue:=StrTran(oArguments:vArgs[nAT],cFlag,"")
+        if (cFlag=="--profile=")
+            cAliasProfile:=xValue
+        elseif (cFlag=="--host=")
+            cHost:=xValue
+        elseif (cFlag=="--port=")
+            nPort:=Val(xValue)
+        elseif (cFlag=="--timeout=")
+            nTimeout:=Val(xValue)
+        elseif (cFlag=="--runerptst=")
+            lRunERPExamples:=!(Lower(Left(xValue,1))$"f0n")
+        endif
+    next nDefault
+    FWFreeArray(@aDefaults)
+
+    U_HBBridgeQueryTest(cAliasProfile, cHost, nPort, nTimeout, lRunERPExamples)
+
+return
+
 procedure U_HBBridgeQueryTest(cAliasProfile, cHost, nPort, nTimeout, lRunERPExamples)
+
+    local aFWGetTopInfo:=FWGetTopInfo() as array
+
+    local cIniFile:=GetSrvIniName() as character
     local cTimeStart,cTimeEnd as character
-    DEFAULT lRunERPExamples:=.F.
+
+    DEFAULT cAliasProfile:=(aFWGetTopInfo[4]+"/"+aFWGetTopInfo[5])
+    DEFAULT cHost:=GetPvProfString("hbBridge","Host","127.0.0.1",cIniFile)
+    DEFAULT nPort:=Val(GetPvProfString("hbBridge","Port","1512",cIniFile))
+    DEFAULT nTimeout:=30000
+
+    DEFAULT lRunERPExamples:=.T.
     ConOut("hbBridge U_HBBridgeQueryTest Start: "+DTos(Date())+"/"+(cTimeStart:=Time()))
     HBBridgeQueryTest(cAliasProfile, cHost, nPort, nTimeout, lRunERPExamples)
     ConOut("hbBridge U_HBBridgeQueryTest End: "+DTos(Date())+"/"+(cTimeEnd:=Time()))
     ConOut("hbBridge U_HBBridgeQueryTest Elapsed Time: "+ElapTime(cTimeStart,cTimeEnd))
+
 return
 
 static procedure HBBridgeQueryTest(cAliasProfile, cHost, nPort, nTimeout, lRunERPExamples)
 
     local aHeader as array
+    local aFWGetTopInfo as array
 
     local cSql as character
     local cEmptySql := "SELECT 1 AS ID, 'empty' AS NAME WHERE 1 = 0" as character
@@ -34,6 +94,7 @@ static procedure HBBridgeQueryTest(cAliasProfile, cHost, nPort, nTimeout, lRunER
     local nFields := 0 as numeric
     local nPages as numeric
     local nRecNos as numeric
+    local nConnection:=(-1) as numeric
 
     local oClient as object
     local oDataSet as object
@@ -156,106 +217,119 @@ static procedure HBBridgeQueryTest(cAliasProfile, cHost, nPort, nTimeout, lRunER
     // The constant acceptance above never opens or logs ERP business rows.
     // Local SX5/SRA demonstrations require an explicit operator opt-in.
     if ((ValType(lRunERPExamples)=="L").and.(lRunERPExamples).and.(cAliasProfile=="MSSQL/pData"))
-        // TODO: Resolve source codepages and collations explicitly.
-        cSQL:="SELECT TOP 10 * FROM SX5990 WHERE D_E_L_E_T_=' '"
-        ConOut("hbBridge RPCRDD.Query SQL: " + cSQL)
-        jPage:=JSONObject():New()
-        jPage["number"] := 1
-        jPage["size"] := 5
-        jPage["orderBy"] := "X5_FILIAL,X5_TABELA"
-        oDataSet:SetAliasProfile(cAliasProfile)
-        if (oDataSet:OpenSQL(cSql,jPage))
-            ConOut("hbBridge RPCRDD.Query jPage: " + jPage:ToJSON())
-            nPages:=1
-            jHeader:=oDataSet:Header()
-            aHeader:=jHeader:GetNames()
-            nFields:=Len(aHeader)
-            nRecNos := 0
-            while (.T.)
-                if (oDataSet:Eof())
-                    if (!oDataSet:HasNextPage())
-                        exit
-                    else
-                        if (!oDataSet:NextPage())
+        if (!TCIsConnected())
+            aFWGetTopInfo:=FWGetTopInfo()
+            nConnection := TCLink(cAliasProfile,aFWGetTopInfo[1],aFWGetTopInfo[3])
+            lRunERPExamples:=TCIsConnected(nConnection)
+            FWFReeArray(@aFWGetTopInfo)
+        endif
+        if (lRunERPExamples)
+            // TODO: Resolve source codepages and collations explicitly.
+            cSQL:="SELECT TOP 10 * FROM SX5990 WHERE D_E_L_E_T_=' '"
+            ConOut("hbBridge RPCRDD.Query SQL: " + cSQL)
+            jPage:=JSONObject():New()
+            jPage["number"] := 1
+            jPage["size"] := 5
+            jPage["orderBy"] := "X5_FILIAL,X5_TABELA"
+            oDataSet:SetAliasProfile(cAliasProfile)
+            if (oDataSet:OpenSQL(cSql,jPage))
+                ConOut("hbBridge RPCRDD.Query jPage: " + jPage:ToJSON())
+                nPages:=1
+                jHeader:=oDataSet:Header()
+                aHeader:=jHeader:GetNames()
+                nFields:=Len(aHeader)
+                nRecNos := 0
+                while (.T.)
+                    if (oDataSet:Eof())
+                        if (!oDataSet:HasNextPage())
                             exit
+                        else
+                            if (!oDataSet:NextPage())
+                                exit
+                            endif
+                            nPages++
                         endif
-                        nPages++
+                    else
+                        for nField:=1 to nFields
+                            cField:=aHeader[nField]
+                            ConOut("hbBridge RPCRDD.Query Field["+cField+"] : "+AllToChar(oDataSet:FieldGet(cField)))
+                        next nField
+                        nRecNos++
+                        oDataSet:Skip()
                     endif
-                else
+                end while
+                ConOut("hbBridge RPCRDD.Query Fields: " + tlpp.ToStr(nFields))
+                ConOut("hbBridge RPCRDD.Query Pages: " + tlpp.ToStr(nPages))
+                ConOut("hbBridge RPCRDD.Query RecNos: " + tlpp.ToStr(nRecNos))
+                ConOut("hbBridge RPCRDD.Query TotalPages: " + tlpp.ToStr(oDataSet:TotalPages()))
+                ConOut("hbBridge RPCRDD.Query ErrorCode: " + oDataSet:ErrorCode())
+                ConOut("hbBridge RPCRDD.Query ErrorMessage: " + oDataSet:ErrorMessage())
+                FreeObj(@jPage)
+                FreeObj(@jHeader)
+                FWFReeArray(@aHeader)
+            else
+                ConOut("hbBridge RPCRDD.Query ErrorCode: " + oDataSet:ErrorCode())
+                ConOut("hbBridge RPCRDD.Query ErrorMessage: " + oDataSet:ErrorMessage())
+            endif
+            //-------------------------------------------------------------------------------------------
+            oDataSet:SetAliasProfile(cAliasProfile)
+            cRA_SALARIOPicture:=MyGetX3Picture("RA_SALARIO",oDataSet)
+            cSQL:="SELECT TOP 10 RA_FILIAL,RA_MAT,RA_NOME,CAST(RA_SALARIO AS DECIMAL(12,2)) AS RA_SALARIO,CAST(RA_ADMISSA AS DATE) RA_ADMISSA,R_E_C_N_O_ FROM SRA990 WHERE D_E_L_E_T_=' '"
+            ConOut("hbBridge RPCRDD.Query SQL: " + cSQL)
+            jPage:=JSONObject():New()
+            jPage["number"] := 1
+            jPage["size"] := 5
+            jPage["orderBy"] := "RA_FILIAL,RA_MAT"
+            if (oDataSet:OpenSQL(cSql,jPage))
+                ConOut("hbBridge RPCRDD.Query jPage: " + jPage:ToJSON())
+                nPages:=1
+                jHeader:=oDataSet:Header()
+                aHeader:=jHeader:GetNames()
+                nFields:=Len(aHeader)
+                nRecNos := 0
+                lSetCentury:=__SetCentury("ON")
+                Set(4,"DD/MM/YYYY")
+                while (oDataSet:MoreToRead())
                     for nField:=1 to nFields
                         cField:=aHeader[nField]
-                        ConOut("hbBridge RPCRDD.Query Field["+cField+"] : "+AllToChar(oDataSet:FieldGet(cField)))
+                        if (jHeader[cField]["type"]=="N:N")
+                            if (cField=="RA_SALARIO")
+                                ConOut("hbBridge RPCRDD.Query Field["+cField+"] : "+Transform(oDataSet:FieldGet(cField),cRA_SALARIOPicture))
+                            else
+                                ConOut("hbBridge RPCRDD.Query Field["+cField+"] : "+tlpp.ToStr(oDataSet:FieldGet(cField)))
+                            endif
+                        elseif (jHeader[cField]["type"]=="D:N")
+                            ConOut("hbBridge RPCRDD.Query Field["+cField+"] : "+DToC(SToD(oDataSet:FieldGet(cField))))
+                        elseif (jHeader[cField]["type"]!="C")
+                            ConOut("hbBridge RPCRDD.Query Field["+cField+"] : "+AllToChar(oDataSet:FieldGet(cField)))
+                        else
+                            ConOut("hbBridge RPCRDD.Query Field["+cField+"] : "+oDataSet:FieldGet(cField))
+                        endif
                     next nField
                     nRecNos++
                     oDataSet:Skip()
-                endif
-            end while
-            ConOut("hbBridge RPCRDD.Query Fields: " + tlpp.ToStr(nFields))
-            ConOut("hbBridge RPCRDD.Query Pages: " + tlpp.ToStr(nPages))
-            ConOut("hbBridge RPCRDD.Query RecNos: " + tlpp.ToStr(nRecNos))
-            ConOut("hbBridge RPCRDD.Query TotalPages: " + tlpp.ToStr(oDataSet:TotalPages()))
-            ConOut("hbBridge RPCRDD.Query ErrorCode: " + oDataSet:ErrorCode())
-            ConOut("hbBridge RPCRDD.Query ErrorMessage: " + oDataSet:ErrorMessage())
-            FreeObj(@jPage)
-            FreeObj(@jHeader)
-            FWFReeArray(@aHeader)
+                end while
+                nPages:=oDataSet:PageNumber()
+                ConOut("hbBridge RPCRDD.Query Fields: " + tlpp.ToStr(nFields))
+                ConOut("hbBridge RPCRDD.Query Pages: " + tlpp.ToStr(nPages))
+                ConOut("hbBridge RPCRDD.Query RecNos: " + tlpp.ToStr(nRecNos))
+                ConOut("hbBridge RPCRDD.Query TotalPages: " + tlpp.ToStr(oDataSet:TotalPages()))
+                ConOut("hbBridge RPCRDD.Query ErrorCode: " + oDataSet:ErrorCode())
+                ConOut("hbBridge RPCRDD.Query ErrorMessage: " + oDataSet:ErrorMessage())
+                __SetCentury(if(lSetCentury,"ON","OFF"))
+                Set(4,cDateFormat)
+                FreeObj(@jPage)
+                FreeObj(@jHeader)
+                FWFReeArray(@aHeader)
+            else
+                ConOut("hbBridge RPCRDD.Query ErrorCode: " + oDataSet:ErrorCode())
+                ConOut("hbBridge RPCRDD.Query ErrorMessage: " + oDataSet:ErrorMessage())
+            endif
+            if (TCIsConnected(nConnection))
+                TCUnlink(nConnection)
+            endif
         else
-            ConOut("hbBridge RPCRDD.Query ErrorCode: " + oDataSet:ErrorCode())
-            ConOut("hbBridge RPCRDD.Query ErrorMessage: " + oDataSet:ErrorMessage())
-        endif
-        //-------------------------------------------------------------------------------------------
-        oDataSet:SetAliasProfile(cAliasProfile)
-        cRA_SALARIOPicture:=MyGetX3Picture("RA_SALARIO",oDataSet)
-        cSQL:="SELECT TOP 10 RA_FILIAL,RA_MAT,RA_NOME,CAST(RA_SALARIO AS DECIMAL(12,2)) AS RA_SALARIO,CAST(RA_ADMISSA AS DATE) RA_ADMISSA,R_E_C_N_O_ FROM SRA990 WHERE D_E_L_E_T_=' '"
-        ConOut("hbBridge RPCRDD.Query SQL: " + cSQL)
-        jPage:=JSONObject():New()
-        jPage["number"] := 1
-        jPage["size"] := 5
-        jPage["orderBy"] := "RA_FILIAL,RA_MAT"
-        if (oDataSet:OpenSQL(cSql,jPage))
-            ConOut("hbBridge RPCRDD.Query jPage: " + jPage:ToJSON())
-            nPages:=1
-            jHeader:=oDataSet:Header()
-            aHeader:=jHeader:GetNames()
-            nFields:=Len(aHeader)
-            nRecNos := 0
-            lSetCentury:=__SetCentury("ON")
-            Set(4,"DD/MM/YYYY")
-            while (oDataSet:MoreToRead())
-                for nField:=1 to nFields
-                    cField:=aHeader[nField]
-                    if (jHeader[cField]["type"]=="N:N")
-                        if (cField=="RA_SALARIO")
-                            ConOut("hbBridge RPCRDD.Query Field["+cField+"] : "+Transform(oDataSet:FieldGet(cField),cRA_SALARIOPicture))
-                        else
-                            ConOut("hbBridge RPCRDD.Query Field["+cField+"] : "+tlpp.ToStr(oDataSet:FieldGet(cField)))
-                        endif
-                    elseif (jHeader[cField]["type"]=="D:N")
-                        ConOut("hbBridge RPCRDD.Query Field["+cField+"] : "+DToC(SToD(oDataSet:FieldGet(cField))))
-                    elseif (jHeader[cField]["type"]!="C")
-                        ConOut("hbBridge RPCRDD.Query Field["+cField+"] : "+AllToChar(oDataSet:FieldGet(cField)))
-                    else
-                        ConOut("hbBridge RPCRDD.Query Field["+cField+"] : "+oDataSet:FieldGet(cField))
-                    endif
-                next nField
-                nRecNos++
-                oDataSet:Skip()
-            end while
-            nPages:=oDataSet:PageNumber()
-            ConOut("hbBridge RPCRDD.Query Fields: " + tlpp.ToStr(nFields))
-            ConOut("hbBridge RPCRDD.Query Pages: " + tlpp.ToStr(nPages))
-            ConOut("hbBridge RPCRDD.Query RecNos: " + tlpp.ToStr(nRecNos))
-            ConOut("hbBridge RPCRDD.Query TotalPages: " + tlpp.ToStr(oDataSet:TotalPages()))
-            ConOut("hbBridge RPCRDD.Query ErrorCode: " + oDataSet:ErrorCode())
-            ConOut("hbBridge RPCRDD.Query ErrorMessage: " + oDataSet:ErrorMessage())
-            __SetCentury(if(lSetCentury,"ON","OFF"))
-            Set(4,cDateFormat)
-            FreeObj(@jPage)
-            FreeObj(@jHeader)
-            FWFReeArray(@aHeader)
-        else
-            ConOut("hbBridge RPCRDD.Query ErrorCode: " + oDataSet:ErrorCode())
-            ConOut("hbBridge RPCRDD.Query ErrorMessage: " + oDataSet:ErrorMessage())
+            ConOut("hbBridge RPCRDD.Query ErrorCode: NO_TC_CONNECTION")
         endif
     endif
 

@@ -1,6 +1,54 @@
 #include "totvs.ch"
 
-procedure U_HBBridgeQueryTestTopInfo(cAliasProfile, cHost, nPort, nTimeout)
+procedure U_HBBridgeQueryTestTopInfoCli(oArguments as variadic)
+
+    local aDefaults:=Array(0) as array
+    local aFWGetTopInfo:=FWGetTopInfo() as array
+
+    local cFlag := "" as character
+    local cIniFile:=GetSrvIniName() as character
+
+    local nAT as numeric
+    local nDefault as numeric
+    local nDefaults := 0 as numeric
+    local nFlagLength := 0 as numeric
+
+    local xValue as variant
+
+    aAdd(aDefaults,{"--profile=",(aFWGetTopInfo[4]+"/"+aFWGetTopInfo[5])})
+    FWFreeArray(@aFWGetTopInfo)
+    aAdd(aDefaults,{"--host=",GetPvProfString("hbBridge", "Host", "127.0.0.1", cIniFile)})
+    aAdd(aDefaults,{"--port=",GetPvProfString("hbBridge", "Port", "1512", cIniFile)})
+    aAdd(aDefaults,{"--timeout=","300"})
+    aAdd(aDefaults,{"--runerptst=","1"})
+    nDefaults := Len(aDefaults)
+    for nDefault:=1 to nDefaults
+        cFlag := aDefaults[nDefault][1]
+        nFlagLength := Len(cFlag)
+        if ((nAT:=aScan(oArguments:vArgs,{|x|Left(Lower(x),nFlagLength)==cFlag}))==0)
+            aAdd(oArguments:vArgs,aDefaults[nDefault][1]+aDefaults[nDefault][2])
+            nAT:=Len(oArguments:vArgs)
+        endif
+        xValue:=StrTran(oArguments:vArgs[nAT],cFlag,"")
+        if (cFlag=="--profile=")
+            cAliasProfile:=xValue
+        elseif (cFlag=="--host=")
+            cHost:=xValue
+        elseif (cFlag=="--port=")
+            nPort:=Val(xValue)
+        elseif (cFlag=="--timeout=")
+            nTimeout:=Val(xValue)
+        elseif (cFlag=="--runerptst=")
+            lRunERPExamples:=!(Lower(Left(xValue,1))$"f0n")
+        endif
+    next nDefault
+    FWFreeArray(@aDefaults)
+
+    U_HBBridgeQueryTestTopInfo(cAliasProfile, cHost, nPort, nTimeout, lRunERPExamples)
+
+return
+
+procedure U_HBBridgeQueryTestTopInfo(cAliasProfile, cHost, nPort, nTimeout,lRunERPExamples)
 
     local aFWGetTopInfo:=FWGetTopInfo() as array
 
@@ -11,7 +59,10 @@ procedure U_HBBridgeQueryTestTopInfo(cAliasProfile, cHost, nPort, nTimeout)
     DEFAULT cHost:=GetPvProfString("hbBridge","Host","127.0.0.1",cIniFile)
     DEFAULT nPort:=Val(GetPvProfString("hbBridge","Port","1512",cIniFile))
     DEFAULT nTimeout:=30000
+    DEFAULT lRunERPExamples:=.T.
 
-    U_HBBridgeQueryTest(cAliasProfile, cHost, nPort, nTimeout)
+    if (FindFunction("U_HBBridgeQueryTest"))
+        U_HBBridgeQueryTest(cAliasProfile, cHost, nPort, nTimeout,lRunERPExamples)
+    endif
 
 return
