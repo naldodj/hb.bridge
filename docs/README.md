@@ -23,6 +23,7 @@ it does not maintain another copy of each guide.
 | Guide | Use it to |
 | --- | --- |
 | [SQL service and pagination](milestone3-sql.md) | Configure MSSQL/SQLite profiles and database-side pages. |
+| [SQL execution and temporary tables](sql-execution.md) | Execute commands and populate caller-owned tables through addons. |
 | [Dataset](dataset.md) | Read headers/fields/rows and traverse pages with explicit ownership. |
 | [Typed SQL contract](typed-sql.md) | Supply typed parameters and distinguish source, wire and logical types, NULL and exact values. |
 | [Connector capabilities](typed-sql-connectors.md) | Inspect supported native bindings and result metadata. |

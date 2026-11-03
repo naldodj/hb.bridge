@@ -1,0 +1,467 @@
+/* Released to Public Domain. This is a Protheus-owned presentation example. */
+#include "totvs.ch"
+
+namespace HBBridge.Examples
+
+class HBBridgePresentationTemp
+    static method Run(cDictionary as character,cProfile as character) as numeric
+    static method TestIndexes() as numeric
+endclass
+
+static method Run(cDictionary,cProfile) class HBBridgePresentationTemp
+
+    local aFields:={} as array
+    local aNames:={} as array
+    local aSize as array
+    local aTopInfo as array
+
+    local cAlias:=GetNextAlias(), cBranch:="", cColumns:="", cField:="" as character
+    local cSQL:="", cTable:="", cTarget:="", cType:="", cMessage:="" as character
+    local cIndexStem:="HBT"+SubStr(StrTran(UUIDRandom(),"-",""),1,16) as character
+
+    local jConfig as json
+    local jParams:=JSONObject():New(), jArgs:=JSONObject():New(), jResponse as json
+
+    local lOK:=.F. as logical
+
+    local nField:=0, nFields:=0, nPreviousArea:=Select() as numeric
+
+    local oClient, oTemporary as object
+
+    local xError as variant
+
+    try
+        if (ValType(cDictionary)!="C".or.!(cDictionary=="SX5".or.cDictionary=="SRA"))
+            throw "Unsupported dictionary alias."
+        endif
+        if (!TCIsConnected().or.TCGetDB()!="MSSQL".or.Select("SX2")==0)
+            throw "Prepare a Protheus company and MSSQL DBAccess connection."
+        endif
+        if (ValType(cProfile)!="C".or.Empty(AllTrim(cProfile)))
+            jConfig:=HBBridge.Client.HBBridgeConfig():Read()
+            cProfile:=jConfig["sqlProfile"]
+            FreeObj(@jConfig)
+            if (Empty(cProfile))
+                aTopInfo:=FWGetTopInfo()
+                if (ValType(aTopInfo)=="A".and.Len(aTopInfo)>=5)
+                    cProfile:=aTopInfo[4]+"/"+aTopInfo[5]
+                endif
+                FWFreeArray(@aTopInfo)
+            endif
+        endif
+        if (ValType(cProfile)!="C".or.Empty(AllTrim(cProfile)))
+            throw "An hbBridge SQL profile is required."
+        endif
+        cTable:=RetSQLName(cDictionary)
+        cBranch:=xFilial(cDictionary)
+        if (!TempIdentifier(cTable).or.ValType(cBranch)!="C".or.Chr(0)$cBranch)
+            throw "The physical table or branch is invalid."
+        endif
+        if (cDictionary=="SX5")
+            aNames:={"X5_FILIAL","X5_TABELA","X5_CHAVE","X5_DESCRI"}
+        else
+            aNames:={"RA_FILIAL","RA_MAT","RA_NOME","RA_SALARIO","RA_ADMISSA"}
+        endif
+        nFields:=Len(aNames)
+        for nField:=1 to nFields
+            cField:=aNames[nField]
+            aSize:=TamSX3(cField)
+            if (ValType(aSize)!="A".or.Len(aSize)<3)
+                throw "Dictionary field metadata is unavailable."
+            endif
+            cType:=Upper(aSize[3])
+            if (!(cType=="C".or.cType=="N".or.cType=="D").or.aSize[1]<1.or.aSize[2]<0)
+                throw "Dictionary field metadata is unsupported."
+            endif
+            aAdd(aFields,{cField,cType,aSize[1],aSize[2]})
+            FWFreeArray(@aSize)
+            if (!Empty(cColumns))
+                cColumns+=","
+            endif
+            cColumns+="["+cField+"]"
+        next nField
+        oClient:=HBBridge.Client.HBBridgeClient():New()
+        if (!TempSameDatabase(cProfile,oClient))
+            cMessage:="The hbBridge and DBAccess connections do not identify the same MSSQL database."
+            throw "The hbBridge and DBAccess connections do not identify the same MSSQL database."
+        endif
+        oTemporary:=FWTemporaryTable():New(cAlias,aFields)
+        oTemporary:Create()
+        cAlias:=oTemporary:GetAlias()
+        cTarget:=oTemporary:GetRealName()
+        if (Select(cAlias)==0.or.Empty(cTarget))
+            throw "Could not create the caller-owned temporary table."
+        endif
+        cSQL:="SELECT "+cColumns+" FROM ["+cTable+"] WHERE [D_E_L_E_T_] = ' ' AND ["+;
+            if(cDictionary=="SX5","X5_FILIAL","RA_FILIAL")+"] = '"+StrTran(cBranch,"'","''")+"'"
+        jArgs["alias"]:=cProfile
+        jArgs["target"]:=cTarget
+        jArgs["columns"]:=cColumns
+        jArgs["select"]:=cSQL
+        jParams["module"]:="examples/hbbridgetemporaryinsertaddon.hrb"
+        jParams["params"]:=jArgs
+        jResponse:=oClient:CallService("ADDON.Execute",jParams)
+        if (ValType(jResponse)!="J")
+            cMessage:="The addon response is unavailable; the write outcome may be unknown."
+            throw "The addon response is unavailable; the write outcome may be unknown."
+        endif
+        if (!jResponse:HasProperty("success").or.jResponse["success"]!=.T.)
+            cMessage:="The addon could not confirm the SQL operation. Do not retry automatically."
+            if (jResponse:HasProperty("code"))
+                cMessage+=" Code: "+jResponse["code"]
+            endif
+            throw "The addon could not confirm the SQL operation. Do not retry automatically."
+        endif
+        TCRefresh(oTemporary:GetTableNameForTCFunctions())
+        (cAlias)->(DbGoTop())
+        lOK:=BrowseNativeTemp(cAlias,cDictionary,aFields,cIndexStem)
+        if (!lOK)
+            cMessage:="Could not display the temporary browse or prepare its search index."
+        endif
+    catch xError
+        if (Empty(cMessage))
+            cMessage:="Could not prepare or display the temporary browse. Check the profile, addon and Protheus context."
+        endif
+        if (ValType(xError)=="O")
+            FreeObj(@xError)
+        endif
+    endtry
+    if (ValType(oClient)=="O")
+        oClient:Close()
+        FreeObj(@oClient)
+    endif
+    if (ValType(oTemporary)=="O")
+        oTemporary:Delete()
+        FreeObj(@oTemporary)
+    endif
+    if (Select()!=nPreviousArea)
+        DbSelectArea(if(nPreviousArea>0,nPreviousArea,nil))
+    endif
+    if (!Empty(cMessage))
+        MsgStop(cMessage,"hbBridge temporary browse")
+    endif
+    FreeObj(@jResponse)
+    FreeObj(@jParams)
+    jArgs:=nil
+    FWFreeArray(@aNames)
+    FWFreeArray(@aFields)
+
+return if(lOK,0,1)
+
+static method TestIndexes() class HBBridgePresentationTemp
+
+    local aFields:={{"CODE","C",4,0},{"LABEL","C",16,0}} as array
+    local aSeek:={{"Code",{{"","C",4,0,"Code","","CODE"}},1,.T.},;
+        {"Label",{{"","C",16,0,"Label","","LABEL"}},2,.T.}} as array
+    local aTopInfo as array
+
+    local cAlias:=GetNextAlias(), cStem:="HBT"+SubStr(StrTran(UUIDRandom(),"-",""),1,16) as character
+
+    local jChecks:=JSONObject():New(), jIndexes:=JSONObject():New() as json
+
+    local lOwned:=.F., lOK:=.F. as logical
+
+    local nConnection:=-1, nPreviousArea:=Select() as numeric
+
+    local oTable as object
+
+    local xError as variant
+
+    try
+        if (!TCIsConnected())
+            aTopInfo:=FWGetTopInfo()
+            if (ValType(aTopInfo)!="A".or.Len(aTopInfo)<5)
+                throw "DBAccess settings are unavailable."
+            endif
+            nConnection:=TCLink(aTopInfo[4]+"/"+aTopInfo[5],aTopInfo[1],aTopInfo[3])
+            FWFreeArray(@aTopInfo)
+            if (nConnection<0)
+                throw "DBAccess connection failed."
+            endif
+            lOwned:=.T.
+        endif
+        oTable:=FWTemporaryTable():New(cAlias,aFields)
+        oTable:Create()
+        cAlias:=oTable:GetAlias()
+        if (Select(cAlias)==0)
+            throw "Temporary table creation failed."
+        endif
+        (cAlias)->(DbAppend(.F.))
+        (cAlias)->(FieldPut(1,"A"))
+        (cAlias)->(FieldPut(2,"one"))
+        (cAlias)->(DbCommit())
+        (cAlias)->(DbAppend(.F.))
+        (cAlias)->(FieldPut(1,"B"))
+        (cAlias)->(FieldPut(2,"two"))
+        (cAlias)->(DbCommit())
+        jChecks["firstIndex"]:=TempEnsureIndex(cAlias,cStem,aSeek,jIndexes,1)==1
+        (cAlias)->(DbSetOrder(1))
+        jChecks["firstSeek"]:=(cAlias)->(DbSeek("B")).and.AllTrim((cAlias)->(FieldGet(2)))=="two"
+        jChecks["secondIndex"]:=TempEnsureIndex(cAlias,cStem,aSeek,jIndexes,2)==2
+        (cAlias)->(DbSetOrder(2))
+        jChecks["secondSeek"]:=(cAlias)->(DbSeek("one")).and.AllTrim((cAlias)->(FieldGet(1)))=="A"
+        jChecks["indexReuse"]:=TempEnsureIndex(cAlias,cStem,aSeek,jIndexes,1)==1.and.;
+            (cAlias)->(DbOrderInfo(9))==2
+        lOK:=jChecks["firstIndex"].and.jChecks["firstSeek"].and.jChecks["secondIndex"].and.;
+            jChecks["secondSeek"].and.jChecks["indexReuse"]
+    catch xError
+        jChecks["runtimeFailure"]:=.F.
+        if (ValType(xError)=="O")
+            FreeObj(@xError)
+        endif
+    endtry
+    if (ValType(oTable)=="O")
+        oTable:Delete()
+        FreeObj(@oTable)
+    endif
+    jChecks["aliasClosed"]:=Select(cAlias)==0
+    lOK:=lOK.and.jChecks["aliasClosed"]
+    if (lOwned)
+        TCUnlink(nConnection)
+    endif
+    if (Select()!=nPreviousArea)
+        DbSelectArea(if(nPreviousArea>0,nPreviousArea,nil))
+    endif
+    ConOut("hbBridge temporary browse index checks: "+jChecks:ToJSON())
+    ConOut("hbBridge temporary browse index "+if(lOK,"OK","FAILED"))
+    FreeObj(@jChecks)
+    FreeObj(@jIndexes)
+    FWFreeArray(@aFields)
+    FWFreeArray(@aSeek)
+return if(lOK,0,1)
+
+static function TempSameDatabase(cProfile as character,oClient as object) as logical
+
+    local cAlias:=GetNextAlias(), cServer:="", cDatabase:="" as character
+    local cSQL:="SELECT CAST(SERVERPROPERTY('ServerName') AS VARCHAR(128)) AS SERVERNAME, DB_NAME() AS DBNAME" as character
+
+    local lOK:=.F. as logical
+
+    local nPreviousArea:=Select(), nArea:=0 as numeric
+
+    local oDataSet as object
+
+    local xError as variant
+
+    try
+        DbSelectArea(0)
+        nArea:=Select()
+        DbUseArea(.F.,"TOPCONN",TCGenQry(nil,nil,cSQL),cAlias,.T.,.T.)
+        if (Select(cAlias)!=nArea.or.(cAlias)->(Eof()))
+            throw "DBAccess identity query failed."
+        endif
+        cServer:=AllTrim((cAlias)->(FieldGet(FieldPos("SERVERNAME"))))
+        cDatabase:=AllTrim((cAlias)->(FieldGet(FieldPos("DBNAME"))))
+        (cAlias)->(DbCloseArea())
+        nArea:=0
+        oDataSet:=HBBridge.RDD.HBBridgeRPCDataSet():New(oClient)
+        oDataSet:SetAliasProfile(cProfile)
+        if (oDataSet:OpenSQL(cSQL))
+            lOK:=Upper(AllTrim(oDataSet:FieldGet("SERVERNAME")))==Upper(cServer).and.;
+                Upper(AllTrim(oDataSet:FieldGet("DBNAME")))==Upper(cDatabase)
+        endif
+    catch xError
+        if (ValType(xError)=="O")
+            FreeObj(@xError)
+        endif
+    endtry
+    if (nArea>0)
+        DbSelectArea(nArea)
+        if (Used())
+            DbCloseArea()
+        endif
+    endif
+    if (ValType(oDataSet)=="O")
+        oDataSet:Close()
+        FreeObj(@oDataSet)
+    endif
+    if (Select()!=nPreviousArea)
+        DbSelectArea(if(nPreviousArea>0,nPreviousArea,nil))
+    endif
+return lOK
+
+static function TempIdentifier(cValue as character) as logical
+
+    local cAllowed:="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_" as character
+
+    local nChar:=0, nLength:=Len(cValue) as numeric
+
+    if (nLength<1.or.nLength>128)
+        return .F.
+    endif
+    for nChar:=1 to nLength
+        if (!(Upper(SubStr(cValue,nChar,1))$cAllowed))
+            return .F.
+        endif
+    next nChar
+return .T.
+
+static function BrowseNativeTemp(cAlias as character,cDictionary as character,aFields as array,cIndexStem as character) as logical
+
+    local aColumns:={}, aSeek:={}, aFilter:={}, aDialogSize as array
+
+    local bSeekChange as codeblock
+
+    local cField:="", cTitle:="", cPicture:="", cType:="" as character
+
+    local jIndexes:=JSONObject():New() as json
+
+    local lOK:=.F. as logical
+    local lRedefineBottom:=(((Type("__lRedefineBottom")=="L").and.(__lRedefineBottom)).or.FWIsInCallStack("UF.EXECUTE").or.FwIsInCallStack("DNA.TECH.EXECUTE")) as logical
+
+    local nField:=0, nFields:=Len(aFields), nOption:=0 as numeric
+
+    local oBrowse, oColumn, oDialog, oPanel as object
+
+    local xError as variant
+
+    try
+        for nField:=1 to nFields
+            cField:=aFields[nField][1]
+            cType:=aFields[nField][2]
+            cTitle:=AllTrim(GetSX3Cache(cField,"X3_TITULO"))
+            cPicture:=AllTrim(GetSX3Cache(cField,"X3_PICTURE"))
+            if (Empty(cTitle))
+                cTitle:=cField
+            endif
+            oColumn:=FWBrwColumn():New()
+            oColumn:SetData(TempColumn(cAlias,nField))
+            oColumn:SetTitle(cTitle)
+            oColumn:SetType(cType)
+            oColumn:SetSize(aFields[nField][3])
+            oColumn:SetDecimal(aFields[nField][4])
+            oColumn:SetPicture(cPicture)
+            aAdd(aColumns,oColumn)
+            oColumn:=nil
+            aAdd(aFilter,{cField,cTitle,cType,aFields[nField][3],aFields[nField][4],cPicture})
+            if (cType=="C")
+                nOption++
+                aAdd(aSeek,{cTitle,{{"",cType,aFields[nField][3],0,cTitle,cPicture,cField}},nOption,.T.})
+            endif
+        next nField
+        if (Len(aSeek)<1.or.TempEnsureIndex(cAlias,cIndexStem,aSeek,jIndexes,1)<1)
+            throw "Could not prepare the initial search index."
+        endif
+        oBrowse:=FWBrowse():New()
+        oBrowse:SetDataTable()
+        oBrowse:SetAlias(cAlias)
+        oBrowse:SetColumns(aColumns)
+        oBrowse:SetUseFilter()
+        oBrowse:SetFieldFilter(aFilter)
+        // The standard FWBrowse seek works; keep the custom callback disabled for evaluation.
+        if (.F.)
+            oBrowse:SetSeek({|oSeek,oGrid|TempSeek(cAlias,oSeek,oGrid)},aSeek)
+        else
+            oBrowse:SetSeek(nil,aSeek)
+        endif
+        aDialogSize:=FWGetDialogSize()
+        oDialog:=FWDialogModal():New()
+        oDialog:SetTitle("hbBridge "+cDictionary+": caller-owned temporary table")
+        oDialog:SetEscClose(.T.)
+        oDialog:SetSize(aDialogSize[3]/(2+if(lRedefineBottom,.15,0)),aDialogSize[4]/2)
+        oDialog:CreateDialog()
+        oDialog:EnableFormBar(.T.)
+        oDialog:CreateFormBar()
+        oPanel:=oDialog:GetPanelMain()
+        oBrowse:SetOwner(oPanel)
+        oBrowse:Activate()
+        bSeekChange:=oBrowse:bSeekChange
+        oBrowse:SetSeekChange({|oSeek|TempSeekChange(cAlias,cIndexStem,aSeek,jIndexes,;
+            if(oSeek==nil,oBrowse:oBrowseUI:oFWSeek,oSeek),bSeekChange)})
+        oDialog:AddButton("&Close",{|oButton|oDialog:DeActivate(.T.)},"Close",nil,.T.,.F.,.T.)
+        oDialog:AddButton("&View",{|oButton|TempView(cAlias,aFields)},"View current record",nil,.T.,.F.,.T.)
+        oDialog:Activate()
+        lOK:=.T.
+    catch xError
+        if (ValType(xError)=="O")
+            FreeObj(@xError)
+        endif
+    endtry
+    FreeObj(@oBrowse)
+    for nField:=1 to Len(aColumns)
+        FreeObj(@aColumns[nField])
+    next nField
+    FWFreeArray(@aColumns)
+    FWFreeArray(@aSeek)
+    FWFreeArray(@aFilter)
+    FWFreeArray(@aDialogSize)
+    FreeObj(@jIndexes)
+    FreeObj(@oPanel)
+    FreeObj(@oDialog)
+
+return lOK
+
+static function TempColumn(cAlias as character,nField as numeric) as codeblock
+return {||(cAlias)->(FieldGet(nField))}
+
+static procedure TempView(cAlias as character,aFields as array)
+
+    local aNames:={} as array
+
+    local nField:=0, nFields:=Len(aFields) as numeric
+
+    if (Select(cAlias)>0.and.(cAlias)->(!Eof()))
+        for nField:=1 to nFields
+            aAdd(aNames,aFields[nField][1])
+        next nField
+        HBBridge.Client.HBBridgeMsMGetEx():ViewData(cAlias,(cAlias)->(RecNo()),;
+            "View current record",nil,aNames,nil)
+    endif
+    FWFreeArray(@aNames)
+return
+
+static function TempSeek(cAlias as character,oSeek as object,oGrid as object) as numeric
+    (cAlias)->(DbSeek(Trim(oSeek:GetSeek())))
+    oGrid:Refresh(.F.)
+return 1
+
+static function TempSeekChange(cAlias as character,cStem as character,aSeek as array,jIndexes as json,;
+    oSeek as object,bPrevious as variant) as numeric
+
+    local nOrder:=0, nOption:=oSeek:GetOrder() as numeric
+
+    nOrder:=TempEnsureIndex(cAlias,cStem,aSeek,jIndexes,nOption)
+    if (nOrder<1)
+        MsgStop("Could not prepare the selected search index.","hbBridge temporary browse")
+        return 0
+    endif
+    if (ValType(bPrevious)=="B")
+        Eval(bPrevious,oSeek)
+    endif
+    (cAlias)->(DbSetOrder(nOrder))
+    (cAlias)->(DbGoTop())
+return 1
+
+static function TempEnsureIndex(cAlias as character,cStem as character,aSeek as array,jIndexes as json,nOption as numeric) as numeric
+
+    local bExpression as codeblock
+
+    local cBag:="", cExpression:="", cKey:="" as character
+
+    local nIndex:=0, nOpened:=0 as numeric
+
+    if (nOption<1.or.nOption>Len(aSeek).or.nOption!=Int(nOption))
+        return 0
+    endif
+    for nIndex:=1 to nOption
+        cKey:=tlpp.ToStr(nIndex)
+        cExpression:=aSeek[nIndex][2][1][7]
+        if (!jIndexes:HasProperty(cKey))
+            cBag:=cStem+"_"+StrZero(nIndex,3)
+            bExpression:=&("{||"+cExpression+"}")
+            (cAlias)->(OrdCreate(cBag,nil,cExpression,bExpression,.F.))
+            (cAlias)->(DbClearIndex())
+            for nOpened:=1 to nIndex-1
+                (cAlias)->(DbSetIndex(jIndexes[tlpp.ToStr(nOpened)]))
+            next nOpened
+            (cAlias)->(DbSetIndex(cBag))
+            if ((cAlias)->(DbOrderInfo(9))!=nIndex.or.;
+                Upper(StrTran(AllTrim((cAlias)->(IndexKey(nIndex)))," ",""))!=Upper(cExpression))
+                return 0
+            endif
+            jIndexes[cKey]:=cBag
+        elseif (Upper(StrTran(AllTrim((cAlias)->(IndexKey(nIndex)))," ",""))!=Upper(cExpression))
+            return 0
+        endif
+    next nIndex
+return nOption

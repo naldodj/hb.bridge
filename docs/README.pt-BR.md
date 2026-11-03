@@ -23,6 +23,7 @@ sem manter outra cópia de cada guia.
 | Guia | Utilize para |
 | --- | --- |
 | [Serviço SQL e paginação](milestone3-sql.pt-BR.md) | Configurar perfis MSSQL/SQLite e páginas no SGBD. |
+| [Execução SQL e tabelas temporárias](sql-execution.pt-BR.md) | Executar comandos e popular tabelas do chamador por addons. |
 | [Dataset](dataset.pt-BR.md) | Ler headers/campos/linhas e percorrer páginas com posse explícita. |
 | [Contrato SQL tipado](typed-sql.pt-BR.md) | Informar parâmetros tipados e distinguir tipos de origem, transporte e lógicos, NULL e valores exatos. |
 | [Capacidades dos conectores](typed-sql-connectors.pt-BR.md) | Conferir bindings nativos e metadados dos resultados suportados. |

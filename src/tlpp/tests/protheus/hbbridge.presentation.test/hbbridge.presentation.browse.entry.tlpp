@@ -20,3 +20,12 @@ return(HBBridge.Examples.U_HBBridgeNativeBrowseSRASelected(cProfile,cTransport,n
 
 function U_HBBridgeSX3Browse(cAlias)
 return(HBBridge.Examples.U_HBBridgeSX3Browse(cAlias))
+
+function U_HBBridgeNativeBrowseTempSX5(cProfile)
+return(HBBridge.Examples.HBBridgePresentationTemp():Run("SX5",cProfile))
+
+function U_HBBridgeNativeBrowseTempSRA(cProfile)
+return(HBBridge.Examples.HBBridgePresentationTemp():Run("SRA",cProfile))
+
+function U_HBBridgeNativeTempIndexTest()
+return(HBBridge.Examples.HBBridgePresentationTemp():TestIndexes())

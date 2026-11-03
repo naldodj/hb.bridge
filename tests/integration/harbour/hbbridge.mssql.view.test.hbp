@@ -1,0 +1,4 @@
+-Main=MSSQLViewTest
+-gtstd
+hbbridge.mssql.view.test.hb
+../../../hbbridge.hbm

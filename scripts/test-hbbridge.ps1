@@ -36,6 +36,9 @@ try {
         & $toolchain.Hbmk2 -gh -n2 -w3 -es2 $source "-o$target"
         if ($LASTEXITCODE -ne 0) { throw "Could not compile addon fixture $($fixture.Key)." }
     }
+    & $toolchain.Hbmk2 -gh -n2 -w3 -es2 (Join-Path $projectRoot 'addons/examples/hbbridgetemporaryinsertaddon.hb') `
+        ("-o" + (Join-Path $addonRoot 'hbbridgetemporaryinsertaddon.hrb'))
+    if ($LASTEXITCODE -ne 0) { throw 'Could not compile the temporary-table addon fixture.' }
 
     $testTarget = Join-Path $runRoot 'hbbridgeservertest'
     $testExecutable = $testTarget + $toolchain.ExecutableExtension

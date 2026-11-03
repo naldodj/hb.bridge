@@ -118,6 +118,104 @@ FUNCTION HBBridgeSQLQueryTyped( hParams, hProfiles )
 
 RETURN hb_mutexEval( s_hSQLMutex, {|| SQLQueryLocked( cSQL, cProfile, hProfiles[ cProfile ], hPage, hBindings ) } )
 
+/* Execution is a separate contract: an error after submitting a statement
+ * cannot prove that the database did not apply it. No retry is performed. */
+FUNCTION HBBridgeSQLExecute( hParams, hProfiles )
+
+    LOCAL cProfile, cSQL
+
+    IF ! HB_ISHASH( hParams ) .OR. Len( hParams ) != 3 .OR. ;
+        ! hb_HHasKey( hParams, "requestVersion" ) .OR. ! hb_HHasKey( hParams, "alias" ) .OR. ;
+        ! hb_HHasKey( hParams, "sql" )
+        RETURN SQLExecuteFailure( "INVALID_PARAMS", "A version, profile and SQL are required.", "notStarted" )
+    ENDIF
+    IF ! HB_ISNUMERIC( hParams[ "requestVersion" ] ) .OR. hParams[ "requestVersion" ] != 1
+        RETURN SQLExecuteFailure( "INVALID_PARAMS", "Unsupported execution request version.", "notStarted" )
+    ENDIF
+    cProfile := hParams[ "alias" ]
+    cSQL := hParams[ "sql" ]
+    IF ! HB_ISSTRING( cProfile ) .OR. ! HB_ISSTRING( cSQL )
+        RETURN SQLExecuteFailure( "INVALID_PARAMS", "Profile and SQL must be strings.", "notStarted" )
+    ENDIF
+    IF Empty( AllTrim( cProfile ) ) .OR. Empty( AllTrim( cSQL ) ) .OR. ;
+        Chr( 0 ) $ cProfile .OR. Chr( 0 ) $ cSQL
+        RETURN SQLExecuteFailure( "INVALID_PARAMS", "Profile and SQL must be nonempty and contain no NUL.", "notStarted" )
+    ENDIF
+    IF ! HB_ISHASH( hProfiles ) .OR. ! hb_HHasKey( hProfiles, cProfile )
+        RETURN SQLExecuteFailure( "PROFILE_NOT_FOUND", "Connection profile is not configured.", "notStarted" )
+    ENDIF
+
+RETURN hb_mutexEval( s_hSQLMutex, {|| SQLExecuteLocked( cSQL, cProfile, hProfiles[ cProfile ] ) } )
+
+STATIC FUNCTION SQLExecuteFailure( cCode, cMessage, cOutcome )
+    LOCAL hResult := HBBridgeError( cCode, cMessage )
+    hResult[ "resultVersion" ] := 1
+    hResult[ "outcome" ] := cOutcome
+    hResult[ "affectedRows" ] := NIL
+RETURN hResult
+
+STATIC FUNCTION SQLExecuteLocked( cSQL, cProfile, hProfile )
+
+    LOCAL hLease := NIL, hResult
+
+    LOCAL lStarted := .F., lSuccess := .F., lReleased := .T.
+
+    LOCAL nConnection, nRows := NIL
+    LOCAL nPreviousConnection := rddInfo( RDDI_CONNECTION, NIL, "SQLMIX" )
+    LOCAL nPreviousArea := Select()
+
+    hResult := SQLExecuteFailure( "CONNECTION_FAILED", "Database connection is unavailable.", "notStarted" )
+    BEGIN SEQUENCE WITH __BreakBlock()
+        IF ! s_oSQLPool:RegisterProfile( cProfile, hProfile )
+            Break( NIL )
+        ENDIF
+        hLease := s_oSQLPool:Acquire( cProfile )
+        IF hLease == NIL
+            Break( NIL )
+        ENDIF
+        nConnection := hLease[ "connection" ]
+        lStarted := .T.
+        lSuccess := rddInfo( RDDI_EXECUTE, cSQL, "SQLMIX", nConnection )
+        IF ! lSuccess
+            Break( NIL )
+        ENDIF
+        nRows := rddInfo( RDDI_AFFECTEDROWS, NIL, "SQLMIX", nConnection )
+        /* Some ODBC drivers return SQLRowCount -1 for unavailable, cast by
+         * RDDSQL to unsigned long (32-bit on Windows, 64-bit on Linux). */
+        IF hProfile[ "driver" ] == "sqlite" .OR. ! HB_ISNUMERIC( nRows ) .OR. ;
+            nRows < 0 .OR. nRows == 4294967295 .OR. nRows > 9007199254740991
+            nRows := NIL
+        ENDIF
+        hResult := { "success" => .T., "resultVersion" => 1, "outcome" => "completed", ;
+            "affectedRows" => nRows, "driver" => hProfile[ "driver" ] }
+    RECOVER
+        lSuccess := .F.
+    ALWAYS
+        IF lStarted .AND. ! lSuccess
+            hResult := SQLExecuteFailure( "STATEMENT_EXECUTE_FAILED", ;
+                "The database did not confirm execution; the outcome is unknown.", "unknown" )
+        ENDIF
+        BEGIN SEQUENCE WITH __BreakBlock()
+            IF hLease != NIL
+                lReleased := s_oSQLPool:Release( hLease )
+            ENDIF
+        RECOVER
+            lReleased := .F.
+        ALWAYS
+            IF nPreviousConnection > 0
+                rddInfo( RDDI_CONNECTION, nPreviousConnection, "SQLMIX" )
+            ENDIF
+            dbSelectArea( nPreviousArea )
+        END SEQUENCE
+        IF ! lReleased
+            hResult[ "connectionReleased" ] := .F.
+        ELSE
+            hResult[ "connectionReleased" ] := .T.
+        ENDIF
+    END SEQUENCE
+
+RETURN hResult
+
 STATIC FUNCTION SQLQueryLocked( cSQL, cProfile, hProfile, hPage, hBindings )
 
     LOCAL cName, cFailure, cMessage, cAlias

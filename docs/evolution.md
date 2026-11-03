@@ -111,7 +111,7 @@ even named shared-cache memory databases require connections in the same process
 | MSSQL local `#temp` | Scoped to the creating SQL session; another DBAccess connection cannot automatically consume it. |
 | MSSQL global `##temp` | Requires explicit lifetime, unique naming, ownership and connection handling; not the default materialization strategy. |
 | Durable SQL staging table | Suitable for committed results read through another connection; needs a reserved output schema and managed result lifetime. |
-| Protheus `FWTemporaryTable` | Created and owned by the Protheus thread; copy the current dataset for native browse/navigation. |
+| Protheus `FWTemporaryTable` | Owned by Protheus; a dataset can be copied to it, or `RPCRDD.Execute` can populate a target accessible to the SQL connection. |
 | SQLite `:memory:` | Not a shared AppServer result store; the current connection closes after each call. |
 | SQLite file | Requires an explicitly shared location, compatible client access, schema, locks/journaling and cleanup. `LOCALFILES=SQLITE` alone does not provide that integration. |
 
@@ -134,8 +134,10 @@ transport. The TOTVS
 and [browse integration](https://tdn.totvs.com/display/framework/Dados%2BProtegidos%2Bno%2BBrowse)
 define the native ownership and presentation APIs.
 
-To avoid transferring all rows as JSON, introduce a separate materialization
-contract, for example `RPCRDD.Materialize`, without changing `RPCRDD.Query`.
+The [SQL execution contract](sql-execution.md) now supports writing to a
+caller-owned target, including the tested Protheus-owned global temporary table.
+Server-owned materialization is a separate future option, for example
+`RPCRDD.Materialize`, without changing `RPCRDD.Query`.
 First proposed backend: an explicitly configured MSSQL staging schema. Return
 an opaque result handle, target profile, schema/table reference, column
 metadata, row count, ready state and expiry. Publish only after commit;

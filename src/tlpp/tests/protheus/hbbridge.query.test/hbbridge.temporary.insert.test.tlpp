@@ -1,0 +1,316 @@
+/* Released to Public Domain. */
+#include "totvs.ch"
+
+procedure U_HBBridgeTemporaryInsertCLI(oArguments as variadic)
+
+    local jParameters:=__DefaultParameters(@oArguments:vArgs) as json
+
+    if (ValType(jParameters)=="J".and.jParameters:HasProperty("profile"))
+        U_HBBridgeTemporaryInsertTest(jParameters["profile"])
+        FreeObj(@jParameters)
+    endif
+
+return
+
+procedure U_HBBridgeTemporaryExecuteCLI(oArguments as variadic)
+
+    local jParameters:=__DefaultParameters(@oArguments:vArgs) as json
+
+    if (ValType(jParameters)=="J".and.jParameters:HasProperty("profile"))
+        U_HBBridgeTemporaryInsertTest(jParameters["profile"],.T.)
+        FreeObj(@jParameters)
+    endif
+return
+
+procedure U_HBBridgeTemporaryAddonCLI(oArguments as variadic)
+
+    local jParameters:=__DefaultParameters(@oArguments:vArgs) as json
+
+    if (ValType(jParameters)=="J".and.jParameters:HasProperty("profile"))
+        U_HBBridgeTemporaryInsertTest(jParameters["profile"],.T.,.T.)
+        FreeObj(@jParameters)
+    endif
+
+return
+
+procedure U_HBBridgeTemporaryAddonSelectCLI()
+    U_HBBridgeTemporaryInsertTest(Nil, .T., .T., .T.)
+return
+
+// This diagnostic writes only to the FWTemporaryTable created by this call.
+function U_HBBridgeTemporaryInsertTest(cProfile as character, lExecute as logical, lAddon as logical, lAddonSelect as logical)
+
+    local aFields := {{"TESTID", "N", 10, 0}, {"TESTTEXT", "C", 20, 0}} as array
+    local aTopInfo as array
+
+    local cAlias := "", cReadAlias := "", cRealName := "", cPhysicalName := "", cSQL := "" as character
+    local cStage := "CONFIGURATION", cDBServer := "", cDatabase := "" as character
+    local cDBProfile := "", cServerIdentity := "", cDatabaseIdentity := "" as character
+    local cService := "RPCRDD.Query" as character
+
+    local jParams := JSONObject():New(), jResponse, jAddonParams as json
+    local jReport := JSONObject():New() as json
+
+    local lOwnedConnection := .F., lInserted := .F. as logical
+
+    local nPreviousArea := Select(), nConnection := -1, nPort := 0 as numeric
+    local nReadArea := 0, nRows := 0 as numeric
+
+    local oClient, oDataSet, oTable as object
+
+    local xError as variant
+
+    jReport["status"] := "FAILED"
+    jReport["scope"] := "MSSQL; one owned FWTemporaryTable; constant fixture; no ERP table writes"
+    if ValType(lExecute) == "L" .and. lExecute
+        cService := "RPCRDD.Execute"
+    endif
+    if ValType(lAddon) == "L" .and. lAddon
+        cService := "ADDON.Execute"
+    endif
+    jReport["service"] := cService
+    try
+        aTopInfo := FWGetTopInfo()
+        if ValType(aTopInfo) != "A" .or. Len(aTopInfo) < 5
+            throw "DBAccess configuration is unavailable."
+        endif
+        cDBServer := aTopInfo[1]
+        nPort := aTopInfo[3]
+        cDatabase := aTopInfo[4]
+        cDBProfile := aTopInfo[5]
+        if ValType(cProfile) != "C" .or. Empty(AllTrim(cProfile))
+            cProfile := GetPvProfString("hbBridge", "SQLProfile", cDatabase + "/" + cDBProfile, GetSrvIniName())
+        endif
+        jReport["profile"] := cProfile
+        FWFreeArray(@aTopInfo)
+        if !TCIsConnected()
+            nConnection := TCLink(cDatabase + "/" + cDBProfile, cDBServer, nPort)
+            if nConnection < 0
+                throw "DBAccess connection failed."
+            endif
+            lOwnedConnection := .T.
+        endif
+        cStage := "DBACCESS_IDENTITY"
+        cSQL := "SELECT CAST(SERVERPROPERTY('ServerName') AS VARCHAR(128)) AS SERVERNAME, " + ;
+            "DB_NAME() AS DBNAME"
+        DbSelectArea(0)
+        nReadArea := Select()
+        cReadAlias := GetNextAlias()
+        DbUseArea(.F., "TOPCONN", TCGenQry(Nil, Nil, cSQL), cReadAlias, .T., .T.)
+        if Select(cReadAlias) != nReadArea .or. (cReadAlias)->(Eof())
+            throw "DBAccess identity query failed."
+        endif
+        cServerIdentity := AllTrim((cReadAlias)->(FieldGet(FieldPos("SERVERNAME"))))
+        cDatabaseIdentity := AllTrim((cReadAlias)->(FieldGet(FieldPos("DBNAME"))))
+        (cReadAlias)->(DbCloseArea())
+        nReadArea := 0
+        cStage := "HBBRIDGE_IDENTITY"
+        oClient := HBBridge.Client.HBBridgeClient():New()
+        oDataSet := HBBridge.RDD.HBBridgeRPCDataSet():New(oClient)
+        oDataSet:SetAliasProfile(cProfile)
+        if !oDataSet:OpenSQL(cSQL)
+            jReport["identityErrorCode"] := oDataSet:ErrorCode()
+            throw "hbBridge identity query failed."
+        endif
+        cStage := "COMPARE_IDENTITY"
+        if Upper(AllTrim(oDataSet:FieldGet("SERVERNAME"))) != Upper(cServerIdentity) .or. ;
+            Upper(AllTrim(oDataSet:FieldGet("DBNAME"))) != Upper(cDatabaseIdentity)
+            throw "DBAccess and hbBridge must address the same MSSQL server and database."
+        endif
+        oDataSet:Close()
+        jReport["sameServerAndDatabase"] := .T.
+        cStage := "CREATE"
+        cAlias := GetNextAlias()
+        oTable := FWTemporaryTable():New(cAlias, aFields)
+        oTable:Create()
+        cStage := "TEMPORARY_NAME"
+        cAlias := oTable:GetAlias()
+        cRealName := AllTrim(oTable:GetRealName())
+        cStage := "TEMPORARY_NAME_VALIDATION"
+        jReport["temporaryNamePresent"] := !Empty(cRealName)
+        jReport["temporaryNameContainsDot"] := "." $ cRealName
+        jReport["temporaryAliasOpen"] := Select(cAlias) > 0
+        jReport["temporaryName"] := cRealName
+        cPhysicalName := cRealName
+        cRealName := TemporaryInsertSQLName(cRealName)
+        if Select(cAlias) == 0 .or. Empty(cRealName)
+            throw "Temporary table name or alias is unavailable or unsupported."
+        endif
+        jReport["temporaryTableCreated"] := .T.
+        cStage := "INSERT"
+        cSQL := "INSERT INTO " + cRealName + " (TESTID, TESTTEXT) " + ;
+            "SELECT 1, 'hbBridge' UNION ALL SELECT 2, 'temporary'"
+        if cService == "ADDON.Execute"
+            jAddonParams := JSONObject():New()
+            jAddonParams["alias"] := cProfile
+            jAddonParams["target"] := cPhysicalName
+            if ValType(lAddonSelect) == "L" .and. lAddonSelect
+                jAddonParams["columns"] := "[TESTID],[TESTTEXT]"
+                jAddonParams["select"] := "SELECT 1, 'hbBridge' UNION ALL SELECT 2, 'temporary'"
+            endif
+            jParams["module"] := "examples/hbbridgetemporaryinsertaddon.hrb"
+            jParams["params"] := jAddonParams
+        else
+            jParams["alias"] := cProfile
+            jParams["sql"] := cSQL
+        endif
+        if cService == "RPCRDD.Execute"
+            jParams["requestVersion"] := 1
+        endif
+        if cService == "RPCRDD.Execute"
+            jResponse := HBBridge.SQL.HBBridgeSQLExecutor():Execute(oClient, cProfile, cSQL)
+        else
+            jResponse := oClient:CallService(cService, jParams)
+        endif
+        if ValType(jResponse) == "J"
+            if jResponse:HasProperty("success")
+                jReport["responseSuccess"] := jResponse["success"]
+            endif
+            if jResponse:HasProperty("code")
+                jReport["responseCode"] := jResponse["code"]
+            endif
+            if jResponse:HasProperty("outcome")
+                jReport["responseOutcome"] := jResponse["outcome"]
+            endif
+            if jResponse:HasProperty("affectedRows")
+                jReport["affectedRows"] := jResponse["affectedRows"]
+            endif
+        endif
+        cStage := "READBACK"
+        cSQL := "SELECT TESTID, TESTTEXT FROM " + cRealName + " ORDER BY TESTID"
+        DbSelectArea(0)
+        nReadArea := Select()
+        cReadAlias := GetNextAlias()
+        DbUseArea(.F., "TOPCONN", TCGenQry(Nil, Nil, cSQL), cReadAlias, .T., .T.)
+        if Select(cReadAlias) != nReadArea
+            throw "Temporary table readback failed."
+        endif
+        TCSetField(cReadAlias, "TESTID", "N", 10, 0)
+        while (cReadAlias)->(!Eof())
+            nRows++
+            if nRows == 1
+                lInserted := (cReadAlias)->(FieldGet(FieldPos("TESTID"))) == 1 .and. ;
+                    AllTrim((cReadAlias)->(FieldGet(FieldPos("TESTTEXT")))) == "hbBridge"
+            elseif nRows == 2
+                lInserted := lInserted .and. (cReadAlias)->(FieldGet(FieldPos("TESTID"))) == 2 .and. ;
+                    AllTrim((cReadAlias)->(FieldGet(FieldPos("TESTTEXT")))) == "temporary"
+            endif
+            (cReadAlias)->(DbSkip())
+        enddo
+        jReport["rowsObserved"] := nRows
+        jReport["expectedRowsObserved"] := lInserted .and. nRows == 2
+        jReport["status"] := "OBSERVED"
+    catch xError
+        jReport["failureStage"] := cStage
+        if ValType(xError) == "O"
+            FreeObj(@xError)
+        endif
+    endtry
+    try
+        if nReadArea > 0
+            DbSelectArea(nReadArea)
+            if Used()
+                DbCloseArea()
+            endif
+        endif
+        if ValType(oDataSet) == "O"
+            oDataSet:Close()
+            FreeObj(@oDataSet)
+        endif
+        if ValType(oClient) == "O"
+            oClient:Close()
+            FreeObj(@oClient)
+        endif
+        if ValType(oTable) == "O"
+            oTable:Delete()
+            FreeObj(@oTable)
+            jReport["aliasClosed"] := Select(cAlias) == 0
+        endif
+        if lOwnedConnection
+            TCUnlink(nConnection)
+        endif
+        DbSelectArea(IIf(nPreviousArea > 0, nPreviousArea, Nil))
+    catch xError
+        jReport["cleanupFailed"] := .T.
+        if ValType(xError) == "O"
+            FreeObj(@xError)
+        endif
+    endtry
+    ConOut("hbBridge temporary INSERT diagnostic: " + jReport:ToJSON())
+    if ValType(jResponse) == "J"
+        FreeObj(@jResponse)
+    endif
+    FreeObj(@jParams)
+    FreeObj(@jReport)
+    FWFreeArray(@aFields)
+
+return Nil
+
+// Quote each SQL Server identifier part, including tempdb..table names.
+static function TemporaryInsertSQLName(cName as character) as character
+
+    local cPart := "", cResult := "", cRemaining := cName as character
+
+    local nDot := 0, nParts := 0 as numeric
+
+    if Empty(cName) .or. Chr(0) $ cName
+        return ""
+    endif
+    do while .T.
+        nDot := At(".", cRemaining)
+        cPart := IIf(nDot > 0, Left(cRemaining, nDot - 1), cRemaining)
+        nParts++
+        if nParts > 3 .or. Len(cPart) > 128 .or. ;
+            (Empty(cPart) .and. (nParts != 2 .or. nDot == 0))
+            return ""
+        endif
+        if nParts > 1
+            cResult += "."
+        endif
+        if !Empty(cPart)
+            cResult += "[" + StrTran(cPart, "]", "]]") + "]"
+        endif
+        if nDot == 0
+            exit
+        endif
+        cRemaining := SubStr(cRemaining, nDot + 1)
+    enddo
+
+return cResult
+
+static procedure __DefaultParameters(aArguments as array) as json
+
+    local aDefaults:=Array(0) as array
+    local aFWGetTopInfo:=FWGetTopInfo() as array
+
+    local cFlag := "" as character
+
+    local jParameters:=JSONObject():New() as json
+
+    local nAT as numeric
+    local nDefault as numeric
+    local nDefaults := 0 as numeric
+    local nFlagLength := 0 as numeric
+
+    local xValue as variant
+
+    DEFAULT jParameters:=JSONObject():New()
+
+    aAdd(aDefaults,{"--profile=",(aFWGetTopInfo[4]+"/"+aFWGetTopInfo[5])})
+    FWFreeArray(@aFWGetTopInfo)
+    nDefaults := Len(aDefaults)
+    for nDefault:=1 to nDefaults
+        cFlag := aDefaults[nDefault][1]
+        nFlagLength := Len(cFlag)
+        if ((nAT:=aScan(aArguments,{|x|Left(Lower(x),nFlagLength)==cFlag}))==0)
+            aAdd(aArguments,aDefaults[nDefault][1]+aDefaults[nDefault][2])
+            nAT:=Len(aArguments)
+        endif
+        xValue:=StrTran(aArguments[nAT],cFlag,"")
+        if (cFlag=="--profile=")
+            jParameters["profile"]:=xValue
+        endif
+    next nDefault
+    FWFreeArray(@aDefaults)
+
+return(jParameters)

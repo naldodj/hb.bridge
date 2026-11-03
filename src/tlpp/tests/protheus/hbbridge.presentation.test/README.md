@@ -2,6 +2,45 @@
 
 [Português](README.pt-BR.md) · [Typed SQL contract](../../../../../docs/typed-sql.md)
 
+## Caller-owned temporary browse
+
+`U_HBBridgeNativeBrowseTempSX5(profile)` and
+`U_HBBridgeNativeBrowseTempSRA(profile)` require a prepared Protheus
+company/branch, active MSSQL DBAccess connection, matching hbBridge profile
+and an installed `hbbridgetemporaryinsertaddon.hrb`. Build the HRB with
+`scripts/build-hbbridge-temporary-addon.ps1` and put it at the configured
+addon root. The Protheus example resolves the physical table, branch and SX3
+metadata, creates a `FWTemporaryTable`, then asks the addon to fill it using
+`INSERT INTO ... SELECT`. Both connections must identify the same SQL Server
+and database. The browse navigates the temporary alias without paging or
+fetching more rows from hbBridge. Close the dialog to delete the owned table.
+
+The initial SX5 projection is `X5_FILIAL`, `X5_TABELA`, `X5_CHAVE`,
+`X5_DESCRI`; SRA uses `RA_FILIAL`, `RA_MAT`, `RA_NOME`, `RA_SALARIO` and
+`RA_ADMISSA`. These are explicitly selected examples, not all dictionary
+fields. Search indexes cover character fields: the first is created after
+loading and subsequent ones on demand; the native filter receives the displayed
+fields. View opens the selected temporary record. On 2026-11-03, supplied
+screenshots showed both browses displaying SX5/SRA rows, including accented
+text and formatted salary/date columns. This confirms initial display only;
+values were not independently compared with the database. Search was reported
+working with the standard `FWBrowse` seek; the custom seek callback is
+temporarily disabled while the index-change callback remains active. The
+report does not specify which fields were tested. The standard filter was also
+reported working, without details of fields or operators. Cleanup through
+`oTemporary:Delete()` was confirmed, and manual performance was considered
+more than satisfactory without quantitative measurements. View was also
+confirmed.
+
+An isolated Protheus/DBAccess test `U_HBBridgeNativeTempIndexTest` passed six
+checks covering two searches, lazy index creation, reuse and alias closure. A separate MSSQL
+addon diagnostic verified an explicitly supplied projection/SELECT against a
+caller-owned temporary table with synthetic rows. The sample addon accepts
+trusted caller SQL without parsing or parameter bindings; it is not an
+authorization boundary. Timeout may leave the write outcome unknown and must
+not trigger an automatic retry. Images do not independently compare source
+values; quantitative performance comparison can be conducted separately.
+
 T04 separates presentation conversion from native table and UI acceptance.
 The conversion and synthetic tests use caller-supplied logical fields without
 ERP dictionary/context resolution. The separate real SX5 example resolves

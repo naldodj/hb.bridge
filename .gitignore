@@ -27,3 +27,4 @@ hbbridge_local_compile.bat
 hb_totvs_mcp.log
 /tests/probes/__pycache__/
 /addons/examples/hbbridgebenchmarkaddon.hrb
+/addons/examples/hbbridgetemporaryinsertaddon.hrb

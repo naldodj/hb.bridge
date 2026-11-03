@@ -1,0 +1,37 @@
+/* Released to Public Domain. */
+#include "totvs.ch"
+
+namespace HBBridge.SQL
+
+class HBBridgeSQLExecutor
+    static method Execute(oClient as object, cProfile as character, cSQL as character) as json
+endclass
+
+static method Execute(oClient, cProfile, cSQL) class HBBridgeSQLExecutor
+
+    local jParams := JSONObject():New(), jResult as json
+
+    if ValType(oClient) != "O" .or. ValType(cProfile) != "C" .or. ValType(cSQL) != "C"
+        jResult := JSONObject():New()
+        jResult["success"] := .F.
+        jResult["code"] := "INVALID_PARAMS"
+        jResult["outcome"] := "notStarted"
+        FreeObj(@jParams)
+        return jResult
+    endif
+    jParams["requestVersion"] := 1
+    jParams["alias"] := cProfile
+    jParams["sql"] := cSQL
+    jResult := oClient:CallService("RPCRDD.Execute", jParams)
+    FreeObj(@jParams)
+    if ValType(jResult) != "J"
+        jResult := JSONObject():New()
+        jResult["success"] := .F.
+        jResult["code"] := "INVALID_RESULT"
+        jResult["outcome"] := "unknown"
+    elseif !jResult:HasProperty("outcome")
+        // A transport failure does not prove whether the server executed SQL.
+        jResult["outcome"] := "unknown"
+    endif
+
+return jResult

@@ -34,6 +34,8 @@ FUNCTION HBBridgeBuiltinRegistry( hSQLProfiles )
             {| x | HBBridgeSQLQuery( x, hSQLProfiles ) } )
         Builtin( hRegistry, "RPCRDD.QueryTyped", "H", "service.call", { "rddsql", "sddsqlt3", "sddodbc" }, ;
             {| x | HBBridgeSQLQueryTyped( x, hSQLProfiles ) } )
+        Builtin( hRegistry, "RPCRDD.Execute", "H", "service.call", { "rddsql", "sddsqlt3", "sddodbc" }, ;
+            {| x | HBBridgeSQLExecute( x, hSQLProfiles ) } )
     ENDIF
 
 RETURN HBBridgeRegistrySeal( hRegistry )

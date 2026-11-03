@@ -25,9 +25,52 @@ is inferred. See [closure, exact artifacts and limitations](docs/acceptance.md#p
 | Status | T01–T04 validated in their recorded scopes. T05a selected dictionary fields passed isolated checks and confirmed manual visual acceptance. T05b explicit JOIN examples and final package closure remain open. |
 | Goal | Define explicit typed SQL values/result metadata and a caller-owned native Protheus presentation adapter using the accepted Query/dataset. |
 | Reference | Base `8db2823`; package 001 validated working-tree artifacts are identified in its closure manifest. This is not a new release tag. |
-| Next task | T05b: implement explicit SRA/SRB and SRA/CTT JOIN examples using the SX9 review, caller-resolved metadata and deterministic joined-row paging; retain explicit NULL/native-presentation policy. |
+| Next task | T05b: explicit SRA/SRB and SRA/CTT JOIN examples with caller-resolved metadata and deterministic joined-row paging. |
 
 ### Preparatory maintenance
+
+- [x] 2026-11-03: validate the SX5/SRA caller-owned temporary browse with
+  actual Protheus UI and data. The addon accepts a trusted projection/SELECT;
+  an isolated MSSQL diagnostic passed with synthetic rows, and a separate
+  DBAccess fixture passed six index/seek/alias checks. Manual acceptance covers
+  the reported observations below; a quantitative benchmark is separate work.
+  [Instructions](src/tlpp/tests/protheus/hbbridge.presentation.test/README.md#caller-owned-temporary-browse).
+
+  Screenshots supplied on 2026-11-03 show both real SX5/SRA browses open,
+  including accented text and formatted date/salary columns. This records
+  initial visual display only; source values, search, filters, View, physical
+  cleanup and performance have not been independently confirmed by the images.
+  Search was subsequently reported working with the standard FWBrowse seek;
+  the custom callback is temporarily disabled and the report does not specify
+  the tested fields. On-demand index selection remains in the example. The
+  standard filter was also reported working, without field/operator details.
+  Cleanup through `oTemporary:Delete()` was confirmed; manual performance was
+  reported more than satisfactory, without quantitative measurements. View
+  was also confirmed. The images do not independently compare source values
+  or identify the fields and operators tested.
+
+- [x] 2026-11-02: create a unique MSSQL view through `RPCRDD.Execute`, read it
+  through `Query` and parameterized `QueryTyped`, then drop and verify absence.
+  Record the in-process scope and opt-in DDL in [SQL execution](docs/sql-execution.md).
+
+- [x] 2026-11-02: add `RPCRDD.Execute` and a TLPP helper. Direct TCP and an
+  addon each inserted two synthetic MSSQL rows into a Protheus-owned global
+  FWTemporaryTable, then DBAccess read them. Record uncertain outcomes,
+  driver-specific counts and connection limits in [SQL execution](docs/sql-execution.md).
+  Performance comparison and typed execution bindings remain future work;
+  T05b remains open.
+
+  Manual development AppServer execution of the direct TCP diagnostic on
+  2026-11-02 at 22:09:42 also confirmed two affected and observed rows and
+  alias closure. A separate manual AppServer CLI log on 2026-11-03 confirmed
+  the addon route with the same two affected/observed rows and alias closure.
+
+- [x] 2026-11-02: investigate a Protheus-owned MSSQL `FWTemporaryTable` as an
+  insert target. With the same server/database confirmed, `RPCRDD.Query`
+  returned `QUERY_FAILED` while DBAccess read both inserted fixture rows.
+  Record the exact scope and retry/transaction limitations in the
+  [SQL diagnostic](src/tlpp/tests/protheus/hbbridge.query.test/README.md).
+  This observation does not add a supported DML service or close T05b.
 
 - [x] 2026-10-30: shorten the root EN/PT READMEs to project purpose, the
   Harbour/C/Zig rationale, current capabilities, first run and guide navigation.

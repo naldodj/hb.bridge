@@ -6,6 +6,39 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Adicionar cobertura de integridade para JSON UTF-8 e MSSQL)"
  */
 
+2026-11-03 10:04 UTC naldodj (Adicionar exemplos de browse em temporária do chamador)
+  + Adicionar exemplos de browse nativo SX5/SRA sem paginação sobre
+    FWTemporaryTable própria do Protheus preenchida por addon confiável e
+    RPCRDD.Execute. Resolver contexto/dicionário no Protheus, conferir identidade
+    do banco antes da gravação e preparar índices de pesquisa sob demanda.
+  ; Diagnóstico MSSQL do SELECT via addon e checks DBAccess de índices/pesquisa
+    passaram com linhas sintéticas; suíte Harbour passou 789 checks. Aceite
+    visual, filtros, dados reais e
+    limpeza SX5/SRA permanecem pendentes; não há resultado de desempenho.
+  ; Imagens fornecidas em 2026-11-03 mostram a exibição inicial SX5/SRA;
+    interação, comparação com a origem e limpeza continuam a validar.
+  ; Pesquisa informada como funcional com seek padrão do FWBrowse; o callback
+    customizado permanece temporariamente desabilitado para análise.
+    Filtro padrão também informado como funcional.
+  ; Confirmadas a limpeza por oTemporary:Delete() e a avaliação manual de
+    desempenho mais que satisfatório, sem números de benchmark. View confirmado.
+
+2026-11-03 00:56 UTC naldodj (Executar SQL em tabelas temporárias do chamador)
+  + Registrar RPCRDD.Execute com requisição versionada, resultado da execução
+    e contagem de linhas conforme o driver. Preservar posse da conexão e
+    informar resultado incerto sem repetir SQL já enviado.
+  + Adicionar executor TLPP e exemplo Harbour de addon que grava dados sintéticos
+    em temporária criada e mantida pelo Protheus. Documentar perfis, permissões,
+    vida útil, SQL sem parâmetros e limites de transação.
+  ; AppServer Windows isolado e MSSQL local validaram duas linhas inseridas via
+    TCP direto e addon; DBAccess leu ambas. Suíte Harbour passou 783 checks.
+    Não se infere conclusão de desempenho.
+  + Adicionar teste MSSQL opcional de view: Execute cria e remove objeto único;
+    Query e QueryTyped com parâmetro consultam; verificar ausência após limpeza.
+  ; Execução manual no AppServer de desenvolvimento confirmou Execute direto,
+    com duas linhas afetadas/lidas e fechamento do alias próprio do chamador.
+    Log manual CLI separado confirmou o caminho via addon em 2026-11-03.
+
 2026-10-30 10:55 UTC naldodj (Organizar documentação bilíngue e preparar o portal Wiki)
   * Enxugar os READMEs preservando familiaridade Harbour/xBase, integração
     nativa C, modernização Zig e a fronteira de executor genérico. Manter

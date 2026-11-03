@@ -2,6 +2,45 @@
 
 [English](README.md) · [Contrato SQL tipado](../../../../../docs/typed-sql.pt-BR.md)
 
+## Browse sobre temporária do chamador
+
+`U_HBBridgeNativeBrowseTempSX5(perfil)` e
+`U_HBBridgeNativeBrowseTempSRA(perfil)` exigem empresa/filial preparadas no
+Protheus, conexão MSSQL DBAccess ativa, perfil correspondente no hbBridge e
+`hbbridgetemporaryinsertaddon.hrb` instalado. Compile o HRB com
+`scripts/build-hbbridge-temporary-addon.ps1` e coloque-o no addon root
+configurado. O exemplo Protheus resolve tabela física, filial e metadados SX3,
+cria uma `FWTemporaryTable` e solicita ao addon a carga por `INSERT INTO ...
+SELECT`. As duas conexões precisam identificar o mesmo SQL Server e banco.
+O browse navega diretamente no alias temporário, sem paginação ou busca de mais
+linhas no hbBridge. Ao fechar o diálogo, o Protheus exclui sua tabela.
+
+A projeção inicial SX5 é `X5_FILIAL`, `X5_TABELA`, `X5_CHAVE`, `X5_DESCRI`;
+na SRA são `RA_FILIAL`, `RA_MAT`, `RA_NOME`, `RA_SALARIO` e `RA_ADMISSA`.
+São exemplos de campos selecionados, não todos os campos do dicionário. A
+pesquisa indexada contempla campos caractere: o primeiro índice é criado após a
+carga e os demais sob demanda; o filtro nativo recebe os campos exibidos.
+View abre o registro selecionado da temporária. Em 2026-11-03, imagens
+fornecidas mostraram os dois browses exibindo linhas SX5/SRA, com textos
+acentuados e colunas de salário/data formatadas. Isso confirma a apresentação
+inicial; os valores não foram comparados independentemente com o banco.
+Foi informado que a pesquisa funciona com o seek padrão do `FWBrowse`; o
+callback de pesquisa customizado está temporariamente desabilitado e o
+callback de troca de índice permanece ativo. O relato não especifica os campos
+testados. O filtro padrão também foi informado como funcional, sem detalhes
+dos campos ou operadores usados. A limpeza pela chamada `oTemporary:Delete()`
+foi confirmada, e o desempenho foi considerado mais que satisfatório na
+avaliação manual, sem medições quantitativas. O botão View também foi confirmado.
+
+O teste isolado Protheus/DBAccess `U_HBBridgeNativeTempIndexTest` passou seis
+checks de duas pesquisas, criação sob demanda, reutilização de índices e fechamento do alias. Um
+diagnóstico MSSQL separado validou a projeção/SELECT explícita do addon em
+temporária própria com linhas sintéticas. O addon de exemplo aceita SQL de
+chamador confiável sem parser ou parâmetros; não é fronteira de autorização.
+Timeout pode deixar o resultado incerto e não deve provocar repetição automática.
+As imagens não permitem comparação independente dos valores com a origem;
+uma comparação quantitativa de desempenho pode ser feita separadamente.
+
 T04 separa a conversão para apresentação da validação da tabela nativa e da
 interface. Os testes de conversão/sintéticos usam campos lógicos fornecidos
 pelo chamador, sem resolver dicionário/contexto ERP. O exemplo SX5 real separado

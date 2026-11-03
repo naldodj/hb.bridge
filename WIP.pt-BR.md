@@ -25,9 +25,51 @@ HTTPS ou BLOB JSON. Veja [encerramento, artefatos e limites](docs/acceptance.pt-
 | Situação | T01–T04 validadas nos escopos registrados. T05a de campos selecionados passou checks isolados e teve aceite visual manual confirmado. T05b de JOIN explícito e encerramento final do pacote permanecem abertos. |
 | Objetivo | Definir valores SQL/metadados tipados explícitos e adapter de apresentação nativa pertencente ao chamador Protheus sobre Query/dataset homologados. |
 | Referência | Base `8db2823`; artefatos da árvore de trabalho validados no pacote 001 identificados no manifesto de encerramento. Não é nova tag de release. |
-| Próxima tarefa | T05b: implementar exemplos JOIN SRA/SRB e SRA/CTT explícitos conforme análise SX9, com metadados resolvidos pelo chamador e paginação determinística por linha resultante; manter política explícita de NULL/apresentação nativa. |
+| Próxima tarefa | T05b: implementar exemplos JOIN SRA/SRB e SRA/CTT explícitos com metadados do chamador e paginação determinística. |
 
 ### Manutenção preparatória
+
+- [x] 2026-11-03: validar browse SX5/SRA sobre temporária do chamador na UI e
+  dados reais do Protheus. O addon aceita projeção/SELECT de chamador confiável;
+  diagnóstico MSSQL isolado passou com linhas sintéticas e fixture DBAccess
+  separada passou seis checks de índices/pesquisa/alias. O aceite manual cobre
+  os aspectos informados abaixo; benchmark quantitativo é atividade separada.
+  [Instruções](src/tlpp/tests/protheus/hbbridge.presentation.test/README.pt-BR.md#browse-sobre-temporária-do-chamador).
+
+  Imagens fornecidas em 2026-11-03 mostram os browses reais SX5/SRA abertos,
+  com textos acentuados e colunas de data/salário formatadas. Registram apenas
+  a apresentação inicial; valores de origem, pesquisa, filtros, View, limpeza
+  física e desempenho não foram confirmados independentemente pelas imagens.
+  Posteriormente foi informado que o seek padrão do FWBrowse funciona, com o
+  callback customizado desabilitado temporariamente; campos testados não foram
+  especificados. A troca de índice sob demanda permanece no exemplo. O filtro
+  padrão também foi informado como funcional, sem detalhes de campos/operadores.
+  Confirmada a limpeza por `oTemporary:Delete()` e informado desempenho mais
+  que satisfatório na avaliação manual, sem métricas quantitativas. Confirmado
+  também o botão View. As imagens não fornecem comparação independente dos
+  valores com a origem nem detalhes dos campos e operadores testados.
+
+- [x] 2026-11-02: criar view MSSQL exclusiva por `RPCRDD.Execute`, consultá-la
+  por `Query` e `QueryTyped` com parâmetro, removê-la e verificar a ausência.
+  Registrar escopo no processo e DDL opcional em [execução SQL](docs/sql-execution.pt-BR.md).
+
+- [x] 2026-11-02: adicionar `RPCRDD.Execute` e helper TLPP. TCP direto e addon
+  inseriram duas linhas MSSQL sintéticas em FWTemporaryTable global do
+  Protheus, lidas depois pelo DBAccess. Registrar resultados incertos,
+  contagem por driver e limites de conexão em [execução SQL](docs/sql-execution.pt-BR.md).
+  Comparação de desempenho e parâmetros tipados permanecem futuros; T05b segue aberto.
+
+  Execução manual do diagnóstico TCP direto no AppServer de desenvolvimento
+  em 2026-11-02 às 22:09:42 também confirmou duas linhas afetadas e observadas,
+  com fechamento do alias. Log separado de AppServer CLI em 2026-11-03
+  confirmou o caminho via addon com duas linhas afetadas/observadas e alias fechado.
+
+- [x] 2026-11-02: investigar `FWTemporaryTable` MSSQL do Protheus como destino
+  de insert. Confirmados o mesmo servidor e banco, `RPCRDD.Query` retornou
+  `QUERY_FAILED` enquanto o DBAccess leu as duas linhas inseridas da fixture.
+  Registrar escopo e limites de repetição/transação no
+  [diagnóstico SQL](src/tlpp/tests/protheus/hbbridge.query.test/README.pt-BR.md).
+  A observação não adiciona serviço DML suportado nem encerra T05b.
 
 - [x] 2026-10-30: enxugar os READMEs principais EN/PT para propósito, escolha
   de Harbour/C/Zig, recursos atuais, primeira execução e navegação dos guias.

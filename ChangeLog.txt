@@ -5,6 +5,39 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Organize bilingual documentation and prepare the Wiki portal)"
  */
 
+2026-11-03 10:04 UTC naldodj (Add caller-owned temporary browse examples)
+  + Add unpaged SX5/SRA native browse examples over a Protheus-owned
+    FWTemporaryTable populated by a trusted addon and RPCRDD.Execute.
+    Resolve business context and dictionary fields in Protheus; verify the
+    database identity before writing and prepare search indexes on demand.
+  ; Isolated MSSQL addon SELECT and DBAccess index/seek checks passed with
+    synthetic rows; the Harbour regression suite passed 789 checks.
+    Real SX5/SRA visual, filter, data and cleanup acceptance
+    remains pending; the examples do not establish a performance result.
+  ; Supplied 2026-11-03 screenshots show the initial SX5/SRA browse display;
+    interaction, comparison with source values and cleanup remain to validate.
+  ; Search reported working with the standard FWBrowse seek; the custom seek
+    callback remains temporarily disabled for analysis. Standard filter also
+    reported working.
+  ; Cleanup via oTemporary:Delete() confirmed; manual performance reported
+    more than satisfactory, without benchmark measurements. View confirmed.
+
+2026-11-03 00:56 UTC naldodj (Execute SQL into caller-owned temporary tables)
+  + Register RPCRDD.Execute with versioned request, execution outcome and
+    driver-aware affected row count. Preserve connection ownership and report
+    uncertain outcomes without retrying submitted SQL.
+  + Add the TLPP executor and a Harbour addon example writing synthetic data
+    into a temporary table created and owned by Protheus. Document profiles,
+    privileges, lifetime, unparameterized SQL and transaction limitations.
+  ; Windows isolated AppServer and local MSSQL validated two inserted rows
+    through direct TCP and addon calls; DBAccess read both. Harbour regression
+    suite passed 783 checks. No performance conclusion is inferred.
+  + Add an opt-in MSSQL view test: Execute creates and drops a unique view;
+    Query and QueryTyped with a binding read it; verify absence after cleanup.
+  ; Manual development AppServer execution confirmed the direct Execute path
+    with two affected/read rows and closure of the caller-owned alias.
+    A separate manual CLI log confirmed the addon path on 2026-11-03.
+
 2026-10-30 10:55 UTC naldodj (Organize bilingual documentation and prepare the Wiki portal)
   * Shorten root READMEs while preserving Harbour/xBase familiarity, native
     C interoperability, Zig modernization and the generic-executor boundary.

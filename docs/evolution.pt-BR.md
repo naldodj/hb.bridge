@@ -112,7 +112,7 @@ mesmo os bancos nomeados com shared-cache exigem conexões no mesmo processo.
 | MSSQL `#temp` local | Pertence à sessão SQL criadora; outra conexão DBAccess não a consome automaticamente. |
 | MSSQL `##temp` global | Exige vida útil explícita, nome único, posse e gestão da conexão; não é a estratégia padrão. |
 | Tabela SQL real de staging | Compartilha resultados confirmados com outra conexão; exige schema de saída reservado e ciclo de vida gerenciado. |
-| `FWTemporaryTable` Protheus | Criada e mantida pela thread Protheus; copia o dataset atual para browse/navegação nativos. |
+| `FWTemporaryTable` Protheus | Mantida pelo Protheus; pode receber cópia do dataset ou dados por `RPCRDD.Execute` se o destino for acessível à conexão SQL. |
 | SQLite `:memory:` | Não é armazenamento compartilhado com AppServer; a conexão atual fecha a cada chamada. |
 | Arquivo SQLite | Exige local compartilhado explícito, acesso cliente compatível, schema, locks/journaling e limpeza. `LOCALFILES=SQLITE` não entrega essa integração sozinho. |
 
@@ -136,8 +136,10 @@ preservado. Os contratos TOTVS de
 e [integração ao browse](https://tdn.totvs.com/display/framework/Dados%2BProtegidos%2Bno%2BBrowse)
 definem posse e APIs nativas de apresentação.
 
-Para evitar transferir todas as linhas em JSON, criar contrato separado, por
-exemplo `RPCRDD.Materialize`, preservando `RPCRDD.Query`. Primeiro backend
+O [contrato de execução SQL](sql-execution.pt-BR.md) permite gravar em destino
+do chamador, incluindo a temporária global do Protheus testada. Materialização
+com destino pertencente ao servidor é opção futura separada, por exemplo
+`RPCRDD.Materialize`, preservando `RPCRDD.Query`. Primeiro backend
 proposto: schema MSSQL de staging configurado explicitamente. Retornar handle
 opaco, perfil destino, referência schema/tabela, metadados de colunas, quantidade
 de linhas, estado pronto e expiração. Publicar somente após commit; liberação

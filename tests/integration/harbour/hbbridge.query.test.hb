@@ -64,6 +64,65 @@ PROCEDURE M3SQLTests( nFailures, nChecks )
     M1Assert( rddInfo( RDDI_DISCONNECT, NIL, "SQLMIX", nConnection ), ;
         "fixture connection closes", @nFailures, @nChecks )
     hRegistry := HBBridgeBuiltinRegistry( hProfiles )
+    hResult := HBBridgeDispatch( hRegistry, "RPCRDD.Execute", ;
+        { "requestVersion" => 1, "alias" => "sample", "sql" => "CREATE TABLE execute_fixture (ID INTEGER, NAME TEXT)" }, hContext )
+    M1Assert( hResult[ "success" ] .AND. hResult[ "outcome" ] == "completed" .AND. ;
+        hResult[ "connectionReleased" ], "execute creates an owned SQLite fixture", @nFailures, @nChecks )
+    hResult := HBBridgeDispatch( hRegistry, "RPCRDD.Execute", ;
+        { "requestVersion" => 1, "alias" => "sample", "sql" => ;
+            "INSERT INTO execute_fixture (ID, NAME) SELECT 1, 'one' UNION ALL SELECT 2, 'two'" }, hContext )
+    M1Assert( hResult[ "success" ] .AND. hResult[ "outcome" ] == "completed" .AND. ;
+        hResult[ "affectedRows" ] == NIL, "execute leaves unavailable SQLite affected count unknown", @nFailures, @nChecks )
+    hResult := HBBridgeDispatch( hRegistry, "RPCRDD.Query", ;
+        { "alias" => "sample", "sql" => "SELECT ID, NAME FROM execute_fixture ORDER BY ID" }, hContext )
+    M1Assert( hResult[ "success" ] .AND. hResult[ "rowCount" ] == 2 .AND. ;
+        hResult[ "rows" ][ "2" ][ "NAME" ] == "two", "separate query observes execute results", @nFailures, @nChecks )
+    hResult := HBBridgeDispatch( hRegistry, "RPCRDD.Execute", ;
+        { "requestVersion" => 1, "alias" => "sample", "sql" => "INSERT INTO no_such_table VALUES (1)" }, hContext )
+    M1Assert( ! hResult[ "success" ] .AND. hResult[ "outcome" ] == "unknown" .AND. ;
+        hResult[ "code" ] == "STATEMENT_EXECUTE_FAILED", "submitted statement failure has uncertain outcome", @nFailures, @nChecks )
+    hResult := HBBridgeDispatch( hRegistry, "RPCRDD.Execute", ;
+        { "requestVersion" => 1, "alias" => "not-configured", "sql" => "DELETE FROM execute_fixture" }, hContext )
+    M1Assert( ! hResult[ "success" ] .AND. hResult[ "outcome" ] == "notStarted" .AND. ;
+        hResult[ "code" ] == "PROFILE_NOT_FOUND", "missing profile fails before submission", @nFailures, @nChecks )
+    hResult := HBBridgeDispatch( hRegistry, "RPCRDD.Execute", ;
+        { "requestVersion" => 1, "alias" => "sample", "sql" => "DELETE FROM execute_fixture", "extra" => .T. }, hContext )
+    M1Assert( ! hResult[ "success" ] .AND. hResult[ "outcome" ] == "notStarted", ;
+        "execute rejects unknown members before submission", @nFailures, @nChecks )
+    hResult := HBBridgeDispatch( hRegistry, "ADDON.Execute", ;
+        { "module" => "hbbridgetemporaryinsertaddon.hrb", "params" => ;
+            { "alias" => "sample", "target" => "execute_fixture", "columns" => "[ID],[NAME]", ;
+                "select" => "SELECT 3, 'three' UNION ALL SELECT 4, 'four'" } }, hContext )
+    M1Assert( hResult[ "success" ] .AND. hResult[ "outcome" ] == "completed", ;
+        "temporary addon executes caller SELECT", @nFailures, @nChecks )
+    hResult := HBBridgeDispatch( hRegistry, "RPCRDD.Query", ;
+        { "alias" => "sample", "sql" => "SELECT ID, NAME FROM execute_fixture ORDER BY ID" }, hContext )
+    M1Assert( hResult[ "success" ] .AND. hResult[ "rowCount" ] == 4 .AND. ;
+        hResult[ "rows" ][ "4" ][ "NAME" ] == "four", "temporary addon writes expected rows", @nFailures, @nChecks )
+    hResult := HBBridgeDispatch( hRegistry, "ADDON.Execute", ;
+        { "module" => "hbbridgetemporaryinsertaddon.hrb", "params" => ;
+            { "alias" => "sample", "target" => "too.many.name.parts", "columns" => "ID", ;
+                "select" => "SELECT 5" } }, hContext )
+    M1Assert( ! hResult[ "success" ] .AND. hResult[ "code" ] == "INVALID_PARAMS", ;
+        "temporary addon rejects invalid target", @nFailures, @nChecks )
+    hResult := HBBridgeDispatch( hRegistry, "ADDON.Execute", ;
+        { "module" => "hbbridgetemporaryinsertaddon.hrb", "params" => ;
+            { "alias" => "sample", "target" => "execute_fixture", "columns" => "missing_column", ;
+                "select" => "SELECT 5" } }, hContext )
+    M1Assert( ! hResult[ "success" ] .AND. hResult[ "outcome" ] == "unknown", ;
+        "temporary addon preserves uncertain SQL failure", @nFailures, @nChecks )
+    hResult := HBBridgeDispatch( hRegistry, "RPCRDD.Query", ;
+        { "alias" => "sample", "sql" => "SELECT ID FROM execute_fixture" }, hContext )
+    M1Assert( hResult[ "success" ] .AND. hResult[ "rowCount" ] == 4, ;
+        "temporary addon failure does not insert fixture rows", @nFailures, @nChecks )
+    hNative := HBBridgeContext( "restricted" )
+    hNative[ "permissions" ] := { "addon.execute" }
+    hResult := HBBridgeDispatch( hRegistry, "ADDON.Execute", ;
+        { "module" => "hbbridgetemporaryinsertaddon.hrb", "params" => ;
+            { "alias" => "sample", "target" => "execute_fixture", "columns" => "ID", ;
+                "select" => "SELECT 5" } }, hNative )
+    M1Assert( ! hResult[ "success" ] .AND. hResult[ "code" ] == "FORBIDDEN", ;
+        "temporary addon inherits execute permission", @nFailures, @nChecks )
     hResult := HBBridgeDispatch( hRegistry, "RPCRDD.Query", ;
         { "alias" => "db/Case", "sql" => "SELECT 7 AS caller_value" }, hContext )
     M1Assert( hResult[ "success" ] .AND. hResult[ "rows" ][ "1" ][ "CALLER_VALUE" ] == 7, ;
@@ -209,9 +268,10 @@ PROCEDURE M3SQLTests( nFailures, nChecks )
                 "native NETIO and Protheus TCP share paginated SQL results", @nFailures, @nChecks )
             M6SQLNetworkFailures( hHost, pConnection, @nFailures, @nChecks )
             hResult := netio_FuncExec( pConnection, "HBBridge.Call", "Service.List" )
-            M1Assert( Len( hResult[ "services" ] ) == 8 .AND. ;
+            M1Assert( Len( hResult[ "services" ] ) == 9 .AND. ;
                 AScan( hResult[ "services" ], {| hService | hService[ "name" ] == "RPCRDD.Query" } ) > 0 .AND. ;
                 AScan( hResult[ "services" ], {| hService | hService[ "name" ] == "RPCRDD.QueryTyped" } ) > 0 .AND. ;
+                AScan( hResult[ "services" ], {| hService | hService[ "name" ] == "RPCRDD.Execute" } ) > 0 .AND. ;
                 ! ( "DSN=" $ hb_jsonEncode( hResult ) ), ;
                 "SQL service is discoverable without profile credentials", @nFailures, @nChecks )
         RECOVER USING oError
