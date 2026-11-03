@@ -206,7 +206,7 @@ try {
     $receipt.compile = [ordered]@{ sourceCount = $sourcePaths.Count; exitCode = $compile.exitCode; timedOut = $compile.timedOut; elapsedMs = $compile.elapsedMs; success = ($compile.exitCode -eq 0 -and -not $compile.timedOut -and $compileText -match $expected); log = 'compile.log'; stdout = 'compile.stdout.log' }
     Save-Receipt
     if (-not $receipt.compile.success) { throw 'Isolated TLPP compilation did not pass; inspect owned compile logs.' }
-    $programs = @('U_HBBridgePresentationTest', 'U_HBBridgePresentationPageTest', 'U_HBBridgePresentationSRATest', 'U_HBBridgePresentationRDDTest', 'U_HBBridgePresentationMappingTest', 'U_HBBridgeTypedDataSetTest', 'U_HBBridgeDataSetTest')
+    $programs = @('U_HBBridgePresentationTest', 'U_HBBridgePresentationPageTest', 'U_HBBridgePresentationSRATest', 'U_HBBridgePresentationJoinTest', 'U_HBBridgePresentationRDDTest', 'U_HBBridgePresentationMappingTest', 'U_HBBridgeTypedDataSetTest', 'U_HBBridgeDataSetTest')
     if ($MeasureConversion) { $programs += 'U_HBBridgePresentationPagePerf' }
     if ($NativeTables) { $programs += @('U_HBBridgePresentationProbe', 'U_HBBridgePresentationTableCLI', 'U_HBBridgeNativeBrowseTest') }
     if ($null -ne $endpoints) { $programs += 'U_HBBridgePresentationSQLTest' }
@@ -220,6 +220,7 @@ try {
             'U_HBBridgePresentationPageTest' { 'hbBridge page conversion checks: \d+; OK' }
             'U_HBBridgePresentationPagePerf' { 'hbBridge page conversion performance: OK' }
             'U_HBBridgePresentationSRATest' { 'hbBridge SRA metadata checks: \d+; OK' }
+            'U_HBBridgePresentationJoinTest' { 'hbBridge JOIN planning checks: \d+; OK' }
             'U_HBBridgePresentationRDDTest' { 'hbBridge local RDD checks: \d+; OK' }
             'U_HBBridgePresentationMappingTest' { 'hbBridge source mapping checks: \d+; OK' }
             'U_HBBridgePresentationTableTest' { 'hbBridge native table checks: \d+; OK' }

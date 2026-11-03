@@ -1,0 +1,201 @@
+/* Released to Public Domain. */
+#include "totvs.ch"
+
+namespace HBBridge.Examples
+
+// These two relationships are explicit examples, not an SX9 expression parser.
+class HBBridgePresentationJoin
+    static method Definition(cRelated as character,cJoin as character) as json
+    static method Plan(jLeft as json,jRight as json,cRelated as character,cJoin as character,cLeftBranch as character,cRightBranch as character,cBranchJoin as character) as json
+endclass
+
+static method Definition(cRelated,cJoin) class HBBridgePresentationJoin
+
+    local jLeft as json
+    local jRight as json
+    local jResult as json
+
+    if (ValType(cRelated)!="C".or.!(cRelated=="SRB".or.cRelated=="CTT"))
+        return(PresentationJoinFailure())
+    endif
+    jLeft:=HBBridge.Client.HBBridgePresentationTable():Definition("SRA")
+    jRight:=HBBridge.Client.HBBridgePresentationTable():Definition(cRelated)
+    if (PresentationJoinDefinitionValid(jLeft,"SRA").and.PresentationJoinDefinitionValid(jRight,cRelated))
+        jResult:=HBBridgePresentationJoin():Plan(jLeft,jRight,cRelated,cJoin,xFilial("SRA"),xFilial(cRelated),;
+            FWJoinFilial("SRA",cRelated))
+    else
+        jResult:=PresentationJoinFailure()
+    endif
+    FreeObj(@jLeft)
+    FreeObj(@jRight)
+
+return(jResult)
+
+// The caller supplies dictionary/catalog snapshots, branch values and the
+// trusted Protheus-generated predicate, not text from a client or SX9.
+// LEFT JOIN preserves NULL; native presentation must make its own policy explicit.
+static method Plan(jLeft,jRight,cRelated,cJoin,cLeftBranch,cRightBranch,cBranchJoin) class HBBridgePresentationJoin
+
+    local cRightBranchField:="" as character
+    local cRightKey:="" as character
+    local cRightValue:="" as character
+    local cLeftKey:="" as character
+    local cProjection:="" as character
+
+    local jResult:=PresentationJoinFailure() as json
+    local jFields:=JSONObject():New() as json
+    local jSources:=JSONObject():New() as json
+    local jBindings:=JSONObject():New() as json
+
+    local lValid:=.F. as logical
+
+    if (ValType(cRelated)=="C".and.ValType(cJoin)=="C")
+        lValid:=(cRelated=="SRB".or.cRelated=="CTT").and.(cJoin=="INNER".or.cJoin=="LEFT")
+    endif
+    if (lValid)
+        cRightBranchField:=if(cRelated=="SRB","RB_FILIAL","CTT_FILIAL")
+        cRightKey:=if(cRelated=="SRB","RB_MAT","CTT_CUSTO")
+        cRightValue:=if(cRelated=="SRB","RB_NOME","CTT_DESC01")
+        cLeftKey:=if(cRelated=="SRB","RA_MAT","RA_CC")
+        lValid:=PresentationJoinDefinitionValid(jLeft,"SRA").and.PresentationJoinDefinitionValid(jRight,cRelated)
+    endif
+    if (lValid)
+        lValid:=PresentationJoinFieldValid(jLeft,"RA_FILIAL","character").and.;
+            PresentationJoinFieldValid(jLeft,"RA_MAT","character").and.;
+            PresentationJoinFieldValid(jLeft,"RA_NOME","character").and.;
+            PresentationJoinFieldValid(jLeft,cLeftKey,"character").and.;
+            PresentationJoinFieldValid(jLeft,"D_E_L_E_T_","character").and.;
+            PresentationJoinFieldValid(jLeft,"R_E_C_N_O_","numeric").and.;
+            PresentationJoinFieldValid(jRight,cRightBranchField,"character").and.;
+            PresentationJoinFieldValid(jRight,cRightKey,"character").and.;
+            PresentationJoinFieldValid(jRight,cRightValue,"character").and.;
+            PresentationJoinFieldValid(jRight,"D_E_L_E_T_","character").and.;
+            PresentationJoinFieldValid(jRight,"R_E_C_N_O_","numeric")
+    endif
+    if (lValid)
+        if (cRelated=="SRB")
+            lValid:=PresentationJoinFieldValid(jRight,"RB_COD","character")
+        endif
+    endif
+    if (lValid)
+        lValid:=PresentationJoinBranchValid(cLeftBranch,jLeft["schema"]["fields"]["RA_FILIAL"]["length"]).and.;
+            PresentationJoinBranchValid(cRightBranch,jRight["schema"]["fields"][cRightBranchField]["length"]).and.;
+            PresentationJoinConditionValid(cBranchJoin)
+    endif
+    if (lValid)
+        lValid:=PresentationJoinAdd(jLeft,"RA_MAT","EMPLOYEE_ID",jFields,jSources,@cProjection).and.;
+            PresentationJoinAdd(jLeft,"RA_NOME","EMPLOYEE_NAME",jFields,jSources,@cProjection).and.;
+            PresentationJoinAdd(jLeft,cLeftKey,"EMPLOYEE_KEY",jFields,jSources,@cProjection).and.;
+            PresentationJoinAdd(jLeft,"R_E_C_N_O_","EMPLOYEE_RECORD",jFields,jSources,@cProjection).and.;
+            PresentationJoinAdd(jRight,cRightKey,"RELATED_KEY",jFields,jSources,@cProjection,cJoin=="LEFT")
+    endif
+    if (lValid.and.cRelated=="SRB")
+        lValid:=PresentationJoinAdd(jRight,"RB_COD","DEPENDENT_CODE",jFields,jSources,@cProjection,cJoin=="LEFT")
+    endif
+    if (lValid)
+        lValid:=PresentationJoinAdd(jRight,cRightValue,"RELATED_NAME",jFields,jSources,@cProjection,cJoin=="LEFT").and.;
+            PresentationJoinAdd(jRight,"R_E_C_N_O_","RELATED_RECORD",jFields,jSources,@cProjection,cJoin=="LEFT")
+    endif
+    if (lValid)
+        jBindings["1"]:={"type":"text","isNull":.F.,"value":" "}
+        jBindings["2"]:={"type":"text","isNull":.F.,"value":cRightBranch}
+        jBindings["3"]:={"type":"text","isNull":.F.,"value":" "}
+        jBindings["4"]:={"type":"text","isNull":.F.,"value":cLeftBranch}
+        jResult["sql"]:="SELECT "+cProjection+" FROM "+jLeft["table"]+" AS SRA "+cJoin+;
+            " JOIN "+jRight["table"]+" AS "+cRelated+" ON SRA.["+cLeftKey+"] = "+cRelated+".["+cRightKey+"]"+;
+            " AND ("+cBranchJoin+")"+;
+            " AND "+cRelated+".[D_E_L_E_T_] = ? AND "+cRelated+".["+cRightBranchField+"] = ?"+;
+            " WHERE SRA.[D_E_L_E_T_] = ? AND SRA.[RA_FILIAL] = ?"
+        jResult["orderBy"]:="EMPLOYEE_RECORD ASC,RELATED_RECORD ASC"
+        jResult["schema"]:={"schemaVersion":1,"fields":jFields,"projectionFields":jSources}
+        jFields:=nil
+        jSources:=nil
+        jResult["bindings"]:=jBindings
+        jBindings:=nil
+        jResult["success"]:=.T.
+        jResult["code"]:=""
+        jResult["message"]:=""
+    endif
+    FreeObj(@jFields)
+    FreeObj(@jSources)
+    FreeObj(@jBindings)
+
+return(jResult)
+
+static function PresentationJoinFailure() as json
+
+    local jResult:=JSONObject():New() as json
+
+    jResult["success"]:=.F.
+    jResult["code"]:="INVALID_JOIN_DEFINITION"
+    jResult["message"]:="The JOIN requires supported tables, fields, branch values, a framework branch condition and join type."
+    jResult["sql"]:=""
+
+return(jResult)
+
+static function PresentationJoinDefinitionValid(jDefinition as json,cAlias as character) as logical
+
+    if (ValType(jDefinition)!="J")
+        return(.F.)
+    endif
+    if (jDefinition["success"]!=.T..or.jDefinition["alias"]!=cAlias.or.;
+        ValType(jDefinition["table"])!="C".or.ValType(jDefinition["schema"])!="J".or.;
+        ValType(jDefinition["expressions"])!="J")
+        return(.F.)
+    endif
+
+return(ValType(jDefinition["schema"]["fields"])=="J")
+
+static function PresentationJoinFieldValid(jDefinition as json,cField as character,cType as character) as logical
+
+    local jField as json
+
+    if (!jDefinition["schema"]["fields"]:HasProperty(cField).or.;
+        !jDefinition["expressions"]:HasProperty(cField))
+        return(.F.)
+    endif
+    jField:=jDefinition["schema"]["fields"][cField]
+    if (ValType(jField)!="J".or.ValType(jDefinition["expressions"][cField])!="C")
+        return(.F.)
+    endif
+
+return(jField["type"]==cType)
+
+static function PresentationJoinBranchValid(cBranch as character,nLength as numeric) as logical
+
+    if (ValType(cBranch)!="C".or.ValType(nLength)!="N")
+        return(.F.)
+    endif
+
+return(Len(cBranch)<=nLength.and.!(Chr(0)$cBranch))
+
+// This validates the basic boundary of a framework-produced fragment; it is
+// not a SQL parser and must not be used to accept a client-supplied predicate.
+static function PresentationJoinConditionValid(cCondition as character) as logical
+
+    if (ValType(cCondition)!="C")
+        return(.F.)
+    endif
+
+return(!Empty(AllTrim(cCondition)).and.!(Chr(0)$cCondition).and.!("?"$cCondition).and.;
+    !(";"$cCondition).and.!("--"$cCondition).and.!("/*"$cCondition).and.!("*/"$cCondition))
+
+static function PresentationJoinAdd(jDefinition as json,cSource as character,cOutput as character,jFields as json,jSources as json,cProjection as character,lNullable as logical) as logical
+
+    local jField:=JSONObject():New() as json
+
+    if (!HBBridge.Client.HBBridgeJSON():Parse(HBBridge.Client.HBBridgeJSON():Encode(jDefinition["schema"]["fields"][cSource]),jField))
+        FreeObj(@jField)
+        return(.F.)
+    endif
+    if (lNullable==.T.)
+        jField["nullable"]:=.T.
+    endif
+    if (!Empty(cProjection))
+        cProjection+=", "
+    endif
+    cProjection+=jDefinition["expressions"][cSource]+" AS ["+cOutput+"]"
+    jFields[cOutput]:=jField
+    jSources[cOutput]:=cSource
+
+return(.T.)

@@ -5,6 +5,17 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Organize bilingual documentation and prepare the Wiki portal)"
  */
 
+2026-11-03 20:10 UTC naldodj (Complete typed SQL and native JOIN presentation)
+  + Add explicit SRA/SRB and SRA/CTT Protheus JOIN examples with SX3 metadata,
+    FWJoinFilial, selected aliases, dependent sequence and separate record Views.
+    Preserve caller-owned context and deterministic ordering of joined rows.
+  ! Compare typed int64 record identifiers as exact strings in JOIN diagnostics.
+  ; Native integration passed 789 checks; isolated AppServer compiled 83 TLPP
+    sources and passed 767 checks plus the SDK probe. Real MSSQL diagnostics
+    passed 24 checks per TCP/HTTP; browse, search and Views were reported OK.
+    Synthetic unmatched NULL passed separately; sharing combinations and
+    unmatched ERP rows beyond the reported scope remain to validate.
+
 2026-11-03 10:04 UTC naldodj (Add caller-owned temporary browse examples)
   + Add unpaged SX5/SRA native browse examples over a Protheus-owned
     FWTemporaryTable populated by a trusted addon and RPCRDD.Execute.

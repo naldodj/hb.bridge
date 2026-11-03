@@ -81,7 +81,8 @@ independent selected definition from a successful, unplanned `Build()` result
 whose `sql` is still empty. This is a single selection pass: an already
 projected result is marked `selectionApplied` and cannot be projected again.
 It does not select from a completed query or build a multi-table definition.
-Explicit JOIN examples remain planned.
+Separate [explicit SRA/SRB and SRA/CTT examples](../src/tlpp/tests/protheus/hbbridge.presentation.test/README.md#srasrb-and-sractt-join-examples)
+assemble the JOIN in Protheus with metadata from each table.
 
 The selection is a `JSONObject` keyed by output alias. Each entry contains
 exactly `source` and `position`; positions must be unique contiguous integers

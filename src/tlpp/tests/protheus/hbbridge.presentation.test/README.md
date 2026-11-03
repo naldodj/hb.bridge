@@ -299,6 +299,43 @@ cleanup without closing the borrowed dataset. Invalid aliases such as
 indexing: TLPP JSON literals cannot express those keys. Their rejection is
 required; no valid-alias fallback or unconditional passing assertion is used.
 
+## SRA/SRB and SRA/CTT JOIN examples
+
+With a prepared company/branch and an MSSQL profile for the same Protheus
+database, `U_HBBridgeNativeBrowseSRASRB(profile,"TCP",13)` and
+`U_HBBridgeNativeBrowseSRACTT(profile,"HTTP",13)` present INNER JOIN results.
+Choose either transport for either example. The Protheus caller resolves each
+table, branch, SX3 metadata and the explicit relationship; hbBridge executes
+the supplied SQL and bindings. Pagination orders joined rows by both record
+identities, so an employee with multiple dependents occupies multiple rows.
+The current-branch filters use `xFilial` for each table; Protheus supplies
+`FWJoinFilial("SRA", relatedAlias)` as an additional predicate in the JOIN's
+`ON` clause. It uses the prepared sharing configuration rather than inferring
+sharing from field contents. The example is scoped to the active branch.
+The SRA/SRB example displays `RB_COD` immediately after `RB_MAT`, including
+in **View related**, using the field's SX3 metadata.
+
+`U_HBBridgePresentationJoinReal(profile,transport,10)` runs read-only INNER
+and LEFT queries for both pairs, inspecting up to two pages each. Its output
+contains checks and counts, not field values. Empty results and the absence of
+an unmatched row do not prove the corresponding cases were exercised.
+`U_HBBridgePresentationJoinTest()` tests deterministic planning without an ERP
+database. The LEFT query retains SQL NULL; native presentation currently
+rejects it rather than substituting a value. The visual examples use INNER
+JOIN and offer separate **View employee** and **View related** dialogs: each
+retains its original MsMGet dictionary names without conflating duplicate
+record identities. An employee field projected twice from the same dictionary
+field appears once in its dialog. Visual tests of both browses, search and Views
+over TCP and HTTP were subsequently reported OK. That report did not specify
+the individual field values, filter modes, sharing combinations or compiled
+source hashes. The subsequent real diagnostic passed 24 checks per transport
+with `FWJoinFilial`, without unmatched rows in the two inspected pages.
+
+For the unmatched-row case, run `python scripts/test-join-null.py --profile MSSQL/pData`.
+This separate constant-only MSSQL fixture runs through TCP. It checks
+two pages, exact int64 strings and SQL NULL; it does not query Protheus tables
+or establish AppServer or interactive acceptance.
+
 ## Selected SRA dictionary fields
 
 The selected-field example reads real SRA data using the same native browse:

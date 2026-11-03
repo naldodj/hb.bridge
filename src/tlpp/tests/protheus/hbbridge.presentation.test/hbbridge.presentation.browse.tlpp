@@ -87,6 +87,13 @@ return(BrowseNativeDictionary("SX5",cProfile,cTransport,nPageSize))
 function U_HBBridgeNativeBrowseSRA(cProfile,cTransport,nPageSize)
 return(BrowseNativeDictionary("SRA",cProfile,cTransport,nPageSize))
 
+// INNER JOIN avoids silently replacing unmatched NULLs in native storage.
+function U_HBBridgeNativeBrowseSRASRB(cProfile,cTransport,nPageSize)
+return(BrowseNativeDictionary("SRA_SRB",cProfile,cTransport,nPageSize))
+
+function U_HBBridgeNativeBrowseSRACTT(cProfile,cTransport,nPageSize)
+return(BrowseNativeDictionary("SRA_CTT",cProfile,cTransport,nPageSize))
+
 function U_HBBridgeNativeBrowseSRASelected(cProfile,cTransport,nPageSize,jSelection)
 
     local lOwnSelection:=ValType(jSelection)=="U" as logical
@@ -194,7 +201,9 @@ static function BrowseNativeDictionary(cAliasDictionary as character,cProfile,cT
         return(1)
     endif
     try
-        if (cAliasDictionary=="SRA")
+        if (cAliasDictionary=="SRA_SRB".or.cAliasDictionary=="SRA_CTT")
+            jDefinition:=HBBridgePresentationJoin():Definition(SubStr(cAliasDictionary,5),"INNER")
+        elseif (cAliasDictionary=="SRA")
             jDefinition:=HBBridgePresentationSRA():Definition(jSelection)
         else
             jDefinition:=HBBridgePresentationSX5():Definition()
@@ -288,6 +297,7 @@ function U_HBBridgeNativeBrowseTest()
     local aDataBlocks as array
     local aNames as array
     local aSeek as array
+    local aJoinView as array
 
     local cAlias:="" as character
     local cOldAlias:="" as character
@@ -296,6 +306,7 @@ function U_HBBridgeNativeBrowseTest()
     local jBindings:=JSONObject():New() as json
     local jChecks:=JSONObject():New() as json
     local jSchema as json
+    local jJoinOrigins:=JSONObject():New() as json
     local jSizedRows as json
     local jSizedResponse as json
 
@@ -315,6 +326,28 @@ function U_HBBridgeNativeBrowseTest()
     local xError as variant
 
     try
+        // Separate dialogs retain original dictionary identities without
+        // assigning two projected values to the same MsMGet memory variable.
+        jJoinOrigins["EMPLOYEE_ID"]:="RA_MAT"
+        jJoinOrigins["EMPLOYEE_KEY"]:="RA_MAT"
+        aJoinView:=BrowseJoinViewFields(jJoinOrigins,"employee")
+        jChecks["joinEmployeeDuplicateExcluded"]:=Len(aJoinView)==3.and.;
+            aScan(aJoinView,"EMPLOYEE_ID")>0.and.aScan(aJoinView,"EMPLOYEE_KEY")==0.and.;
+            aScan(aJoinView,"EMPLOYEE_RECORD")>0
+        FWFreeArray(@aJoinView)
+        jJoinOrigins["EMPLOYEE_KEY"]:="RA_CC"
+        aJoinView:=BrowseJoinViewFields(jJoinOrigins,"employee")
+        jChecks["joinEmployeeDistinctKeyIncluded"]:=Len(aJoinView)==4.and.aScan(aJoinView,"EMPLOYEE_KEY")>0
+        FWFreeArray(@aJoinView)
+        aJoinView:=BrowseJoinViewFields(jJoinOrigins,"related")
+        jChecks["joinRelatedViewSeparated"]:=Len(aJoinView)==3.and.;
+            aScan(aJoinView,"RELATED_RECORD")>0.and.aScan(aJoinView,"EMPLOYEE_RECORD")==0
+        FWFreeArray(@aJoinView)
+        jJoinOrigins["DEPENDENT_CODE"]:="RB_COD"
+        aJoinView:=BrowseJoinViewFields(jJoinOrigins,"related")
+        jChecks["joinDependentCodeInView"]:=Len(aJoinView)==4.and.aJoinView[1]=="RELATED_KEY".and.;
+            aJoinView[2]=="DEPENDENT_CODE".and.aJoinView[3]=="RELATED_NAME"
+        FWFreeArray(@aJoinView)
         oDataSet:SetAliasProfile("presentation/mock")
         jChecks["firstPage"]:=oDataSet:OpenPageTyped("SELECT fixture",jBindings,1,4,"ID ASC")
         jChecks["allFixtureTotals"]:=oDataSet:TotalRows()==12.and.oDataSet:TotalPages()==3
@@ -486,6 +519,7 @@ function U_HBBridgeNativeBrowseTest()
     BrowseNativeReleaseColumns(@aColumns)
     FWFreeArray(@aDataBlocks)
     FWFreeArray(@aSeek)
+    FWFreeArray(@aJoinView)
     if (ValType(oNative)=="O")
         jChecks["nativeCleanup"]:=oNative:Destroy()
         if (jChecks["nativeCleanup"])
@@ -497,6 +531,7 @@ function U_HBBridgeNativeBrowseTest()
     oClient:Close()
     FreeObj(@oClient)
     FreeObj(@jBindings)
+    FreeObj(@jJoinOrigins)
     FreeObj(@jSchema)
     FreeObj(@jSizedRows)
     FreeObj(@jSizedResponse)
@@ -579,7 +614,14 @@ static function BrowseNative(cAliasDictionary,oNativeTable as object,oDataSet as
         oDialog:AddButton("< &Previous",{|oButton|BrowseNativeMove(oBrowse,oNativeTable,oDataSet,"previous",oClient)},"Previous page",nil,.T.,.F.,.T.)
         oDialog:AddButton("&Next >",{|oButton|BrowseNativeMove(oBrowse,oNativeTable,oDataSet,"next",oClient)},"Next page",nil,.T.,.F.,.T.)
         oDialog:AddButton("&Last >>",{|oButton|BrowseNativeMove(oBrowse,oNativeTable,oDataSet,"last",oClient)},"Last page",nil,.T.,.F.,.T.)
-        oDialog:AddButton("&View",{|oButton|MGetExResolveView(cAliasDictionary,oNativeTable,aAcho)},"View",nil,.T.,.F.,.T.)
+        // Separate dialogs avoid assigning the two record identities to the
+        // same dictionary-named MsMGet memory variable.
+        if (cAliasDictionary=="SRA_SRB".or.cAliasDictionary=="SRA_CTT")
+            oDialog:AddButton("View &employee",{|oButton|BrowseJoinView(oNativeTable,"employee")},"View employee",nil,.T.,.F.,.T.)
+            oDialog:AddButton("View &related",{|oButton|BrowseJoinView(oNativeTable,"related")},"View related record",nil,.T.,.F.,.T.)
+        else
+            oDialog:AddButton("&View",{|oButton|MGetExResolveView(cAliasDictionary,oNativeTable,aAcho)},"View",nil,.T.,.F.,.T.)
+        endif
         if (ValType(jDefinition)=="J")
             if (jDefinition:HasProperty("fieldStatus"))
                 oDialog:AddButton("Field &catalog",{|oButton|BrowseNativeCatalog(jDefinition)},"Dictionary and physical field coverage",nil,.T.,.F.,.T.)
@@ -607,6 +649,51 @@ static function BrowseNative(cAliasDictionary,oNativeTable as object,oDataSet as
     endif
 
 return(lOK)
+
+// Each view contains at most one projection for a dictionary field. Calling
+// MsMGet separately preserves native dictionary field names and values.
+static procedure BrowseJoinView(oNativeTable as object,cSide as character)
+
+    local aFields as array
+
+    local cAlias:=oNativeTable:Alias() as character
+
+    local jOrigins:=JSONObject():New() as json
+
+    local nRecord:=(cAlias)->(RecNo()) as numeric
+
+    jOrigins["EMPLOYEE_ID"]:=oNativeTable:SourceFieldName("EMPLOYEE_ID")
+    jOrigins["EMPLOYEE_KEY"]:=oNativeTable:SourceFieldName("EMPLOYEE_KEY")
+    jOrigins["DEPENDENT_CODE"]:=oNativeTable:SourceFieldName("DEPENDENT_CODE")
+    aFields:=BrowseJoinViewFields(jOrigins,cSide)
+    HBBridge.Client.HBBridgeMsMGetEx():ViewData(cAlias,nRecord,"View "+cSide,nil,aFields,oNativeTable)
+    FWFreeArray(@aFields)
+    FreeObj(@jOrigins)
+
+return
+
+static function BrowseJoinViewFields(jOrigins as json,cSide as character) as array
+
+    local aFields as array
+
+    if (cSide=="related")
+        aFields:={"RELATED_KEY"}
+        if (jOrigins:HasProperty("DEPENDENT_CODE"))
+            if (!Empty(jOrigins["DEPENDENT_CODE"]))
+                aAdd(aFields,"DEPENDENT_CODE")
+            endif
+        endif
+        aAdd(aFields,"RELATED_NAME")
+        aAdd(aFields,"RELATED_RECORD")
+    else
+        aFields:={"EMPLOYEE_ID","EMPLOYEE_NAME","EMPLOYEE_RECORD"}
+        if (!Empty(jOrigins["EMPLOYEE_KEY"]).and.;
+            jOrigins["EMPLOYEE_KEY"]!=jOrigins["EMPLOYEE_ID"])
+            aAdd(aFields,"EMPLOYEE_KEY")
+        endif
+    endif
+
+return(aFields)
 
 static procedure MGetExResolveView(cAliasDictionary,oNativeTable as object,aAcho as array)
 

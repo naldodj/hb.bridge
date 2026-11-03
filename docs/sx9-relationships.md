@@ -100,5 +100,6 @@ an employee-level aggregate. Preserve LEFT JOIN NULL in the dataset and
 choose any native-presentation replacement explicitly in Protheus. Continue
 to obtain field type, size and decimals from SX3 for each projected origin.
 
-The next implementation remains the bounded selected-field/JOIN examples
-recorded in WIP, not an automatic SQL parser or server-side ERP rule engine.
+The bounded [selected-field/JOIN examples](../src/tlpp/tests/protheus/hbbridge.presentation.test/README.md#srasrb-and-sractt-join-examples)
+now implement these pairs explicitly. They do not dynamically read SX9, parse
+arbitrary SQL or introduce server-side ERP rules.

@@ -6,6 +6,17 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Adicionar cobertura de integridade para JSON UTF-8 e MSSQL)"
  */
 
+2026-11-03 20:10 UTC naldodj (Concluir SQL tipado e apresentação nativa com JOIN)
+  + Adicionar exemplos Protheus explícitos SRA/SRB e SRA/CTT com metadados SX3,
+    FWJoinFilial, aliases selecionados, sequência de dependente e Views separados.
+    Preservar contexto do chamador e ordenação determinística das linhas de JOIN.
+  ! Comparar identificadores int64 tipados como strings exatas no diagnóstico.
+  ; Integração nativa passou 789 checks; AppServer isolado compilou 83 fontes
+    TLPP e passou 767 checks mais a sonda SDK. Diagnósticos MSSQL reais passaram
+    24 checks por TCP/HTTP; browse, pesquisa e Views foram informados como OK.
+    NULL sintético sem correspondência passou separadamente; combinações de
+    compartilhamento e linhas ERP sem correspondência permanecem a validar.
+
 2026-11-03 10:04 UTC naldodj (Adicionar exemplos de browse em temporária do chamador)
   + Adicionar exemplos de browse nativo SX5/SRA sem paginação sobre
     FWTemporaryTable própria do Protheus preenchida por addon confiável e

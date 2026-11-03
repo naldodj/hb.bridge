@@ -1,0 +1,435 @@
+/* Released to Public Domain. */
+#include "totvs.ch"
+
+function U_HBBridgePresentationJoinTest()
+
+    local aNames as array
+
+    local cSQL:="" as character
+    local cBranchSRB:="SRA.RA_FILIAL = SRB.RB_FILIAL" as character
+    local cBranchCTT:="SUBSTRING(SRA.RA_FILIAL, 1, 2) = SUBSTRING(CTT.CTT_FILIAL, 1, 2)" as character
+
+    local jChecks:=JSONObject():New() as json
+    local jLeft:=PresentationJoinFixture("SRA") as json
+    local jRight:=PresentationJoinFixture("SRB") as json
+    local jCost:=PresentationJoinFixture("CTT") as json
+    local jPlan as json
+
+    local lOK:=.T. as logical
+
+    local nCheck:=0 as numeric
+    local nChecks:=0 as numeric
+
+    local xError as variant
+
+    try
+        jPlan:=HBBridge.Examples.HBBridgePresentationJoin():Plan(jLeft,jRight,"SRB","LEFT","01","  ",cBranchSRB)
+        jChecks["leftJoinPlanned"]:=jPlan["success"]
+        cSQL:=jPlan["sql"]
+        jChecks["outgoingRelationship"]:="LEFT JOIN SRB990 AS SRB ON SRA.[RA_MAT] = SRB.[RB_MAT]"$cSQL
+        jChecks["rightPredicatesRemainInOn"]:="AND ("+cBranchSRB+") AND SRB.[D_E_L_E_T_] = ? AND SRB.[RB_FILIAL] = ? WHERE"$cSQL
+        jChecks["leftPredicatesRemainInWhere"]:="WHERE SRA.[D_E_L_E_T_] = ? AND SRA.[RA_FILIAL] = ?"$cSQL
+        jChecks["independentBranchBindings"]:=jPlan["bindings"]["2"]["value"]=="  ".and.;
+            jPlan["bindings"]["4"]["value"]=="01"
+        jChecks["joinedRowOrder"]:=jPlan["orderBy"]=="EMPLOYEE_RECORD ASC,RELATED_RECORD ASC"
+        jChecks["distinctProjectedIdentities"]:="AS [EMPLOYEE_RECORD]"$cSQL.and."AS [RELATED_RECORD]"$cSQL
+        jChecks["employeeJoinKeyProjected"]:=jPlan["schema"]["projectionFields"]["EMPLOYEE_KEY"]=="RA_MAT"
+        jChecks["dependentCodeProjection"]:=jPlan["schema"]["projectionFields"]["DEPENDENT_CODE"]=="RB_COD".and.;
+            At("AS [RELATED_KEY]",cSQL)<At("AS [DEPENDENT_CODE]",cSQL).and.;
+            At("AS [DEPENDENT_CODE]",cSQL)<At("AS [RELATED_NAME]",cSQL)
+        jChecks["leftDependentCodeNullable"]:=jPlan["schema"]["fields"]["DEPENDENT_CODE"]["nullable"].and.;
+            jPlan["schema"]["fields"]["DEPENDENT_CODE"]["nullPolicy"]=="reject"
+        jChecks["duplicateOriginsPreserved"]:=jPlan["schema"]["projectionFields"]["EMPLOYEE_RECORD"]=="R_E_C_N_O_".and.;
+            jPlan["schema"]["projectionFields"]["RELATED_RECORD"]=="R_E_C_N_O_"
+        jChecks["leftNullabilityExplicit"]:=jPlan["schema"]["fields"]["RELATED_NAME"]["nullable"].and.;
+            jPlan["schema"]["fields"]["RELATED_NAME"]["nullPolicy"]=="reject"
+        jChecks["leftOriginalMetadataUnchanged"]:=!jRight["schema"]["fields"]["RB_NOME"]["nullable"]
+        FreeObj(@jPlan)
+        jPlan:=HBBridge.Examples.HBBridgePresentationJoin():Plan(jLeft,jCost,"CTT","INNER","01","02",cBranchCTT)
+        jChecks["innerJoinPlanned"]:=jPlan["success"]
+        jChecks["incomingRelationship"]:="INNER JOIN CTT990 AS CTT ON SRA.[RA_CC] = CTT.[CTT_CUSTO]"$jPlan["sql"]
+        jChecks["sharingPredicateInOn"]:="AND ("+cBranchCTT+") AND CTT.[D_E_L_E_T_] = ?"$jPlan["sql"]
+        jChecks["costCenterDescription"]:=jPlan["schema"]["projectionFields"]["RELATED_NAME"]=="CTT_DESC01"
+        jChecks["costCenterHasNoDependentCode"]:=!jPlan["schema"]["fields"]:HasProperty("DEPENDENT_CODE")
+        jChecks["innerMetadataNotNullable"]:=!jPlan["schema"]["fields"]["RELATED_NAME"]["nullable"]
+        FreeObj(@jPlan)
+        jPlan:=HBBridge.Examples.HBBridgePresentationJoin():Plan(jLeft,jRight,"SRB","FULL","01","01",cBranchSRB)
+        jChecks["unsupportedJoinRejected"]:=!jPlan["success"].and.Empty(jPlan["sql"])
+        FreeObj(@jPlan)
+        jPlan:=HBBridge.Examples.HBBridgePresentationJoin():Plan(jLeft,jRight,"CTT","INNER","01","01",cBranchCTT)
+        jChecks["wrongDefinitionRejected"]:=!jPlan["success"].and.Empty(jPlan["sql"])
+        FreeObj(@jPlan)
+        jPlan:=HBBridge.Examples.HBBridgePresentationJoin():Plan(jLeft,jRight,"SRB","LEFT","123","01",cBranchSRB)
+        jChecks["longBranchRejected"]:=!jPlan["success"].and.Empty(jPlan["sql"])
+        FreeObj(@jPlan)
+        jPlan:=HBBridge.Examples.HBBridgePresentationJoin():Plan(jLeft,jRight,"SRB","LEFT","01",Chr(0),cBranchSRB)
+        jChecks["nulBranchRejected"]:=!jPlan["success"].and.Empty(jPlan["sql"])
+        FreeObj(@jPlan)
+        jPlan:=HBBridge.Examples.HBBridgePresentationJoin():Plan(jLeft,jRight,"SRB","LEFT","01","01","")
+        jChecks["emptySharingPredicateRejected"]:=!jPlan["success"].and.Empty(jPlan["sql"])
+        FreeObj(@jPlan)
+        jPlan:=HBBridge.Examples.HBBridgePresentationJoin():Plan(jLeft,jRight,"SRB","LEFT","01","01","SRA.RA_FILIAL = ?")
+        jChecks["sharingPredicateParameterRejected"]:=!jPlan["success"].and.Empty(jPlan["sql"])
+        FreeObj(@jPlan)
+        jPlan:=HBBridge.Examples.HBBridgePresentationJoin():Plan(jLeft,jRight,"SRB","LEFT","01","01","' ' = ' '")
+        jChecks["sharedBranchCondition"]:=jPlan["success"].and."AND (' ' = ' ')"$jPlan["sql"]
+        FreeObj(@jPlan)
+        jRight["schema"]["fields"]["RB_COD"]["type"]:="numeric"
+        jPlan:=HBBridge.Examples.HBBridgePresentationJoin():Plan(jLeft,jRight,"SRB","INNER","01","01",cBranchSRB)
+        jChecks["invalidDependentCodeRejected"]:=!jPlan["success"].and.Empty(jPlan["sql"])
+        FreeObj(@jPlan)
+        jRight["schema"]["fields"]["RB_COD"]["type"]:="character"
+        jRight["schema"]["fields"]["RB_MAT"]["type"]:="numeric"
+        jPlan:=HBBridge.Examples.HBBridgePresentationJoin():Plan(jLeft,jRight,"SRB","INNER","01","01",cBranchSRB)
+        jChecks["invalidJoinFieldRejected"]:=!jPlan["success"].and.Empty(jPlan["sql"])
+        PresentationJoinOrderTests(jChecks)
+    catch xError
+        jChecks["unexpectedRuntimeFailure"]:=.F.
+        ConOut("hbBridge JOIN planning test failed; inspect the owned local log.")
+        if (ValType(xError)=="O")
+            FreeObj(@xError)
+        endif
+    endtry
+    aNames:=jChecks:GetNames()
+    nChecks:=Len(aNames)
+    for nCheck:=1 to nChecks
+        lOK:=lOK.and.jChecks[aNames[nCheck]]
+        ConOut("hbBridge JOIN check "+aNames[nCheck]+": "+if(jChecks[aNames[nCheck]],"PASS","FAILED"))
+    next nCheck
+    ConOut("hbBridge JOIN planning checks: "+tlpp.ToStr(nChecks)+"; "+if(lOK,"OK","FAILED"))
+    FWFreeArray(@aNames)
+    FreeObj(@jChecks)
+    FreeObj(@jLeft)
+    FreeObj(@jRight)
+    FreeObj(@jCost)
+    FreeObj(@jPlan)
+
+return(if(lOK,0,1))
+
+// Read-only smoke test in a prepared company/branch. Output contains counts
+// and checks only, never employee, dependent or cost-center values.
+function U_HBBridgePresentationJoinReal(cProfile,cTransport,nPageSize)
+
+    local aNames as array
+    local aRelated:={"SRB","CTT"} as array
+    local aJoins:={"INNER","LEFT"} as array
+
+    local cPrefix:="" as character
+    local cRelated:="" as character
+    local cJoin:="" as character
+    local cPreviousEmployee:="" as character
+    local cPreviousRelated:="" as character
+    local cOrderResult:="" as character
+    local cOrderFailure:="" as character
+    local cEmployeeType:="" as character
+    local cRelatedType:="" as character
+
+    local jChecks:=JSONObject():New() as json
+    local jConfig as json
+    local jPlan as json
+
+    local lOK:=.T. as logical
+    local lOpened:=.F. as logical
+    local lFirst:=.T. as logical
+
+    local nCheck:=0 as numeric
+    local nChecks:=0 as numeric
+    local nJoin:=0 as numeric
+    local nRelated:=0 as numeric
+    local nJoins:=Len(aJoins) as numeric
+    local nRelations:=Len(aRelated) as numeric
+    local nPage:=0 as numeric
+    local nRows:=0 as numeric
+    local nNulls:=0 as numeric
+    local nOrderFailures:=0 as numeric
+
+    local oClient as object
+    local oDataSet as object
+
+    local xEmployee as variant
+    local xRelated as variant
+    local xError as variant
+
+    DEFAULT cTransport:="TCP"
+    DEFAULT nPageSize:=10
+    if (ValType(cTransport)!="C".or.ValType(nPageSize)!="N")
+        return(1)
+    endif
+    cTransport:=Upper(AllTrim(cTransport))
+    if (!(cTransport=="TCP".or.cTransport=="HTTP").or.nPageSize<1.or.nPageSize!=Int(nPageSize))
+        return(1)
+    endif
+    if (ValType(cProfile)=="U")
+        jConfig:=HBBridge.Client.HBBridgeConfig():Read()
+        cProfile:=jConfig["sqlProfile"]
+        FreeObj(@jConfig)
+    endif
+    if (ValType(cProfile)!="C")
+        return(1)
+    endif
+    if (Empty(AllTrim(cProfile)))
+        return(1)
+    endif
+    try
+        if (cTransport=="HTTP")
+            oClient:=HBBridge.Client.HBBridgeHTTPClient():New(nil,nil,nil,"gzip",.T.)
+        else
+            oClient:=HBBridge.Client.HBBridgeClient():New()
+        endif
+        oDataSet:=HBBridge.RDD.HBBridgeRPCDataSet():New(oClient)
+        oDataSet:SetAliasProfile(cProfile)
+        for nRelated:=1 to nRelations
+            cRelated:=aRelated[nRelated]
+            for nJoin:=1 to nJoins
+                cJoin:=aJoins[nJoin]
+                cPrefix:=cRelated+"."+cJoin+"."
+                jPlan:=HBBridge.Examples.HBBridgePresentationJoin():Definition(cRelated,cJoin)
+                jChecks[cPrefix+"definition"]:=jPlan["success"]
+                if (!jPlan["success"])
+                    FreeObj(@jPlan)
+                    loop
+                endif
+                lOpened:=oDataSet:OpenPageTyped(jPlan["sql"],jPlan["bindings"],1,nPageSize,jPlan["orderBy"])
+                jChecks[cPrefix+"open"]:=lOpened
+                if (!lOpened)
+                    ConOut("hbBridge JOIN query error code: "+oDataSet:ErrorCode())
+                    FreeObj(@jPlan)
+                    loop
+                endif
+                jChecks[cPrefix+"projection"]:=oDataSet:FieldExist("EMPLOYEE_RECORD").and.;
+                    oDataSet:FieldExist("RELATED_RECORD").and.oDataSet:FieldExist("EMPLOYEE_KEY")
+                jChecks[cPrefix+"ordered"]:=.T.
+                nRows:=0
+                nNulls:=0
+                nPage:=1
+                cPreviousEmployee:=""
+                cPreviousRelated:=""
+                cOrderFailure:=""
+                cEmployeeType:=""
+                cRelatedType:=""
+                nOrderFailures:=0
+                lFirst:=.T.
+                do while (.T.)
+                    do while (!oDataSet:Eof())
+                        xEmployee:=oDataSet:FieldGet("EMPLOYEE_RECORD")
+                        xRelated:=oDataSet:FieldGet("RELATED_RECORD")
+                        if (nRows==0)
+                            cEmployeeType:=ValType(xEmployee)
+                            cRelatedType:=ValType(xRelated)
+                        endif
+                        if (ValType(xRelated)=="U")
+                            nNulls++
+                        endif
+                        cOrderResult:=PresentationJoinOrdered(xEmployee,xRelated,@cPreviousEmployee,@cPreviousRelated,@lFirst)
+                        if (cOrderResult!="OK")
+                            jChecks[cPrefix+"ordered"]:=.F.
+                            nOrderFailures++
+                            if (Empty(cOrderFailure))
+                                cOrderFailure:=cOrderResult
+                            endif
+                        endif
+                        nRows++
+                        oDataSet:Skip()
+                    enddo
+                    if (nPage>=2.or.!oDataSet:HasNextPage())
+                        exit
+                    endif
+                    nPage++
+                    if (!oDataSet:NextPage())
+                        jChecks[cPrefix+"nextPage"]:=.F.
+                        exit
+                    endif
+                    jChecks[cPrefix+"nextPage"]:=.T.
+                enddo
+                jChecks[cPrefix+"innerHasNoUnmatched"]:=cJoin!="INNER".or.nNulls==0
+                ConOut("hbBridge JOIN "+cPrefix+" rows="+tlpp.ToStr(nRows)+;
+                    "; unmatched="+tlpp.ToStr(nNulls)+"; pages="+tlpp.ToStr(nPage)+;
+                    "; recordTypes="+cEmployeeType+"/"+cRelatedType+;
+                    "; orderFailures="+tlpp.ToStr(nOrderFailures)+"; firstOrderFailure="+cOrderFailure)
+                oDataSet:Close()
+                FreeObj(@jPlan)
+            next nJoin
+        next nRelated
+    catch xError
+        jChecks["unexpectedRuntimeFailure"]:=.F.
+        if (ValType(xError)=="O")
+            FreeObj(@xError)
+        endif
+    endtry
+    if (ValType(oDataSet)=="O")
+        oDataSet:Close()
+        FreeObj(@oDataSet)
+    endif
+    if (ValType(oClient)=="O")
+        if (cTransport=="TCP")
+            oClient:Close()
+        endif
+        FreeObj(@oClient)
+    endif
+    FreeObj(@jPlan)
+    aNames:=jChecks:GetNames()
+    nChecks:=Len(aNames)
+    for nCheck:=1 to nChecks
+        lOK:=lOK.and.jChecks[aNames[nCheck]]
+        ConOut("hbBridge JOIN real check "+aNames[nCheck]+": "+if(jChecks[aNames[nCheck]],"PASS","FAILED"))
+    next nCheck
+    ConOut("hbBridge JOIN real checks: "+tlpp.ToStr(nChecks)+"; "+if(lOK,"OK","FAILED"))
+    FWFreeArray(@aNames)
+    FWFreeArray(@aRelated)
+    FWFreeArray(@aJoins)
+    FreeObj(@jChecks)
+
+return(if(lOK,0,1))
+
+// int64 results are canonical decimal strings, including small values. Keep
+// the comparison exact without converting them through TLPP floating point.
+// An empty related key represents SQL NULL and sorts before non-NULL keys.
+static function PresentationJoinOrdered(xEmployee as variant,xRelated as variant,cPreviousEmployee as character,cPreviousRelated as character,lFirst as logical) as character
+
+    local cEmployee:=PresentationJoinRecordKey(xEmployee) as character
+    local cRelated:="" as character
+    local cResult:="OK" as character
+
+    local nOrder:=0 as numeric
+
+    if (Empty(cEmployee))
+        return("INVALID_EMPLOYEE")
+    endif
+    if (ValType(xRelated)!="U")
+        cRelated:=PresentationJoinRecordKey(xRelated)
+        if (Empty(cRelated))
+            return("INVALID_RELATED")
+        endif
+    endif
+    if (!lFirst)
+        nOrder:=PresentationJoinCompareKey(cEmployee,cPreviousEmployee)
+        if (nOrder==0)
+            nOrder:=PresentationJoinCompareKey(cRelated,cPreviousRelated)
+        endif
+        if (nOrder<0)
+            cResult:="DESCENDING"
+        elseif (nOrder==0)
+            cResult:="DUPLICATE"
+        endif
+    endif
+    if (cResult=="OK")
+        cPreviousEmployee:=cEmployee
+        cPreviousRelated:=cRelated
+        lFirst:=.F.
+    endif
+
+return(cResult)
+
+static function PresentationJoinRecordKey(xValue as variant) as character
+
+    local cValue:="" as character
+    local cLimit:="9223372036854775807" as character
+
+    local nCharacter:=0 as numeric
+    local nLength:=0 as numeric
+
+    if (ValType(xValue)=="C")
+        cValue:=xValue
+    elseif (ValType(xValue)=="N")
+        if (xValue<0.or.xValue>9007199254740991.or.xValue!=Int(xValue))
+            return("")
+        endif
+        cValue:=tlpp.ToStr(xValue)
+    else
+        return("")
+    endif
+    nLength:=Len(cValue)
+    if (nLength<1.or.nLength>19.or.(nLength>1.and.Left(cValue,1)=="0"))
+        return("")
+    endif
+    for nCharacter:=1 to nLength
+        if (!(SubStr(cValue,nCharacter,1)$"0123456789"))
+            return("")
+        endif
+    next nCharacter
+    if (nLength==19.and.cValue>cLimit)
+        return("")
+    endif
+
+return(cValue)
+
+static function PresentationJoinCompareKey(cLeft as character,cRight as character) as numeric
+
+    if (Len(cLeft)!=Len(cRight))
+        return(if(Len(cLeft)<Len(cRight),-1,1))
+    endif
+    if (cLeft==cRight)
+        return(0)
+    endif
+
+return(if(cLeft<cRight,-1,1))
+
+static procedure PresentationJoinOrderTests(jChecks as json)
+
+    local cEmployee:="" as character
+    local cRelated:="" as character
+
+    local lFirst:=.T. as logical
+
+    jChecks["orderInt64Strings"]:=PresentationJoinOrdered("1","9",@cEmployee,@cRelated,@lFirst)=="OK".and.;
+        PresentationJoinOrdered("1","10",@cEmployee,@cRelated,@lFirst)=="OK".and.;
+        PresentationJoinOrdered("2","1",@cEmployee,@cRelated,@lFirst)=="OK"
+    jChecks["orderDetectsDuplicate"]:=PresentationJoinOrdered("2","1",@cEmployee,@cRelated,@lFirst)=="DUPLICATE"
+    jChecks["orderDetectsDescending"]:=PresentationJoinOrdered("1","99",@cEmployee,@cRelated,@lFirst)=="DESCENDING"
+    jChecks["orderFailureKeepsPrevious"]:=cEmployee=="2".and.cRelated=="1"
+    lFirst:=.T.
+    jChecks["orderNullFirst"]:=PresentationJoinOrdered("3",nil,@cEmployee,@cRelated,@lFirst)=="OK".and.;
+        PresentationJoinOrdered("3","1",@cEmployee,@cRelated,@lFirst)=="OK".and.;
+        PresentationJoinOrdered("3",nil,@cEmployee,@cRelated,@lFirst)=="DESCENDING"
+    lFirst:=.T.
+    jChecks["orderExactBeyondJSONNumber"]:=PresentationJoinOrdered("9007199254740992","1",@cEmployee,@cRelated,@lFirst)=="OK".and.;
+        PresentationJoinOrdered("9007199254740993","1",@cEmployee,@cRelated,@lFirst)=="OK".and.;
+        PresentationJoinOrdered("9223372036854775807","1",@cEmployee,@cRelated,@lFirst)=="OK"
+    lFirst:=.T.
+    jChecks["orderRejectsOverflow"]:=PresentationJoinOrdered("9223372036854775808","1",@cEmployee,@cRelated,@lFirst)=="INVALID_EMPLOYEE"
+    jChecks["orderRejectsNoncanonical"]:=PresentationJoinOrdered("01","1",@cEmployee,@cRelated,@lFirst)=="INVALID_EMPLOYEE".and.;
+        PresentationJoinOrdered("1","-1",@cEmployee,@cRelated,@lFirst)=="INVALID_RELATED"
+    jChecks["orderRejectsNullEmployee"]:=PresentationJoinOrdered(nil,"1",@cEmployee,@cRelated,@lFirst)=="INVALID_EMPLOYEE"
+    jChecks["orderAcceptsSafeNumbers"]:=PresentationJoinOrdered(1,9,@cEmployee,@cRelated,@lFirst)=="OK".and.;
+        PresentationJoinOrdered(1,10,@cEmployee,@cRelated,@lFirst)=="OK"
+
+return
+
+static function PresentationJoinFixture(cAlias as character) as json
+
+    local aFields as array
+
+    local cField:="" as character
+
+    local jDefinition:=JSONObject():New() as json
+    local jFields:=JSONObject():New() as json
+    local jExpressions:=JSONObject():New() as json
+
+    local nField:=0 as numeric
+    local nFields:=0 as numeric
+
+    do case
+    case cAlias=="SRA"
+        aFields:={"RA_FILIAL","RA_MAT","RA_NOME","RA_CC","D_E_L_E_T_","R_E_C_N_O_"}
+    case cAlias=="SRB"
+        aFields:={"RB_FILIAL","RB_MAT","RB_COD","RB_NOME","D_E_L_E_T_","R_E_C_N_O_"}
+    otherwise
+        aFields:={"CTT_FILIAL","CTT_CUSTO","CTT_DESC01","D_E_L_E_T_","R_E_C_N_O_"}
+    endcase
+    nFields:=Len(aFields)
+    for nField:=1 to nFields
+        cField:=aFields[nField]
+        jFields[cField]:={"type":if(cField=="R_E_C_N_O_","numeric","character"),;
+            "length":if(cField=="R_E_C_N_O_",16,if("FILIAL"$cField,2,40)),;
+            "decimals":0,"nullable":.F.,"caption":cField,"picture":"",;
+            "inputFormat":nil,"nullPolicy":"reject","roundingPolicy":"reject"}
+        jExpressions[cField]:=cAlias+".["+cField+"]"
+    next nField
+    FWFreeArray(@aFields)
+    jDefinition["success"]:=.T.
+    jDefinition["alias"]:=cAlias
+    jDefinition["table"]:=cAlias+"990"
+    jDefinition["schema"]:={"schemaVersion":1,"fields":jFields}
+    jDefinition["expressions"]:=jExpressions
+
+return(jDefinition)

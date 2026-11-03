@@ -310,6 +310,44 @@ dicionário e limpeza sem fechar o dataset emprestado. Aliases inválidos como
 `JSONObject`: literais JSON TLPP não representam essas chaves. A rejeição é
 obrigatória, sem fallback para alias válido nem aprovação incondicional.
 
+## Exemplos de JOIN SRA/SRB e SRA/CTT
+
+Com empresa/filial preparadas e perfil MSSQL para o mesmo banco do Protheus,
+`U_HBBridgeNativeBrowseSRASRB(perfil,"TCP",13)` e
+`U_HBBridgeNativeBrowseSRACTT(perfil,"HTTP",13)` apresentam resultados de
+INNER JOIN. Qualquer um dos transportes pode ser usado nos dois exemplos. O
+chamador Protheus resolve cada tabela, filial, metadados SX3 e relacionamento
+explícito; o hbBridge executa o SQL e os parâmetros recebidos. A paginação
+ordena cada linha resultante pelas duas identidades: um funcionário com vários
+dependentes ocupa várias linhas.
+Os filtros da filial ativa usam `xFilial` para cada tabela; o Protheus fornece
+`FWJoinFilial("SRA", aliasRelacionado)` como condição adicional no `ON` do
+JOIN. A função utiliza a configuração de compartilhamento, sem deduzi-la pelo
+conteúdo dos campos. O exemplo permanece restrito à filial ativa.
+O exemplo SRA/SRB apresenta `RB_COD` imediatamente após `RB_MAT`, inclusive
+em **View related**, usando os metadados SX3 do campo.
+
+`U_HBBridgePresentationJoinReal(perfil,transporte,10)` executa consultas
+somente de leitura INNER e LEFT para os dois pares, examinando até duas páginas
+de cada. A saída contém checks e contagens, sem valores dos campos. Resultados
+vazios ou a ausência de uma linha sem correspondência não comprovam esses
+cenários. `U_HBBridgePresentationJoinTest()` valida o planejamento com
+fixtures determinísticas, sem banco ERP. O LEFT preserva NULL no SQL; a
+apresentação nativa atual rejeita esse valor, sem substituí-lo. Os exemplos
+visuais usam INNER JOIN e oferecem os diálogos separados **View employee** e
+**View related**: cada um preserva os nomes originais no MsMGet sem confundir
+identidades repetidas. Um campo do funcionário projetado duas vezes a partir da
+mesma origem aparece uma vez no diálogo. Posteriormente foram informados como
+OK os testes visuais dos dois browses, pesquisa e Views via TCP e HTTP. O relato
+não detalhou valores dos campos, filtros, combinações de compartilhamento ou
+hashes compilados. O diagnóstico real posterior passou 24 checks por transporte
+com `FWJoinFilial`, sem linhas não relacionadas nas duas páginas examinadas.
+
+Para o caso sem correspondência, execute `python scripts/test-join-null.py --profile MSSQL/pData`.
+Essa fixture MSSQL independente usa somente constantes e TCP. Ela verifica
+duas páginas, strings int64 exatas e NULL SQL; não
+consulta tabelas Protheus nem comprova aceite no AppServer ou na interface.
+
 ## Campos específicos do dicionário SRA
 
 O exemplo de campos selecionados lê dados reais da SRA no mesmo browse nativo:

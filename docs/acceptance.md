@@ -2009,8 +2009,8 @@ recorded only as [future work](evolution.md#in-memory-results-between-requests).
 ## Selected SRA visual acceptance on 2026-10-30
 
 Manual visual validation of the selected-field SRA example was confirmed with
-an OK result. T05a is accepted for that reported visual scope; T05b explicit
-JOIN examples and final package closure remain open in [WIP](../WIP.md).
+an OK result. T05a was accepted for that reported visual scope; T05b and final
+package closure remained open at that date. See the current [WIP](../WIP.md).
 
 The confirmation did not supply invocation arguments, per-transport logs,
 compiled hashes or a detailed UI checklist. Do not infer additional backend,
@@ -2019,3 +2019,30 @@ platform, failure or performance coverage from it. The separate isolated
 78 compiled sources and 730 checks, including 142 SRA planning/selection/native
 SQLite checks. Those source identities describe the automated run, not an
 independently identified manual RPO.
+
+## JOIN browse validation on 2026-11-03
+
+Manual testing reported the SRA/SRB and SRA/CTT browse queries, search and
+Views as OK over TCP and HTTP. After adding `FWJoinFilial`, the real diagnostic
+passed 24 checks per transport of INNER/LEFT definitions, projections, two-page
+ordering and pagination. All four joins returned 20 rows over two pages with no
+unmatched row in those pages. A
+separate synthetic MSSQL fixture verified an unmatched NULL over TCP without
+reading ERP tables. See [current progress](../WIP.md) and the
+[JOIN examples](../src/tlpp/tests/protheus/hbbridge.presentation.test/README.md#srasrb-and-sractt-join-examples).
+
+The manual report did not include a field-by-field checklist, filter or paging
+cases, sharing configurations, generated branch predicates or compiled hashes.
+The synthetic NULL check does not establish unmatched-row coverage for the ERP
+joins. T05b is accepted within the recorded scope.
+
+The subsequent isolated Windows AppServer run compiled 83 TLPP sources and
+passed 767 checks plus the SDK probe, including 38 JOIN planning, 122 native
+table and 78 browse checks. The ordinary dataset reported its expected exit -4
+after 67 passing checks; the other suites exited 0. No live hbBridge endpoints
+or interactive UI were used in that run. Its source and executable hashes,
+and the separate manual and synthetic scopes, are recorded in the
+[sanitized manifest](validation/join.presentation.windows.json).
+The native Harbour/C/Zig integration suite also passed 789 checks with zero
+failures. Package 002 is closed in these Windows/MSSQL scopes; other sharing
+combinations, unmatched ERP rows and other platforms remain unproven.

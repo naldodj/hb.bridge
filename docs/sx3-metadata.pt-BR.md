@@ -83,7 +83,8 @@ cria uma definição selecionada independente a partir de um resultado válido
 de `Build()`, ainda não planejado e com `sql` vazio. A seleção ocorre uma
 única vez: o resultado recebe `selectionApplied` e não pode ser projetado
 novamente. Não seleciona sobre uma consulta já completada nem monta definição
-de múltiplas tabelas. Exemplos explícitos com JOIN permanecem planejados.
+de múltiplas tabelas. [Exemplos explícitos SRA/SRB e SRA/CTT](../src/tlpp/tests/protheus/hbbridge.presentation.test/README.pt-BR.md#exemplos-de-join-srasrb-e-sractt)
+separados montam o JOIN no Protheus com metadados de cada tabela.
 
 A seleção é um `JSONObject` indexado pelo alias de saída. Cada entrada contém
 exatamente `source` e `position`; as posições devem ser inteiros únicos e

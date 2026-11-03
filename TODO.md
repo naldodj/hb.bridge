@@ -17,8 +17,9 @@ T02 standalone Windows native proofs passed SQLite 252/MSSQL 75 checks with
 zero failures. The [connector extension design](docs/typed-sql-connectors.md)
 is implemented in T03: shared tagged SDD dispatch, typed service and TLPP dataset.
 T04 adds explicit-schema native presentation with passing AppServer conversion/
-storage and dataset regressions. Evidence is recorded in [WIP](WIP.md);
-T05 combined real AppServer/backend/UI acceptance remains pending.
+storage and dataset regressions. Package 002 completed T05 in the documented
+Windows/MSSQL scope; see [acceptance](docs/acceptance.md#join-browse-validation-on-2026-11-03)
+and the [WIP](WIP.md) for subsequent work.
 The [2026-10-12 extension review](docs/extensions-review.md) evaluates SQLRDD,
 Duktape and CCHarbour as future packages, without adding runtime dependencies.
 
@@ -424,7 +425,7 @@ per-value limits; tested slow-consumer/invalid-decode/disconnect behavior.
   fixture, native Harbour/TCP/HTTP off/driver processes and real AppServer
   TCP/HTTP, separate warmups, identified artifacts and OS process samples.
   [Results and scope](docs/acceptance.md#m08-performance-baseline-on-2026-10-16).
-  M09/package 001 are complete; [WIP](WIP.md) now plans package 002.
+  M09/package 001 and the subsequent package 002 are complete; see [WIP](WIP.md).
 - [x] Extend the visual benchmark with optional Protheus StartJob/REST and
   hbBridge TCP/HTTP comparisons plus a server-side Harbour addon. Keep the
   fixed fixture, warmups and distinct timing scopes; the addon returns statistics
@@ -437,7 +438,8 @@ per-value limits; tested slow-consumer/invalid-decode/disconnect behavior.
   Local controller, REST, client-lifecycle, browser and addon checks retain their
   separate validation scope. Authentication, owned-resource cleanup and recovery
   evidence is recorded in the [acceptance](docs/acceptance.md#v01-v02-benchmark-acceptance-on-2026-10-19).
-  D03 UTF-8/FLOAT integrity has scoped acceptance on 2026-10-21; M09 and package 001 are complete; package 002 is planned in WIP.
+  D03 UTF-8/FLOAT integrity has scoped acceptance on 2026-10-21; M09 and
+  packages 001 and 002 are complete in their recorded scopes.
   Manual TCP/HTTP CLI also passed a separate ten-row run; see
   [CLI scope and workload/timeout clarification](docs/acceptance.md#m08-manual-cli-validation-on-2026-10-19).
   Earlier isolated StartJob CLI initialization failures remain a distinct record.
@@ -547,8 +549,10 @@ and Oracle require their own evidence.
   policy. Preserve caller-owned tables, branches, business predicates, bindings
   and CASTs; no automatic SQL parser or server-side ERP inference. Generic
   SELECT execution already accepts backend-supported projections/JOINs;
-  dedicated native-presentation acceptance remains pending. See
-  [the scope](docs/sx3-metadata.md#selected-fields-and-join-queries) and active WIP.
+  selected fields and explicit JOIN presentation were accepted in the recorded
+  Windows/MSSQL scope. Broader computed fields, exact one-to-many totals,
+  unmatched ERP rows and sharing combinations remain to validate. See
+  [the scope](docs/sx3-metadata.md#selected-fields-and-join-queries).
 - [ ] Future MEMIO result reuse: materialize once, publish immutable results
   behind authorized opaque handles and read through independent areas, with
   explicit lifetime/memory/cleanup and type-integrity acceptance. The native

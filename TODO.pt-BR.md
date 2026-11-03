@@ -12,8 +12,10 @@ contrato; T02 concluiu provas nativas Windows independentes com SQLite 252/
 MSSQL 75 checks, zero falhas. O [desenho dos conectores](docs/typed-sql-connectors.pt-BR.md)
 foi implementado em T03: despacho SDD identificado, serviço tipado e dataset TLPP.
 T04 adiciona apresentação nativa por esquema explícito, com checks AppServer
-de conversão/armazenamento e regressões dos datasets aprovados. Evidências no
-[WIP](WIP.pt-BR.md); homologação conjunta AppServer/backend/UI real T05 pendente.
+de conversão/armazenamento e regressões dos datasets aprovados. A homologação
+T05 do pacote 002 foi concluída no escopo Windows/MSSQL documentado;
+veja a [homologação](docs/acceptance.pt-BR.md#validação-dos-browses-join-em-2026-11-03)
+e o [WIP](WIP.pt-BR.md) para a continuidade.
 A [análise de extensões de 2026-10-12](docs/extensions-review.pt-BR.md) avalia
 SQLRDD, Duktape e CCHarbour para pacotes futuros, sem novas dependências runtime.
 
@@ -604,7 +606,7 @@ testado; somente versões e capacidades efetivamente implementadas são anunciad
   AppServer TCP/HTTP reais, aquecimento separado, artefatos identificados e
   amostras do processo pelo SO.
   [Resultados e escopo](docs/acceptance.pt-BR.md#m08-performance-baseline-on-2026-10-16).
-  M09/pacote 001 concluídos; [WIP](WIP.pt-BR.md) planeja o pacote 002.
+  M09/pacote 001 e o pacote 002 subsequente concluídos; veja [WIP](WIP.pt-BR.md).
 - [x] Ampliar benchmark visual com comparação opcional Protheus StartJob/REST
   e hbBridge TCP/HTTP, além de addon Harbour no servidor. Preservar fixture fixa,
   aquecimentos e escopos de tempo distintos; addon retorna estatísticas em vez
@@ -619,7 +621,7 @@ testado; somente versões e capacidades efetivamente implementadas são anunciad
   Evidências de autenticação, limpeza dos recursos próprios e recuperação
   constam no [aceite](docs/acceptance.pt-BR.md#v01-v02-benchmark-acceptance-on-2026-10-19).
   A integridade UTF-8/FLOAT de D03 tem aceite delimitado em 2026-10-21; M09 e pacote
-  001 concluídos; pacote 002 planejado no WIP. O CLI TCP/HTTP também passou em rodada de dez linhas;
+  001 e 002 concluídos nos escopos registrados. O CLI TCP/HTTP também passou em rodada de dez linhas;
   veja [escopo CLI e esclarecimento da carga/timeout](docs/acceptance.pt-BR.md#m08-manual-cli-validation-on-2026-10-19).
   Falhas anteriores de inicialização StartJob CLI isolada são outro registro. Veja o [guia do benchmark](src/tlpp/tests/protheus/hbbridge.benchmark.test/README.pt-BR.md).
 - [ ] Adicionar benchmark de processamento em addon C: hbBridge consulta/
@@ -775,9 +777,12 @@ locais/remotos em blocos, com integridade binária, erros e liberação verifica
   totais um-para-muitos, preservação de NULL no LEFT JOIN e rejeição pelo destino
   nativo. Manter tabelas, filiais, predicados de negócio, bindings e CASTs no
   chamador; sem parser SQL automático ou inferência ERP no servidor. A execução
-  SELECT genérica já aceita projeções/JOINs suportados pelo backend; o aceite
-  específico da apresentação nativa permanece pendente. Veja o
-  [escopo](docs/sx3-metadata.pt-BR.md#campos-específicos-e-consultas-com-join) e o WIP ativo.
+  SELECT genérica já aceita projeções/JOINs suportados pelo backend; campos
+  selecionados e apresentação dos JOINs explícitos foram aceitos no escopo
+  Windows/MSSQL registrado. Campos calculados, totais exatos um-para-muitos,
+  linhas ERP sem correspondência e combinações de compartilhamento mais amplas
+  permanecem a validar. Veja o
+  [escopo](docs/sx3-metadata.pt-BR.md#campos-específicos-e-consultas-com-join).
 - [ ] Reuso futuro de resultados MEMIO: materializar uma vez, publicar resultados
   imutáveis por handles opacos autorizados e ler por áreas independentes, com
   vida útil/memória/limpeza explícitas e aceite de integridade dos tipos. O probe

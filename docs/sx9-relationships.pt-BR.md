@@ -102,5 +102,6 @@ funcionário. Preservar NULL do LEFT JOIN no dataset e escolher qualquer
 substituição para apresentação nativa explicitamente no Protheus. Continuar
 obtendo tipo, tamanho e decimais na SX3 de cada campo de origem projetado.
 
-A próxima implementação continua delimitada aos exemplos de campos
-selecionados/JOIN do WIP, sem parser SQL automático nem regras ERP no servidor.
+Os [exemplos de campos selecionados/JOIN](../src/tlpp/tests/protheus/hbbridge.presentation.test/README.pt-BR.md#exemplos-de-join-srasrb-e-sractt)
+agora implementam esses pares explicitamente. Eles não leem a SX9 dinamicamente,
+não analisam SQL arbitrário e não introduzem regras ERP no servidor.

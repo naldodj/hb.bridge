@@ -2100,8 +2100,8 @@ fica registrada apenas como [trabalho futuro](evolution.pt-BR.md#resultados-em-m
 ## Validação visual SRA selecionada em 2026-10-30
 
 Confirmada a validação visual manual do exemplo SRA com campos selecionados,
-com resultado OK. T05a aceita no escopo visual informado; exemplos JOIN T05b e
-encerramento final do pacote permanecem abertos no [WIP](../WIP.pt-BR.md).
+com resultado OK. T05a foi aceita nesse escopo visual; T05b e o encerramento
+final permaneciam abertos nessa data. Veja o [WIP](../WIP.pt-BR.md) atual.
 
 A confirmação não fornece argumentos de execução, logs por transporte,
 hashes compilados ou checklist detalhado da interface. Não deduzir cobertura
@@ -2110,3 +2110,31 @@ adicional de backend, plataforma, falhas ou desempenho. O
 identifica 78 fontes compilados e 730 checks, incluindo 142 de planejamento/
 seleção/SQLite nativo SRA. Essas identidades descrevem a rodada automatizada,
 sem identificar independentemente o RPO manual.
+
+## Validação dos browses JOIN em 2026-11-03
+
+Foram informados como OK os testes manuais das consultas dos browses SRA/SRB e
+SRA/CTT, pesquisa e Views via TCP e HTTP. Após a inclusão de `FWJoinFilial`, o
+diagnóstico real passou 24 checks por transporte de definição INNER/LEFT,
+projeção, ordenação e navegação entre duas páginas. Os quatro JOINs retornaram
+20 linhas em duas páginas, sem linha não relacionada nas páginas examinadas.
+Uma fixture MSSQL sintética separada verificou um NULL sem correspondência
+via TCP, sem ler tabelas ERP. Veja o [andamento](../WIP.pt-BR.md) e os
+[exemplos JOIN](../src/tlpp/tests/protheus/hbbridge.presentation.test/README.pt-BR.md#exemplos-de-join-srasrb-e-sractt).
+
+O relato manual não incluiu checklist por campo, filtros ou casos de paginação,
+configurações de compartilhamento, predicados de filial gerados ou hashes dos
+fontes compilados. A fixture de NULL não comprova linha sem correspondência
+nos JOINs ERP. T05b é aceita no escopo registrado.
+
+A execução posterior no AppServer Windows isolado compilou 83 fontes TLPP e
+passou 767 checks mais a sonda SDK, incluindo 38 de planejamento JOIN, 122 de
+tabela nativa e 78 do browse. O dataset comum retornou o -4 previsto pelo
+runner após 67 checks aprovados; as demais suítes tiveram saída 0. Essa rodada
+não usou endpoints ativos do hbBridge nem interface interativa. Os hashes dos
+fontes e executáveis, e os escopos manual e sintético separados, constam no
+[manifesto sanitizado](validation/join.presentation.windows.json).
+A suíte de integração nativa Harbour/C/Zig também passou 789 checks, sem falhas.
+O pacote 002 está encerrado nesses escopos Windows/MSSQL; outras combinações
+de compartilhamento, linhas ERP sem correspondência e plataformas diferentes
+permanecem sem comprovação.
