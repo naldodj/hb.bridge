@@ -5,17 +5,18 @@
 O [índice da documentação](README.pt-BR.md) organiza os guias por tarefa.
 
 hbBridge estende o Protheus com execução Harbour/C/Zig, acesso a dados,
-arquivos, addons e processamento nativo. **As regras Protheus pertencem ao
-Protheus.** A ponte não deduz contexto ERP de banco, perfil, sessão RPC ou
-prefixo de tabela. Clientes Harbour também usam os mesmos serviços.
+arquivos, addons e processamento nativo. **O executor é genérico; addons podem
+implementar regras de negócio.** Protheus fornece o contexto ERP necessário ao
+addon. A ponte não deduz esse contexto de banco, perfil, sessão RPC ou prefixo
+de tabela. Clientes Harbour também usam os mesmos serviços.
 
 | Protheus / aplicação chamadora | Executor hbBridge |
 | --- | --- |
 | Resolver tenant ID, empresa e filial. | Receber contexto explícito como dados opacos da aplicação. |
 | Resolver `xFilial`, compartilhamento e nomes físicos, como resultados de `RetSQLName`. | Executar a consulta preparada no perfil selecionado. |
-| Aplicar dicionário, validações, permissões, exclusão lógica, transações e locks. | Aplicar permissões genéricas de serviço/conexão/recurso e devolver resultados. |
+| Resolver dicionário, autorizações e contexto de negócio necessário. | Aplicar permissões genéricas de serviço/conexão/recurso e devolver resultados. |
 | Escolher alias de conexão e dialeto SQL. | Localizar o alias, conectar e executar; paginação genérica pode envolver o SQL recebido. |
-| Fornecer entradas de negócio ao addon. | Executar o addon com parâmetros, sem inferir empresa/filial ERP. |
+| Fornecer entradas de negócio e escolher addon confiável da aplicação. | Executar o addon, que pode implementar regras e consultar fontes configuradas com o contexto recebido. |
 
 Futuras autorizações por tenant, propriedade de sessão e auditoria podem
 validar contexto explícito e autenticado. Não devem inventar filtros
@@ -24,16 +25,19 @@ Isolamento é segurança do executor; o significado ERP do tenant é resolvido
 na aplicação. O modelo futuro de autorização/sessão por tenant ainda não
 está implementado.
 
-Para SQL, o chamador Protheus prepara nomes físicos e filtros de negócio antes
-de chamar `RPCRDD.Query`. O contrato atual recebe `alias`, `sql` e `page`
-opcional; bind de valores e envelope versionado de contexto estão no roadmap.
-Prepared statements devem distinguir valores e identificadores: nome de
-tabela não é um placeholder de valor. Não interpole valores não confiáveis
-apenas porque a ponte aceita SQL.
+Para SQL preparado pelo chamador, Protheus fornece nomes físicos e predicados
+de negócio. `RPCRDD.QueryTyped` oferece bindings tipados e versionados;
+`RPCRDD.Execute` recebe SQL sem bindings tipados atualmente. Um envelope
+versionado para contexto ERP permanece no roadmap. Valores e identificadores
+são distintos: nome de tabela não é um placeholder de valor. Não interpole
+valores não confiáveis apenas porque a ponte aceita SQL.
 
-Um addon pode conter processamento específico, mas recebe os dados de negócio
-explicitamente por parâmetros. O núcleo genérico não depende de bancos por
-empresa nem dicionários Protheus. `company="T1"` no Echo é dado de teste
+Um addon Harbour específico da aplicação pode executar cálculos de negócio,
+chamar componentes C/Zig integrados e devolver resultados, inclusive JSON.
+Recebe do chamador o
+contexto ERP e os parâmetros do cálculo explicitamente e pode obter dados das
+fontes configuradas. O núcleo genérico não depende de bancos por empresa nem
+dicionários Protheus. `company="T1"` no Echo é dado de teste
 devolvido sem interpretação. Consulta ODBC direta não executa automaticamente
 fluxos DBAccess ou regras de negócio.
 

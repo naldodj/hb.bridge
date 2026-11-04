@@ -33,10 +33,10 @@ Duktape and CCHarbour as future packages, without adding runtime dependencies.
   Protheus. Services and versions are shared independently of transport/codec.
 - Use native `hbhttpd` and its dependencies for HTTP/REST and web
   administration of hbBridge/NETIO through the same core.
-- **Generic executor:** Protheus resolves business rules, tenant ID, company,
-  branch, `xFilial`, dictionary/table sharing and physical table names. hbBridge
-  executes supplied queries/parameters; application addons receive explicit
-  business inputs. Generic authorization never invents ERP predicates/context.
+- **Generic executor:** Protheus supplies explicit tenant ID, company, branch,
+  `xFilial`, dictionary/table sharing, physical names and application inputs.
+  Trusted application addons may implement business rules, query configured
+  sources and return results. Generic authorization never invents ERP context.
 - SQL profiles are an opaque keyed map. Each call/dataset chooses an alias;
   the library has no demo default. Oracle alias naming does not imply an
   implemented Oracle connector. See [architecture](docs/architecture.md).

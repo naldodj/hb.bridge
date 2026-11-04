@@ -75,10 +75,13 @@
   Initialize per-request state explicitly or keep it in locals/parameters;
   worker reuse and HRB reload do not imply a reset. Shared process resources,
   such as the SQL mutex, retain synchronized ordinary `STATIC` storage.
-- Keep hbBridge generic. Protheus resolves its business rules, tenant, company,
-  branch, `xFilial` and physical table names; services/addons receive explicit
-  inputs. SQL aliases are opaque keys, never automatic ERP context resolvers.
-  The TLPP library must not force a demo database profile.
+- Keep the hbBridge core, services and addon execution generic. Protheus supplies
+  explicit tenant, company, branch, `xFilial`, physical table names, permissions
+  and other application context. A trusted application-specific addon may
+  implement business rules and query the configured data sources using those
+  inputs; the generic executor must not infer ERP context or business meaning.
+  SQL aliases are opaque keys, never automatic ERP context resolvers. The TLPP
+  library must not force a demo database profile.
 - Obtain active Protheus DBAccess connection settings through `FWGetTopInfo()`
   instead of reconstructing server/port/database/alias from INI keys. Preserve
   an existing connection and close only a connection opened by the caller.

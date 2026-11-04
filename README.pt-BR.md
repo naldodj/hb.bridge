@@ -9,10 +9,11 @@
 de serviços compartilhado para clientes AdvPL/TLPP, Harbour nativo e HTTP,
 com acesso SQL, addons Harbour e processamento nativo.
 
-O hbBridge é um **executor genérico**. Protheus resolve suas regras de negócio,
-tenant, empresa, filial, `xFilial` e nomes físicos de tabelas e envia consultas
-e parâmetros explícitos. Perfis de banco são aliases escolhidos pelo chamador;
-a biblioteca cliente não exige banco de demonstração.
+O hbBridge é um **executor genérico**. Protheus fornece tenant, empresa, filial,
+`xFilial`, nomes físicos de tabelas e demais contextos explícitos. Um addon
+Harbour confiável pode implementar regras de negócio, consultar dados e devolver
+resultados; o executor genérico não deduz contexto ERP. Perfis de banco são
+aliases escolhidos pelo chamador; a biblioteca cliente não exige banco de demonstração.
 
 ## Por que Harbour, C e Zig?
 

@@ -9,10 +9,11 @@
 service host for AdvPL/TLPP, native Harbour and HTTP clients, with SQL access,
 Harbour addons and native processing.
 
-hbBridge is a **generic executor**. Protheus resolves its business rules,
-tenant, company, branch, `xFilial` and physical table names, then supplies
-explicit queries and parameters. Database profiles are caller-selected aliases;
-the client library does not require a demo database.
+hbBridge is a **generic executor**. Protheus supplies explicit tenant, company,
+branch, `xFilial`, physical table names and other application context. A trusted
+Harbour addon can implement business rules, query data and return results; the
+generic executor does not infer ERP context. Database profiles are caller-selected
+aliases; the client library does not require a demo database.
 
 ## Why Harbour, C and Zig?
 

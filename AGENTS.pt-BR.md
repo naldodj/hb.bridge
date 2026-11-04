@@ -75,8 +75,11 @@
   Inicialize estado de requisição explicitamente ou use locais/parâmetros;
   reuso do worker e recarga HRB não garantem reset. Recursos do processo,
   como o mutex SQL, continuam em `STATIC` comum com sincronização.
-- Mantenha hbBridge genérico. Protheus resolve regras, tenant, empresa, filial,
-  `xFilial` e nomes físicos; serviços/addons recebem entradas explícitas.
+- Mantenha genéricos o núcleo, os serviços e a execução de addons do hbBridge.
+  Protheus fornece tenant, empresa, filial, `xFilial`, nomes físicos, permissões
+  e demais contextos explícitos. Um addon confiável específico da aplicação
+  pode implementar regras de negócio e consultar fontes configuradas usando
+  essas entradas; o executor genérico não deduz contexto ou significado ERP.
   Aliases SQL são chaves opacas, sem dedução de contexto ERP. A biblioteca TLPP
   não pode impor perfil de banco demonstrativo.
 - Obtenha a configuração ativa de conexão DBAccess por `FWGetTopInfo()` em vez

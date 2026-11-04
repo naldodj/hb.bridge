@@ -5,6 +5,11 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Organize bilingual documentation and prepare the Wiki portal)"
  */
 
+2026-11-04 02:09 UTC naldodj (Clarify addon business rules and generic execution)
+  ; Clarify that custom addons may implement business rules while hbBridge
+    provides generic execution and Protheus supplies the required context.
+  ! Correct the distinction between typed queries and SQL execution.
+
 2026-11-03 20:10 UTC naldodj (Complete typed SQL and native JOIN presentation)
   + Add explicit SRA/SRB and SRA/CTT Protheus JOIN examples with SX3 metadata,
     FWJoinFilial, selected aliases, dependent sequence and separate record Views.

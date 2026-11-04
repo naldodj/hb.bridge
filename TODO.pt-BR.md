@@ -21,11 +21,11 @@ SQLRDD, Duktape e CCHarbour para pacotes futuros, sem novas dependências runtim
 
 ## Alinhamento atual: executor, perfis e compilação
 
-hbBridge é um executor genérico. Protheus resolve regras de negócio, tenantID,
-empresa, filial, xFilial, dicionário e nomes físicos de tabelas; envia consultas
-e parâmetros já preparados. Addons específicos também recebem seus dados por
-parâmetros. Autorização genérica pode validar contexto explícito, sem inferir
-regras ERP. Veja [arquitetura](docs/architecture.pt-BR.md).
+hbBridge é um executor genérico. Protheus fornece tenantID, empresa, filial,
+xFilial, dicionário, nomes físicos e demais entradas explícitas. Addons confiáveis
+específicos podem implementar regras de negócio, consultar fontes configuradas e
+devolver resultados. Autorização genérica pode validar contexto explícito, sem
+inferir regras ERP. Veja [arquitetura](docs/architecture.pt-BR.md).
 
 SQLProfile é opcional e agora tem padrão vazio na biblioteca e no template.
 sqlite_demo pertence apenas ao exemplo SQLite. `SetAliasProfile()` configura

@@ -6,6 +6,11 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Adicionar cobertura de integridade para JSON UTF-8 e MSSQL)"
  */
 
+2026-11-04 02:09 UTC naldodj (Esclarecer regras de negocio em addons e execucao generica)
+  ; Esclarecer que addons customizados podem implementar regras de negocio,
+    enquanto hbBridge fornece execucao generica e o Protheus informa o contexto.
+  ! Corrigir a distincao entre consultas tipadas e execucao SQL.
+
 2026-11-03 20:10 UTC naldodj (Concluir SQL tipado e apresentação nativa com JOIN)
   + Adicionar exemplos Protheus explícitos SRA/SRB e SRA/CTT com metadados SX3,
     FWJoinFilial, aliases selecionados, sequência de dependente e Views separados.

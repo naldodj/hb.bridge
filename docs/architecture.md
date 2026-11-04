@@ -5,17 +5,18 @@
 The [documentation index](README.md) provides task-oriented navigation.
 
 hbBridge extends Protheus with Harbour/C/Zig execution, data access, files,
-addons and native processing. **Protheus owns its business rules.** The bridge
-does not derive ERP context from a database name, a connection profile, an
+addons and native processing. **The executor is generic; addons can implement
+business rules.** Protheus supplies the ERP context the addon needs. The bridge
+does not derive that context from a database name, a connection profile, an
 RPC session or a table prefix. Other Harbour clients can use the same services.
 
 | Protheus / calling application | hbBridge executor |
 | --- | --- |
 | Resolve tenant ID, company and branch. | Receive explicit context as opaque application data. |
 | Resolve `xFilial`, table sharing and physical table names such as `RetSQLName` results. | Execute the fully prepared query against the selected profile. |
-| Apply its dictionary, business validations, permissions, logical deletion, transactions and locks. | Enforce generic service/connection/resource permissions and return execution results. |
+| Resolve its dictionary, authorizations and required business context. | Enforce generic service/connection/resource permissions and return execution results. |
 | Choose the connection alias and SQL dialect for its target. | Look up the configured alias, connect and execute; generic pagination may wrap the supplied query. |
-| Supply business inputs to an addon. | Run that addon with supplied parameters; never silently infer an ERP company/branch. |
+| Supply business inputs and select a trusted application addon. | Run the addon, which may implement business rules and query configured data using the supplied context. |
 
 Future tenant authorization, session ownership and audit can validate explicit,
 authenticated context. They must not invent `xFilial` predicates, infer table
@@ -24,16 +25,18 @@ concern; computing the ERP meaning of that tenant belongs to the application.
 The current implementation does not yet provide that future tenant-aware
 authorization/session model.
 
-For SQL, the Protheus caller prepares the physical table identifiers and
-business predicates before calling `RPCRDD.Query`. The current request uses
-`alias`, `sql` and optional `page`; SQL bind parameters and a versioned context
-envelope remain roadmap items. Prepared statement/bind support must distinguish
-values from identifiers: a table name cannot be supplied as a value placeholder.
-Never interpolate untrusted values merely because the bridge accepts SQL.
+For SQL prepared by the caller, Protheus supplies physical table identifiers
+and business predicates. `RPCRDD.QueryTyped` supports versioned typed bindings;
+`RPCRDD.Execute` currently accepts SQL without typed bindings. A versioned ERP
+context envelope remains a roadmap item. Bind values and identifiers are
+different: a table name cannot be supplied as a value placeholder. Never
+interpolate untrusted values merely because the bridge accepts SQL.
 
-An addon may contain application-specific processing, but its business data
-must arrive explicitly through parameters. The generic core has no dependency
-on Protheus company databases or dictionaries. The `Echo` test's sample
+An application-specific Harbour addon may own and execute business calculations,
+call integrated C/Zig components and return results, including JSON. It receives the ERP
+context and calculation parameters explicitly from the caller and may retrieve
+data from configured sources. The generic core has no dependency on Protheus
+company databases or dictionaries. The `Echo` test's sample
 `company="T1"` is just echoed data, not a configured company resolver.
 Direct ODBC queries do not automatically execute DBAccess/business workflows.
 
