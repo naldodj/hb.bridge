@@ -19,6 +19,7 @@ static method Run(cDictionary,cProfile) class HBBridgePresentationTemp
     local cSQL:="", cTable:="", cTarget:="", cType:="", cMessage:="" as character
     local cIndexStem:="HBT"+SubStr(StrTran(UUIDRandom(),"-",""),1,16) as character
 
+    local jAction as json
     local jConfig as json
     local jParams:=JSONObject():New(), jArgs:=JSONObject():New(), jResponse as json
 
@@ -98,8 +99,11 @@ static method Run(cDictionary,cProfile) class HBBridgePresentationTemp
         jArgs["target"]:=cTarget
         jArgs["columns"]:=cColumns
         jArgs["select"]:=cSQL
-        jParams["module"]:="examples/hbbridgetemporaryinsertaddon.hrb"
-        jParams["params"]:=jArgs
+        jAction:=JSONObject():New()
+        jAction["action"]:="temporaryInsert"
+        jAction["params"]:=jArgs
+        jParams["module"]:="examples/hbbridgeaddons.hrb"
+        jParams["params"]:=jAction
         jResponse:=oClient:CallService("ADDON.Execute",jParams)
         if (ValType(jResponse)!="J")
             cMessage:="The addon response is unavailable; the write outcome may be unknown."
@@ -142,6 +146,7 @@ static method Run(cDictionary,cProfile) class HBBridgePresentationTemp
     endif
     FreeObj(@jResponse)
     FreeObj(@jParams)
+    jAction:=nil
     jArgs:=nil
     FWFreeArray(@aNames)
     FWFreeArray(@aFields)

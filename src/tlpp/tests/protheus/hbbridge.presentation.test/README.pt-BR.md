@@ -7,8 +7,8 @@
 `U_HBBridgeNativeBrowseTempSX5(perfil)` e
 `U_HBBridgeNativeBrowseTempSRA(perfil)` exigem empresa/filial preparadas no
 Protheus, conexão MSSQL DBAccess ativa, perfil correspondente no hbBridge e
-`hbbridgetemporaryinsertaddon.hrb` instalado. Compile o HRB com
-`scripts/build-hbbridge-temporary-addon.ps1` e coloque-o no addon root
+`hbbridgeaddons.hrb` instalado. Compile o HRB com
+`scripts/build-hbbridge-addons.ps1` e coloque-o no addon root
 configurado. O exemplo Protheus resolve tabela física, filial e metadados SX3,
 cria uma `FWTemporaryTable` e solicita ao addon a carga por `INSERT INTO ...
 SELECT`. As duas conexões precisam identificar o mesmo SQL Server e banco.

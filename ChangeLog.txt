@@ -5,6 +5,21 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Organize bilingual documentation and prepare the Wiki portal)"
  */
 
+2026-11-04 19:24 UTC naldodj (Add bundled addons and controlled turnover drill-down)
+  + Bundle sample, benchmark, temporary insert and turnover addons in one HRB;
+    select registered local symbols with hb_ExecFromArray and retain standalone
+    addon compatibility. Add controlled monthly turnover and FWWebEx grids.
+  + Show employee dates and transfer evidence, with unknown transfer totals
+    kept distinct from zero. Preserve UTF-8 through page generation.
+  + Add a JOIN CLI entry and bilingual guides with sanitized evidence.
+  ; Native integration passed 826 checks and benchmark addon passed 94.
+    Controlled MSSQL passed direct TCP/HTTP; the earlier fixture passed TLPP
+    TCP/HTTP in an isolated AppServer. UTF-8 markup and UI navigation passed;
+    visual validation covers the controlled fixture. Historical business-rule
+    reconciliation, real-data acceptance and temporary-output comparison remain.
+    The JOIN CLI compiled, but RPCSetEnv could not initialize the isolated
+    environment; its real CLI execution remains unverified.
+
 2026-11-04 02:09 UTC naldodj (Clarify addon business rules and generic execution)
   ; Clarify that custom addons may implement business rules while hbBridge
     provides generic execution and Protheus supplies the required context.

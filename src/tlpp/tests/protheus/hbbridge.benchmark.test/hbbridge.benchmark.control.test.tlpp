@@ -219,6 +219,18 @@ static function BenchmarkControlMeasure(jChecks as json)
     jState := BenchmarkControlState()
     bFactory := {|cKey, cHost, nPort, cURL, cToken, nTimeout, jSettings, nRows| ;
         BenchmarkControlFactory(jState, cKey, nRows)}
+    jRoutes := BenchmarkControlSelection("hbbridgeAddon")
+    jComparison["addonModule"] := "examples/hbbridgeaddons.hrb"
+    jReport := HBBridge.Test.HBBridgeBenchmarkTest():Measure("mock/profile", "mock-host", 1512, ;
+        "http://mock-host:8080", "mock-token", 30, 5, 2, 2, 1, jComparison, jRoutes, bFactory)
+    jChecks["bundleBenchmarkEnvelope"] := jReport["success"] .and. jState["bundleActionValid"]
+    FreeObj(@jReport)
+    FreeObj(@jRoutes)
+    FreeObj(@jState)
+    jComparison["addonModule"] := "mock/addon.hrb"
+    jState := BenchmarkControlState()
+    bFactory := {|cKey, cHost, nPort, cURL, cToken, nTimeout, jSettings, nRows| ;
+        BenchmarkControlFactory(jState, cKey, nRows)}
     jRoutes := BenchmarkControlSelection("http")
     jComparison["restURL"] := "invalid"
     jComparison["authorization"] := ""
@@ -303,6 +315,7 @@ static function BenchmarkControlMeasure(jChecks as json)
     jChecks["QueryFailureCannotPass"] := !jReport["success"] .and. !jReport["tcp"]["success"] .and. ;
         jReport["tcp"]["completedIterations"] == 0
     FreeObj(@jReport)
+    jState["bundleActionValid"] := .F.
     jState["mode"] := "success"
     jReport := HBBridge.Test.HBBridgeBenchmarkTest():Measure("mock/profile", "host", 1512, ;
         "invalid", "", 30, 5, 2, 1, 0, jComparison, jRoutes, bFactory)
@@ -381,6 +394,7 @@ static function BenchmarkControlState() as json
         jCalls[cRoute] := 0
         jClosed[cRoute] := 0
     next nRoute
+    jState["bundleActionValid"] := .F.
     jState["mode"] := "success"
     jState["factoryCalls"] := 0
     jState["constructed"] := jConstructed

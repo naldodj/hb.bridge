@@ -64,6 +64,39 @@ PROCEDURE M3SQLTests( nFailures, nChecks )
     M1Assert( rddInfo( RDDI_DISCONNECT, NIL, "SQLMIX", nConnection ), ;
         "fixture connection closes", @nFailures, @nChecks )
     hRegistry := HBBridgeBuiltinRegistry( hProfiles )
+    hResult := HBBridgeDispatch( hRegistry, "ADDON.Execute", ;
+        { "module" => "hbbridgeaddons.hrb", "params" => { "action" => "sample", "params" => {=>} } }, hContext )
+    M1Assert( hResult[ "success" ] .AND. hb_HHasKey( hResult, "addon_msg" ), ;
+        "addon bundle dispatches the sample", @nFailures, @nChecks )
+    hResult := HBBridgeDispatch( hRegistry, "ADDON.Execute", ;
+        { "module" => "hbbridgeaddons.hrb", "params" => { "action" => "missing", "params" => {=>} } }, hContext )
+    M1Assert( ! hResult[ "success" ] .AND. hResult[ "code" ] == "UNKNOWN_ADDON_ACTION", ;
+        "addon bundle rejects an unknown action", @nFailures, @nChecks )
+    hResult := HBBridgeDispatch( hRegistry, "ADDON.Execute", ;
+        { "module" => "hbbridgeaddons.hrb", "params" => { "action" => "sampleExtra", "params" => {=>} } }, hContext )
+    M1Assert( ! hResult[ "success" ] .AND. hResult[ "code" ] == "UNKNOWN_ADDON_ACTION", ;
+        "addon bundle requires an exact action", @nFailures, @nChecks )
+    hResult := HBBridgeDispatch( hRegistry, "ADDON.Execute", ;
+        { "module" => "hbbridgeaddons.hrb", "params" => { "action" => "Sample", "params" => {=>} } }, hContext )
+    M1Assert( ! hResult[ "success" ] .AND. hResult[ "code" ] == "UNKNOWN_ADDON_ACTION", ;
+        "addon bundle action names are case-sensitive", @nFailures, @nChecks )
+    hResult := HBBridgeDispatch( hRegistry, "ADDON.Execute", ;
+        { "module" => "hbbridgeaddons.hrb", "params" => { "action" => "HBBridgeExampleSample", "params" => {=>} } }, hContext )
+    M1Assert( ! hResult[ "success" ] .AND. hResult[ "code" ] == "UNKNOWN_ADDON_ACTION", ;
+        "addon bundle cannot call a function name supplied by the client", @nFailures, @nChecks )
+    hResult := HBBridgeDispatch( hRegistry, "ADDON.Execute", ;
+        { "module" => "hbbridgeaddons.hrb", "params" => { "action" => "sample ", "params" => {=>} } }, hContext )
+    M1Assert( ! hResult[ "success" ] .AND. hResult[ "code" ] == "UNKNOWN_ADDON_ACTION", ;
+        "addon bundle rejects trailing spaces in an action", @nFailures, @nChecks )
+    hResult := HBBridgeDispatch( hRegistry, "ADDON.Execute", ;
+        { "module" => "hbbridgeaddons.hrb", "params" => { "action" => "sample" } }, hContext )
+    M1Assert( ! hResult[ "success" ] .AND. hResult[ "code" ] == "INVALID_PARAMS", ;
+        "addon bundle rejects a malformed envelope", @nFailures, @nChecks )
+    hResult := HBBridgeDispatch( hRegistry, "ADDON.Execute", ;
+        { "module" => "hbbridgeaddons.hrb", "params" => { "action" => "benchmark", "params" => {=>} } }, hContext )
+    M1Assert( ! hResult[ "success" ] .AND. hResult[ "code" ] == "INVALID_PARAMS", ;
+        "addon bundle reaches benchmark parameter validation", @nFailures, @nChecks )
+    TurnoverAddonTests( hRegistry, hContext, @nFailures, @nChecks )
     hResult := HBBridgeDispatch( hRegistry, "RPCRDD.Execute", ;
         { "requestVersion" => 1, "alias" => "sample", "sql" => "CREATE TABLE execute_fixture (ID INTEGER, NAME TEXT)" }, hContext )
     M1Assert( hResult[ "success" ] .AND. hResult[ "outcome" ] == "completed" .AND. ;
@@ -90,9 +123,9 @@ PROCEDURE M3SQLTests( nFailures, nChecks )
     M1Assert( ! hResult[ "success" ] .AND. hResult[ "outcome" ] == "notStarted", ;
         "execute rejects unknown members before submission", @nFailures, @nChecks )
     hResult := HBBridgeDispatch( hRegistry, "ADDON.Execute", ;
-        { "module" => "hbbridgetemporaryinsertaddon.hrb", "params" => ;
+        { "module" => "hbbridgeaddons.hrb", "params" => { "action" => "temporaryInsert", "params" => ;
             { "alias" => "sample", "target" => "execute_fixture", "columns" => "[ID],[NAME]", ;
-                "select" => "SELECT 3, 'three' UNION ALL SELECT 4, 'four'" } }, hContext )
+                "select" => "SELECT 3, 'three' UNION ALL SELECT 4, 'four'" } } }, hContext )
     M1Assert( hResult[ "success" ] .AND. hResult[ "outcome" ] == "completed", ;
         "temporary addon executes caller SELECT", @nFailures, @nChecks )
     hResult := HBBridgeDispatch( hRegistry, "RPCRDD.Query", ;
@@ -520,3 +553,9 @@ RETURN
 STATIC FUNCTION M3ParallelSQL( hRegistry, nIndex )
 RETURN HBBridgeDispatch( hRegistry, "RPCRDD.Query", ;
     { "alias" => "memory", "sql" => "SELECT " + hb_ntos( nIndex ) + " AS id" }, HBBridgeContext( "test" ) )
+
+/* Collision probe: bundled symbols must not resolve to the host function. */
+FUNCTION HBBridgeExampleSample( cJSON, hContext )
+    HB_SYMBOL_UNUSED( cJSON )
+    HB_SYMBOL_UNUSED( hContext )
+RETURN HBBridgeJSONEncode( { "success" => .F., "code" => "HOST_SYMBOL_COLLISION" } )

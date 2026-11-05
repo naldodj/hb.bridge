@@ -6,6 +6,22 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Adicionar cobertura de integridade para JSON UTF-8 e MSSQL)"
  */
 
+2026-11-04 19:24 UTC naldodj (Adicionar pacote de addons e drill-down controlado de turnover)
+  + Reunir addons de amostra, benchmark, inserção temporária e turnover em um
+    HRB; selecionar símbolos locais registrados com hb_ExecFromArray e manter
+    compatibilidade com addons independentes. Adicionar fixture mensal de
+    turnover e grids FWWebEx por nível.
+  + Apresentar datas e evidências de transferências, distinguindo totais não
+    informados de zero. Preservar UTF-8 na geração da página.
+  + Adicionar entrada CLI para JOIN e guias bilíngues com evidência sanitizada.
+  ; Integração nativa passou 826 checks e addon de benchmark passou 94.
+    Fixture MSSQL passou por TCP/HTTP diretos; a fixture anterior passou via
+    TLPP TCP/HTTP em AppServer isolado. Markup UTF-8 e navegação visual da
+    fixture controlada passaram. Permanecem conciliação das regras históricas,
+    aceite com dados reais e comparação de saída em temporária.
+    O CLI de JOIN compilou, mas RPCSetEnv não inicializou o ambiente isolado;
+    a execução real desse CLI permanece sem validação.
+
 2026-11-04 02:09 UTC naldodj (Esclarecer regras de negocio em addons e execucao generica)
   ; Esclarecer que addons customizados podem implementar regras de negocio,
     enquanto hbBridge fornece execucao generica e o Protheus informa o contexto.

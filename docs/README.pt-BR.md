@@ -36,8 +36,9 @@ sem manter outra cópia de cada guia.
 
 | Guia | Utilize para |
 | --- | --- |
-| [Arquitetura](architecture.pt-BR.md) | Entender executor genérico, regras do chamador, host único e adaptadores separados. |
+| [Arquitetura](architecture.pt-BR.md) | Entender executor genérico, addons de aplicação, host único e adaptadores separados. |
 | [Núcleo de serviços e NETIO incorporado](milestone1.pt-BR.md) | Acompanhar registro, ciclo do host, administração e gateway Harbour nativo. |
+| [Pacote de addons de exemplo](addon-bundle.pt-BR.md) | Compilar um HRB e selecionar ações registradas, preservando addons independentes. |
 | [Enquadramento TCP Protheus](milestone2-framing.pt-BR.md) | Entender HBBRIDGE/1, JSON/gzip, capacidades do runtime e evolução da transferência. |
 | [HTTP/REST e administração web](http.pt-BR.md) | Configurar hbhttpd, rotas, gzip, orçamento de envio e TLS opcional. |
 | [Transporte NETIO nativo](../src/hb/transports/netio/README.pt-BR.md) | Utilizar RPC/arquivos Harbour nativos e conferir limites do upstream. |
@@ -54,6 +55,7 @@ sem manter outra cópia de cada guia.
 | [Benchmark](benchmarking.pt-BR.md) | Executar medições e comparar o escopo das rotas cliente e servidor. |
 | [Evolução do benchmark](benchmark-evolution.pt-BR.md) | Analisar processadores nativos C/Zig e extensões de ambiente propostos. |
 | [Benchmark visual](../src/tlpp/tests/protheus/hbbridge.benchmark.test/README.pt-BR.md) | Selecionar rotas, visualizar gráficos e exportar resultados. |
+| [Addon de turnover e drill-down](turnover-addon.pt-BR.md) | Consultar fixture controlada, detalhes dos funcionários e escopo de validação visual. |
 | [Testes reutilizáveis](../tests/README.pt-BR.md) | Localizar suítes nativas, de contrato e integração. |
 | [Validação reproduzível](validation/README.pt-BR.md) | Localizar manifests sanitizados e recriar rodadas a partir dos fontes mantidos. |
 

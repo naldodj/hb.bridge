@@ -273,8 +273,8 @@ work make the addon useful as an execution-placement comparison; its server
 average is not a replacement for the four client elapsed-time bars.
 
 Build/install the optional HRB using
-`scripts/build-hbbridge-benchmark-addon.ps1`; the default output is
-`addons/examples/hbbridgebenchmarkaddon.hrb`. Install it under the running
+`scripts/build-hbbridge-addons.ps1`; the default output is
+`addons/examples/hbbridgeaddons.hrb`. Install it under the running
 server's `addonRoot` and rebuild hbBridge for the optional native addon context.
 No SQL credentials are sent to the addon: the host supplies its local registry
 as the optional second native entry argument. Existing JSON-only addons keep

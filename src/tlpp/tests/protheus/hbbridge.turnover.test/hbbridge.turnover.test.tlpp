@@ -1,0 +1,129 @@
+/* Released to Public Domain. MSSQL constant fixture; no Protheus tables are read. */
+#include "totvs.ch"
+
+function U_HBBridgeTurnoverMarkupTest()
+
+    local cAccent := Chr(233), cWire, cJSON, cMarkup, cHTML as character
+
+    local jResponse := JSONObject():New() as json
+
+    local lOK := .F. as logical
+
+    cWire := EncodeUTF8(cAccent)
+    cJSON := '{"result":{"employeeName":"Jos' + cWire + '"}}'
+    if HBBridge.Client.HBBridgeJSON():Parse(cJSON, jResponse)
+        cMarkup := HBBridge.Examples.HBBridgeTurnoverExample():Markup(jResponse)
+        cHTML := EncodeUTF8(cMarkup)
+        lOK := !Empty(cWire) .and. At("Jos" + cWire, cHTML) > 0 .and. ;
+            At("Jos" + EncodeUTF8(cWire), cHTML) == 0
+    endif
+    ConOut("hbBridge turnover markup UTF-8: " + IIf(lOK, "OK", "FAILED"))
+    FreeObj(@jResponse)
+return(IIf(lOK, 0, 1))
+function U_HBBridgeTurnoverCLI(oArguments as variadic)
+
+    local aArguments := oArguments:vArgs as array
+
+    local cArgument := "", cProfile := "", cTransport := "TCP" as character
+
+    local lOK := .F. as logical
+
+    local nArgument := 0, nArguments := Len(aArguments) as numeric
+
+    for nArgument := 1 to nArguments
+        cArgument := aArguments[nArgument]
+        if Left(Lower(cArgument), 10) == "--profile="
+            cProfile := SubStr(cArgument, 11)
+        elseif Left(Lower(cArgument), 12) == "--transport="
+            cTransport := Upper(SubStr(cArgument, 13))
+        endif
+    next nArgument
+    if !Empty(AllTrim(cProfile)) .and. (cTransport == "TCP" .or. cTransport == "HTTP")
+        lOK := HBBridgeTurnoverTest(cProfile, cTransport == "HTTP")
+    else
+        ConOut("hbBridge turnover CLI requires --profile and --transport=TCP or HTTP.")
+    endif
+return(IIf(lOK, 0, 1))
+procedure U_HBBridgeTurnoverTCP(cProfile as character)
+    HBBridgeTurnoverTest(cProfile, .F.)
+return
+
+procedure U_HBBridgeTurnoverHTTP(cProfile as character)
+    HBBridgeTurnoverTest(cProfile, .T.)
+return
+
+static function HBBridgeTurnoverTest(cProfile, lHTTP) as logical
+
+    local aTopInfo as array
+
+    local cSQL as character
+
+    local jAction as json
+    local jBindings as json
+    local jEmployee as json
+    local jParams as json
+    local jRequest as json
+    local jResponse as json
+    local jResult as json
+
+    local lOK := .F. as logical
+
+    local oClient as object
+
+    if ValType(cProfile) != "C" .or. Empty(AllTrim(cProfile))
+        aTopInfo := FWGetTopInfo()
+        cProfile := aTopInfo[4] + "/" + aTopInfo[5]
+        FWFreeArray(@aTopInfo)
+    endif
+    // SQL and aliases are authored here by the trusted application, not a browser.
+    cSQL := HBBridge.Examples.HBBridgeTurnoverExample():FixtureSQL()
+    jBindings := JSONObject():New()
+    jParams := JSONObject():New()
+    jParams["profile"] := cProfile
+    jParams["sql"] := cSQL
+    jParams["bindings"] := jBindings
+    jRequest := JSONObject():New()
+    jAction := JSONObject():New()
+    jAction["action"] := "turnover"
+    jAction["params"] := jParams
+    jRequest["module"] := "examples/hbbridgeaddons.hrb"
+    jRequest["params"] := jAction
+    if lHTTP
+        oClient := HBBridge.Client.HBBridgeHTTPClient():New()
+    else
+        oClient := HBBridge.Client.HBBridgeClient():New()
+    endif
+    jResponse := oClient:CallService("ADDON.Execute", jRequest)
+    if ValType(jResponse) == "J" .and. jResponse:HasProperty("success") .and. jResponse["success"]
+        jResult := jResponse["result"]
+        jEmployee := jResult["children"]["202610"]["children"]["99"]["children"]["01"]
+        jEmployee := jEmployee["children"]["A"]["children"]["J1"]["children"]["001"]
+        lOK := jResponse["rowCount"] == 3 .and. jResult["active"] == 3 .and. ;
+            jResult["initial"] == 2 .and. jResult["admissions"] == 1 .and. ;
+            jResult["dismissals"] == 1 .and. jResult["turnoverPercent"] == 50 .and. ;
+            jResult["dismissalPercent"] == 25 .and. jResult["transferIn"] == 1 .and. ;
+            jResult["transferOut"] == 1 .and. jEmployee["transferIn"] == 1 .and. ;
+            jEmployee["details"]["admissionDate"] == "2022-04-12" .and. ;
+            jEmployee["details"]["transfers"]["1"]["date"] == "2026-10-10"
+    endif
+    if lOK
+        ConOut("hbBridge turnover controlled fixture: OK; rows=3; turnover=50; dismissals=25; transfers=1/1")
+    else
+        if ValType(jResponse) == "J" .and. jResponse:HasProperty("code")
+            ConOut("hbBridge turnover controlled fixture: FAILED; code=" + jResponse["code"])
+        else
+            ConOut("hbBridge turnover controlled fixture: FAILED")
+        endif
+    endif
+    if !lHTTP
+        oClient:Close()
+    endif
+    FreeObj(@oClient)
+    jEmployee := Nil
+    jResult := Nil
+    FreeObj(@jResponse)
+    FreeObj(@jRequest)
+    jAction := Nil
+    jParams := Nil
+    jBindings := Nil
+return(lOK)

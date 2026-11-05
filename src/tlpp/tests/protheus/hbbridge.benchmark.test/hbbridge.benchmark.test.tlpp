@@ -706,7 +706,7 @@ static method ComparisonSettings(lProtheus, lAddon) class HBBridgeBenchmarkTest
     cUser := ""
     cPassword := ""
     jSettings["addonEnabled"] := lAddon
-    jSettings["addonModule"] := GetPvProfString("hbBridge", "BenchmarkAddonModule", "examples/hbbridgebenchmarkaddon.hrb", cIni)
+    jSettings["addonModule"] := GetPvProfString("hbBridge", "BenchmarkAddonModule", "examples/hbbridgeaddons.hrb", cIni)
     jSettings["addonTimeoutSeconds"] := BenchmarkInteger(;
         GetPvProfString("hbBridge", "BenchmarkAddonTimeoutSeconds", "600", cIni), 2147483, .F.)
 
@@ -716,6 +716,9 @@ static function BenchmarkAddon(oClient as object, cProfile as character, cModule
     nRows as numeric, nPageSize as numeric, nIterations as numeric, nWarmup as numeric, ;
     lProtheus as logical, nTimeoutSeconds as numeric) as json
 
+    local cNormalizedModule := Lower(StrTran(cModule, "\", "/")) as character
+
+    local jAction as json
     local jRequest := JSONObject():New() as json
     local jParams := JSONObject():New() as json
     local jResponse as json
@@ -745,7 +748,15 @@ static function BenchmarkAddon(oClient as object, cProfile as character, cModule
     jParams["iterations"] := nIterations
     jParams["warmup"] := nWarmup
     jRequest["module"] := cModule
-    jRequest["params"] := jParams
+    if !lProtheus .and. (cNormalizedModule == "hbbridgeaddons.hrb" .or. ;
+        Right(cNormalizedModule, Len("/hbbridgeaddons.hrb")) == "/hbbridgeaddons.hrb")
+        jAction := JSONObject():New()
+        jAction["action"] := "benchmark"
+        jAction["params"] := jParams
+        jRequest["params"] := jAction
+    else
+        jRequest["params"] := jParams
+    endif
     if lProtheus
         jParams["timeoutSeconds"] := nTimeoutSeconds
         jResponse := oClient:CallService("BENCHMARK.Run", jParams)
@@ -787,6 +798,7 @@ static function BenchmarkAddon(oClient as object, cProfile as character, cModule
     FreeObj(@jRequest)
     FreeObj(@jResponse)
     // The request owns its nested input; never FreeObj its shared alias twice.
+    jAction := Nil
     jParams := Nil
 
 return(jSeries)

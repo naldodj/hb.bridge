@@ -45,6 +45,10 @@ method CallService(cService, jParams) class HBBridgeBenchmarkMockClient
 
     self:jState["calls"][self:cRoute]++
     if cService == "ADDON.Execute"
+        if jParams["params"]:HasProperty("action")
+            self:jState["bundleActionValid"] := jParams["params"]["action"] == "benchmark"
+            return BenchmarkMockAddon(self:jState, jParams["params"]["params"])
+        endif
         return BenchmarkMockAddon(self:jState, jParams["params"])
     endif
     if cService == "BENCHMARK.Run"

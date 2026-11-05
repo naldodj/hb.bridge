@@ -352,7 +352,7 @@ Without `-Config`/`-Profile`, serve mode uses a SQL mock with profile
 
 In the dedicated, licensed test AppServer INI beside its isolated SDK, set the
 trusted fixture module (the fixture uses a basename, whereas an installed
-production addon may use `examples/hbbridgebenchmarkaddon.hrb`):
+production addon may use `examples/hbbridgeaddons.hrb`):
 
 ```ini
 [hbBridge]
@@ -430,9 +430,9 @@ Private `[hbBridge]` keys: `BenchmarkProtheusURL` (e.g.
 The referenced `UserName`/`Password` section supplies Basic credentials;
 these never reach HTML/reports. No additional benchmark bearer is required.
 
-Build the optional HRB with `scripts/build-hbbridge-benchmark-addon.ps1` and
+Build the optional HRB with `scripts/build-hbbridge-addons.ps1` and
 check it with `scripts/test-hbbridge-benchmark-addon.ps1`. Install
-`addons/examples/hbbridgebenchmarkaddon.hrb` under the updated server's
+`addons/examples/hbbridgeaddons.hrb` under the updated server's
 `addonRoot`. Its native call-owned context invokes `RPCRDD.Query` locally;
 only measurements/checks return. The separate panel distinguishes server
 traversal average from one complete TCP call including HRB loading, warmups

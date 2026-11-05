@@ -2,6 +2,41 @@
 
 [English](WIP.md) · [Roadmap](TODO.pt-BR.md) · [Homologação](docs/acceptance.pt-BR.md)
 
+## Pacote 003: addon de aplicação e drill-down de turnover
+
+Os exemplos são compilados em um [pacote único de addons](docs/addon-bundle.pt-BR.md);
+addons independentes permanecem compatíveis. O pacote usa um registro por
+chamada de símbolos locais aprovados e `hb_ExecFromArray()` para execução.
+
+- [x] Validar fixture mensal SQLite controlada e agregação no addon com SQL
+  tipado, permissões herdadas e tratamento de falhas: integração nativa passou
+  826 checks, incluindo 29 verificações de turnover. O pacote também passou
+  94 checks do addon de benchmark.
+- [x] Validar a fixture controlada MSSQL por TCP/HTTP diretos e pelos clientes
+  Protheus em AppServer isolado: três linhas constantes passaram nos dois
+  transportes. Ver [evidência sanitizada](docs/validation/turnover.fixture.windows.json).
+- [x] Validar visualmente as novas grids e a navegação por período, empresa,
+  filial, centro de custo, função e funcionário, incluindo Back, em TCP e HTTP.
+  A origem passou em chamadas diretas MSSQL e no teste UTF-8 em AppServer isolado.
+  Ver [evidência sanitizada](docs/validation/turnover.fixture.windows.json).
+- [ ] Definir e reconciliar as regras históricas de turnover com a implementação
+  existente no Protheus antes de afirmar equivalência.
+- [x] Observar as páginas FWWebEx TCP e HTTP da fixture até o nível de função:
+  as capturas mostram métricas, barras e dois botões de funcionário. Ver
+  [evidência sanitizada](docs/validation/turnover.fixture.windows.json).
+- [x] Validar a seleção do funcionário `001` nas duas entradas: captura HTTP e
+  confirmação do mesmo teste TCP, com métricas e fim do drill-down.
+- [x] Validar o retorno nas duas entradas visuais, conforme confirmação separada.
+  A fixture controlada não comprova aceitação com dados reais.
+  Não expor informações pessoais na evidência.
+- [ ] Validar a entrada CLI de JOIN em ambiente Protheus preparado; ela compilou,
+  mas `RPCSetEnv` falhou no ambiente isolado antes das verificações de JOIN.
+- [ ] Avaliar saída em tabela temporária do chamador por `RPCRDD.Execute`,
+  comparar as opções e registrar limites e evidências de validação.
+
+O addon pode conter regras de negócio; o núcleo permanece genérico. O contrato
+inicial, a fórmula e as limitações estão no [exemplo](docs/turnover-addon.pt-BR.md).
+
 ## Pacote 002 concluído em 2026-11-03
 
 SQL tipado, apresentação nativa pertencente ao chamador, campos selecionados e
@@ -20,11 +55,3 @@ e os escopos estão no [manifesto sanitizado](docs/validation/join.presentation.
 o [histórico do pacote 002](docs/validation/package-002.pt-BR.md) preserva
 as decisões e evidências anteriores. A [homologação](docs/acceptance.pt-BR.md#validação-dos-browses-join-em-2026-11-03)
 e o [ChangeLog](ChangeLog.pt-BR.txt) registram o encerramento.
-
-## Próximo pacote
-
-O próximo pacote ainda não foi selecionado. Definir um objetivo delimitado e
-seus critérios de conclusão a partir do [roadmap](TODO.pt-BR.md) antes de iniciar
-nova implementação. Um snapshot somente de leitura dos relacionamentos da SX9
-é candidato para discussão, não um recurso implementado nem um gerador SQL
-automático; veja a [análise SX9](docs/sx9-relationships.pt-BR.md).

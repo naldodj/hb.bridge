@@ -460,11 +460,11 @@ measurements exclude transport and HRB loading; the enclosing single
 Build and test the addon with the managed toolchain:
 
 ```powershell
-./scripts/build-hbbridge-benchmark-addon.ps1
+./scripts/build-hbbridge-addons.ps1
 ./scripts/test-hbbridge-benchmark-addon.ps1
 ```
 
-The build writes `addons/examples/hbbridgebenchmarkaddon.hrb`; `-Output` selects
+The build writes `addons/examples/hbbridgeaddons.hrb`; `-Output` selects
 another target. The test builds isolated HRBs and a native fixture, checks SQL
 identity across TLPP/addon/test sources and exercises mocked dispatch, errors,
 reload and cleanup. Its log is `tmp/benchmark-addon-tests-<id>/results.log`.

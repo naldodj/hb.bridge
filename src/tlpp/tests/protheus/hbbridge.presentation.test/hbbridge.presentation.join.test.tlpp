@@ -106,6 +106,27 @@ function U_HBBridgePresentationJoinTest()
 
 return(if(lOK,0,1))
 
+procedure U_HBBridgePresentationJoinRealCli(oArguments as variadic)
+
+    local jParameters:=__DefaultParameters(@oArguments:vArgs) as json
+
+    if (;
+            ValType(jParameters)=="J";
+            .and.jParameters:HasProperty("profile");
+            .and.jParameters:HasProperty("transport");
+            .and.jParameters:HasProperty("pageSize");
+            .and.jParameters:HasProperty("company");
+            .and.jParameters:HasProperty("branch");
+        )
+        if (RPCSetEnv(jParameters["company"],jParameters["branch"]))
+            U_HBBridgePresentationJoinReal(jParameters["profile"],jParameters["transport"],jParameters["pageSize"])
+            RPCClearEnv()
+        endif
+        FreeObj(@jParameters)
+    endif
+
+return
+
 // Read-only smoke test in a prepared company/branch. Output contains counts
 // and checks only, never employee, dependent or cost-center values.
 function U_HBBridgePresentationJoinReal(cProfile,cTransport,nPageSize)
@@ -433,3 +454,52 @@ static function PresentationJoinFixture(cAlias as character) as json
     jDefinition["expressions"]:=jExpressions
 
 return(jDefinition)
+
+static function __DefaultParameters(aArguments as array) as json
+
+    local aDefaults:=Array(0) as array
+    local aFWGetTopInfo:=FWGetTopInfo() as array
+
+    local cFlag := "" as character
+
+    local jParameters:=JSONObject():New() as json
+
+    local nAT as numeric
+    local nDefault as numeric
+    local nDefaults := 0 as numeric
+    local nFlagLength := 0 as numeric
+
+    local xValue as variant
+
+    DEFAULT jParameters:=JSONObject():New()
+
+    aAdd(aDefaults,{"--profile=",(aFWGetTopInfo[4]+"/"+aFWGetTopInfo[5])})
+    aAdd(aDefaults,{"--transport=","TCP"})
+    aAdd(aDefaults,{"--page=","30"})
+    aAdd(aDefaults,{"--company=","99"})
+    aAdd(aDefaults,{"--branch=","01"})
+    FWFreeArray(@aFWGetTopInfo)
+    nDefaults := Len(aDefaults)
+    for nDefault:=1 to nDefaults
+        cFlag := aDefaults[nDefault][1]
+        nFlagLength := Len(cFlag)
+        if ((nAT:=aScan(aArguments,{|x|Left(Lower(x),nFlagLength)==cFlag}))==0)
+            aAdd(aArguments,aDefaults[nDefault][1]+aDefaults[nDefault][2])
+            nAT:=Len(aArguments)
+        endif
+        xValue:=StrTran(aArguments[nAT],cFlag,"")
+        if (cFlag=="--profile=")
+            jParameters["profile"]:=xValue
+        elseif (cFlag=="--transport=")
+            jParameters["transport"]:=xValue
+        elseif (cFlag=="--page=")
+            jParameters["pageSize"]:=Val(xValue)
+        elseif (cFlag=="--company=")
+            jParameters["company"]:=xValue
+        elseif (cFlag=="--branch=")
+            jParameters["branch"]:=xValue
+        endif
+    next nDefault
+    FWFreeArray(@aDefaults)
+
+return(jParameters)

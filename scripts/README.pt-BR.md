@@ -478,11 +478,11 @@ informado separadamente.
 Compilar e testar o addon com a toolchain gerenciada:
 
 ```powershell
-./scripts/build-hbbridge-benchmark-addon.ps1
+./scripts/build-hbbridge-addons.ps1
 ./scripts/test-hbbridge-benchmark-addon.ps1
 ```
 
-O build grava `addons/examples/hbbridgebenchmarkaddon.hrb`; `-Output` seleciona
+O build grava `addons/examples/hbbridgeaddons.hrb`; `-Output` seleciona
 outro destino. O teste compila HRBs e fixture nativa isolados, compara o SQL dos
 fontes TLPP/addon/teste e exercita despacho simulado, erros, recarga e limpeza.
 O log fica em `tmp/benchmark-addon-tests-<id>/results.log`. Exige dependências

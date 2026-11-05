@@ -278,8 +278,8 @@ permite comparar onde executar; a média do servidor não substitui as quatro
 barras de tempo total das varreduras no cliente.
 
 Compilar/instalar o HRB opcional com
-`scripts/build-hbbridge-benchmark-addon.ps1`; saída padrão
-`addons/examples/hbbridgebenchmarkaddon.hrb`. Instalar sob `addonRoot` do
+`scripts/build-hbbridge-addons.ps1`; saída padrão
+`addons/examples/hbbridgeaddons.hrb`. Instalar sob `addonRoot` do
 servidor ativo e recompilar hbBridge para o contexto nativo opcional do addon.
 Nenhuma credencial SQL é enviada: o host fornece seu registro local como segundo
 argumento nativo opcional. Addons existentes preservam primeiro argumento JSON

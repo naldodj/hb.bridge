@@ -48,7 +48,7 @@ function U_HBBridgeTemporaryInsertTest(cProfile as character, lExecute as logica
     local cDBProfile := "", cServerIdentity := "", cDatabaseIdentity := "" as character
     local cService := "RPCRDD.Query" as character
 
-    local jParams := JSONObject():New(), jResponse, jAddonParams as json
+    local jAction, jParams := JSONObject():New(), jResponse, jAddonParams as json
     local jReport := JSONObject():New() as json
 
     local lOwnedConnection := .F., lInserted := .F. as logical
@@ -148,8 +148,11 @@ function U_HBBridgeTemporaryInsertTest(cProfile as character, lExecute as logica
                 jAddonParams["columns"] := "[TESTID],[TESTTEXT]"
                 jAddonParams["select"] := "SELECT 1, 'hbBridge' UNION ALL SELECT 2, 'temporary'"
             endif
-            jParams["module"] := "examples/hbbridgetemporaryinsertaddon.hrb"
-            jParams["params"] := jAddonParams
+            jAction := JSONObject():New()
+            jAction["action"] := "temporaryInsert"
+            jAction["params"] := jAddonParams
+            jParams["module"] := "examples/hbbridgeaddons.hrb"
+            jParams["params"] := jAction
         else
             jParams["alias"] := cProfile
             jParams["sql"] := cSQL
@@ -278,7 +281,7 @@ static function TemporaryInsertSQLName(cName as character) as character
 
 return cResult
 
-static procedure __DefaultParameters(aArguments as array) as json
+static function __DefaultParameters(aArguments as array) as json
 
     local aDefaults:=Array(0) as array
     local aFWGetTopInfo:=FWGetTopInfo() as array

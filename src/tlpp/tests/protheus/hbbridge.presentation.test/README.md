@@ -7,8 +7,8 @@
 `U_HBBridgeNativeBrowseTempSX5(profile)` and
 `U_HBBridgeNativeBrowseTempSRA(profile)` require a prepared Protheus
 company/branch, active MSSQL DBAccess connection, matching hbBridge profile
-and an installed `hbbridgetemporaryinsertaddon.hrb`. Build the HRB with
-`scripts/build-hbbridge-temporary-addon.ps1` and put it at the configured
+and an installed `hbbridgeaddons.hrb`. Build the HRB with
+`scripts/build-hbbridge-addons.ps1` and put it at the configured
 addon root. The Protheus example resolves the physical table, branch and SX3
 metadata, creates a `FWTemporaryTable`, then asks the addon to fill it using
 `INSERT INTO ... SELECT`. Both connections must identify the same SQL Server

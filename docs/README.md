@@ -36,8 +36,9 @@ it does not maintain another copy of each guide.
 
 | Guide | Use it to |
 | --- | --- |
-| [Architecture](architecture.md) | Understand the generic executor, caller business rules, one host and separate adapters. |
+| [Architecture](architecture.md) | Understand the generic executor, application addons, one host and separate adapters. |
 | [Service core and embedded NETIO](milestone1.md) | Follow the registry, host lifecycle, administration and native Harbour gateway. |
+| [Example addon bundle](addon-bundle.md) | Build one HRB and select registered actions while preserving independent addons. |
 | [Protheus TCP framing](milestone2-framing.md) | Understand HBBRIDGE/1, JSON/gzip, runtime capacities and planned transfer evolution. |
 | [HTTP/REST and web administration](http.md) | Configure hbhttpd, routes, gzip, send budgets and optional TLS. |
 | [Native NETIO transport](../src/hb/transports/netio/README.md) | Use native Harbour RPC/files and inspect upstream limits. |
@@ -54,6 +55,7 @@ it does not maintain another copy of each guide.
 | [Benchmarking](benchmarking.md) | Run measurements and compare the scope of client and server routes. |
 | [Benchmark evolution](benchmark-evolution.md) | Review proposed native C/Zig processors and environment extensions. |
 | [Visual benchmark](../src/tlpp/tests/protheus/hbbridge.benchmark.test/README.md) | Configure route selection, view charts and export results. |
+| [Turnover addon and drill-down](turnover-addon.md) | Inspect the controlled fixture, employee details and visual validation scope. |
 | [Reusable tests](../tests/README.md) | Find native, contract and integration suites. |
 | [Reproducible validation](validation/README.md) | Locate sanitized manifests and recreate runs from maintained sources. |
 

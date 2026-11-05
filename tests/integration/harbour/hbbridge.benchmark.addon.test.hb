@@ -117,6 +117,13 @@ PROCEDURE BenchmarkAddonTests( cAddonRoot, cRunMode, cServeSeconds, cConfig, cPr
         "server timing and its excluded work remain explicit", @nFailures, @nChecks )
 
     hState[ "calls" ] := 0
+    hResult := HBBridgeDispatch( hRegistry, "ADDON.Execute", ;
+        { "module" => "hbbridgeaddons.hrb", "params" => ;
+            { "action" => "benchmark", "params" => hParams } }, hContext )
+    BenchmarkAddonAssert( hb_HGetDef( hResult, "success", .F. ) .AND. ;
+        hState[ "calls" ] == 9 .AND. hResult[ "series" ][ "measuredRows" ] == 34, ;
+        "bundled benchmark preserves the complete traversal", @nFailures, @nChecks )
+    hState[ "calls" ] := 0
     hState[ "rows" ] := 9
     hState[ "size" ] := 4
     hParams[ "rows" ] := 9

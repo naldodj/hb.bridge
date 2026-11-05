@@ -362,7 +362,7 @@ uma linha e uma linha por página.
 
 No INI AppServer de testes dedicado/licenciado ao lado do SDK isolado, definir
 o módulo confiável da fixture (usa nome base; instalação de produção pode usar
-`examples/hbbridgebenchmarkaddon.hrb`):
+`examples/hbbridgeaddons.hrb`):
 
 ```ini
 [hbBridge]
@@ -442,9 +442,9 @@ Chaves privadas `[hbBridge]`: `BenchmarkProtheusURL` (ex.
 A seção `UserName`/`Password` referenciada fornece Basic; esses dados não
 chegam ao HTML/relatórios. Não há bearer adicional do benchmark.
 
-Compilar HRB opcional com `scripts/build-hbbridge-benchmark-addon.ps1` e testar
+Compilar HRB opcional com `scripts/build-hbbridge-addons.ps1` e testar
 com `scripts/test-hbbridge-benchmark-addon.ps1`. Instalar
-`addons/examples/hbbridgebenchmarkaddon.hrb` sob `addonRoot` do servidor
+`addons/examples/hbbridgeaddons.hrb` sob `addonRoot` do servidor
 atualizado. Seu contexto nativo da chamada invoca `RPCRDD.Query` localmente;
 retornam apenas métricas/checks. O painel separado distingue média de varredura
 no servidor de uma chamada TCP completa com carga do HRB, aquecimentos e todas

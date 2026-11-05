@@ -1,0 +1,299 @@
+/* Released to Public Domain. Controlled turnover fixture and FWWebEx viewer. */
+#include "totvs.ch"
+#include "tlpp-core.th"
+
+namespace HBBridge.Examples
+
+procedure U_HBBridgeTurnoverViewTCP(cProfile as character)
+    local bExecute as codeblock
+    if ((FindClass("FWWebEx.Tools.FWExampleTools")).and.(FindClass("FWWebEx.WebExControl")))
+        bExecute:={||HBBridge.Examples.HBBridgeTurnoverExample():Show(cProfile, .F.)}
+        if (!FWIsInCallStack("Execute"))
+            FWWebEx.Tools.FWExampleTools():Execute(bExecute,"HBBridgeTurnoverViewTCP",.T.)
+        else
+            Eval(bExecute)
+        endif
+    endif
+return
+
+procedure U_HBBridgeTurnoverViewHTTP(cProfile as character)
+    local bExecute as codeblock
+    if ((FindClass("FWWebEx.Tools.FWExampleTools")).and.(FindClass("FWWebEx.WebExControl")))
+        bExecute:={||HBBridge.Examples.HBBridgeTurnoverExample():Show(cProfile, .T.)}
+        if (!FWIsInCallStack("Execute"))
+            FWWebEx.Tools.FWExampleTools():Execute(bExecute,"HBBridgeTurnoverViewHTTP",.T.)
+        else
+            Eval(bExecute)
+        endif
+    endif
+return
+
+class HBBridgeTurnoverExample
+    static method FixtureSQL() as character
+    static method Show(cProfile as character, lHTTP as logical)
+    static method Page(jResponse as json, cFile as character) as logical
+    static method Markup(jResponse as json) as character
+endclass
+
+static method FixtureSQL() class HBBridgeTurnoverExample
+
+    local cFirst := '{"employeeName":"Alex Example","admissionDate":"2022-04-12","dismissalDate":null,"transfers":{"1":{"date":"2026-10-10","direction":"in","fromBranch":"02","toBranch":"01","fromCostCenter":"B","toCostCenter":"A"}}}' as character
+    local cSecond := '{"employeeName":"Blair Example","admissionDate":"2026-10-05","dismissalDate":null,"transfers":{}}' as character
+    local cThird := '{"employeeName":"Casey Example","admissionDate":"2021-03-01","dismissalDate":"2026-10-18","transfers":{"1":{"date":"2026-10-08","direction":"out","fromBranch":"02","toBranch":"01","fromCostCenter":"B","toCostCenter":"A"}}}' as character
+
+return("SELECT CAST('202610' AS varchar(6)) AS PERIOD, " + ;
+    "CAST('99' AS varchar(2)) AS COMPANY, CAST('01' AS varchar(2)) AS BRANCH, " + ;
+    "CAST('A' AS varchar(4)) AS COST_CENTER, CAST('J1' AS varchar(4)) AS JOB, " + ;
+    "CAST('001' AS varchar(4)) AS EMPLOYEE, CAST(1 AS int) AS ACTIVE, " + ;
+    "CAST(0 AS int) AS ADMISSION, CAST(0 AS int) AS DISMISSAL, " + ;
+    "CAST('" + cFirst + "' AS varchar(1024)) AS DETAILS_JSON " + ;
+    "UNION ALL SELECT '202610','99','01','A','J1','002',1,1,0,'" + cSecond + "' " + ;
+    "UNION ALL SELECT '202610','99','02','B','J2','003',1,0,1,'" + cThird + "'")
+static method Show(cProfile, lHTTP) class HBBridgeTurnoverExample
+
+    local aTopInfo as array
+
+    local cFile := "" as character
+    local cNavigate := "" as character
+
+    local jAction as json
+    local jBindings as json
+    local jParams as json
+    local jRequest as json
+    local jResponse as json
+
+    local nTop := 0, nLeft := 0, nBottom := 530, nRight := 1330 as numeric
+
+    local oChannel as object
+    local oClient as object
+    local oDialog as object
+    local oEngine as object
+    local oSize as object
+
+    local xError as variant
+
+    if !FindClass("FWWebEx.WebExControl") .or. !FindClass("FWWebEx.WebApp")
+        MsgStop("FWWebEx is required for this example.", "hbBridge turnover")
+        return
+    endif
+    if ValType(cProfile) != "C" .or. Empty(AllTrim(cProfile))
+        aTopInfo := FWGetTopInfo()
+        cProfile := aTopInfo[4] + "/" + aTopInfo[5]
+        FWFreeArray(@aTopInfo)
+    endif
+    if ValType(lHTTP) != "L"
+        lHTTP := .F.
+    endif
+    try
+        jBindings := JSONObject():New()
+        jParams := JSONObject():New()
+        jParams["profile"] := cProfile
+        jParams["sql"] := HBBridge.Examples.HBBridgeTurnoverExample():FixtureSQL()
+        jParams["bindings"] := jBindings
+        jRequest := JSONObject():New()
+        jAction := JSONObject():New()
+        jAction["action"] := "turnover"
+        jAction["params"] := jParams
+        jRequest["module"] := "examples/hbbridgeaddons.hrb"
+        jRequest["params"] := jAction
+        if lHTTP
+            oClient := HBBridge.Client.HBBridgeHTTPClient():New()
+        else
+            oClient := HBBridge.Client.HBBridgeClient():New()
+        endif
+        jResponse := oClient:CallService("ADDON.Execute", jRequest)
+        if ValType(jResponse) != "J" .or. !jResponse:HasProperty("success") .or. !jResponse["success"]
+            MsgStop("Unable to load the controlled turnover fixture.", "hbBridge turnover")
+        elseif HBBridge.Examples.HBBridgeTurnoverExample():Page(jResponse, @cFile)
+            cNavigate := CpyF2Web(cFile, .F., .F., .F., .F.)
+            if Empty(cNavigate)
+                MsgStop("Unable to publish the turnover page.", "hbBridge turnover")
+            else
+                oChannel := FWWebEx.WebApp():GetTWebChannel()
+                oSize := FWDefSize():New(.F., .F.)
+                oSize:lLateral := .F.
+                oSize:AddObject("TWebEngine", 100, 100, .T., .T.)
+                oSize:Process()
+                if oSize:aWindSize[3] > 0
+                    nTop := oSize:aWindSize[1]
+                    nLeft := oSize:aWindSize[2]
+                    nBottom := oSize:aWindSize[3]
+                    nRight := oSize:aWindSize[4]
+                endif
+                DEFINE MSDIALOG oDialog TITLE "hbBridge turnover: controlled fixture" FROM nTop,nLeft TO nBottom,nRight OF GetWndDefault() STATUS PIXEL
+                    if oSize:aWindSize[3] > 0
+                        nTop := oSize:GetDimension("TWebEngine", "LININI")
+                        nLeft := oSize:GetDimension("TWebEngine", "COLINI")
+                        nBottom := oSize:GetDimension("TWebEngine", "LINEND")
+                        nRight := oSize:GetDimension("TWebEngine", "COLEND")
+                    endif
+                    oEngine := TWebEngine():New(oDialog, nTop, nLeft, nRight, nBottom, /*cURL*/, oChannel:nPort)
+                    oEngine:Align := CONTROL_ALIGN_ALLCLIENT
+                    oEngine:Navigate(cNavigate)
+                ACTIVATE MSDIALOG oDialog CENTERED
+            endif
+        else
+            MsgStop("Unable to build the turnover page.", "hbBridge turnover")
+        endif
+    catch xError
+        MsgStop("Unable to open the controlled turnover example.", "hbBridge turnover")
+        if ValType(xError) == "O"
+            FreeObj(@xError)
+        endif
+    endtry
+    if ValType(oClient) == "O" .and. !lHTTP
+        oClient:Close()
+    endif
+    FreeObj(@oEngine)
+    FreeObj(@oDialog)
+    FreeObj(@oSize)
+    FreeObj(@oClient)
+    FreeObj(@jResponse)
+    FreeObj(@jRequest)
+    jAction := Nil
+    jParams := Nil
+    jBindings := Nil
+    if !Empty(cFile) .and. File(cFile)
+        FErase(cFile)
+    endif
+return
+
+static method Page(jResponse, cFile) class HBBridgeTurnoverExample
+
+    local cHTML := "" as character
+
+    local lWritten as logical
+
+    local oBody as object
+    local oContent as object
+    local oPage as object
+
+    oBody := FWWebEx.WebExBody():New()
+    oPage := FWWebEx.WebExPage():New("hbBridge turnover")
+    oContent := FWWebEx.WebExControl():New("div")
+    oContent:SetContent(HBBridge.Examples.HBBridgeTurnoverExample():Markup(jResponse))
+    oBody:AddChild(oContent)
+    oPage:SetObjPageBody(oBody)
+    oPage:DisableFooter(.T.)
+    oPage:DisableDarkTheme(.T.)
+    lWritten := FWWebEx.WebFileTools():HTMLFromControl(oPage, oPage:GetFWWebExTmpPath(), @cFile, @cHTML, .T.)
+    oPage:Clean()
+    FreeObj(@oPage)
+return(lWritten)
+
+static method Markup(jResponse) class HBBridgeTurnoverExample
+
+    local cData as character
+    local cHTML as character
+
+    cData := jResponse["result"]:ToJSON()
+    cData := StrTran(cData, "<", "\u003c")
+    cData := StrTran(cData, Chr(226) + Chr(128) + Chr(168), "\u2028")
+    cData := StrTran(cData, Chr(226) + Chr(128) + Chr(169), "\u2029")
+    // FWWebEx writes the rendered page as UTF-8; decode wire text before that encoding.
+    cData := DecodeUTF8(cData)
+    beginContent var cHTML
+<style>
+#hbb-turnover { max-width: 1100px; margin: 2rem auto; padding: 1.5rem; font: 15px system-ui, sans-serif; }
+#hbb-turnover .hbb-cards { display: flex; flex-wrap: wrap; gap: 1rem; margin: 1rem 0; }
+#hbb-turnover .hbb-card { flex: 1; min-width: 150px; border: 1px solid #777; border-radius: 8px; padding: 1rem; }
+#hbb-turnover .hbb-value { display: block; font-size: 1.6rem; font-weight: bold; }
+#hbb-turnover .hbb-bar { height: 1rem; background: #328bd0; border-radius: 4px; }
+#hbb-turnover .hbb-row { margin: 0.7rem 0; }
+#hbb-turnover button { margin: .25rem; padding: .45rem .8rem; cursor: pointer; }
+#hbb-turnover .hbb-scroll { overflow-x: auto; }
+#hbb-turnover table { border-collapse: collapse; width: 100%; margin: .6rem 0 1.2rem; }
+#hbb-turnover th, #hbb-turnover td { border: 1px solid #aaa; padding: .5rem; text-align: left; }
+#hbb-turnover th { background: #e6e6e6; }
+</style>
+<section id="hbb-turnover">
+<h1>Turnover: controlled fixture</h1>
+<p>Example only. Historical transfer rules and real ERP results require validation.</p>
+<p id="hbb-path"></p><button id="hbb-back" type="button">Back</button>
+<div class="hbb-cards" id="hbb-cards"></div><div id="hbb-bars"></div>
+<p>Transfers are reported separately and do not change the experimental turnover formula.</p>
+<h2>Details by level</h2><div id="hbb-children" class="hbb-scroll"></div>
+<div id="hbb-employee" class="hbb-scroll"></div>
+</section>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const root = @@DATA@@;
+    const levels = ["Period", "Company", "Branch", "Cost center", "Job", "Employee"];
+    const stack = [{name:"All employee-months", node:root}];
+    const element = id => document.getElementById(id);
+    const valueText = value => value === null || value === undefined ? "Not supplied" : String(value);
+    const cell = (row, tag, value) => {
+        const item = document.createElement(tag); item.textContent = valueText(value); row.append(item); return item;
+    };
+    const table = (container, headings) => {
+        const grid = document.createElement("table"), head = document.createElement("thead"), row = document.createElement("tr");
+        headings.forEach(heading => cell(row, "th", heading)); head.append(row); grid.append(head);
+        const body = document.createElement("tbody"); grid.append(body); container.append(grid); return body;
+    };
+    const render = () => {
+        const current = stack[stack.length - 1].node;
+        element("hbb-path").textContent = stack.map(item => item.name).join(" / ");
+        element("hbb-back").disabled = stack.length === 1;
+        const cards = element("hbb-cards"); cards.replaceChildren();
+        [["Active",current.active],["Admissions",current.admissions],["Dismissals",current.dismissals],["Turnover %",current.turnoverPercent]].forEach(([label,value]) => {
+            const card = document.createElement("div"), title = document.createElement("span"), number = document.createElement("strong");
+            card.className = "hbb-card"; number.className = "hbb-value";
+            title.textContent = label; number.textContent = String(value); card.append(title,number); cards.append(card);
+        });
+        const bars = element("hbb-bars"); bars.replaceChildren();
+        const maximum = Math.max(1, current.active, current.admissions, current.dismissals);
+        [["Active",current.active],["Admissions",current.admissions],["Dismissals",current.dismissals]].forEach(([label,value]) => {
+            const row = document.createElement("div"), text = document.createElement("span"), bar = document.createElement("div");
+            row.className = "hbb-row"; bar.className = "hbb-bar"; text.textContent = label + ": " + value;
+            bar.style.width = (100 * value / maximum) + "%"; row.append(text,bar); bars.append(row);
+        });
+        const children = element("hbb-children"), employee = element("hbb-employee");
+        children.replaceChildren(); employee.replaceChildren();
+        const keys = Object.keys(current.children).sort();
+        if (keys.length) {
+            const body = table(children, [levels[stack.length - 1] || "Item", "Initial", "Active", "Admissions", "Dismissals", "Transfers in", "Transfers out", "Turnover %"]);
+            keys.forEach(key => {
+                const child = current.children[key], row = document.createElement("tr"), first = document.createElement("td"), button = document.createElement("button");
+                button.type = "button"; button.textContent = key || "(empty)";
+                button.addEventListener("click", () => { stack.push({name:key || "(empty)",node:child}); render(); });
+                first.append(button); row.append(first);
+                [child.initial,child.active,child.admissions,child.dismissals,child.transferIn,child.transferOut,child.turnoverPercent].forEach(value => cell(row,"td",value));
+                body.append(row);
+            });
+        } else if (stack.length === levels.length + 1) {
+            const details = current.details;
+            if (!details) {
+                employee.textContent = "Employee details were not supplied by the source.";
+                return;
+            }
+            const body = table(employee, ["Employee detail", "Value"]);
+            [["Name",details.employeeName],["Admission date",details.admissionDate],["Admission in period",current.admissions],
+                ["Dismissal date",details.dismissalDate],["Dismissal in period",current.dismissals],
+                ["Transfers in period",current.transferIn],["Transfers out in period",current.transferOut]].forEach(([label,value]) => {
+                const row = document.createElement("tr"); cell(row,"th",label); cell(row,"td",value); body.append(row);
+            });
+            if (details.transfers === null || details.transfers === undefined) {
+                const notice = document.createElement("p"); notice.textContent = "Transfer history was not supplied by the source."; employee.append(notice);
+            } else {
+                const eventKeys = Object.keys(details.transfers).sort();
+                if (!eventKeys.length) {
+                    const notice = document.createElement("p"); notice.textContent = "No transfer events were supplied."; employee.append(notice);
+                } else {
+                    const events = table(employee, ["Date", "Direction", "From branch", "To branch", "From cost center", "To cost center"]);
+                    eventKeys.forEach(key => {
+                        const event = details.transfers[key], row = document.createElement("tr");
+                        [event.date,event.direction,event.fromBranch,event.toBranch,event.fromCostCenter,event.toCostCenter].forEach(value => cell(row,"td",value));
+                        events.append(row);
+                    });
+                }
+            }
+        } else {
+            children.textContent = "No rows at this level.";
+        }
+    };
+    element("hbb-back").addEventListener("click", () => { if (stack.length > 1) { stack.pop(); render(); } });
+    render();
+});
+</script>
+    endContent
+return(StrTran(cHTML, "@@DATA@@", cData))

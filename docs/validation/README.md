@@ -30,6 +30,7 @@ The JSON summaries retain sanitized identities/counts at measurement time:
 - [SRA/SX3 metadata, page conversion and incremental commit validation](sra.presentation.windows.json).
 - [Presentation review corrections, local RDDs, lazy indexes and source mapping](presentation.review.windows.json).
 - [Selected dictionary projections, strict alias tests and native SQLite snapshots](selected.presentation.windows.json).
+- [Controlled turnover fixture, transport and visual evidence](turnover.fixture.windows.json).
 
 These identities describe the dated source snapshot, not today's checkout.
 Historical `tmp/...` mentions in older records identify where output was written;

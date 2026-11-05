@@ -1,0 +1,122 @@
+{
+  "schemaVersion": 1,
+  "recordedUtc": "2026-11-04T09:52:35.766075Z",
+  "scope": "Controlled MSSQL fixture with three constant rows; no ERP table data or writes",
+  "profile": "MSSQL/pData",
+  "results": {
+    "directTcp": "PASS",
+    "directHttp": "PASS",
+    "isolatedProtheusTcp": "PASS",
+    "isolatedProtheusHttp": "PASS",
+    "rows": 3,
+    "active": 3,
+    "initial": 2,
+    "admissions": 1,
+    "dismissals": 1,
+    "turnoverPercent": 50,
+    "dismissalPercent": 25
+  },
+  "addonArtifactSha256": "8B6028E8709E15D35D82EEBCFEA2233BF949CCEABE0E21A4A74656413416D5D5",
+  "sources": {
+    "addons/examples/hbbridgeaddons.hb": "AF4AEC534AE6CCB14C349F6FF4E8266F8DD6BAACBBFF0A6E9D1ADCACB9515E6C",
+    "addons/examples/hbbridgeturnoveraddon.hb": "1008C5351EE1615F9C866B0CF6F892CABF1BA458902774B825CDF1F3880D611E",
+    "src/tlpp/tests/protheus/hbbridge.turnover.test/hbbridge.turnover.test.tlpp": "2D37F46055588F78F24186E8DE5B3005CF75585A98824183C5CCE9BB7E988AC5"
+  },
+  "excluded": [
+    "Historical turnover reconciliation",
+    "Production business data",
+    "Additional database backends",
+    "Exhaustive FWWebEx interaction coverage"
+  ],
+  "visualObservation": {
+    "status": "OBSERVED",
+    "evidence": "Two user-provided screenshots; TCP and HTTP identified in follow-up",
+    "scope": "Controlled fixture rendered at period/company/branch/cost center/job",
+    "active": 2,
+    "admissions": 1,
+    "dismissals": 0,
+    "turnoverPercent": 50,
+    "employeeButtons": [
+      "001",
+      "002"
+    ],
+    "limitations": "Screenshots alone do not establish Back; a subsequent confirmation records it.",
+    "entries": [
+      "U_HBBridgeTurnoverViewTCP",
+      "U_HBBridgeTurnoverViewHTTP"
+    ]
+  },
+  "employeeSelectionObservation": {
+    "status": "OBSERVED",
+    "evidence": "HTTP screenshot and confirmation of the same TCP test",
+    "employee": "001",
+    "active": 1,
+    "admissions": 0,
+    "dismissals": 0,
+    "turnoverPercent": 0,
+    "endOfDrillDownVisible": true,
+    "limitations": "Back is recorded separately from employee selection.",
+    "entries": [
+      "U_HBBridgeTurnoverViewTCP",
+      "U_HBBridgeTurnoverViewHTTP"
+    ]
+  },
+  "backNavigationObservation": {
+    "status": "CONFIRMED",
+    "evidence": "User confirmation of Back on both visual entries",
+    "entries": [
+      "U_HBBridgeTurnoverViewTCP",
+      "U_HBBridgeTurnoverViewHTTP"
+    ]
+  },
+  "gridRevision": {
+    "recordedUtc": "2026-11-04T10:21:01.1642588Z",
+    "scope": "Controlled MSSQL constants; no ERP table data or writes; source values copied into a test statement",
+    "directTcp": "PASS",
+    "directHttp": "PASS",
+    "isolatedTlppCompilation": "PASS",
+    "interactiveValidation": "CONFIRMED",
+    "rows": 3,
+    "transferIn": 1,
+    "transferOut": 1,
+    "artifactSha256": "27EDA1191C3317899907992E8182FA98FD671E18C53B892156DB088A48788CF6",
+    "sources": {
+      "addons/examples/hbbridgeaddons.hb": "AF4AEC534AE6CCB14C349F6FF4E8266F8DD6BAACBBFF0A6E9D1ADCACB9515E6C",
+      "addons/examples/hbbridgeturnoveraddon.hb": "02F265C0F82EC3F950ED57323616A7CF3B0797D279D5074DB25627946641EA12",
+      "src/tlpp/tests/protheus/hbbridge.turnover.test/hbbridge.turnover.example.tlpp": "97F73897608F35658169A56A8C2236237F09DC69766E5562B144159343FC4D99",
+      "src/tlpp/tests/protheus/hbbridge.turnover.test/hbbridge.turnover.test.tlpp": "DFD72A0F1CF0CB792504E4624BF41C8FE83DF9AAED96463EA606C47815F6405D"
+    },
+    "nativeSuite": {
+      "checks": 826,
+      "failures": 0,
+      "turnoverChecks": 29
+    },
+    "pageScript": "PASS",
+    "markupUtf8Check": {
+      "status": "PASS",
+      "scope": "Isolated AppServer: UTF-8 wire text decoded before FWWebEx page encoding",
+      "sourceHashes": {
+        "src/tlpp/tests/protheus/hbbridge.turnover.test/hbbridge.turnover.example.tlpp": "0FD45E2E94EACA88284F2D6E88B08BE49118AC4BD6390F1196540168FBC749B4",
+        "src/tlpp/tests/protheus/hbbridge.turnover.test/hbbridge.turnover.test.tlpp": "A5C2B1F202D72B6405843BEF12C19BB1B995CA3B67D089D4F784DB412E25472C"
+      }
+    },
+    "visualValidation": {
+      "status": "CONFIRMED",
+      "evidence": "User confirmation of visual validation on TCP and HTTP",
+      "transports": [
+        "TCP",
+        "HTTP"
+      ],
+      "levels": [
+        "Period",
+        "Company",
+        "Branch",
+        "Cost Center",
+        "Job",
+        "Employee"
+      ],
+      "back": "CONFIRMED",
+      "scope": "Controlled fixture visual navigation; no claim of historical business-rule reconciliation"
+    }
+  }
+}

@@ -83,6 +83,9 @@ try {
         & $toolchain.Hbmk2 -gh -n2 -w3 -es2 $source "-o$target"
         if ($LASTEXITCODE -ne 0) { throw "Could not compile addon fixture $addon." }
     }
+    & $toolchain.Hbmk2 -gh -n2 -w3 -es2 (Join-Path $projectRoot 'addons/examples/hbbridgeaddons.hb') `
+        ("-o" + (Join-Path $addonRoot 'hbbridgeaddons.hrb'))
+    if ($LASTEXITCODE -ne 0) { throw 'Could not compile the examples addon bundle.' }
     & $toolchain.Hbmk2 -gh -n2 -w3 -es2 `
         (Join-Path $projectRoot 'tests/integration/harbour/hbbridge.numeric.addon.hb') `
         "-o$(Join-Path $addonRoot 'hbbridge.numeric.addon.hrb')"
