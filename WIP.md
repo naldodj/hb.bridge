@@ -29,8 +29,10 @@ approved HRB-local symbols and `hb_ExecFromArray()` for dispatch.
 - [x] Validate Back on both visual entries, as confirmed separately.
   This controlled fixture does not establish real-data acceptance.
   Do not expose personal details in evidence.
-- [ ] Validate the JOIN CLI entry in a prepared Protheus environment; it compiled,
-  but `RPCSetEnv` failed in the isolated environment before JOIN checks.
+- [x] Validate the JOIN CLI entry in a prepared Protheus environment: 24 checks
+  passed over TCP and 24 over HTTP, with 60 rows and two pages per JOIN.
+  `RPCSetEnv` previously failed in the isolated environment.
+  See the [sanitized evidence](docs/validation/join.cli.windows.json).
 - [ ] Evaluate caller-owned temporary-table output through `RPCRDD.Execute`,
   compare the approaches and record meaningful limits and validation evidence.
 

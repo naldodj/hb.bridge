@@ -5,6 +5,11 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Organize bilingual documentation and prepare the Wiki portal)"
  */
 
+2026-11-05 00:47 UTC naldodj (Record real JOIN CLI validation)
+  ; Record the prepared Protheus/MSSQL JOIN CLI results supplied from the
+    AppServer: 24 checks passed on TCP and 24 on HTTP, with 60 rows and two
+    pages per JOIN. The observed pages contained no unmatched ERP rows.
+
 2026-11-04 19:24 UTC naldodj (Add bundled addons and controlled turnover drill-down)
   + Bundle sample, benchmark, temporary insert and turnover addons in one HRB;
     select registered local symbols with hb_ExecFromArray and retain standalone

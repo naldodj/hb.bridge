@@ -31,6 +31,7 @@ The JSON summaries retain sanitized identities/counts at measurement time:
 - [Presentation review corrections, local RDDs, lazy indexes and source mapping](presentation.review.windows.json).
 - [Selected dictionary projections, strict alias tests and native SQLite snapshots](selected.presentation.windows.json).
 - [Controlled turnover fixture, transport and visual evidence](turnover.fixture.windows.json).
+- [Real Protheus JOIN CLI observation](join.cli.windows.json).
 
 These identities describe the dated source snapshot, not today's checkout.
 Historical `tmp/...` mentions in older records identify where output was written;

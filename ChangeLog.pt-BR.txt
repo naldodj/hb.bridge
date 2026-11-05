@@ -6,6 +6,12 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Adicionar cobertura de integridade para JSON UTF-8 e MSSQL)"
  */
 
+2026-11-05 00:47 UTC naldodj (Registrar validação real do CLI de JOIN)
+  ; Registrar os resultados do CLI de JOIN no Protheus/MSSQL preparado,
+    fornecidos pelo console do AppServer: 24 checks passaram por TCP e 24
+    por HTTP, com 60 linhas e duas páginas por JOIN. As páginas observadas
+    não continham linhas do ERP sem correspondência.
+
 2026-11-04 19:24 UTC naldodj (Adicionar pacote de addons e drill-down controlado de turnover)
   + Reunir addons de amostra, benchmark, inserção temporária e turnover em um
     HRB; selecionar símbolos locais registrados com hb_ExecFromArray e manter

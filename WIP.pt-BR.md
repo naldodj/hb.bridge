@@ -29,8 +29,10 @@ chamada de símbolos locais aprovados e `hb_ExecFromArray()` para execução.
 - [x] Validar o retorno nas duas entradas visuais, conforme confirmação separada.
   A fixture controlada não comprova aceitação com dados reais.
   Não expor informações pessoais na evidência.
-- [ ] Validar a entrada CLI de JOIN em ambiente Protheus preparado; ela compilou,
-  mas `RPCSetEnv` falhou no ambiente isolado antes das verificações de JOIN.
+- [x] Validar a entrada CLI de JOIN em ambiente Protheus preparado: 24 checks
+  passaram por TCP e 24 por HTTP, com 60 linhas e duas páginas em cada JOIN.
+  O `RPCSetEnv` no ambiente isolado havia falhado antes dessa validação.
+  Ver [evidência sanitizada](docs/validation/join.cli.windows.json).
 - [ ] Avaliar saída em tabela temporária do chamador por `RPCRDD.Execute`,
   comparar as opções e registrar limites e evidências de validação.
 

@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 1,
+  "observationDate": "2026-11-04",
+  "status": "PASS",
+  "evidence": "AppServer console supplied in conversation",
+  "program": "U_HBBridgePresentationJoinRealCli",
+  "scope": "Prepared Protheus environment, real MSSQL, TCP and HTTP, two pages per join; no row contents retained",
+  "command": "appserver.exe -env=PROTHEUS -run=U_HBBridgePresentationJoinRealCli",
+  "checks": 24,
+  "failures": 0,
+  "results": {
+    "SRB_INNER": {
+      "rows": 60,
+      "pages": 2,
+      "unmatched": 0,
+      "orderFailures": 0
+    },
+    "SRB_LEFT": {
+      "rows": 60,
+      "pages": 2,
+      "unmatched": 0,
+      "orderFailures": 0
+    },
+    "CTT_INNER": {
+      "rows": 60,
+      "pages": 2,
+      "unmatched": 0,
+      "orderFailures": 0
+    },
+    "CTT_LEFT": {
+      "rows": 60,
+      "pages": 2,
+      "unmatched": 0,
+      "orderFailures": 0
+    }
+  },
+  "limitations": [
+    "Observed pages contain no unmatched ERP rows",
+    "Running RPO source identity was not independently verified",
+    "Isolated AppServer environment previously could not initialize RPCSetEnv"
+  ],
+  "transport": "TCP",
+  "httpObservation": {
+    "transport": "HTTP",
+    "command": "appserver.exe -env=PROTHEUS -run=U_HBBridgePresentationJoinRealCli --transport=HTTP",
+    "checks": 24,
+    "failures": 0,
+    "results": {
+      "SRB_INNER": {
+        "rows": 60,
+        "pages": 2,
+        "unmatched": 0,
+        "orderFailures": 0
+      },
+      "SRB_LEFT": {
+        "rows": 60,
+        "pages": 2,
+        "unmatched": 0,
+        "orderFailures": 0
+      },
+      "CTT_INNER": {
+        "rows": 60,
+        "pages": 2,
+        "unmatched": 0,
+        "orderFailures": 0
+      },
+      "CTT_LEFT": {
+        "rows": 60,
+        "pages": 2,
+        "unmatched": 0,
+        "orderFailures": 0
+      }
+    }
+  }
+}
