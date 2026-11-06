@@ -6,6 +6,12 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Adicionar cobertura de integridade para JSON UTF-8 e MSSQL)"
  */
 
+2026-11-06 18:19 UTC naldodj (Planejar proteção portátil da credencial SQL)
+  + Preparar o pacote 004 para provedor portátil no servidor e utilitário local,
+    com critérios explícitos de segurança e aceite Windows/Linux.
+  ; Arquivar evidências do turnover e adiar validações visuais e de SRE real
+    não comprovadas, sem afirmar reconciliação histórica.
+
 2026-11-06 18:13 UTC naldodj (Documentar revisão operacional e resiliência futura)
   + Registrar limites de segurança e critérios futuros de admissão, telemetria,
     resiliência, contratos e dependências em documentação bilíngue.

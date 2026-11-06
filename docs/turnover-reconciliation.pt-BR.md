@@ -80,6 +80,39 @@ nem taxas de turnover entre períodos automaticamente significativas.
 
 O exemplo ainda não é um relatório de RH ou folha homologado.
 
+## Opções de entrega do resultado
+
+- **JSON do addon:** o exemplo controlado `turnover` devolve a hierarquia completa;
+  `turnoverReport` devolve indicadores mensais já agregados. É adequado para
+  página interativa, mas consulta e resultado são materializados em memória.
+- **Tabela temporária do chamador:** o exemplo Protheus cria e mantém objetos
+  `FWTemporaryTable`. `RPCRDD.Execute` os preenche com SQL cadastrado; o addon
+  lê os resultados de empresa/filial e os detalhes selecionados são consultados
+  sob demanda. O proprietário mantém conexão e tabelas ativas e as exclui após
+  o uso. O browse direto sobre temporária SX5/SRA do chamador também foi
+  validado, sem transferência paginada por RPC.
+- **Resultado escrito por addon:** um addon de aplicação confiável pode executar
+  SQL e gravar no destino do chamador, com a mesma propriedade e permissões.
+  O addon de inserção temporária foi validado com duas linhas sintéticas;
+  ainda não foi comprovado que um addon de turnover calcule e grave sua saída.
+
+Um diagnóstico Windows/MSSQL preencheu temporárias próprias com as consultas
+cadastradas, comparou o JSON mensal do addon e linhas de detalhe selecionadas
+com os resultados SQL e verificou a liberação. O dashboard real foi validado
+visualmente por TCP/HTTP até funcionário e Back. Veja as evidências do
+[exemplo](../examples/turnover/README.pt-BR.md) e de
+[execução SQL](sql-execution.pt-BR.md). As comparações validam os caminhos e
+campos indicados, sem comprovar equivalência histórica ou vantagem de desempenho.
+Consultas separadas podem não compartilhar um snapshot transacional.
+
+O perfil SQL precisa apontar para servidor e banco nos quais a conexão hbBridge
+veja o destino; visibilidade, isolamento e permissões devem ser validados por
+SGBD. O proprietário controla destino confiável e estrutura. `RPCRDD.Execute`
+ainda não possui bindings tipados e a perda da resposta pode deixar o resultado
+desconhecido; não repetir automaticamente nem presumir rollback. JSON,
+paginação e temporárias precisam ser comparados com dados, trabalho e escopo
+de medição equivalentes antes de uma escolha por desempenho.
+
 ## Uso na aplicação GEP
 
 Os arquivos `Turnover*.prg` referenciados são consumidores de modelos e telas

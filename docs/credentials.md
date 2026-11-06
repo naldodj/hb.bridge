@@ -162,7 +162,8 @@ SQL-password rotation.
 The RFC recorded in `hbridge.news.txt` is feasible as a future optional
 **credential provider** that reads stable SQL credentials from OpenBao KV v2,
 alongside integrated authentication, encrypted INI with an external key and
-OS providers. It belongs to package 003 in [WIP](../WIP.md). Neither OpenBao
+OS providers. OpenBao remains separate future work; the [WIP](../WIP.md) starts
+with a local provider. Neither OpenBao
 nor a database secrets engine, dynamic credentials or an MSSQL plugin is a
 prerequisite for the initial credential provider or package 001 MSSQL
 acceptance. No OpenBao adapter, secret RPC service or credential-provider parser fields have

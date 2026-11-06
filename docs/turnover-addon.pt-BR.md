@@ -6,8 +6,8 @@ Uma nova simulação visual usa três meses fictícios, com barras de movimenta�
 e efetivos inicial e final por mês. Transferências sem evidência permanecem
 desconhecidas. O total de ativos entre meses é identificado como
 funcionários-mês, sem apresentar uma taxa consolidada de período. As entradas
-CLI mantêm a fixture original de três linhas. A apresentação atualizada ainda
-precisa de validação interativa no Protheus e não consulta o SQL real de turnover.
+CLI mantêm a fixture original de três linhas. A apresentação atualizada foi validada visualmente em TCP e HTTP para os três
+meses, drill-down e Back; ela não consulta o SQL real de turnover.
 
 A [comparação das regras históricas](turnover-reconciliation.pt-BR.md) registra
 o comportamento SQL observado, testes mensais controlados e diferenças pendentes.
@@ -88,8 +88,10 @@ detalhes de datas e movimentações na folha de funcionário. O cliente preserva
 o UTF-8 recebido; a página converte o texto JSON antes da codificação do HTML
 pelo FWWebEx. `U_HBBridgeTurnoverMarkupTest` verifica esse ciclo em AppServer
 isolado.
-A origem SQL ERP real, a saída em tabela temporária e a comparação de
-desempenho ainda não foram implementadas. Essas atividades estão no WIP.
+O exemplo separado com origem cadastrada usa tabelas temporárias do chamador
+preenchidas por `RPCRDD.Execute`; veja [turnoverReport](../examples/turnover/README.pt-BR.md).
+Este addon controlado não grava a saída de turnover em uma temporária. A
+comparação de desempenho permanece pendente.
 
 ## Fixture controlada no AppServer
 

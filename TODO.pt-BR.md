@@ -774,6 +774,16 @@ locais/remotos em blocos, com integridade binária, erros e liberação verifica
 
 ### Apresentação nativa e resultados compartilhados
 
+- [ ] Validar visualmente o relatório mensal isolado e opcional de turnover por
+  TCP/HTTP, com origem em temporária preenchida e pertencente ao Protheus. O
+  dashboard de origem cadastrada foi aceito separadamente; a conciliação das
+  regras históricas e indicadores segue futura. Veja o [pacote 003](docs/validation/package-003.pt-BR.md).
+- [ ] Quando houver movimentos adequados, validar visualmente as evidências de
+  transferência da SRE no exemplo opcional de turnover por TCP e HTTP; conciliar
+  regras históricas e cobertura separadamente. A fixture controlada passou, mas
+  a SRE de desenvolvimento estava vazia. Essa validação específica da aplicação
+  não é requisito de serviço genérico do hbBridge. Veja a
+  [reconciliação](docs/turnover-reconciliation.pt-BR.md).
 - [ ] Estender os exemplos nativos baseados no dicionário com campos específicos
   e JOINs por TCP/HTTP gzip. Definir esquema/mapa de origem por alias de saída
   único, origem SX3 correta e campos calculados explícitos; testar ordenação/
@@ -940,7 +950,7 @@ homologação operacional do conjunto.
   segredos cliente no Protheus; chaves externas distintas por instalação, sem
   bootstrap RPC de segredos e com suporte TLPP nativo/provedor verificado.
   Criptografia em arquivos e transporte autenticado têm aceites separados.
-- [ ] Desenho do pacote 003: provedor comum de credenciais no servidor com
+- [ ] Evolução do provedor comum de credenciais no servidor com
   OpenBao KV v2/AppRole ou Agent/Proxy opcionais, referências configuradas
   autorizadas, validação de bootstrap/CA, cache/renovação de token/sanitização
   e aceite de ABI/memória Zig 0.16. Guardar credenciais SQL estáveis e permitir

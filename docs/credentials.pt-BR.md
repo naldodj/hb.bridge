@@ -158,7 +158,8 @@ no banco nem exige rotação da senha SQL.
 A RFC registrada em `hbridge.news.txt` é viável como **provedor de credenciais**
 opcional para ler credenciais SQL estáveis do KV v2 OpenBao, junto da
 autenticação integrada, INI cifrado com chave externa e provedores do SO.
-Entra no pacote 003 do [WIP](../WIP.pt-BR.md). OpenBao, mecanismo de segredos
+OpenBao permanece como etapa futura separada; o [WIP](../WIP.pt-BR.md) inicia
+com provedor local. OpenBao, mecanismo de segredos
 de banco, credenciais dinâmicas e plugin MSSQL não são pré-requisitos do
 provedor inicial de credenciais nem do aceite MSSQL do pacote 001. Nenhum
 adaptador OpenBao, serviço RPC de segredos ou campo de provedor de credenciais

@@ -545,6 +545,15 @@ and Oracle require their own evidence.
 
 ### Native presentation and shared query results
 
+- [ ] Validate the optional standalone caller-supplied monthly turnover report
+  visually over TCP/HTTP with a filled Protheus-owned temporary table. The
+  registered-source dashboard was accepted separately; historical rule and
+  measure reconciliation remains future work. See [package 003](docs/validation/package-003.md).
+- [ ] When suitable movements are available, visually validate the optional
+  turnover example's SRE transfer evidence over TCP and HTTP; reconcile historical
+  rules and coverage separately. The controlled fixture passed, while the
+  development SRE was empty. Do not treat this application-specific validation
+  as a generic hbBridge service requirement. See [reconciliation](docs/turnover-reconciliation.md).
 - [ ] Extend dictionary-backed native examples with selected fields and JOINs
   over TCP/gzip HTTP. Define schema/source mappings per unique output alias,
   correct SX3 origins and explicit computed fields; test one-to-many ordering/
@@ -680,7 +689,7 @@ and Oracle require their own evidence.
   hbBridge and client secrets on Protheus; distinct external installation keys,
   no RPC secret bootstrap, and verified native TLPP decryption/provider support.
   Encryption in files and authenticated transport require separate acceptance.
-- [ ] Package 003 design: common server-side credential provider with optional
+- [ ] Credential-provider evolution: common server-side provider with optional
   OpenBao KV v2/AppRole or Agent/Proxy, authorized configured references,
   bootstrap/CA validation, cache/token renewal/redaction and Zig 0.16 ABI/memory
   acceptance. Store stable SQL credentials and support manual updates; automatic

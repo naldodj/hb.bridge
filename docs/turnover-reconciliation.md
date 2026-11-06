@@ -77,6 +77,38 @@ cross-period turnover rates.
 
 The example is not yet a validated HR or payroll report.
 
+## Result delivery options
+
+- **Addon JSON:** the controlled `turnover` example returns a complete hierarchy;
+  `turnoverReport` returns already aggregated monthly measures. This is useful
+  for an interactive page, but the query and result are materialized in memory.
+- **Caller-owned temporary table:** the Protheus example creates and retains
+  `FWTemporaryTable` objects. `RPCRDD.Execute` fills them from registered SQL;
+  the addon reads company/branch results and selected details are queried on
+  demand. The owner keeps the connection and tables alive and deletes them after
+  use. Direct browse of a caller-owned SX5/SRA temporary table has also been
+  validated, without paginated RPC transfer.
+- **Addon-written results:** a trusted application addon may execute SQL and
+  write to the caller's destination, with the same ownership and permissions.
+  The temporary-insert addon was validated with two synthetic rows; no test has
+  yet established that a turnover addon computes and writes its own output.
+
+A Windows/MSSQL diagnostic populated owned temporary tables using registered
+queries, compared the monthly addon JSON and selected detail rows against the
+SQL results, and checked release. The real TCP/HTTP dashboard was visually
+validated through employee and Back. See [example evidence](../examples/turnover/README.md)
+and [SQL execution evidence](sql-execution.md). These comparisons validate the
+specified paths and fields, not historical business-rule equivalence or a
+performance advantage. Separate queries need not share a transaction snapshot.
+
+The SQL profile must address a server and database where the destination is
+visible to the hbBridge connection; visibility, isolation and permissions must
+be validated per backend. The owner controls the trusted destination and schema.
+`RPCRDD.Execute` lacks typed bindings and a lost response can mean an unknown
+outcome; do not retry automatically or assume rollback. JSON, paging and temporary
+tables should be compared with equivalent data, work and measurement scope
+before selecting one for performance reasons.
+
 ## GEP application usage
 
 The referenced `Turnover*.prg` files are Harbour/Nefele presentation and model

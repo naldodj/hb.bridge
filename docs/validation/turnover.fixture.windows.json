@@ -118,5 +118,22 @@
       "back": "CONFIRMED",
       "scope": "Controlled fixture visual navigation; no claim of historical business-rule reconciliation"
     }
+  },
+  "threeMonthDashboardVisualValidation": {
+    "recordedUtc": "2026-11-06T18:15:49.467700Z",
+    "status": "CONFIRMED",
+    "evidence": "User confirmation of visual validation",
+    "transports": [
+      "TCP",
+      "HTTP"
+    ],
+    "periods": [
+      "202609",
+      "202610",
+      "202611"
+    ],
+    "scope": "Controlled three-month dashboard, drill-down to employee and Back; no ERP source or historical-rule acceptance",
+    "workingTreeSourceSha256": "5CB772D424C39D374A2672DDB9887E5822E7B456AD30211E408C55F4B6A0973D",
+    "sourceIdentityLimitation": "Working-tree hash at recording; deployed RPO source identity was not independently verified."
   }
 }

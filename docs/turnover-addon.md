@@ -76,8 +76,10 @@ transaction snapshot across calls. Error results do not contain partial totals.
 The controlled FWWebEx page includes a bar chart, a grid at each level and
 employee date and movement details at the leaf. The client preserves wire UTF-8;
 the page converts the JSON text before FWWebEx encodes the resulting HTML.
-`U_HBBridgeTurnoverMarkupTest` checks this round trip in an isolated AppServer. A real ERP SQL source, temporary-table output and performance comparisons
-remain unimplemented. Those are tracked in the work package.
+`U_HBBridgeTurnoverMarkupTest` checks this round trip in an isolated AppServer. The separate registered-source example uses caller-owned temporary tables
+filled through `RPCRDD.Execute`; see [turnoverReport](../examples/turnover/README.md).
+This controlled addon does not write turnover output to a temporary table.
+Performance comparisons remain pending.
 
 ## Controlled AppServer fixture
 
@@ -112,8 +114,8 @@ A newer dashboard simulation adds a three-month synthetic fixture to these
 visual entries, with monthly movement bars and initial/final headcount. Missing
 transfer evidence remains unknown. Cross-month active totals are labeled as
 employee-months and no overall period rate is asserted. The CLI entries retain
-the original three-row fixture. The updated visual presentation still requires
-interactive validation in Protheus; it does not consume the real turnover SQL.
+the original three-row fixture. The updated visual presentation was confirmed over TCP and HTTP for all three
+periods, drill-down and Back; it does not consume the real turnover SQL.
 A Node.js check of the isolated page script is available through
 `node tests/unit/hbbridge.turnover.page.test.js`; it does not replace visual
 AppServer acceptance in other environments.

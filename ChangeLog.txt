@@ -5,6 +5,12 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Organize bilingual documentation and prepare the Wiki portal)"
  */
 
+2026-11-06 18:19 UTC naldodj (Plan portable SQL credential protection)
+  + Prepare package 004 for a portable server credential provider and local
+    utility, with explicit Windows/Linux and security acceptance criteria.
+  ; Archive turnover package evidence and defer unverified visual/report and
+    real SRE transfer validation without claiming historical reconciliation.
+
 2026-11-06 18:13 UTC naldodj (Document operational review and future resilience)
   + Record security boundaries and future admission, telemetry, resilience,
     contract and dependency-review criteria in bilingual documentation.
