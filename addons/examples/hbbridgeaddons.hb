@@ -16,7 +16,8 @@ FUNCTION Main( cJSON, hContext )
     hActions := { "sample" => @HBBridgeExampleSample(), ;
         "benchmark" => @HBBridgeExampleBenchmark(), ;
         "temporaryInsert" => @HBBridgeExampleTemporaryInsert(), ;
-        "turnover" => @HBBridgeExampleTurnover() }
+        "turnover" => @HBBridgeExampleTurnover(), ;
+        "turnoverReport" => @HBBridgeExampleTurnoverReport() }
     hb_HCaseMatch( hActions, .T. )
     IF ! hb_HHasKey( hActions, cAction )
         RETURN HBBridgeJSONEncode( HBBridgeError( "UNKNOWN_ADDON_ACTION", "The example action is not supported." ) )
@@ -37,4 +38,7 @@ RETURN hb_ExecFromArray( hActions[ cAction ], { cParams, hContext } )
 #undef Main
 #define Main HBBridgeExampleTurnover
 #include "hbbridgeturnoveraddon.hb"
+#undef Main
+#define Main HBBridgeExampleTurnoverReport
+#include "hbbridgeturnoverreportaddon.hb"
 #undef Main

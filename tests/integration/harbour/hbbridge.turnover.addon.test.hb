@@ -37,6 +37,8 @@ PROCEDURE TurnoverAddonTests( hRegistry, hContext, nFailures, nChecks )
             "turnover supports drill down to the employee", @nFailures, @nChecks )
     ENDIF
     TurnoverDetailTests( hRegistry, hContext, hParams, @nFailures, @nChecks )
+    TurnoverPeriodTests( hRegistry, hContext, @nFailures, @nChecks )
+    TurnoverReportTests( hRegistry, hContext, @nFailures, @nChecks )
     hEmpty := hb_HClone( hParams )
     hEmpty[ "bindings" ] := { "1" => { "type" => "text", "isNull" => .F., "value" => "no-company" } }
     hResult := TurnoverTestCall( hRegistry, hContext, hEmpty )
@@ -85,6 +87,79 @@ PROCEDURE TurnoverAddonTests( hRegistry, hContext, nFailures, nChecks )
     hResult := TurnoverTestCall( hRegistry, hContext, hParams )
     M1Assert( ! hResult[ "success" ] .AND. hResult[ "code" ] == "DUPLICATE_EMPLOYEE", ;
         "turnover rejects duplicate employee periods", @nFailures, @nChecks )
+RETURN
+
+/* This controlled source exercises monthly eligibility, not historical SRE/SR7 reconstruction. */
+STATIC PROCEDURE TurnoverPeriodTests( hRegistry, hContext, nFailures, nChecks )
+
+    LOCAL cSQL
+
+    LOCAL hParams, hResult, hOctober, hNovember
+
+    hResult := HBBridgeDispatch( hRegistry, "RPCRDD.Execute", ;
+        { "requestVersion" => 1, "alias" => "sample", "sql" => ;
+        "CREATE TABLE turnover_dates (COMPANY TEXT, EMPLOYEE TEXT, ADMITTED TEXT, DISMISSED TEXT)" }, hContext )
+    M1Assert( hResult[ "success" ], "turnover monthly date fixture is created", @nFailures, @nChecks )
+    IF ! hResult[ "success" ]
+        RETURN
+    ENDIF
+    hResult := HBBridgeDispatch( hRegistry, "RPCRDD.Execute", ;
+        { "requestVersion" => 1, "alias" => "sample", "sql" => ;
+        "INSERT INTO turnover_dates VALUES " + ;
+        "('99','001','20250101',''),('99','002','20261001','20261031')," + ;
+        "('99','003','20261031',''),('99','004','20260901','20261001')," + ;
+        "('99','005','20261101',''),('99','006','20260901','20260930')," + ;
+        "('98','007','20261001','20261031')" }, hContext )
+    M1Assert( hResult[ "success" ], "turnover monthly date fixture is populated", @nFailures, @nChecks )
+    IF ! hResult[ "success" ]
+        RETURN
+    ENDIF
+    hResult := HBBridgeDispatch( hRegistry, "RPCRDD.Execute", ;
+        { "requestVersion" => 1, "alias" => "sample", "sql" => ;
+        "CREATE TABLE turnover_months (PERIOD TEXT, COMPANY TEXT, BRANCH TEXT, COST_CENTER TEXT, " + ;
+        "JOB TEXT, EMPLOYEE TEXT, ACTIVE INTEGER, ADMISSION INTEGER, DISMISSAL INTEGER)" }, hContext )
+    M1Assert( hResult[ "success" ], "turnover monthly source has declared types", @nFailures, @nChecks )
+    IF ! hResult[ "success" ]
+        RETURN
+    ENDIF
+    cSQL := "INSERT INTO turnover_months SELECT P.PERIOD, E.COMPANY, '01', 'A', 'J1', " + ;
+        "E.EMPLOYEE, 1 AS ACTIVE, CASE WHEN SUBSTR(E.ADMITTED,1,6)=P.PERIOD THEN 1 ELSE 0 END AS ADMISSION, " + ;
+        "CASE WHEN SUBSTR(E.DISMISSED,1,6)=P.PERIOD THEN 1 ELSE 0 END AS DISMISSAL " + ;
+        "FROM turnover_dates E CROSS JOIN (SELECT '202610' AS PERIOD UNION ALL SELECT '202611') P " + ;
+        "WHERE SUBSTR(E.ADMITTED,1,6)<=P.PERIOD AND " + ;
+        "(E.DISMISSED='' OR (SUBSTR(E.ADMITTED,1,6)<=SUBSTR(E.DISMISSED,1,6) " + ;
+        "AND SUBSTR(E.DISMISSED,1,6)>=P.PERIOD))"
+    hResult := HBBridgeDispatch( hRegistry, "RPCRDD.Execute", ;
+        { "requestVersion" => 1, "alias" => "sample", "sql" => cSQL }, hContext )
+    M1Assert( hResult[ "success" ], "turnover materializes eligible employee-months", @nFailures, @nChecks )
+    IF ! hResult[ "success" ]
+        RETURN
+    ENDIF
+    cSQL := "SELECT PERIOD, COMPANY, BRANCH, COST_CENTER, JOB, EMPLOYEE, ACTIVE, ADMISSION, DISMISSAL " + ;
+        "FROM turnover_months WHERE COMPANY = ? ORDER BY PERIOD, EMPLOYEE"
+    hParams := { "profile" => "sample", "sql" => cSQL, ;
+        "bindings" => { "1" => { "type" => "text", "isNull" => .F., "value" => "99" } } }
+    hResult := TurnoverTestCall( hRegistry, hContext, hParams )
+    M1Assert( hResult[ "success" ] .AND. hResult[ "rowCount" ] == 7, ;
+        "turnover selects eligible employee-months across boundaries", @nFailures, @nChecks )
+    IF hResult[ "success" ] .AND. hResult[ "rowCount" ] == 7
+        hOctober := hResult[ "result" ][ "children" ][ "202610" ][ "children" ][ "99" ]
+        hNovember := hResult[ "result" ][ "children" ][ "202611" ][ "children" ][ "99" ]
+        M1Assert( hOctober[ "active" ] == 4 .AND. hOctober[ "admissions" ] == 2 .AND. ;
+            hOctober[ "dismissals" ] == 2 .AND. hOctober[ "initial" ] == 2 .AND. ;
+            hOctober[ "turnoverPercent" ] == 100 .AND. hOctober[ "dismissalPercent" ] == 50, ;
+            "turnover includes same-month admission and dismissal", @nFailures, @nChecks )
+        M1Assert( hNovember[ "active" ] == 3 .AND. hNovember[ "admissions" ] == 1 .AND. ;
+            hNovember[ "dismissals" ] == 0 .AND. hNovember[ "initial" ] == 2 .AND. ;
+            hNovember[ "turnoverPercent" ] == 25, ;
+            "turnover excludes earlier dismissals and includes subsequent admissions", @nFailures, @nChecks )
+    ENDIF
+    hParams[ "bindings" ][ "1" ][ "value" ] := "98"
+    hResult := TurnoverTestCall( hRegistry, hContext, hParams )
+    M1Assert( hResult[ "success" ] .AND. hResult[ "rowCount" ] == 1 .AND. ;
+        hResult[ "result" ][ "initial" ] == 0 .AND. hResult[ "result" ][ "turnoverPercent" ] == 0 .AND. ;
+        hResult[ "result" ][ "dismissalPercent" ] == 0, ;
+        "turnover preserves the zero denominator rule", @nFailures, @nChecks )
 RETURN
 
 STATIC PROCEDURE TurnoverDetailTests( hRegistry, hContext, hParams, nFailures, nChecks )
@@ -166,3 +241,106 @@ RETURN
 STATIC FUNCTION TurnoverTestCall( hRegistry, hContext, hParams )
 RETURN HBBridgeDispatch( hRegistry, "ADDON.Execute", ;
     { "module" => "hbbridgeaddons.hrb", "params" => { "action" => "turnover", "params" => hParams } }, hContext )
+
+/* The fixture represents already-aggregated report rows, not employee records. */
+STATIC PROCEDURE TurnoverReportTests( hRegistry, hContext, nFailures, nChecks )
+
+    LOCAL cBranchSQL, cSQL
+
+    LOCAL hParams, hResult, hDenied
+
+    hResult := HBBridgeDispatch( hRegistry, "RPCRDD.Execute", ;
+        { "requestVersion" => 1, "alias" => "sample", "sql" => ;
+        "CREATE TABLE turnover_report (COMPANY TEXT, RA_FILIAL TEXT, PERIODO TEXT, TTRFSAI INTEGER, TTRFENT INTEGER, " + ;
+        "TFUNIMES INTEGER, TFUNADMMES INTEGER, TFUNMES INTEGER, TFUNDEMMES INTEGER, TFUNFMES INTEGER, " + ;
+        "TURNOVER TEXT, TURNMOVF TEXT)" }, hContext )
+    M1Assert( hResult[ "success" ], "monthly report fixture has declared types", @nFailures, @nChecks )
+    IF ! hResult[ "success" ]
+        RETURN
+    ENDIF
+    hResult := HBBridgeDispatch( hRegistry, "RPCRDD.Execute", ;
+        { "requestVersion" => 1, "alias" => "sample", "sql" => ;
+        "INSERT INTO turnover_report VALUES " + ;
+        "('99','01','202610',2,3,8,2,10,1,9,'18.7500','6.2500')," + ;
+        "('99','01','202611',0,1,9,1,10,0,10,'5.5556','0.0000')" }, hContext )
+    M1Assert( hResult[ "success" ], "monthly report fixture has independent aggregates", @nFailures, @nChecks )
+    IF ! hResult[ "success" ]
+        RETURN
+    ENDIF
+    cSQL := "SELECT PERIODO,TTRFSAI,TTRFENT,TFUNIMES,TFUNADMMES,TFUNMES,TFUNDEMMES,TFUNFMES,TURNOVER,TURNMOVF " + ;
+        "FROM turnover_report WHERE COMPANY = ? ORDER BY PERIODO"
+    hParams := { "profile" => "sample", "sql" => cSQL, ;
+        "bindings" => { "1" => { "type" => "text", "isNull" => .F., "value" => "99" } } }
+    hResult := TurnoverReportTestCall( hRegistry, hContext, hParams )
+    M1Assert( hResult[ "success" ] .AND. hResult[ "rowCount" ] == 2, ;
+        "monthly report action returns each period", @nFailures, @nChecks )
+    IF hResult[ "success" ]
+        M1Assert( TurnoverReportTestNumber( hResult[ "periods" ][ "202610" ][ "active" ] ) == 10 .AND. ;
+            TurnoverReportTestNumber( hResult[ "periods" ][ "202610" ][ "transferOut" ] ) == 2 .AND. ;
+            TurnoverReportTestNumber( hResult[ "periods" ][ "202610" ][ "transferIn" ] ) == 3 .AND. ;
+            TurnoverReportTestNumber( hResult[ "periods" ][ "202610" ][ "final" ] ) == 9, ;
+            "monthly report maps source aggregates without summing levels", @nFailures, @nChecks )
+        M1Assert( HB_ISSTRING( hResult[ "periods" ][ "202610" ][ "turnoverPercent" ] ) .AND. ;
+            HB_ISSTRING( hResult[ "periods" ][ "202611" ][ "turnoverPercent" ] ) .AND. ;
+            hResult[ "periods" ][ "202610" ][ "turnoverPercent" ] == "18.7500" .AND. ;
+            hResult[ "periods" ][ "202611" ][ "turnoverPercent" ] == "5.5556", ;
+            "monthly report preserves supplied exact decimal strings", @nFailures, @nChecks )
+    ENDIF
+    cBranchSQL := "SELECT PERIODO,RA_FILIAL,TTRFSAI,TTRFENT,TFUNIMES," + ;
+        "TFUNADMMES,TFUNMES,TFUNDEMMES,TFUNFMES,TURNOVER,TURNMOVF FROM turnover_report WHERE COMPANY = ?"
+    hParams[ "branchSql" ] := cBranchSQL
+    hParams[ "branchBindings" ] := { "1" => { "type" => "text", "isNull" => .F., "value" => "99" } }
+    hResult := TurnoverReportTestCall( hRegistry, hContext, hParams )
+    M1Assert( hResult[ "success" ] .AND. hResult[ "branchRowCount" ] == 2 .AND. ;
+        hResult[ "branches" ][ "202610" ][ "01" ][ "turnoverPercent" ] == "18.7500", ;
+        "monthly report includes independent branch measures", @nFailures, @nChecks )
+    hParams[ "branchSql" ] := cBranchSQL + " UNION ALL " + cBranchSQL
+    hParams[ "branchBindings" ][ "2" ] := { "type" => "text", "isNull" => .F., "value" => "99" }
+    hResult := TurnoverReportTestCall( hRegistry, hContext, hParams )
+    M1Assert( ! hResult[ "success" ] .AND. hResult[ "code" ] == "DUPLICATE_BRANCH", ;
+        "monthly report rejects duplicate period and branch keys", @nFailures, @nChecks )
+    hParams[ "sql" ] := StrTran( cSQL, " ORDER BY PERIODO", " AND PERIODO='202611' ORDER BY PERIODO" )
+    hParams[ "branchSql" ] := cBranchSQL + " AND PERIODO='202610'"
+    hb_HDel( hParams[ "branchBindings" ], "2" )
+    hResult := TurnoverReportTestCall( hRegistry, hContext, hParams )
+    M1Assert( ! hResult[ "success" ] .AND. hResult[ "code" ] == "UNMATCHED_PERIOD", ;
+        "monthly report rejects branch periods absent from the company source", @nFailures, @nChecks )
+    hParams[ "sql" ] := cSQL
+    hb_HDel( hParams, "branchSql" )
+    hb_HDel( hParams, "branchBindings" )
+    hDenied := HBBridgeContext( "restricted" )
+    hDenied[ "permissions" ] := { "addon.execute" }
+    hResult := TurnoverReportTestCall( hRegistry, hDenied, hParams )
+    M1Assert( ! hResult[ "success" ] .AND. hResult[ "code" ] == "FORBIDDEN", ;
+        "monthly report inherits query authorization", @nFailures, @nChecks )
+    hParams[ "sql" ] := "SELECT PERIODO FROM turnover_report WHERE COMPANY = ?"
+    hResult := TurnoverReportTestCall( hRegistry, hContext, hParams )
+    M1Assert( ! hResult[ "success" ] .AND. hResult[ "code" ] == "INVALID_SOURCE", ;
+        "monthly report requires all source measures", @nFailures, @nChecks )
+    hParams[ "sql" ] := cSQL
+    HBBridgeDispatch( hRegistry, "RPCRDD.Execute", ;
+        { "requestVersion" => 1, "alias" => "sample", "sql" => ;
+        "INSERT INTO turnover_report SELECT * FROM turnover_report WHERE PERIODO='202610'" }, hContext )
+    hResult := TurnoverReportTestCall( hRegistry, hContext, hParams )
+    M1Assert( ! hResult[ "success" ] .AND. hResult[ "code" ] == "DUPLICATE_PERIOD", ;
+        "monthly report rejects duplicate periods", @nFailures, @nChecks )
+    HBBridgeDispatch( hRegistry, "RPCRDD.Execute", ;
+        { "requestVersion" => 1, "alias" => "sample", "sql" => ;
+        "DELETE FROM turnover_report WHERE PERIODO='202610'" }, hContext )
+    HBBridgeDispatch( hRegistry, "RPCRDD.Execute", ;
+        { "requestVersion" => 1, "alias" => "sample", "sql" => ;
+        "UPDATE turnover_report SET TURNOVER='invalid' WHERE PERIODO='202611'" }, hContext )
+    hResult := TurnoverReportTestCall( hRegistry, hContext, hParams )
+    M1Assert( ! hResult[ "success" ] .AND. hResult[ "code" ] == "INVALID_SOURCE", ;
+        "monthly report rejects nonnumeric measures", @nFailures, @nChecks )
+RETURN
+
+STATIC FUNCTION TurnoverReportTestCall( hRegistry, hContext, hParams )
+RETURN HBBridgeDispatch( hRegistry, "ADDON.Execute", ;
+    { "module" => "hbbridgeaddons.hrb", "params" => { "action" => "turnoverReport", "params" => hParams } }, hContext )
+
+STATIC FUNCTION TurnoverReportTestNumber( xValue )
+    IF HB_ISSTRING( xValue )
+        RETURN Val( xValue )
+    ENDIF
+RETURN xValue

@@ -1,0 +1,291 @@
+/* Released to Public Domain. SQL planning checks; no database writes. */
+#include "totvs.ch"
+
+function U_HBBridgeTurnoverRealPlanTest()
+
+    local cPrepared:="", cSource:="" as character
+
+    local jBranches:=JSONObject():New(), jChecks:=JSONObject():New(), jTables:=JSONObject():New() as json
+
+    local lOK:=.F. as logical
+
+    cSource:="WITH TURNOVERT AS (SELECT '202501' AS PERIODO FROM SRA990) "+;
+        "SELECT DISTINCT TURNOVERT.PERIODO INTO !TABLENAME! FROM TURNOVERT "+;
+        "WHERE !EMPRESA!=!EMPRESA! AND !FILIALDE!=!FILIALATE! "+;
+        "AND !DATARQDE!<=!DATARQATE! AND !CCDE!<=!CCATE! AND !FUNCAODE!<=!FUNCAOATE! "+;
+        "AND EXISTS (SELECT 1 FROM !TBLTMPMONTHS!)"
+    jTables["SRA990"]:="SRA001"
+    jTables["SRE990"]:="SRE001"
+    jTables["SRJ990"]:="SRJ001"
+    jTables["CTT990"]:="CTT001"
+    jTables["SR7990"]:="SR7001"
+    cPrepared:=HBBridge.Examples.HBBridgeTurnoverReal():Prepare(cSource,"dbo.##HBTEST","#HBMONTHS",;
+        "99","01","202501","202512",jTables)
+    jChecks["validBatch"]:=!Empty(cPrepared)
+    jChecks["callerTarget"]:=At("INSERT INTO dbo.##HBTEST",cPrepared)>0 .and. !("INTO !TABLENAME!"$cPrepared)
+    jChecks["resolvedSource"]:=At("FROM SRA001",cPrepared)>0
+    jChecks["resolvedMonths"]:=At("FROM #HBMONTHS",cPrepared)>0
+    jChecks["resolvedParameters"]:=!("!"$cPrepared) .and. At("'202501'",cPrepared)>0 .and. At("'202512'",cPrepared)>0
+    cPrepared:=HBBridge.Examples.HBBridgeTurnoverReal():Prepare(;
+        StrTran(cSource,"TURNOVERT.PERIODO INTO","TURNOVERT.PERIODO,TURNOVERT.RA_FILIAL,TURNOVERT.TTRFSAI INTO"),;
+        "dbo.##HBTEST","#HBMONTHS","99","01","202501","202512",jTables,.T.)
+    jChecks["branchProjection"]:=At("(PERIODO,RA_FILIAL,TTRFSAI",cPrepared)>0
+    jChecks["branchColumnRequired"]:=Empty(HBBridge.Examples.HBBridgeTurnoverReal():Prepare(cSource,;
+        "dbo.##HBTEST","#HBMONTHS","99","01","202501","202512",jTables,.T.))
+    cPrepared:=HBBridge.Examples.HBBridgeTurnoverReal():Prepare(;
+        StrTran(cSource,"TURNOVERT.PERIODO INTO",;
+        "TURNOVERT.PERIODO,TURNOVERT.RA_FILIAL,TURNOVERT.RA_CC,TURNOVERT.CTT_DESC01,TURNOVERT.TTRFSAI INTO"),;
+        "dbo.##HBTEST","#HBMONTHS","99","01","202501","202512",jTables,.T.,Nil,.T.)
+    jChecks["costProjection"]:=At("(PERIODO,RA_FILIAL,RA_CC,CTT_DESC01,TTRFSAI",cPrepared)>0
+    jChecks["costColumnsRequired"]:=Empty(HBBridge.Examples.HBBridgeTurnoverReal():Prepare(cSource,;
+        "dbo.##HBTEST","#HBMONTHS","99","01","202501","202512",jTables,.T.,Nil,.T.))
+    cPrepared:=HBBridge.Examples.HBBridgeTurnoverReal():Prepare(;
+        StrTran(cSource,"TURNOVERT.PERIODO INTO",;
+        "TURNOVERT.PERIODO,TURNOVERT.RA_FILIAL,TURNOVERT.RA_CC,TURNOVERT.CTT_DESC01,"+;
+        "TURNOVERT.RA_CODFUNC,TURNOVERT.RJ_DESC,TURNOVERT.TTRFSAI INTO"),;
+        "dbo.##HBTEST","#HBMONTHS","99","01","202501","202512",jTables,.T.,Nil,.T.,"A'B")
+    jChecks["jobProjection"]:=At("RA_CC,CTT_DESC01,RA_CODFUNC,RJ_DESC,TTRFSAI",cPrepared)>0
+    jChecks["jobCostEscaped"]:=At("'A''B'",cPrepared)>0
+    jChecks["jobColumnsRequired"]:=Empty(HBBridge.Examples.HBBridgeTurnoverReal():Prepare(cSource,;
+        "dbo.##HBTEST","#HBMONTHS","99","01","202501","202512",jTables,.T.,Nil,.T.,"A"))
+    cPrepared:=HBBridge.Examples.HBBridgeTurnoverReal():Prepare(;
+        StrTran(cSource,"TURNOVERT.PERIODO INTO",;
+        "TURNOVERT.PERIODO,TURNOVERT.RA_FILIAL,TURNOVERT.RA_CC,TURNOVERT.CTT_DESC01,"+;
+        "TURNOVERT.RA_CODFUNC,TURNOVERT.RJ_DESC,TURNOVERT.RA_MAT,TURNOVERT.SRARECNO,"+;
+        "TURNOVERT.TTRFSAI INTO"),;
+        "dbo.##HBTEST","#HBMONTHS","99","01","202501","202512",jTables,.T.,Nil,.T.,"100","J'1")
+    jChecks["employeeProjection"]:=At("RA_CODFUNC,RJ_DESC,RA_MAT,SRARECNO,TTRFSAI",cPrepared)>0
+    jChecks["employeeJobEscaped"]:=At("'J''1'",cPrepared)>0 .and. At("'100'",cPrepared)>0
+    cPrepared:=HBBridge.Examples.HBBridgeTurnoverReal():Prepare(;
+        StrTran(cSource,"TURNOVERT.PERIODO INTO",;
+        "LEFT(TURNOVERT.PERIODO,6) AS PERIODO,TURNOVERT.RA_FILIAL,TURNOVERT.RA_CC,TURNOVERT.CTT_DESC01,"+;
+        "TURNOVERT.RA_CODFUNC,TURNOVERT.RJ_DESC,TURNOVERT.RA_MAT,TURNOVERT.SRARECNO,"+;
+        "TURNOVERT.TTRFSAI INTO"),;
+        "dbo.##HBTEST","#HBMONTHS","99","01","202501","202512",jTables,.T.,Nil,.T.,"100","J1")
+    jChecks["employeeTruncatedPeriod"]:=!Empty(cPrepared) .and. At("LEFT(TURNOVERT.PERIODO,6)",cPrepared)>0
+    jChecks["employeeColumnsRequired"]:=Empty(HBBridge.Examples.HBBridgeTurnoverReal():Prepare(cSource,;
+        "dbo.##HBTEST","#HBMONTHS","99","01","202501","202512",jTables,.T.,Nil,.T.,"100","J1"))
+    cPrepared:=HBBridge.Examples.HBBridgeTurnoverReal():TransferSQL("dbo.##HBTEST","SRA001","SRE001","9'9")
+    jChecks["transferScoped"]:=At("FROM dbo.##HBTEST T JOIN SRA001",cPrepared)>0 .and. ;
+        At("JOIN SRE001 E",cPrepared)>0 .and. At("LEFT(E.RE_DATA,6) COLLATE DATABASE_DEFAULT=T.PERIODO",cPrepared)>0 .and. ;
+        At("E.RE_CODUNIC COLLATE DATABASE_DEFAULT=SRA.RA_CODUNIC",cPrepared)>0 .and. At("'9''9'",cPrepared)>0
+    jChecks["transferUnsafeName"]:=Empty(HBBridge.Examples.HBBridgeTurnoverReal():TransferSQL(;
+        "dbo.##HBTEST;DROP","SRA001","SRE001","99"))
+    jBranches["01"]:=.T.
+    jBranches["02"]:=.T.
+    cPrepared:=HBBridge.Examples.HBBridgeTurnoverReal():Prepare(;
+        StrTran(cSource,"AND !FILIALDE!=!FILIALATE!",;
+        "AND SRA.RA_FILIAL BETWEEN !FILIALDE! AND !FILIALATE! "+;
+        "AND PERIODO.RA_FILIAL BETWEEN !FILIALDE! AND !FILIALATE!"),;
+        "dbo.##HBTEST","#HBMONTHS","99","01","202501","202512",jTables,.F.,jBranches)
+    jChecks["allCompanyBranches"]:=!Empty(cPrepared) .and. At("SRA.RA_FILIAL IN (",cPrepared)>0 .and. ;
+        At("PERIODO.RA_FILIAL IN (",cPrepared)>0 .and. At("'01'",cPrepared)>0 .and. At("'02'",cPrepared)>0
+    jChecks["branchFiltersRequired"]:=Empty(HBBridge.Examples.HBBridgeTurnoverReal():Prepare(cSource,;
+        "dbo.##HBTEST","#HBMONTHS","99","01","202501","202512",jTables,.F.,jBranches))
+    jChecks["invalidMonth"]:=Empty(HBBridge.Examples.HBBridgeTurnoverReal():Prepare(cSource,"dbo.##HBTEST",;
+        "#HBMONTHS","99","01","202513","202512",jTables))
+    jChecks["reversedPeriod"]:=Empty(HBBridge.Examples.HBBridgeTurnoverReal():Prepare(cSource,"dbo.##HBTEST",;
+        "#HBMONTHS","99","01","202512","202501",jTables))
+    jChecks["unsafeIdentifier"]:=Empty(HBBridge.Examples.HBBridgeTurnoverReal():Prepare(cSource,"dbo.##HBTEST;DROP",;
+        "#HBMONTHS","99","01","202501","202512",jTables))
+    jChecks["unknownPlaceholder"]:=Empty(HBBridge.Examples.HBBridgeTurnoverReal():Prepare(cSource+" !UNKNOWN!",;
+        "dbo.##HBTEST","#HBMONTHS","99","01","202501","202512",jTables))
+    jChecks["repeatedTarget"]:=Empty(HBBridge.Examples.HBBridgeTurnoverReal():Prepare(cSource+" INTO !TABLENAME!",;
+        "dbo.##HBTEST","#HBMONTHS","99","01","202501","202512",jTables))
+    lOK:=jChecks["validBatch"] .and. jChecks["callerTarget"] .and. jChecks["resolvedSource"] .and. ;
+        jChecks["resolvedMonths"] .and. jChecks["resolvedParameters"] .and. jChecks["invalidMonth"] .and. ;
+        jChecks["reversedPeriod"] .and. jChecks["unsafeIdentifier"] .and. jChecks["unknownPlaceholder"] .and. ;
+        jChecks["repeatedTarget"] .and. jChecks["branchProjection"] .and. jChecks["branchColumnRequired"] .and. ;
+        jChecks["allCompanyBranches"] .and. jChecks["branchFiltersRequired"] .and. ;
+        jChecks["costProjection"] .and. jChecks["costColumnsRequired"] .and. ;
+        jChecks["jobProjection"] .and. jChecks["jobCostEscaped"] .and. jChecks["jobColumnsRequired"] .and. ;
+        jChecks["employeeProjection"] .and. jChecks["employeeJobEscaped"] .and. ;
+        jChecks["employeeTruncatedPeriod"] .and. jChecks["employeeColumnsRequired"] .and. ;
+        jChecks["transferScoped"] .and. jChecks["transferUnsafeName"]
+    ConOut("hbBridge real turnover planning checks: "+jChecks:ToJSON())
+    ConOut("hbBridge real turnover planning: "+IIf(lOK,"OK","FAILED"))
+    FreeObj(@jBranches)
+    FreeObj(@jTables)
+    FreeObj(@jChecks)
+return(IIf(lOK,0,1))
+
+// Checks the stored query shape through hbBridge without executing the batch.
+function U_HBBridgeTurnoverRealSourcePlanCLI(oArguments as variadic)
+
+    local aArguments:=oArguments:vArgs as array
+
+    local cAllowed:="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_", cArgument:="", cCode:="", cProfile:="", cTable:="" as character
+    local cPrepared:="", cSQL:="", cSource:="" as character
+
+    local jParams:=JSONObject():New(), jResponse, jTables:=JSONObject():New() as json
+
+    local lBranch:=.F., lCost:=.F., lOK:=.F. as logical
+
+    local nArgument:=0, nArguments:=Len(aArguments), nChar:=0, nLength:=0 as numeric
+
+    local oClient as object
+
+    local xCost, xError, xJob as variant
+
+    for nArgument:=1 to nArguments
+        cArgument:=aArguments[nArgument]
+        do case
+        case Lower(cArgument)=="--employee"
+            lBranch:=.T.
+            lCost:=.T.
+            xCost:="100"
+            xJob:="J1"
+        case Lower(cArgument)=="--job"
+            lBranch:=.T.
+            lCost:=.T.
+            xCost:="100"
+        case Lower(cArgument)=="--cost"
+            lBranch:=.T.
+            lCost:=.T.
+        case Lower(cArgument)=="--branch"
+            lBranch:=.T.
+        case Left(Lower(cArgument),10)=="--profile="
+            cProfile:=SubStr(cArgument,11)
+        case Left(Lower(cArgument),8)=="--table="
+            cTable:=Upper(SubStr(cArgument,9))
+        case Left(Lower(cArgument),7)=="--code="
+            cCode:=SubStr(cArgument,8)
+        endcase
+    next nArgument
+    nLength:=Len(cTable)
+    lOK:=!Empty(cProfile) .and. nLength>0 .and. nLength<=128 .and. Len(cCode)==4
+    for nChar:=1 to nLength
+        lOK:=lOK .and. SubStr(cTable,nChar,1)$cAllowed
+    next nChar
+    for nChar:=1 to Len(cCode)
+        lOK:=lOK .and. SubStr(cCode,nChar,1)$"0123456789"
+    next nChar
+    if lOK
+        try
+            cSQL:="SELECT CAST(CASE WHEN SUBSTRING(ZX__QUERY,DATALENGTH(ZX__QUERY),1)=0x00 "+;
+                "THEN SUBSTRING(ZX__QUERY,1,DATALENGTH(ZX__QUERY)-1) ELSE ZX__QUERY END AS VARCHAR(MAX)) AS QUERYTEXT "+;
+                "FROM "+cTable+" WHERE ZX__CODIGO='"+cCode+"' AND D_E_L_E_T_=' '"
+            jParams["alias"]:=cProfile
+            jParams["sql"]:=cSQL
+            oClient:=HBBridge.Client.HBBridgeClient():New()
+            jResponse:=oClient:CallService("RPCRDD.Query",jParams)
+            lOK:=ValType(jResponse)=="J" .and. jResponse:HasProperty("success") .and. ;
+                jResponse["success"] .and. jResponse["rowCount"]==1
+            if lOK
+                cSource:=jResponse["rows"]["1"]["QUERYTEXT"]
+                jTables["SRA990"]:="SRA990"
+                jTables["SRE990"]:="SRE990"
+                jTables["SRJ990"]:="SRJ990"
+                jTables["CTT990"]:="CTT990"
+                jTables["SR7990"]:="SR7990"
+                cPrepared:=HBBridge.Examples.HBBridgeTurnoverReal():Prepare(cSource,"dbo.##HBTEST",;
+                    "#HBMONTHS","99","01","202301","202310",jTables,lBranch,Nil,lCost,xCost,xJob)
+                lOK:=!Empty(cPrepared) .and. !("!"$cPrepared) .and. At("INSERT INTO dbo.##HBTEST",cPrepared)>0
+            endif
+        catch xError
+            lOK:=.F.
+            if ValType(xError)=="O"
+                FreeObj(@xError)
+            endif
+        endtry
+    endif
+    if ValType(oClient)=="O"
+        oClient:Close()
+        FreeObj(@oClient)
+    endif
+    FreeObj(@jResponse)
+    FreeObj(@jParams)
+    FreeObj(@jTables)
+    ConOut("hbBridge real turnover stored SQL planning: "+IIf(lOK,"OK","FAILED"))
+return(IIf(lOK,0,1))
+
+function U_HBBridgeTurnoverRealCLI(oArguments as variadic)
+
+    local aArguments:=oArguments:vArgs as array
+    local aTopInfo as array
+
+    local cArgument:="", cBranch:="", cCompany:="", cEnd:="", cProfile:="", cStart:="", cTransport:="TCP" as character
+    local cAlias:="", cDatabase:="", cPassword:="", cServer:="", cStage:="CONFIGURATION", cUser:="" as character
+
+    local lEnvironment:=.F., lEnvironmentAttempted:=.F., lOK:=.F., lOwnedConnection:=.F. as logical
+
+    local nArgument:=0, nArguments:=Len(aArguments) as numeric
+    local nConnection:=-1, nPort:=0 as numeric
+
+    local xError as variant
+
+    for nArgument:=1 to nArguments
+        cArgument:=aArguments[nArgument]
+        do case
+        case Left(Lower(cArgument),10)=="--company="
+            cCompany:=SubStr(cArgument,11)
+        case Left(Lower(cArgument),9)=="--branch="
+            cBranch:=SubStr(cArgument,10)
+        case Left(Lower(cArgument),10)=="--profile="
+            cProfile:=SubStr(cArgument,11)
+        case Left(Lower(cArgument),12)=="--transport="
+            cTransport:=Upper(SubStr(cArgument,13))
+        case Left(Lower(cArgument),8)=="--start="
+            cStart:=SubStr(cArgument,9)
+        case Left(Lower(cArgument),6)=="--end="
+            cEnd:=SubStr(cArgument,7)
+        endcase
+    next nArgument
+    if Empty(cCompany) .or. Empty(cBranch) .or. Empty(cProfile) .or. ;
+        !(cTransport=="TCP" .or. cTransport=="HTTP")
+        ConOut("hbBridge real turnover CLI requires company, branch, profile and TCP or HTTP transport.")
+        return(1)
+    endif
+    try
+        if !TCIsConnected()
+            aTopInfo:=FWGetTopInfo()
+            if ValType(aTopInfo)!="A" .or. Len(aTopInfo)<5
+                throw "DBAccess settings are unavailable."
+            endif
+            cServer:=aTopInfo[1]
+            nPort:=aTopInfo[3]
+            cDatabase:=aTopInfo[4]
+            cAlias:=aTopInfo[5]
+            FWFreeArray(@aTopInfo)
+            cStage:="DBACCESS"
+            nConnection:=TCLink(cDatabase+"/"+cAlias,cServer,nPort)
+            if nConnection<0
+                throw "DBAccess could not be connected."
+            endif
+            lOwnedConnection:=.T.
+        endif
+        cStage:="ENVIRONMENT"
+        cUser:=GetPvProfString("FWWEBEX_"+GetEnvServer(),"UserName","",GetSrvIniName())
+        cPassword:=GetPvProfString("FWWEBEX_"+GetEnvServer(),"Password","",GetSrvIniName())
+        RpcSetType(3)
+        lEnvironmentAttempted:=.T.
+        lEnvironment:=RPCSetEnv(cCompany,cBranch,cUser,cPassword)
+        cUser:=""
+        cPassword:=""
+        if !lEnvironment
+            throw "The Protheus environment could not be prepared."
+        endif
+        cStage:="REPORT"
+        lOK:=HBBridge.Examples.HBBridgeTurnoverReal():Run(cProfile,cStart,cEnd,cTransport=="HTTP",.F.)
+    catch xError
+        ConOut("hbBridge real turnover CLI failed at stage: "+cStage)
+        if ValType(xError)=="O"
+            FreeObj(@xError)
+        endif
+    endtry
+    cUser:=""
+    cPassword:=""
+    if lEnvironmentAttempted
+        try
+            RPCClearEnv()
+        catch xError
+            lOK:=.F.
+            if ValType(xError)=="O"
+                FreeObj(@xError)
+            endif
+        endtry
+    endif
+    if lOwnedConnection
+        TCUnlink(nConnection)
+    endif
+return(IIf(lOK,0,1))

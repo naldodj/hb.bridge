@@ -20,6 +20,27 @@ function U_HBBridgeTurnoverMarkupTest()
     ConOut("hbBridge turnover markup UTF-8: " + IIf(lOK, "OK", "FAILED"))
     FreeObj(@jResponse)
 return(IIf(lOK, 0, 1))
+
+function U_HBBridgeTurnoverReportMarkupTest()
+
+    local cJSON, cMarkup as character
+
+    local jResponse := JSONObject():New() as json
+
+    local lOK := .F. as logical
+
+    cJSON := '{"success":true,"definition":"source-monthly-turnover-v1",' + ;
+        '"periods":{"202501":{"period":"202501","active":"10",' + ;
+        '"turnoverPercent":"18.7500"}}}'
+    if HBBridge.Client.HBBridgeJSON():Parse(cJSON, jResponse)
+        cMarkup := HBBridge.Examples.HBBridgeTurnoverExample():Markup(jResponse)
+        lOK := At('"source-monthly-turnover-v1"', cMarkup) > 0 .and. ;
+            At('"18.7500"', cMarkup) > 0 .and. At('"202501"', cMarkup) > 0
+    endif
+    ConOut("hbBridge turnover report markup: " + IIf(lOK, "OK", "FAILED"))
+    FreeObj(@jResponse)
+return(IIf(lOK, 0, 1))
+
 function U_HBBridgeTurnoverCLI(oArguments as variadic)
 
     local aArguments := oArguments:vArgs as array

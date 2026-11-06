@@ -1,0 +1,858 @@
+/* Released to Public Domain. Optional GEP-specific Protheus integration example. */
+#include "totvs.ch"
+
+namespace HBBridge.Examples
+
+procedure U_HBBridgeTurnoverRealTCP(cProfile as character,cStart as character,cEnd as character)
+    local bExecute as codeblock
+    if FindClass("FWWebEx.Tools.FWExampleTools") .and. FindClass("FWWebEx.WebExControl")
+        bExecute:={||HBBridge.Examples.HBBridgeTurnoverReal():Run(cProfile,cStart,cEnd,.F.)}
+        if !FWIsInCallStack("Execute")
+            FWWebEx.Tools.FWExampleTools():Execute(bExecute,"HBBridgeTurnoverRealTCP",.T.)
+        else
+            Eval(bExecute)
+        endif
+    else
+        MsgStop("FWWebEx is required for this example.","hbBridge turnover")
+    endif
+return
+
+procedure U_HBBridgeTurnoverRealHTTP(cProfile as character,cStart as character,cEnd as character)
+    local bExecute as codeblock
+    if FindClass("FWWebEx.Tools.FWExampleTools") .and. FindClass("FWWebEx.WebExControl")
+        bExecute:={||HBBridge.Examples.HBBridgeTurnoverReal():Run(cProfile,cStart,cEnd,.T.)}
+        if !FWIsInCallStack("Execute")
+            FWWebEx.Tools.FWExampleTools():Execute(bExecute,"HBBridgeTurnoverRealHTTP",.T.)
+        else
+            Eval(bExecute)
+        endif
+    else
+        MsgStop("FWWebEx is required for this example.","hbBridge turnover")
+    endif
+return
+
+class HBBridgeTurnoverReal
+    static method Run(cProfile as character,cStart as character,cEnd as character,lHTTP as logical,lShow as logical) as logical
+    static method Prepare(cSource as character,cTarget as character,cMonths as character,;
+        cCompany as character,cBranch as character,cStart as character,cEnd as character,jTables as json,;
+        lBranch as logical,jBranches as json,lCost as logical,cCost as character,cJob as character) as character
+    static method TransferSQL(cTarget as character,cSRA as character,cSRE as character,cCompany as character) as character
+    static method DetailRows(oClient as object,cProfile as character,cCompany as character,;
+        jTables as json,jBranches as json,cPeriod as character,cBranch as character,;
+        cStart as character,cEnd as character,cCost as character,cJob as character) as json
+endclass
+
+static method Run(cProfile,cStart,cEnd,lHTTP,lShow) class HBBridgeTurnoverReal
+
+    // FWTemporaryTable requires the native DB structure array.
+    local aFields:={{"PERIODO","C",6,0},{"TTRFSAI","N",16,0},{"TTRFENT","N",16,0},;
+        {"TFUNIMES","N",16,0},{"TFUNADMMES","N",16,0},{"TFUNMES","N",16,0},;
+        {"TFUNDEMMES","N",16,0},{"TFUNFMES","N",16,0},{"TURNOVER","N",16,2},{"TURNMOVF","N",16,2}} as array
+    // Each table belongs to the Protheus caller and remains open until the page closes.
+    local aBranchFields:={{"PERIODO","C",6,0},{"RA_FILIAL","C",0,0},{"TTRFSAI","N",16,0},;
+        {"TTRFENT","N",16,0},{"TFUNIMES","N",16,0},{"TFUNADMMES","N",16,0},;
+        {"TFUNMES","N",16,0},{"TFUNDEMMES","N",16,0},{"TFUNFMES","N",16,0},;
+        {"TURNOVER","N",16,2},{"TURNMOVF","N",16,2}} as array
+    local aCompanyBranches as array
+    local aTopInfo as array
+
+    local cAlias:=GetNextAlias(), cBranch:="", cCompany:="", cMessage:="" as character
+    local cLatest:="", cMonths:="", cReportSQL:="", cSQL:="", cSource:="", cStage:="CONTEXT", cTarget:="" as character
+    local cBranchAlias:="", cBranchCode:="", cBranchReportSQL:="", cBranchSource:="", cBranchTarget:="", cCompanyBranch:="" as character
+
+    local jAction, jArgs, jBranches:=JSONObject():New(), jConfig, jRequest, jResponse, jTables:=JSONObject():New() as json
+
+    local lOK:=.F. as logical
+
+    local nBranch:=0, nBranches:=0, nPreviousArea:=Select() as numeric
+
+    local oClient, oTemporary, oBranchTemporary as object
+
+    local xError as variant
+
+    if ValType(lShow)!="L"
+        lShow:=.T.
+    endif
+    try
+        if !TCIsConnected() .or. Upper(TCGetDB())!="MSSQL" .or. Type("cEmpAnt")!="C"
+            throw "Prepare a Protheus company and MSSQL DBAccess connection."
+        endif
+        cCompany:=AllTrim(cEmpAnt)
+        cBranch:=xFilial("SRA")
+        if Empty(cCompany) .or. ValType(cBranch)!="C" .or. Chr(0)$cCompany .or. Chr(0)$cBranch
+            throw "The current company or branch is unavailable."
+        endif
+        aCompanyBranches:=FWAllFilial()
+        if ValType(aCompanyBranches)!="A" .or. Len(aCompanyBranches)==0
+            throw "The current company's branches could not be resolved."
+        endif
+        nBranches:=Len(aCompanyBranches)
+        for nBranch:=1 to nBranches
+            cBranchCode:=aCompanyBranches[nBranch]
+            if ValType(cBranchCode)!="C" .or. Chr(0)$cBranchCode
+                throw "An invalid branch was returned by the Protheus framework."
+            endif
+            cCompanyBranch:=IIf(Len(cFilAnt)>Len(cBranchCode),cCompany+cBranchCode,cBranchCode)
+            cBranchCode:=FWxFilial("SRA",cCompanyBranch)
+            if ValType(cBranchCode)!="C" .or. Chr(0)$cBranchCode
+                throw "A physical branch key could not be resolved."
+            endif
+            jBranches[AllTrim(cBranchCode)]:=.T.
+        next nBranch
+        FWFreeArray(@aCompanyBranches)
+        if ValType(cStart)!="C"
+            cStart:=""
+        endif
+        if ValType(cEnd)!="C"
+            cEnd:=""
+        endif
+        cStart:=AllTrim(cStart)
+        cEnd:=AllTrim(cEnd)
+        if Empty(cStart) .and. Empty(cEnd)
+            cLatest:=TurnoverRealLatestPeriod()
+            if Empty(cLatest)
+                throw "No valid payroll period is available; supply a start and end period."
+            endif
+            cStart:=Left(cLatest,4)+"01"
+            cEnd:=cLatest
+        elseif Empty(cStart)
+            if !TurnoverRealPeriod(cEnd)
+                throw "The end period must be a valid YYYYMM."
+            endif
+            cStart:=Left(cEnd,4)+"01"
+        elseif Empty(cEnd)
+            if !TurnoverRealPeriod(cStart)
+                throw "The start period must be a valid YYYYMM."
+            endif
+            cEnd:=Left(cStart,4)+"12"
+        endif
+        if ValType(cProfile)!="C" .or. Empty(AllTrim(cProfile))
+            jConfig:=HBBridge.Client.HBBridgeConfig():Read()
+            cProfile:=jConfig["sqlProfile"]
+            FreeObj(@jConfig)
+            if Empty(cProfile)
+                aTopInfo:=FWGetTopInfo()
+                if ValType(aTopInfo)=="A" .and. Len(aTopInfo)>=5
+                    cProfile:=aTopInfo[4]+"/"+aTopInfo[5]
+                endif
+                FWFreeArray(@aTopInfo)
+            endif
+        endif
+        if ValType(cProfile)!="C" .or. Empty(AllTrim(cProfile))
+            throw "An hbBridge SQL profile is required."
+        endif
+        cStage:="MODEL"
+        cSource:=TurnoverRealSource("TURNOVERGERALEMPRESA")
+        cBranchSource:=TurnoverRealSource("TURNOVERGERALFILIAL")
+        if Empty(cSource) .or. Empty(cBranchSource)
+            throw "The active GEP company and branch turnover queries could not be resolved from ZZ and ZX."
+        endif
+        jTables["SRA990"]:=RetSQLName("SRA")
+        jTables["SRE990"]:=RetSQLName("SRE")
+        jTables["SRJ990"]:=RetSQLName("SRJ")
+        jTables["CTT990"]:=RetSQLName("CTT")
+        jTables["SR7990"]:=RetSQLName("SR7")
+        if ValType(lHTTP)=="L" .and. lHTTP
+            oClient:=HBBridge.Client.HBBridgeHTTPClient():New()
+        else
+            oClient:=HBBridge.Client.HBBridgeClient():New()
+            lHTTP:=.F.
+        endif
+        cStage:="DATABASE_IDENTITY"
+        if !TurnoverRealSameDatabase(cProfile,oClient)
+            throw "DBAccess and hbBridge must address the same MSSQL server and database."
+        endif
+        cStage:="TEMPORARY_TABLE"
+        oTemporary:=FWTemporaryTable():New(cAlias,aFields)
+        oTemporary:Create()
+        cAlias:=oTemporary:GetAlias()
+        cTarget:=AllTrim(oTemporary:GetRealName())
+        if Select(cAlias)==0 .or. Empty(cTarget)
+            throw "The caller-owned temporary table could not be created."
+        endif
+        aBranchFields[2][3]:=TamSX3("RA_FILIAL")[1]
+        if aBranchFields[2][3]<1
+            throw "The branch field metadata is unavailable."
+        endif
+        cBranchAlias:=GetNextAlias()
+        oBranchTemporary:=FWTemporaryTable():New(cBranchAlias,aBranchFields)
+        oBranchTemporary:Create()
+        cBranchAlias:=oBranchTemporary:GetAlias()
+        cBranchTarget:=AllTrim(oBranchTemporary:GetRealName())
+        if Select(cBranchAlias)==0 .or. Empty(cBranchTarget)
+            throw "The caller-owned branch temporary table could not be created."
+        endif
+        cMonths:="#HBM"+StrTran(UUIDRandom(),"-","")
+        cStage:="QUERY_PREPARATION"
+        cSQL:=HBBridge.Examples.HBBridgeTurnoverReal():Prepare(cSource,cTarget,cMonths,;
+            cCompany,cBranch,cStart,cEnd,jTables,.F.,jBranches)
+        if Empty(cSQL)
+            throw "The registered query or supplied parameters have an unsupported format."
+        endif
+        cStage:="QUERY_EXECUTION"
+        jResponse:=HBBridge.SQL.HBBridgeSQLExecutor():Execute(oClient,cProfile,cSQL)
+        if ValType(jResponse)!="J" .or. !jResponse:HasProperty("success") .or. !jResponse["success"] .or. ;
+            !jResponse:HasProperty("outcome") .or. jResponse["outcome"]!="completed"
+            cMessage:="The turnover query did not confirm completion; do not retry automatically."
+            if ValType(jResponse)=="J" .and. jResponse:HasProperty("code")
+                cMessage+=" Code: "+jResponse["code"]
+            endif
+            throw "The turnover query did not confirm completion."
+        endif
+        cStage:="BRANCH_QUERY_PREPARATION"
+        cMonths:="#HBM"+StrTran(UUIDRandom(),"-","")
+        cSQL:=HBBridge.Examples.HBBridgeTurnoverReal():Prepare(cBranchSource,cBranchTarget,cMonths,;
+            cCompany,cBranch,cStart,cEnd,jTables,.T.,jBranches)
+        if Empty(cSQL)
+            throw "The registered branch query or supplied parameters have an unsupported format."
+        endif
+        cStage:="BRANCH_QUERY_EXECUTION"
+        FreeObj(@jResponse)
+        jResponse:=HBBridge.SQL.HBBridgeSQLExecutor():Execute(oClient,cProfile,cSQL)
+        if ValType(jResponse)!="J" .or. !jResponse:HasProperty("success") .or. !jResponse["success"] .or. ;
+            !jResponse:HasProperty("outcome") .or. jResponse["outcome"]!="completed"
+            cMessage:="The branch turnover query did not confirm completion; do not retry automatically."
+            if ValType(jResponse)=="J" .and. jResponse:HasProperty("code")
+                cMessage+=" Code: "+jResponse["code"]
+            endif
+            throw "The branch turnover query did not confirm completion."
+        endif
+        cBranchReportSQL:="SELECT PERIODO,RA_FILIAL,TTRFSAI,TTRFENT,TFUNIMES,TFUNADMMES,TFUNMES,"+;
+            "TFUNDEMMES,TFUNFMES,TURNOVER,TURNMOVF FROM "+cBranchTarget+" ORDER BY PERIODO,RA_FILIAL"
+        cReportSQL:="SELECT PERIODO,TTRFSAI,TTRFENT,TFUNIMES,TFUNADMMES,TFUNMES,"+;
+            "TFUNDEMMES,TFUNFMES,TURNOVER,TURNMOVF FROM "+cTarget+" ORDER BY PERIODO"
+        cStage:="REPORT"
+        if lShow
+            HBBridge.Examples.HBBridgeTurnoverExample():Show(cProfile,lHTTP,cReportSQL,Nil,cBranchReportSQL,cCompany,jTables,jBranches,cStart,cEnd)
+        else
+            jArgs:=JSONObject():New()
+            jArgs["profile"]:=cProfile
+            jArgs["sql"]:=cReportSQL
+            jArgs["bindings"]:=JSONObject():New()
+            jArgs["branchSql"]:=cBranchReportSQL
+            jArgs["branchBindings"]:=JSONObject():New()
+            jAction:=JSONObject():New()
+            jAction["action"]:="turnoverReport"
+            jAction["params"]:=jArgs
+            jRequest:=JSONObject():New()
+            jRequest["module"]:="examples/hbbridgeaddons.hrb"
+            jRequest["params"]:=jAction
+            FreeObj(@jResponse)
+            jResponse:=oClient:CallService("ADDON.Execute",jRequest)
+            if ValType(jResponse)!="J" .or. !jResponse:HasProperty("success") .or. !jResponse["success"] .or. ;
+                !jResponse:HasProperty("rowCount")
+                cMessage:="The monthly turnover addon could not read the temporary result."
+                if ValType(jResponse)=="J" .and. jResponse:HasProperty("code")
+                    cMessage+=" Code: "+jResponse["code"]
+                endif
+                throw "The monthly turnover addon failed."
+            endif
+            ConOut("hbBridge real turnover source: OK; months="+tlpp.ToStr(jResponse["rowCount"])+;
+                "; branches="+tlpp.ToStr(jResponse["branchRowCount"])+"; transport="+IIf(lHTTP,"HTTP","TCP"))
+        endif
+        lOK:=.T.
+    catch xError
+        if Empty(cMessage)
+            if ValType(xError)=="C"
+                cMessage:=xError
+            else
+                cMessage:="Could not prepare the turnover example. Check the Protheus context and SQL profile."
+            endif
+            cMessage+=" Stage: "+cStage
+        endif
+        if ValType(xError)=="O"
+            FreeObj(@xError)
+        endif
+    endtry
+    if ValType(oClient)=="O"
+        try
+            if !lHTTP
+                oClient:Close()
+            endif
+        catch xError
+            if ValType(xError)=="O"
+                FreeObj(@xError)
+            endif
+        endtry
+        FreeObj(@oClient)
+    endif
+    if ValType(oBranchTemporary)=="O"
+        try
+            oBranchTemporary:Delete()
+        catch xError
+            lOK:=.F.
+            cMessage:="The caller-owned branch temporary table could not be released."
+            if ValType(xError)=="O"
+                FreeObj(@xError)
+            endif
+        endtry
+        FreeObj(@oBranchTemporary)
+    endif
+    if ValType(oTemporary)=="O"
+        try
+            oTemporary:Delete()
+        catch xError
+            lOK:=.F.
+            cMessage:="The caller-owned temporary table could not be released."
+            if ValType(xError)=="O"
+                FreeObj(@xError)
+            endif
+        endtry
+        FreeObj(@oTemporary)
+    endif
+    if Select()!=nPreviousArea
+        DbSelectArea(IIf(nPreviousArea>0,nPreviousArea,Nil))
+    endif
+    FreeObj(@jResponse)
+    FreeObj(@jRequest)
+    jAction:=Nil
+    jArgs:=Nil
+    FreeObj(@jTables)
+    FreeObj(@jBranches)
+    if ValType(aCompanyBranches)=="A"
+        FWFreeArray(@aCompanyBranches)
+    endif
+    FWFreeArray(@aBranchFields)
+    FWFreeArray(@aFields)
+    if !lOK
+        if lShow
+            MsgStop(cMessage,"hbBridge turnover")
+        else
+            ConOut("hbBridge real turnover source: FAILED; "+cMessage)
+        endif
+    endif
+return(lOK)
+
+static method Prepare(cSource,cTarget,cMonths,cCompany,cBranch,cStart,cEnd,jTables,lBranch,jBranches,lCost,cCost,cJob) class HBBridgeTurnoverReal
+
+    local aNames:={"SRA990","SRE990","SRJ990","CTT990","SR7990"} as array
+    local aBranchKeys as array
+
+    local cName:="", cSQL:="", cUpper:="", cInsert:="", cProjection:="", cValue:="", cBranchList:="" as character
+    local cPrefix:="SELECTDISTINCTTURNOVERT.PERIODO,TURNOVERT.RA_FILIAL," as character
+
+    local lBranchQuery:=ValType(lBranch)=="L" .and. lBranch as logical
+    local lCostQuery:=ValType(lCost)=="L" .and. lCost as logical
+    local lJobQuery:=ValType(cCost)=="C" as logical
+    local lEmployeeQuery:=ValType(cJob)=="C" as logical
+
+    local nBranch:=0, nBranches:=0, nInto:=0, nSelect:=0, nName:=0, nNames:=Len(aNames) as numeric
+
+    if ValType(cSource)!="C" .or. Empty(cSource) .or. Chr(0)$cSource .or. ;
+        !TurnoverRealIdentifier(cTarget,.T.) .or. !TurnoverRealIdentifier(cMonths,.T.) .or. ;
+        ValType(cCompany)!="C" .or. Empty(AllTrim(cCompany)) .or. Chr(0)$cCompany .or. ;
+        ValType(cBranch)!="C" .or. Chr(0)$cBranch .or. ;
+        !TurnoverRealPeriod(cStart) .or. !TurnoverRealPeriod(cEnd) .or. cStart>cEnd .or. ValType(jTables)!="J"
+        return("")
+    endif
+    cSQL:=cSource
+    cUpper:=Upper(cSQL)
+    nInto:=At("INTO !TABLENAME!",cUpper)
+    if nInto==0 .or. nInto!=RAt("INTO !TABLENAME!",cUpper)
+        return("")
+    endif
+    nSelect:=RAt("SELECT DISTINCT",Left(cUpper,nInto-1))
+    if nSelect==0 .or. At("TURNOVERT.PERIODO",SubStr(cUpper,nSelect,nInto-nSelect))==0 .or. ;
+        At("FROM TURNOVERT",SubStr(cUpper,nInto))==0
+        return("")
+    endif
+    if (lCostQuery .and. !lBranchQuery) .or. (lJobQuery .and. !lCostQuery) .or. ;
+        (lEmployeeQuery .and. !lJobQuery)
+        return("")
+    endif
+    if lJobQuery .and. (Chr(0)$cCost .or. !("!CCDE!"$cUpper) .or. !("!CCATE!"$cUpper))
+        return("")
+    endif
+    if lEmployeeQuery .and. (Chr(0)$cJob .or. !("!FUNCAODE!"$cUpper) .or. !("!FUNCAOATE!"$cUpper))
+        return("")
+    endif
+    if lBranchQuery
+        if lCostQuery
+            cPrefix+="TURNOVERT.RA_CC,TURNOVERT.CTT_DESC01,"
+        endif
+        if lJobQuery
+            cPrefix+="TURNOVERT.RA_CODFUNC,TURNOVERT.RJ_DESC,"
+        endif
+        if lEmployeeQuery
+            cPrefix+="TURNOVERT.RA_MAT,TURNOVERT.SRARECNO,"
+        endif
+        cProjection:=SubStr(cUpper,nSelect,nInto-nSelect)
+        cProjection:=StrTran(StrTran(StrTran(StrTran(cProjection," ",""),Chr(9),""),Chr(10),""),Chr(13),"")
+        if Left(cProjection,Len(cPrefix))!=cPrefix
+            if lEmployeeQuery
+                cPrefix:=StrTran(cPrefix,"SELECTDISTINCTTURNOVERT.PERIODO,",;
+                    "SELECTDISTINCTLEFT(TURNOVERT.PERIODO,6)ASPERIODO,")
+            endif
+            if Left(cProjection,Len(cPrefix))!=cPrefix
+                return("")
+            endif
+        endif
+    endif
+    cInsert:="INSERT INTO "+cTarget+" (PERIODO,"+IIf(lBranchQuery,"RA_FILIAL,","")+;
+        IIf(lCostQuery,"RA_CC,CTT_DESC01,","")+IIf(lJobQuery,"RA_CODFUNC,RJ_DESC,","")+;
+        IIf(lEmployeeQuery,"RA_MAT,SRARECNO,","")+"TTRFSAI,TTRFENT,TFUNIMES,TFUNADMMES,TFUNMES,"+;
+        "TFUNDEMMES,TFUNFMES,TURNOVER,TURNMOVF) "+Chr(13)+Chr(10)
+    cSQL:=Left(cSQL,nSelect-1)+cInsert+SubStr(cSQL,nSelect)
+    cSQL:=StrTran(cSQL,"INTO !TABLENAME!","")
+    cSQL:=StrTran(cSQL,"!TBLTMPMONTHS!",cMonths)
+    cSQL:=StrTran(cSQL,"!EMPRESA!","'"+StrTran(cCompany,"'","''")+"'")
+    if ValType(jBranches)=="J"
+        aBranchKeys:=jBranches:GetNames()
+        nBranches:=Len(aBranchKeys)
+        if nBranches==0
+            return("")
+        endif
+        for nBranch:=1 to nBranches
+            cValue:=aBranchKeys[nBranch]
+            if ValType(cValue)!="C" .or. Chr(0)$cValue
+                return("")
+            endif
+            cBranchList+=IIf(nBranch>1,",","")+"'"+StrTran(cValue,"'","''")+"'"
+        next nBranch
+        FWFreeArray(@aBranchKeys)
+        if !("SRA.RA_FILIAL BETWEEN !FILIALDE! AND !FILIALATE!"$cSQL) .or. ;
+            !("PERIODO.RA_FILIAL BETWEEN !FILIALDE! AND !FILIALATE!"$cSQL)
+            return("")
+        endif
+        cSQL:=StrTran(cSQL,"SRA.RA_FILIAL BETWEEN !FILIALDE! AND !FILIALATE!",;
+            "SRA.RA_FILIAL IN ("+cBranchList+")")
+        cSQL:=StrTran(cSQL,"PERIODO.RA_FILIAL BETWEEN !FILIALDE! AND !FILIALATE!",;
+            "PERIODO.RA_FILIAL IN ("+cBranchList+")")
+        if "!FILIALDE!"$cSQL .or. "!FILIALATE!"$cSQL
+            return("")
+        endif
+    endif
+    cSQL:=StrTran(cSQL,"!FILIALDE!","'"+StrTran(cBranch,"'","''")+"'")
+    cSQL:=StrTran(cSQL,"!FILIALATE!","'"+StrTran(cBranch,"'","''")+"'")
+    cSQL:=StrTran(cSQL,"!DATARQDE!","'"+cStart+"'")
+    cSQL:=StrTran(cSQL,"!DATARQATE!","'"+cEnd+"'")
+    if lJobQuery
+        cValue:="'"+StrTran(cCost,"'","''")+"'"
+        cSQL:=StrTran(cSQL,"!CCDE!",cValue)
+        cSQL:=StrTran(cSQL,"!CCATE!",cValue)
+    else
+        cSQL:=StrTran(cSQL,"!CCDE!","''")
+        cSQL:=StrTran(cSQL,"!CCATE!","'z'")
+    endif
+    if lEmployeeQuery
+        cValue:="'"+StrTran(cJob,"'","''")+"'"
+        cSQL:=StrTran(cSQL,"!FUNCAODE!",cValue)
+        cSQL:=StrTran(cSQL,"!FUNCAOATE!",cValue)
+    else
+        cSQL:=StrTran(cSQL,"!FUNCAODE!","''")
+        cSQL:=StrTran(cSQL,"!FUNCAOATE!","'z'")
+    endif
+    for nName:=1 to nNames
+        cName:=aNames[nName]
+        if !jTables:HasProperty(cName)
+            return("")
+        endif
+        cValue:=jTables[cName]
+        if !TurnoverRealIdentifier(cValue,.F.)
+            return("")
+        endif
+        cSQL:=StrTran(cSQL,cName,cValue)
+    next nName
+    if "!"$cSQL
+        return("")
+    endif
+return(cSQL)
+
+// One request owns one result table. The browser supplies keys, never SQL.
+static method DetailRows(oClient,cProfile,cCompany,jTables,jBranches,cPeriod,cBranch,cStart,cEnd,cCost,cJob) class HBBridgeTurnoverReal
+
+    local aFields:={{"PERIODO","C",6,0},{"RA_FILIAL","C",0,0},{"RA_CC","C",0,0},;
+        {"CTT_DESC01","C",0,0},{"TTRFSAI","N",16,0},{"TTRFENT","N",16,0},;
+        {"TFUNIMES","N",16,0},{"TFUNADMMES","N",16,0},{"TFUNMES","N",16,0},;
+        {"TFUNDEMMES","N",16,0},{"TFUNFMES","N",16,0},{"TURNOVER","N",16,2},{"TURNMOVF","N",16,2}} as array
+
+    local cAlias:="", cMonths:="", cSource:="", cSQL:="", cTarget:="" as character
+
+    local jAllowed:=JSONObject():New(), jEvents, jParams, jResult:=JSONObject():New(), jRows, jService as json
+
+    local lEmployee:=ValType(cJob)=="C", lJob:=ValType(cCost)=="C" as logical
+
+    local nPreviousArea:=Select() as numeric
+
+    local oTemporary as object
+
+    local xError as variant
+
+    jResult["success"]:=.F.
+    jResult["code"]:="INVALID_SELECTION"
+    if ValType(jBranches)!="J" .or. !TurnoverRealPeriod(cPeriod) .or. ;
+        !TurnoverRealPeriod(cStart) .or. !TurnoverRealPeriod(cEnd) .or. ;
+        cPeriod<cStart .or. cPeriod>cEnd .or. ValType(cBranch)!="C" .or. ;
+        Chr(0)$cBranch .or. !jBranches:HasProperty(AllTrim(cBranch)) .or. ;
+        (lJob .and. (Chr(0)$cCost .or. Len(cCost)>255)) .or. ;
+        (lEmployee .and. (!lJob .or. Chr(0)$cJob .or. Len(cJob)>255))
+        FreeObj(@jAllowed)
+        FWFreeArray(@aFields)
+        return(jResult)
+    endif
+    try
+        cBranch:=AllTrim(cBranch)
+        jAllowed[cBranch]:=.T.
+        if lJob
+            aFields:={{"PERIODO","C",6,0},{"RA_FILIAL","C",0,0},{"RA_CC","C",0,0},;
+                {"CTT_DESC01","C",0,0},{"RA_CODFUNC","C",0,0},{"RJ_DESC","C",0,0},;
+                {"TTRFSAI","N",16,0},{"TTRFENT","N",16,0},{"TFUNIMES","N",16,0},;
+                {"TFUNADMMES","N",16,0},{"TFUNMES","N",16,0},{"TFUNDEMMES","N",16,0},;
+                {"TFUNFMES","N",16,0},{"TURNOVER","N",16,2},{"TURNMOVF","N",16,2}}
+        endif
+        if lEmployee
+            aFields:={{"PERIODO","C",6,0},{"RA_FILIAL","C",0,0},{"RA_CC","C",0,0},;
+                {"CTT_DESC01","C",0,0},{"RA_CODFUNC","C",0,0},{"RJ_DESC","C",0,0},;
+                {"RA_MAT","C",0,0},{"SRARECNO","N",16,0},{"TTRFSAI","N",16,0},;
+                {"TTRFENT","N",16,0},{"TFUNIMES","N",16,0},{"TFUNADMMES","N",16,0},;
+                {"TFUNMES","N",16,0},{"TFUNDEMMES","N",16,0},{"TFUNFMES","N",16,0},;
+                {"TURNOVER","N",16,2},{"TURNMOVF","N",16,2}}
+        endif
+        cSource:=TurnoverRealSource(IIf(lEmployee,"TURNOVERGERALFUNCIONARIOS",;
+            IIf(lJob,"TURNOVERGERALFUNCOES","TURNOVERGERALCENTRODECUSTO")))
+        if Empty(cSource)
+            throw "MODEL_UNAVAILABLE"
+        endif
+        aFields[2][3]:=TamSX3("RA_FILIAL")[1]
+        aFields[3][3]:=TamSX3("RA_CC")[1]
+        aFields[4][3]:=TamSX3("CTT_DESC01")[1]
+        if lJob
+            aFields[5][3]:=TamSX3("RA_CODFUNC")[1]
+            aFields[6][3]:=TamSX3("RJ_DESC")[1]
+            if aFields[5][3]<1 .or. aFields[6][3]<1
+                throw "METADATA_UNAVAILABLE"
+            endif
+        endif
+        if lEmployee
+            aFields[7][3]:=TamSX3("RA_MAT")[1]
+            if aFields[7][3]<1
+                throw "METADATA_UNAVAILABLE"
+            endif
+        endif
+        if aFields[2][3]<1 .or. aFields[3][3]<1 .or. aFields[4][3]<1
+            throw "METADATA_UNAVAILABLE"
+        endif
+        cAlias:=GetNextAlias()
+        oTemporary:=FWTemporaryTable():New(cAlias,aFields)
+        oTemporary:Create()
+        cAlias:=oTemporary:GetAlias()
+        cTarget:=AllTrim(oTemporary:GetRealName())
+        if Select(cAlias)==0 .or. Empty(cTarget)
+            throw "TEMPORARY_TABLE_FAILED"
+        endif
+        cMonths:="#HBM"+StrTran(UUIDRandom(),"-","")
+        cSQL:=HBBridge.Examples.HBBridgeTurnoverReal():Prepare(cSource,cTarget,cMonths,;
+            cCompany,cBranch,cPeriod,cPeriod,jTables,.T.,jAllowed,.T.,cCost,cJob)
+        if Empty(cSQL)
+            throw "UNSUPPORTED_MODEL"
+        endif
+        jService:=HBBridge.SQL.HBBridgeSQLExecutor():Execute(oClient,cProfile,cSQL)
+        if ValType(jService)!="J" .or. !jService:HasProperty("success") .or. !jService["success"] .or. ;
+            !jService:HasProperty("outcome") .or. jService["outcome"]!="completed"
+            throw "EXECUTION_UNCONFIRMED"
+        endif
+        FreeObj(@jService)
+        if lEmployee
+            // The source identifies the SRA record; dates and name are current SRA attributes.
+            cSQL:="SELECT T.PERIODO,T.RA_FILIAL,T.RA_CC,T.CTT_DESC01,T.RA_CODFUNC,T.RJ_DESC,"+;
+                "T.RA_MAT,T.SRARECNO,SRA.RA_NOME,SRA.RA_ADMISSA,SRA.RA_DEMISSA,"+;
+                "T.TTRFSAI,T.TTRFENT,T.TFUNIMES,T.TFUNADMMES,T.TFUNMES,T.TFUNDEMMES,"+;
+                "T.TFUNFMES,T.TURNOVER,T.TURNMOVF FROM "+cTarget+" T LEFT JOIN "+jTables["SRA990"]+;
+                " SRA ON SRA.R_E_C_N_O_=T.SRARECNO AND SRA.D_E_L_E_T_=' ' ORDER BY T.RA_MAT,T.SRARECNO"
+        else
+            cSQL:="SELECT PERIODO,RA_FILIAL,RA_CC,CTT_DESC01,"+IIf(lJob,"RA_CODFUNC,RJ_DESC,","")+;
+                "TTRFSAI,TTRFENT,TFUNIMES,TFUNADMMES,TFUNMES,TFUNDEMMES,TFUNFMES,TURNOVER,TURNMOVF FROM "+;
+                cTarget+IIf(lJob," ORDER BY RA_CODFUNC,RJ_DESC"," ORDER BY RA_CC,CTT_DESC01")
+        endif
+        jParams:=JSONObject():New()
+        jParams["requestVersion"]:=1
+        jParams["alias"]:=cProfile
+        jParams["sql"]:=cSQL
+        jParams["bindings"]:=JSONObject():New()
+        jService:=oClient:CallService("RPCRDD.QueryTyped",jParams)
+        if ValType(jService)!="J" .or. !jService:HasProperty("success") .or. !jService["success"] .or. ;
+            !jService:HasProperty("rows") .or. !jService:HasProperty("rowCount")
+            throw "QUERY_FAILED"
+        endif
+        if lEmployee
+            // P/D fields are retained as stored; matching is limited to this result table.
+            cSQL:=HBBridge.Examples.HBBridgeTurnoverReal():TransferSQL(cTarget,jTables["SRA990"],;
+                jTables["SRE990"],cCompany)
+            jService["transferStatus"]:="unavailable"
+            if !Empty(cSQL)
+                jParams["sql"]:=cSQL
+                jEvents:=oClient:CallService("RPCRDD.QueryTyped",jParams)
+                if ValType(jEvents)=="J" .and. jEvents:HasProperty("success") .and. jEvents["success"] .and. ;
+                    jEvents:HasProperty("rows") .and. ValType(jEvents["rows"])=="J"
+                    jRows:=JSONObject():New()
+                    if HBBridge.Client.HBBridgeJSON():Parse(HBBridge.Client.HBBridgeJSON():Encode(jEvents["rows"]),jRows)
+                        jService["transferRows"]:=jRows
+                        jService["transferStatus"]:="matched"
+                        jRows:=Nil
+                    endif
+                endif
+            endif
+        endif
+        FreeObj(@jResult)
+        jResult:=jService
+        jService:=Nil
+    catch xError
+        if ValType(xError)=="C"
+            jResult["code"]:=xError
+        else
+            jResult["code"]:="DETAIL_FAILED"
+        endif
+        if ValType(xError)=="O"
+            FreeObj(@xError)
+        endif
+    endtry
+    if ValType(oTemporary)=="O"
+        try
+            oTemporary:Delete()
+        catch xError
+            jResult["success"]:=.F.
+            jResult["code"]:="TEMPORARY_CLEANUP_FAILED"
+            if ValType(xError)=="O"
+                FreeObj(@xError)
+            endif
+        endtry
+        FreeObj(@oTemporary)
+    endif
+    if Select()!=nPreviousArea
+        DbSelectArea(IIf(nPreviousArea>0,nPreviousArea,Nil))
+    endif
+    FreeObj(@jService)
+    FreeObj(@jEvents)
+    FreeObj(@jRows)
+    FreeObj(@jParams)
+    FreeObj(@jAllowed)
+    FWFreeArray(@aFields)
+return(jResult)
+
+// These matches are evidence only; the registered model remains the source of counts.
+static method TransferSQL(cTarget,cSRA,cSRE,cCompany) class HBBridgeTurnoverReal
+
+    local cCompanySQL:="", cIn:="", cOut:="", cSQL:="" as character
+
+    if !TurnoverRealIdentifier(cTarget,.T.) .or. !TurnoverRealIdentifier(cSRA,.F.) .or. ;
+        !TurnoverRealIdentifier(cSRE,.F.) .or. ValType(cCompany)!="C" .or. ;
+        Empty(AllTrim(cCompany)) .or. Chr(0)$cCompany
+        return("")
+    endif
+    cCompanySQL:="'"+StrTran(cCompany,"'","''")+"'"
+    cOut:="(E.RE_EMPD="+cCompanySQL+" AND E.RE_FILIALD COLLATE DATABASE_DEFAULT=T.RA_FILIAL COLLATE DATABASE_DEFAULT "+;
+        "AND E.RE_CCD COLLATE DATABASE_DEFAULT=T.RA_CC COLLATE DATABASE_DEFAULT AND E.RE_MATD COLLATE DATABASE_DEFAULT=T.RA_MAT COLLATE DATABASE_DEFAULT)"
+    cIn:="(E.RE_EMPP="+cCompanySQL+" AND E.RE_FILIALP COLLATE DATABASE_DEFAULT=T.RA_FILIAL COLLATE DATABASE_DEFAULT "+;
+        "AND E.RE_CCP COLLATE DATABASE_DEFAULT=T.RA_CC COLLATE DATABASE_DEFAULT AND E.RE_MATP COLLATE DATABASE_DEFAULT=T.RA_MAT COLLATE DATABASE_DEFAULT)"
+    cSQL:="SELECT DISTINCT T.SRARECNO,E.R_E_C_N_O_ AS EVENTRECNO,E.RE_DATA,E.RE_EMPP,E.RE_FILIALP,"+;
+        "E.RE_MATP,E.RE_CCP,E.RE_EMPD,E.RE_FILIALD,E.RE_MATD,E.RE_CCD,"+;
+        "CASE WHEN "+cOut+" THEN 1 ELSE 0 END AS MATCHOUT,"+;
+        "CASE WHEN "+cIn+" THEN 1 ELSE 0 END AS MATCHIN FROM "+cTarget+" T JOIN "+cSRA+;
+        " SRA ON SRA.R_E_C_N_O_=T.SRARECNO AND SRA.D_E_L_E_T_=' ' JOIN "+cSRE+;
+        " E ON E.D_E_L_E_T_=' ' AND E.RE_CODUNIC COLLATE DATABASE_DEFAULT=SRA.RA_CODUNIC COLLATE DATABASE_DEFAULT AND LEFT(E.RE_DATA,6) COLLATE DATABASE_DEFAULT=T.PERIODO COLLATE DATABASE_DEFAULT "+;
+        "AND ("+cOut+" OR "+cIn+") ORDER BY T.SRARECNO,E.RE_DATA,E.R_E_C_N_O_"
+return(cSQL)
+
+static function TurnoverRealIdentifier(cValue as character,lTemporary as logical) as logical
+    local cAllowed:="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_."+IIf(lTemporary,"#","") as character
+    local nChar:=0, nLength:=0 as numeric
+    if ValType(cValue)!="C"
+        return(.F.)
+    endif
+    nLength:=Len(cValue)
+    if nLength==0 .or. nLength>255
+        return(.F.)
+    endif
+    for nChar:=1 to nLength
+        if !(Upper(SubStr(cValue,nChar,1))$cAllowed)
+            return(.F.)
+        endif
+    next nChar
+return(.T.)
+
+static function TurnoverRealPeriod(cPeriod as character) as logical
+    local cDigits:="0123456789" as character
+    local nChar:=0 as numeric
+    if ValType(cPeriod)!="C" .or. Len(cPeriod)!=6
+        return(.F.)
+    endif
+    for nChar:=1 to 6
+        if !(SubStr(cPeriod,nChar,1)$cDigits)
+            return(.F.)
+        endif
+    next nChar
+return(Val(Left(cPeriod,4))>0 .and. Val(Right(cPeriod,2))>=1 .and. Val(Right(cPeriod,2))<=12)
+
+static function TurnoverRealSource(cModel as character) as character
+
+    local aZXArea as array
+
+    local cCode:="", cQuery:="", cSource:="", cZZ:="", cZX:="" as character
+
+    local nRecord:=0 as numeric
+
+    local xFlag, xValue, xError as variant
+
+    try
+        cZZ:=RetSQLName("ZZ_")
+        cZX:=RetSQLName("ZX_")
+        if !TurnoverRealIdentifier(cZZ,.F.) .or. !TurnoverRealIdentifier(cZX,.F.)
+            throw "The configured model tables are unavailable."
+        endif
+        cQuery:="SELECT DISTINCT ZZ__QUERY FROM "+cZZ+" WHERE D_E_L_E_T_=' ' AND ZZ__ATIVO='1' "+;
+            "AND ZZ__ALIAS='ZX_' AND ZZ__MODEL='"+StrTran(cModel,"'","''")+"' AND ZZ__FILIAL='"+;
+            StrTran(xFilial("ZZ_"),"'","''")+"'"
+        xValue:=TurnoverRealScalar(cQuery)
+        if ValType(xValue)!="C" .or. Empty(AllTrim(xValue))
+            throw "The company turnover model is unavailable or ambiguous."
+        endif
+        cCode:=AllTrim(xValue)
+        cQuery:="SELECT R_E_C_N_O_ FROM "+cZX+" WHERE D_E_L_E_T_=' ' AND ZX__CODIGO='"+;
+            StrTran(cCode,"'","''")+"' AND ZX__FILIAL='"+StrTran(xFilial("ZX_"),"'","''")+"'"
+        xValue:=TurnoverRealScalar(cQuery)
+        if ValType(xValue)=="C"
+            nRecord:=Val(xValue)
+        elseif ValType(xValue)=="N"
+            nRecord:=xValue
+        endif
+        if nRecord<1
+            throw "The registered turnover query is unavailable or ambiguous."
+        endif
+        if Select("ZX_")==0
+            ChkFile("ZX_")
+        endif
+        if Select("ZX_")==0
+            throw "The ZX work area is unavailable."
+        endif
+        aZXArea:=ZX_->(GetArea())
+        ZX_->(DbGoTo(nRecord))
+        if ZX_->(Eof())
+            throw "The registered turnover query record is unavailable."
+        endif
+        xFlag:=ZX_->(FieldGet(FieldPos("ZX__QUERYT")))
+        if !((ValType(xFlag)=="L" .and. xFlag) .or. ;
+            (ValType(xFlag)=="C" .and. Upper(AllTrim(xFlag))=="T"))
+            throw "The registered turnover query is not an execution batch."
+        endif
+        xValue:=ZX_->(FieldGet(FieldPos("ZX__QUERY")))
+        if ValType(xValue)=="C"
+            cSource:=xValue
+            do while !Empty(cSource) .and. Right(cSource,1)==Chr(0)
+                cSource:=Left(cSource,Len(cSource)-1)
+            enddo
+        endif
+    catch xError
+        cSource:=""
+        if ValType(xError)=="O"
+            FreeObj(@xError)
+        endif
+    endtry
+    if ValType(aZXArea)=="A"
+        RestArea(aZXArea)
+        FWFreeArray(@aZXArea)
+    endif
+return(cSource)
+
+static function TurnoverRealLatestPeriod() as character
+
+    local cSRD:=RetSQLName("SRD"), cPeriod:="" as character
+
+    local xValue as variant
+
+    if !TurnoverRealIdentifier(cSRD,.F.)
+        return("")
+    endif
+    xValue:=TurnoverRealScalar("SELECT MAX(RD_PERIODO) AS LASTPERIOD FROM "+cSRD+" WHERE D_E_L_E_T_=' '")
+    if ValType(xValue)=="C"
+        cPeriod:=AllTrim(xValue)
+        if !TurnoverRealPeriod(cPeriod)
+            cPeriod:=""
+        endif
+    endif
+return(cPeriod)
+
+static function TurnoverRealScalar(cSQL as character) as variant
+
+    local cAlias:=GetNextAlias() as character
+
+    local nPreviousArea:=Select(), nArea:=0 as numeric
+
+    local xResult, xError as variant
+
+    try
+        DbSelectArea(0)
+        nArea:=Select()
+        DbUseArea(.F.,"TOPCONN",TCGenQry(Nil,Nil,cSQL),cAlias,.T.,.T.)
+        if Select(cAlias)==nArea .and. (cAlias)->(!Eof())
+            xResult:=(cAlias)->(FieldGet(1))
+            (cAlias)->(DbSkip())
+            if (cAlias)->(!Eof())
+                xResult:=Nil
+            endif
+        endif
+    catch xError
+        xResult:=Nil
+        if ValType(xError)=="O"
+            FreeObj(@xError)
+        endif
+    endtry
+    if nArea>0
+        DbSelectArea(nArea)
+        if Used()
+            DbCloseArea()
+        endif
+    endif
+    if Select()!=nPreviousArea
+        DbSelectArea(IIf(nPreviousArea>0,nPreviousArea,Nil))
+    endif
+return(xResult)
+
+static function TurnoverRealSameDatabase(cProfile as character,oClient as object) as logical
+
+    local cAlias:=GetNextAlias(), cDatabase:="", cServer:="" as character
+    local cSQL:="SELECT CAST(SERVERPROPERTY('ServerName') AS VARCHAR(128)) AS SERVERNAME, DB_NAME() AS DBNAME" as character
+
+    local lOK:=.F. as logical
+
+    local nPreviousArea:=Select(), nArea:=0 as numeric
+
+    local oDataSet as object
+
+    local xError as variant
+
+    try
+        DbSelectArea(0)
+        nArea:=Select()
+        DbUseArea(.F.,"TOPCONN",TCGenQry(Nil,Nil,cSQL),cAlias,.T.,.T.)
+        if Select(cAlias)!=nArea .or. (cAlias)->(Eof())
+            throw "DBAccess identity query failed."
+        endif
+        cServer:=AllTrim((cAlias)->(FieldGet(FieldPos("SERVERNAME"))))
+        cDatabase:=AllTrim((cAlias)->(FieldGet(FieldPos("DBNAME"))))
+        (cAlias)->(DbCloseArea())
+        nArea:=0
+        oDataSet:=HBBridge.RDD.HBBridgeRPCDataSet():New(oClient)
+        oDataSet:SetAliasProfile(cProfile)
+        if oDataSet:OpenSQL(cSQL)
+            lOK:=Upper(AllTrim(oDataSet:FieldGet("SERVERNAME")))==Upper(cServer) .and. ;
+                Upper(AllTrim(oDataSet:FieldGet("DBNAME")))==Upper(cDatabase)
+        endif
+    catch xError
+        if ValType(xError)=="O"
+            FreeObj(@xError)
+        endif
+    endtry
+    if nArea>0
+        DbSelectArea(nArea)
+        if Used()
+            DbCloseArea()
+        endif
+    endif
+    if ValType(oDataSet)=="O"
+        oDataSet:Close()
+        FreeObj(@oDataSet)
+    endif
+    if Select()!=nPreviousArea
+        DbSelectArea(IIf(nPreviousArea>0,nPreviousArea,Nil))
+    endif
+return(lOK)

@@ -2,6 +2,44 @@
 
 [English](turnover-addon.md) · [Pacote de trabalho](../WIP.pt-BR.md)
 
+Uma nova simulação visual usa três meses fictícios, com barras de movimentações
+e efetivos inicial e final por mês. Transferências sem evidência permanecem
+desconhecidas. O total de ativos entre meses é identificado como
+funcionários-mês, sem apresentar uma taxa consolidada de período. As entradas
+CLI mantêm a fixture original de três linhas. A apresentação atualizada ainda
+precisa de validação interativa no Protheus e não consulta o SQL real de turnover.
+
+A [comparação das regras históricas](turnover-reconciliation.pt-BR.md) registra
+o comportamento SQL observado, testes mensais controlados e diferenças pendentes.
+O [exemplo separado `turnoverReport`](../examples/turnover/README.pt-BR.md)
+consome resultados mensais já agregados sem recalculá-los.
+
+## Diagnóstico do REST original do Protheus
+
+`scripts/test-turnover-protheus-rest.ps1` consulta o serviço de modelos do
+Protheus usando as credenciais Basic configuradas localmente em
+`FWWEBEX_PROTHEUS` e um arquivo de token de aplicação informado explicitamente.
+Exige URL REST HTTPS local, empresa, filial e intervalo com pelo menos duas linhas
+mensais. O serviço pode criar e remover suas próprias tabelas temporárias. O
+script verifica paginação de empresa e campos de funcionários; informa apenas
+o resultado das verificações e códigos HTTP, sem gravar linhas ou credenciais.
+Em ambiente de desenvolvimento com certificado autoassinado, informar
+`-SkipCertificateCheck` explicitamente.
+
+```powershell
+pwsh -File scripts/test-turnover-protheus-rest.ps1 `
+    -AppServerIni '<caminho do appserver.ini>' `
+    -ApplicationTokenFile '<caminho do authentication.aut>' `
+    -Company '<empresa>' -Branch '<filial>' `
+    -StartPeriod 202501 -EndPeriod 202510 -SkipCertificateCheck
+```
+
+Em 2026-11-05, no ambiente local Windows/MSSQL, passaram sete verificações no
+REST original do Protheus: duas páginas de empresa, seus campos, uma página de
+funcionários, seus campos e ausência de erro no item. O teste consulta o serviço
+histórico diretamente; não valida o novo dashboard, o addon do hbBridge ou
+equivalência com o backup SQL. Não foram registrados dados dos funcionários.
+
 Este addon experimental exemplifica uma regra de negócio específica executada
 pelo serviço genérico `ADDON.Execute`. A aplicação chamadora fornece o perfil
 SQL opaco, um SELECT confiável e parâmetros tipados; ela resolve empresa,

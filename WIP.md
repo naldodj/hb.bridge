@@ -19,8 +19,40 @@ approved HRB-local symbols and `hb_ExecFromArray()` for dispatch.
   branch, cost center, job and employee, including Back, on TCP and HTTP.
   The source passed direct MSSQL and isolated AppServer UTF-8 checks.
   See the [sanitized evidence](docs/validation/turnover.fixture.windows.json).
-- [ ] Define and reconcile the historical turnover rules with the existing
-  Protheus implementation before asserting equivalence.
+- [ ] Visually validate the updated three-month dashboard simulation and its
+  drill-down on TCP and HTTP. The earlier acceptance covers the previous page.
+- [ ] Build a new turnover example using the supplied queries as data sources,
+  adapting their execution and output to hbBridge. Define and validate its
+  measures and drill-down without requiring an identical legacy implementation.
+  The [source analysis](docs/turnover-reconciliation.md) records the registered
+  SQL, JSON mappings and dashboard behavior as references.
+  Native integration on 2026-11-05 passed 834 checks, including eight new
+  checks for the isolated date fixture.
+- [x] Add the optional `turnoverReport` example action for already-aggregated
+  company-month results. Native integration passed 843 checks. An isolated
+  Windows/MSSQL test executed the registered company query into an owned global
+  temporary table, compared all measures in ten monthly addon results with the
+  source and confirmed table release. The historical 202301–202310 interval
+  also passed the same comparison. See the [example](examples/turnover/README.md).
+- [ ] Visually validate the separate caller-supplied monthly report over TCP
+  and HTTP with a Protheus-owned populated temporary table. With only the monthly
+  SELECT supplied, the view has no branch details;
+  deeper drill-down requires the ready-to-run GEP entry.
+  The updated TLPP source compiled in an isolated AppServer; its report markup
+  and JavaScript checks passed, including preservation of decimal text.
+- [x] Observe the ready-to-run GEP company example in a prepared Protheus
+  session over TCP and HTTP. It obtains the latest SRD period by default,
+  resolves the registered ZZ/ZX query and owns the result temporary table.
+  Its SQL planning passed ten controlled AppServer checks and a separate
+  AppServer check against the registered SQL. The latest non-deleted SRD period
+  in the development database was 202310. An isolated `RPCSetEnv` attempt
+  could not prepare the company environment. Prepared-session reports displayed
+  monthly measures for 202302 over TCP and 202303 over HTTP. These observations
+  do not validate detailed drill-down or reconciliation of business measures.
+- [x] Probe the original Protheus REST with real company and employee models:
+  seven sanitized checks passed, including company pagination and employee
+  fields. This validates the original service, not hbBridge integration.
+  See the [diagnostic](docs/turnover-addon.md#original-protheus-rest-diagnostic).
 - [x] Observe the controlled TCP and HTTP FWWebEx pages at the job level: the
   supplied screenshots show the metrics, bars and two employee buttons.
   See the [sanitized evidence](docs/validation/turnover.fixture.windows.json).
@@ -38,6 +70,43 @@ approved HRB-local symbols and `hb_ExecFromArray()` for dispatch.
 
 The addon can own business rules; the core remains generic. The initial contract,
 formula and pending limitations are in [the example](docs/turnover-addon.md).
+
+- [x] Validate the real branch drill-down visually over TCP and HTTP in the
+  prepared Protheus session. In this environment `FWAllFilial()` returned the
+  branches; passing `cEmpAnt` returned an empty array. The
+  company and branch registered batches populate separate caller-owned tables;
+  branch scope is the current company, resolved by Protheus framework functions.
+  An isolated MSSQL diagnostic compared all measures for ten company months and
+  twenty branch rows across two explicit branches with their
+  respective sources.
+- [x] Validate the real cost-center drill-down visually over TCP and HTTP in
+  the prepared Protheus session.
+  A request uses the selected period and company branch, executes the registered
+  cost-center batch on demand and releases the Protheus-owned temporary table.
+  An isolated MSSQL diagnostic matched 53 rows to their source. The page test
+  verifies navigation, selection isolation and no automatic retry.
+- [x] Validate the real job drill-down visually and Back over TCP and HTTP in
+  the prepared Protheus session. It executes
+  the registered job model on demand with the selected period, branch and cost
+  center. An isolated MSSQL diagnostic matched four job rows to their source;
+  the page rejects responses for a different cost center.
+- [x] Validate the real employee drill-down and Back visually over TCP and HTTP
+  in the prepared Protheus session.
+  The registered employee model runs for the selected period, branch, cost
+  center and job. A sanitized isolated MSSQL diagnostic matched one employee
+  row and its current SRA attributes to the source.
+- [x] Validate the SRE evidence presentation over TCP and HTTP with the
+  development data. The available SRE990 table was empty; the validation does
+  not demonstrate presentation of an actual transfer.
+- [ ] Validate matching SRE transfer evidence visually over TCP and HTTP, using
+  an employee and period containing movements. The query is bounded to the
+  employee result, period, company and matching branch/cost/registration; it
+  preserves raw P/D source fields and may not capture every historical event.
+  A synthetic MSSQL fixture passed both match directions, unrelated identity and
+  period isolation, and mixed-collation comparisons. The development SRE990
+  table contained zero rows, so the real samples contained no matching events.
+  Counts remain the registered model's values; historical rule reconciliation
+  and completeness of evidence remain pending.
 
 ## Package 002 completed on 2026-11-03
 

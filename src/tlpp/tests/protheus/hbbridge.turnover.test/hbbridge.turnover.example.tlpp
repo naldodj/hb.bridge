@@ -28,9 +28,55 @@ procedure U_HBBridgeTurnoverViewHTTP(cProfile as character)
     endif
 return
 
+procedure U_HBBridgeTurnoverReportTCP(cReportSQL as character, cProfile as character, jReportBindings as json,;
+    cBranchSQL as character, cCompany as character)
+    local bExecute as codeblock
+    if ValType(cReportSQL) != "C" .or. Empty(AllTrim(cReportSQL))
+        MsgStop("A trusted monthly report SELECT is required.", "hbBridge turnover")
+        return
+    endif
+    if ValType(cCompany)!="C" .and. Type("cEmpAnt")=="C"
+        cCompany:=cEmpAnt
+    endif
+    if ((FindClass("FWWebEx.Tools.FWExampleTools")).and.(FindClass("FWWebEx.WebExControl")))
+        bExecute:={||HBBridge.Examples.HBBridgeTurnoverExample():Show(cProfile,.F.,cReportSQL,jReportBindings,cBranchSQL,cCompany)}
+        if (!FWIsInCallStack("Execute"))
+            FWWebEx.Tools.FWExampleTools():Execute(bExecute,"HBBridgeTurnoverReportTCP",.T.)
+        else
+            Eval(bExecute)
+        endif
+    endif
+return
+
+procedure U_HBBridgeTurnoverReportHTTP(cReportSQL as character, cProfile as character, jReportBindings as json,;
+    cBranchSQL as character, cCompany as character)
+    local bExecute as codeblock
+    if ValType(cReportSQL) != "C" .or. Empty(AllTrim(cReportSQL))
+        MsgStop("A trusted monthly report SELECT is required.", "hbBridge turnover")
+        return
+    endif
+    if ValType(cCompany)!="C" .and. Type("cEmpAnt")=="C"
+        cCompany:=cEmpAnt
+    endif
+    if ((FindClass("FWWebEx.Tools.FWExampleTools")).and.(FindClass("FWWebEx.WebExControl")))
+        bExecute:={||HBBridge.Examples.HBBridgeTurnoverExample():Show(cProfile,.T.,cReportSQL,jReportBindings,cBranchSQL,cCompany)}
+        if (!FWIsInCallStack("Execute"))
+            FWWebEx.Tools.FWExampleTools():Execute(bExecute,"HBBridgeTurnoverReportHTTP",.T.)
+        else
+            Eval(bExecute)
+        endif
+    endif
+return
+
 class HBBridgeTurnoverExample
     static method FixtureSQL() as character
-    static method Show(cProfile as character, lHTTP as logical)
+    static method VisualFixtureSQL() as character
+    static method Show(cProfile as character, lHTTP as logical, cReportSQL as character, jReportBindings as json,;
+        cBranchSQL as character,cCompany as character,jTables as json,jBranches as json,;
+        cStart as character,cEnd as character)
+    static method Callback(oChannel as object,cType as character,cContent as character,oClient as object,;
+        cProfile as character,cCompany as character,jTables as json,jBranches as json,;
+        cStart as character,cEnd as character,bPrevious as codeblock)
     static method Page(jResponse as json, cFile as character) as logical
     static method Markup(jResponse as json) as character
 endclass
@@ -49,18 +95,33 @@ return("SELECT CAST('202610' AS varchar(6)) AS PERIOD, " + ;
     "CAST('" + cFirst + "' AS varchar(1024)) AS DETAILS_JSON " + ;
     "UNION ALL SELECT '202610','99','01','A','J1','002',1,1,0,'" + cSecond + "' " + ;
     "UNION ALL SELECT '202610','99','02','B','J2','003',1,0,1,'" + cThird + "'")
-static method Show(cProfile, lHTTP) class HBBridgeTurnoverExample
+
+static method VisualFixtureSQL() class HBBridgeTurnoverExample
+return(HBBridge.Examples.HBBridgeTurnoverExample():FixtureSQL() + ;
+    " UNION ALL SELECT '202609','99','01','A','J1','001',1,0,0,NULL" + ;
+    " UNION ALL SELECT '202609','99','02','B','J2','003',1,0,0,NULL" + ;
+    " UNION ALL SELECT '202611','99','01','A','J1','001',1,0,0,NULL" + ;
+    " UNION ALL SELECT '202611','99','01','A','J1','002',1,0,0,NULL" + ;
+    " UNION ALL SELECT '202611','99','02','B','J2','004',1,1,0,NULL")
+
+static method Show(cProfile, lHTTP, cReportSQL, jReportBindings, cBranchSQL, cCompany,;
+    jTables, jBranches, cStart, cEnd) class HBBridgeTurnoverExample
 
     local aTopInfo as array
 
+    local bPrevious as codeblock
+
     local cFile := "" as character
     local cNavigate := "" as character
+    local cTitle := "hbBridge turnover: controlled fixture" as character
 
     local jAction as json
     local jBindings as json
     local jParams as json
     local jRequest as json
     local jResponse as json
+
+    local lInstalled := .F., lReport := .F. as logical
 
     local nTop := 0, nLeft := 0, nBottom := 530, nRight := 1330 as numeric
 
@@ -84,15 +145,33 @@ static method Show(cProfile, lHTTP) class HBBridgeTurnoverExample
     if ValType(lHTTP) != "L"
         lHTTP := .F.
     endif
+    lReport := ValType(cReportSQL) == "C" .and. !Empty(AllTrim(cReportSQL))
+    if lReport
+        cTitle := "hbBridge turnover: monthly source report"
+    endif
     try
         jBindings := JSONObject():New()
+        if ValType(jReportBindings) == "J"
+            if !HBBridge.Client.HBBridgeJSON():Parse(HBBridge.Client.HBBridgeJSON():Encode(jReportBindings),jBindings)
+                FreeObj(@jBindings)
+                UserException("Unable to copy the report bindings.")
+            endif
+        endif
         jParams := JSONObject():New()
         jParams["profile"] := cProfile
-        jParams["sql"] := HBBridge.Examples.HBBridgeTurnoverExample():FixtureSQL()
+        if lReport
+            jParams["sql"] := cReportSQL
+        else
+            jParams["sql"] := HBBridge.Examples.HBBridgeTurnoverExample():VisualFixtureSQL()
+        endif
         jParams["bindings"] := jBindings
+        if lReport .and. ValType(cBranchSQL) == "C" .and. !Empty(AllTrim(cBranchSQL))
+            jParams["branchSql"] := cBranchSQL
+            jParams["branchBindings"] := JSONObject():New()
+        endif
         jRequest := JSONObject():New()
         jAction := JSONObject():New()
-        jAction["action"] := "turnover"
+        jAction["action"] := IIf(lReport,"turnoverReport","turnover")
         jAction["params"] := jParams
         jRequest["module"] := "examples/hbbridgeaddons.hrb"
         jRequest["params"] := jAction
@@ -103,44 +182,62 @@ static method Show(cProfile, lHTTP) class HBBridgeTurnoverExample
         endif
         jResponse := oClient:CallService("ADDON.Execute", jRequest)
         if ValType(jResponse) != "J" .or. !jResponse:HasProperty("success") .or. !jResponse["success"]
-            MsgStop("Unable to load the controlled turnover fixture.", "hbBridge turnover")
-        elseif HBBridge.Examples.HBBridgeTurnoverExample():Page(jResponse, @cFile)
-            cNavigate := CpyF2Web(cFile, .F., .F., .F., .F.)
-            if Empty(cNavigate)
-                MsgStop("Unable to publish the turnover page.", "hbBridge turnover")
-            else
-                oChannel := FWWebEx.WebApp():GetTWebChannel()
-                oSize := FWDefSize():New(.F., .F.)
-                oSize:lLateral := .F.
-                oSize:AddObject("TWebEngine", 100, 100, .T., .T.)
-                oSize:Process()
-                if oSize:aWindSize[3] > 0
-                    nTop := oSize:aWindSize[1]
-                    nLeft := oSize:aWindSize[2]
-                    nBottom := oSize:aWindSize[3]
-                    nRight := oSize:aWindSize[4]
-                endif
-                DEFINE MSDIALOG oDialog TITLE "hbBridge turnover: controlled fixture" FROM nTop,nLeft TO nBottom,nRight OF GetWndDefault() STATUS PIXEL
-                    if oSize:aWindSize[3] > 0
-                        nTop := oSize:GetDimension("TWebEngine", "LININI")
-                        nLeft := oSize:GetDimension("TWebEngine", "COLINI")
-                        nBottom := oSize:GetDimension("TWebEngine", "LINEND")
-                        nRight := oSize:GetDimension("TWebEngine", "COLEND")
-                    endif
-                    oEngine := TWebEngine():New(oDialog, nTop, nLeft, nRight, nBottom, /*cURL*/, oChannel:nPort)
-                    oEngine:Align := CONTROL_ALIGN_ALLCLIENT
-                    oEngine:Navigate(cNavigate)
-                ACTIVATE MSDIALOG oDialog CENTERED
-            endif
+            MsgStop("Unable to load the turnover source.", "hbBridge turnover")
         else
-            MsgStop("Unable to build the turnover page.", "hbBridge turnover")
+            if lReport .and. ValType(cCompany) == "C" .and. !Empty(AllTrim(cCompany))
+                jResponse["company"] := AllTrim(cCompany)
+            endif
+            if ValType(jTables)=="J" .and. ValType(jBranches)=="J"
+                jResponse["costCenterAvailable"] := .T.
+            endif
+            if HBBridge.Examples.HBBridgeTurnoverExample():Page(jResponse, @cFile)
+                cNavigate := CpyF2Web(cFile, .F., .F., .F., .F.)
+                if Empty(cNavigate)
+                    MsgStop("Unable to publish the turnover page.", "hbBridge turnover")
+                else
+                    oChannel := FWWebEx.WebApp():GetTWebChannel()
+                    if ValType(jTables)=="J" .and. ValType(jBranches)=="J"
+                        bPrevious := oChannel:bJSToAdvPL
+                        oChannel:bJSToAdvPL := {|oSender,cType,cContent| ;
+                            HBBridge.Examples.HBBridgeTurnoverExample():Callback(oSender,cType,cContent,;
+                                oClient,cProfile,cCompany,jTables,jBranches,cStart,cEnd,bPrevious)}
+                        lInstalled := .T.
+                    endif
+                    oSize := FWDefSize():New(.F., .F.)
+                    oSize:lLateral := .F.
+                    oSize:AddObject("TWebEngine", 100, 100, .T., .T.)
+                    oSize:Process()
+                    if oSize:aWindSize[3] > 0
+                        nTop := oSize:aWindSize[1]
+                        nLeft := oSize:aWindSize[2]
+                        nBottom := oSize:aWindSize[3]
+                        nRight := oSize:aWindSize[4]
+                    endif
+                    DEFINE MSDIALOG oDialog TITLE cTitle FROM nTop,nLeft TO nBottom,nRight OF GetWndDefault() STATUS PIXEL
+                        if oSize:aWindSize[3] > 0
+                            nTop := oSize:GetDimension("TWebEngine", "LININI")
+                            nLeft := oSize:GetDimension("TWebEngine", "COLINI")
+                            nBottom := oSize:GetDimension("TWebEngine", "LINEND")
+                            nRight := oSize:GetDimension("TWebEngine", "COLEND")
+                        endif
+                        oEngine := TWebEngine():New(oDialog, nTop, nLeft, nRight, nBottom, /*cURL*/, oChannel:nPort)
+                        oEngine:Align := CONTROL_ALIGN_ALLCLIENT
+                        oEngine:Navigate(cNavigate)
+                    ACTIVATE MSDIALOG oDialog CENTERED
+                endif
+            else
+                MsgStop("Unable to build the turnover page.", "hbBridge turnover")
+            endif
         endif
     catch xError
-        MsgStop("Unable to open the controlled turnover example.", "hbBridge turnover")
+        MsgStop("Unable to open the turnover example.", "hbBridge turnover")
         if ValType(xError) == "O"
             FreeObj(@xError)
         endif
     endtry
+    if lInstalled
+        oChannel:bJSToAdvPL := bPrevious
+    endif
     if ValType(oClient) == "O" .and. !lHTTP
         oClient:Close()
     endif
@@ -156,6 +253,70 @@ static method Show(cProfile, lHTTP) class HBBridgeTurnoverExample
     if !Empty(cFile) .and. File(cFile)
         FErase(cFile)
     endif
+return
+
+static method Callback(oChannel,cType,cContent,oClient,cProfile,cCompany,jTables,jBranches,cStart,cEnd,bPrevious) ;
+    class HBBridgeTurnoverExample
+
+    local cID:="", cPeriod:="", cBranch:="", cResponseType:="" as character
+
+    local jRequest:=JSONObject():New(), jResponse as json
+
+    local xCost, xError, xJob as variant
+
+    if cType!="HBBRIDGE_TURNOVER_COST_REQUEST" .and. cType!="HBBRIDGE_TURNOVER_JOB_REQUEST" .and. ;
+        cType!="HBBRIDGE_TURNOVER_EMPLOYEE_REQUEST"
+        if ValType(bPrevious)=="B"
+            Eval(bPrevious,oChannel,cType,cContent)
+        endif
+        FreeObj(@jRequest)
+        return
+    endif
+    cResponseType:=IIf(cType=="HBBRIDGE_TURNOVER_EMPLOYEE_REQUEST","HBBRIDGE_TURNOVER_EMPLOYEE_RESPONSE",;
+        IIf(cType=="HBBRIDGE_TURNOVER_JOB_REQUEST","HBBRIDGE_TURNOVER_JOB_RESPONSE","HBBRIDGE_TURNOVER_COST_RESPONSE"))
+    try
+        if !HBBridge.Client.HBBridgeJSON():Parse(cContent,jRequest) .or. ;
+            !jRequest:HasProperty("requestID") .or. !jRequest:HasProperty("period") .or. ;
+            !jRequest:HasProperty("branch")
+            throw "INVALID_REQUEST"
+        endif
+        cID:=jRequest["requestID"]
+        cPeriod:=jRequest["period"]
+        cBranch:=jRequest["branch"]
+        if ValType(cID)!="C" .or. Empty(cID) .or. Len(cID)>64 .or. ;
+            ValType(cPeriod)!="C" .or. ValType(cBranch)!="C"
+            throw "INVALID_REQUEST"
+        endif
+        if cType=="HBBRIDGE_TURNOVER_JOB_REQUEST" .or. cType=="HBBRIDGE_TURNOVER_EMPLOYEE_REQUEST"
+            if !jRequest:HasProperty("cost") .or. ValType(jRequest["cost"])!="C"
+                throw "INVALID_REQUEST"
+            endif
+            xCost:=jRequest["cost"]
+        endif
+        if cType=="HBBRIDGE_TURNOVER_EMPLOYEE_REQUEST"
+            if !jRequest:HasProperty("job") .or. ValType(jRequest["job"])!="C"
+                throw "INVALID_REQUEST"
+            endif
+            xJob:=jRequest["job"]
+        endif
+        jResponse:=HBBridge.Examples.HBBridgeTurnoverReal():DetailRows(oClient,cProfile,cCompany,;
+            jTables,jBranches,cPeriod,cBranch,cStart,cEnd,xCost,xJob)
+    catch xError
+        jResponse:=JSONObject():New()
+        jResponse["success"]:=.F.
+        jResponse["code"]:="DETAIL_REQUEST_FAILED"
+        if ValType(xError)=="O"
+            FreeObj(@xError)
+        endif
+    endtry
+    if jResponse:HasProperty("success") .and. !jResponse["success"] .and. jResponse:HasProperty("code")
+        ConOut("hbBridge turnover detail request failed: "+jResponse["code"])
+    endif
+    jResponse["requestID"]:=cID
+    oChannel:AdvPLToJS(cResponseType,;
+        DecodeUTF8(HBBridge.Client.HBBridgeJSON():Encode(jResponse)))
+    FreeObj(@jResponse)
+    FreeObj(@jRequest)
 return
 
 static method Page(jResponse, cFile) class HBBridgeTurnoverExample
@@ -186,7 +347,11 @@ static method Markup(jResponse) class HBBridgeTurnoverExample
     local cData as character
     local cHTML as character
 
-    cData := jResponse["result"]:ToJSON()
+    if jResponse:HasProperty("periods")
+        cData := jResponse:ToJSON()
+    else
+        cData := jResponse["result"]:ToJSON()
+    endif
     cData := StrTran(cData, "<", "\u003c")
     cData := StrTran(cData, Chr(226) + Chr(128) + Chr(168), "\u2028")
     cData := StrTran(cData, Chr(226) + Chr(128) + Chr(169), "\u2029")
@@ -199,6 +364,15 @@ static method Markup(jResponse) class HBBridgeTurnoverExample
 #hbb-turnover .hbb-card { flex: 1; min-width: 150px; border: 1px solid #777; border-radius: 8px; padding: 1rem; }
 #hbb-turnover .hbb-value { display: block; font-size: 1.6rem; font-weight: bold; }
 #hbb-turnover .hbb-bar { height: 1rem; background: #328bd0; border-radius: 4px; }
+#hbb-turnover .hbb-trends { margin: 1.5rem 0; }
+#hbb-turnover .hbb-month { border: 1px solid #bbb; border-radius: 8px; padding: .8rem; margin: .6rem 0; }
+#hbb-turnover .hbb-month-title { font-weight: bold; }
+#hbb-turnover .hbb-movement { display: grid; grid-template-columns: 8rem 1fr 5rem; align-items: center; gap: .5rem; margin: .3rem 0; }
+#hbb-turnover .hbb-movement-track { background: #e6e6e6; border-radius: 4px; }
+#hbb-turnover .hbb-movement .hbb-bar { min-height: .65rem; height: .65rem; }
+#hbb-turnover .hbb-movement:nth-child(3) .hbb-bar { background: #ed8263; }
+#hbb-turnover .hbb-movement:nth-child(4) .hbb-bar { background: #36a487; }
+#hbb-turnover .hbb-movement:nth-child(5) .hbb-bar { background: #ad84c6; }
 #hbb-turnover .hbb-row { margin: 0.7rem 0; }
 #hbb-turnover button { margin: .25rem; padding: .45rem .8rem; cursor: pointer; }
 #hbb-turnover .hbb-scroll { overflow-x: auto; }
@@ -207,21 +381,152 @@ static method Markup(jResponse) class HBBridgeTurnoverExample
 #hbb-turnover th { background: #e6e6e6; }
 </style>
 <section id="hbb-turnover">
-<h1>Turnover: controlled fixture</h1>
-<p>Example only. Historical transfer rules and real ERP results require validation.</p>
+<h1 id="hbb-title">Turnover: controlled fixture</h1>
+<p id="hbb-description">Example only. Historical transfer rules and real ERP results require validation.</p>
 <p id="hbb-path"></p><button id="hbb-back" type="button">Back</button>
 <div class="hbb-cards" id="hbb-cards"></div><div id="hbb-bars"></div>
-<p>Transfers are reported separately and do not change the experimental turnover formula.</p>
+<div id="hbb-trends" class="hbb-trends"></div>
+<p id="hbb-note">Transfers are reported separately and do not change the experimental turnover formula.</p>
 <h2>Details by level</h2><div id="hbb-children" class="hbb-scroll"></div>
 <div id="hbb-employee" class="hbb-scroll"></div>
 </section>
 <script>
 document.addEventListener("DOMContentLoaded", () => {
-    const root = @@DATA@@;
-    const levels = ["Period", "Company", "Branch", "Cost center", "Job", "Employee"];
-    const stack = [{name:"All employee-months", node:root}];
+    const payload = @@DATA@@;
+    const isReport = payload.definition === "source-monthly-turnover-v1" && payload.periods;
+    const root = isReport ? {children:{}} : payload;
+    if (isReport) {
+        Object.keys(payload.periods).forEach(period => {
+            const branches = Object.create(null);
+            Object.entries((payload.branches && payload.branches[period]) || {}).forEach(([key, branch]) => {
+                branches[key] = {...branch, children:{}};
+            });
+            const company = payload.company;
+            const companyChildren = Object.create(null);
+            if (company) companyChildren[company] = {...payload.periods[period], children:branches};
+            root.children[period] = {...payload.periods[period], children:company ? companyChildren : branches};
+        });
+    }
+    const levels = isReport ? (payload.company ? ["Period", "Company", "Branch", "Cost center", "Job", "Employee"] : ["Period", "Branch"]) : ["Period", "Company", "Branch", "Cost center", "Job", "Employee"];
+    const stack = [{name:isReport ? "Monthly report" : "All employee-months", node:root}];
+    const bridge = typeof window !== "undefined" && window.FWWebEx && window.FWWebEx.TWebChannel;
+    let pendingDetail = null, detailSequence = 0, unsubscribeDetail = null;
+    const detailSession = Date.now().toString(36) + Math.random().toString(36).slice(2);
+    const receiveDetail = (type, content) => {
+        if (type !== "HBBRIDGE_TURNOVER_COST_RESPONSE" && type !== "HBBRIDGE_TURNOVER_JOB_RESPONSE" &&
+            type !== "HBBRIDGE_TURNOVER_EMPLOYEE_RESPONSE") return false;
+        let response;
+        try { response = typeof content === "string" ? JSON.parse(content) : content; } catch (_) { return true; }
+        if (!pendingDetail || !response || response.requestID !== pendingDetail.id ||
+            type !== "HBBRIDGE_TURNOVER_" + pendingDetail.kind + "_RESPONSE") return true;
+        const pending = pendingDetail; pendingDetail = null; clearTimeout(pending.timer);
+        if (response.success !== true || !response.rows || typeof response.rows !== "object" ||
+            !Number.isInteger(response.rowCount) || response.rowCount < 0 || Object.keys(response.rows).length !== response.rowCount) {
+            pending.node.detailState = "failed";
+        } else {
+            const children = Object.create(null);
+            let valid = true;
+            Object.values(response.rows).forEach(row => {
+                if (!row || typeof row.RA_CC !== "string" || typeof row.CTT_DESC01 !== "string" ||
+                    String(row.PERIODO).trim() !== pending.period || String(row.RA_FILIAL).trim() !== pending.branch ||
+                    (pending.kind !== "COST" && (row.RA_CC.trim() !== pending.cost ||
+                        typeof row.RA_CODFUNC !== "string" || typeof row.RJ_DESC !== "string")) ||
+                    (pending.kind === "EMPLOYEE" && (row.RA_CODFUNC.trim() !== pending.job ||
+                        typeof row.RA_MAT !== "string" || row.SRARECNO === null || row.SRARECNO === undefined ||
+                        !/^[1-9][0-9]*$/.test(String(row.SRARECNO).trim())))) { valid = false; return; }
+                const key = pending.kind === "EMPLOYEE" ? String(row.SRARECNO).trim() :
+                    pending.kind === "JOB" ? row.RA_CODFUNC.trim() : row.RA_CC.trim();
+                const description = pending.kind === "EMPLOYEE" ? (typeof row.RA_NOME === "string" ? row.RA_NOME.trim() : "") :
+                    pending.kind === "JOB" ? row.RJ_DESC.trim() : row.CTT_DESC01.trim();
+                const displayCode = pending.kind === "EMPLOYEE" ? row.RA_MAT.trim() : key;
+                if (Object.prototype.hasOwnProperty.call(children, key)) { valid = false; return; }
+                children[key] = {initial:row.TFUNIMES, active:row.TFUNMES, admissions:row.TFUNADMMES,
+                    dismissals:row.TFUNDEMMES, final:row.TFUNFMES, transferIn:row.TTRFENT,
+                    transferOut:row.TTRFSAI, turnoverPercent:row.TURNOVER, dismissalPercent:row.TURNMOVF,
+                    displayName:displayCode + (description ? " - " + description : ""), pathName:displayCode, children:{},
+                    details:pending.kind === "EMPLOYEE" ? {employeeName:row.RA_NOME,
+                        admissionDate:typeof row.RA_ADMISSA === "string" ? (row.RA_ADMISSA.trim() || "Not recorded") : null,
+                        dismissalDate:typeof row.RA_DEMISSA === "string" ? (row.RA_DEMISSA.trim() || "Not recorded") : null, transfers:null} : undefined};
+            });
+            if (pending.kind === "EMPLOYEE" && response.transferStatus === "matched") {
+                if (!response.transferRows || typeof response.transferRows !== "object" || Array.isArray(response.transferRows)) valid = false;
+                else {
+                    Object.values(children).forEach(child => { child.details.sourceEvents = Object.create(null); });
+                    Object.values(response.transferRows).forEach(event => {
+                        const employeeKey = event && String(event.SRARECNO).trim();
+                        const eventKey = event && String(event.EVENTRECNO).trim();
+                        if (!event || !Object.prototype.hasOwnProperty.call(children, employeeKey) ||
+                            !/^[1-9][0-9]*$/.test(eventKey) || typeof event.RE_DATA !== "string" ||
+                            event.RE_DATA.trim().slice(0,6) !== pending.period ||
+                            Object.prototype.hasOwnProperty.call(children[employeeKey].details.sourceEvents, eventKey)) {
+                            valid = false; return;
+                        }
+                        const employeeCode = children[employeeKey].pathName;
+                        const matchOut = String(event.MATCHOUT) === "1", matchIn = String(event.MATCHIN) === "1";
+                        const same = (value, expected) => typeof value === "string" && value.trim() === expected;
+                        const validOut = same(event.RE_EMPD, payload.company) && same(event.RE_FILIALD, pending.branch) &&
+                            same(event.RE_CCD, pending.cost) && same(event.RE_MATD, employeeCode);
+                        const validIn = same(event.RE_EMPP, payload.company) && same(event.RE_FILIALP, pending.branch) &&
+                            same(event.RE_CCP, pending.cost) && same(event.RE_MATP, employeeCode);
+                        if ((!matchOut && !matchIn) || matchOut !== validOut || matchIn !== validIn ||
+                            !["0","1"].includes(String(event.MATCHOUT)) || !["0","1"].includes(String(event.MATCHIN))) {
+                            valid = false; return;
+                        }
+                        children[employeeKey].details.sourceEvents[eventKey] = event;
+                    });
+                }
+            }
+            if (valid) { pending.node.children = children; pending.node.detailState = "loaded"; }
+            else pending.node.detailState = "failed";
+        }
+        render();
+        return true;
+    };
+    if (isReport && payload.costCenterAvailable && bridge && typeof bridge.onAdvplToJs === "function") {
+        unsubscribeDetail = bridge.onAdvplToJs(receiveDetail);
+        if (typeof window.addEventListener === "function") window.addEventListener("pagehide", () => {
+            if (pendingDetail) clearTimeout(pendingDetail.timer);
+            pendingDetail = null;
+            if (typeof unsubscribeDetail === "function") unsubscribeDetail();
+        }, {once:true});
+    }
+    const requestDetail = (node, period, branch, cost, job) => {
+        if (node.detailState || pendingDetail) return;
+        if (!bridge || typeof bridge.send !== "function" || typeof bridge.onAdvplToJs !== "function") {
+            node.detailState = "failed"; return;
+        }
+        const id = detailSession + "-" + String(++detailSequence), kind = job !== undefined ? "EMPLOYEE" : cost === undefined ? "COST" : "JOB";
+        node.detailKind = kind; node.detailState = "loading";
+        const timer = setTimeout(() => {
+            if (!pendingDetail || pendingDetail.id !== id) return;
+            pendingDetail.node.detailState = "failed"; pendingDetail = null; render();
+        }, 120000);
+        pendingDetail = {id, node, period, branch, cost, job, kind, timer};
+        const request = {requestID:id, period, branch};
+        if (kind !== "COST") request.cost = cost;
+        if (kind === "EMPLOYEE") request.job = job;
+        try {
+            Promise.resolve(bridge.send("HBBRIDGE_TURNOVER_" + kind + "_REQUEST", JSON.stringify(request)))
+                .then(sent => { if (sent === false && pendingDetail && pendingDetail.id === id) {
+                    clearTimeout(timer); node.detailState = "failed"; pendingDetail = null; render();
+                }}).catch(() => { if (pendingDetail && pendingDetail.id === id) {
+                    clearTimeout(timer); node.detailState = "failed"; pendingDetail = null; render();
+                }});
+        } catch (_) { clearTimeout(timer); node.detailState = "failed"; pendingDetail = null; }
+    };
     const element = id => document.getElementById(id);
     const valueText = value => value === null || value === undefined ? "Not supplied" : String(value);
+    const chartNumber = value => {
+        if (value === null || value === undefined || value === "") return null;
+        const number = Number(value); return Number.isFinite(number) ? number : null;
+    };
+    if (isReport) {
+        element("hbb-title").textContent = "Turnover: monthly source report";
+        element("hbb-description").textContent = payload.branches ?
+            "Company and branch measures come from their respective source queries." :
+            "Source measures are presented as supplied; detailed levels require a separate query.";
+        element("hbb-note").textContent = "Monthly values come from the supplied source; no overall period rate is inferred.";
+    }
     const cell = (row, tag, value) => {
         const item = document.createElement(tag); item.textContent = valueText(value); row.append(item); return item;
     };
@@ -235,18 +540,55 @@ document.addEventListener("DOMContentLoaded", () => {
         element("hbb-path").textContent = stack.map(item => item.name).join(" / ");
         element("hbb-back").disabled = stack.length === 1;
         const cards = element("hbb-cards"); cards.replaceChildren();
-        [["Active",current.active],["Admissions",current.admissions],["Dismissals",current.dismissals],["Turnover %",current.turnoverPercent]].forEach(([label,value]) => {
+        const reportOverview = isReport && stack.length === 1;
+        const multiplePeriods = stack.length === 1 && Object.keys(root.children).length > 1;
+        const cardValues = reportOverview ? [["Source","Monthly report"],["Months",Object.keys(root.children).length],
+            ["Measures","Select a month"],["Turnover %","See monthly values"]] :
+            [[multiplePeriods ? "Active employee-months" : "Active",current.active],["Admissions",current.admissions],
+                ["Dismissals",current.dismissals],["Turnover %",multiplePeriods ? "See monthly values" : current.turnoverPercent]];
+        cardValues.forEach(([label,value]) => {
             const card = document.createElement("div"), title = document.createElement("span"), number = document.createElement("strong");
             card.className = "hbb-card"; number.className = "hbb-value";
             title.textContent = label; number.textContent = String(value); card.append(title,number); cards.append(card);
         });
         const bars = element("hbb-bars"); bars.replaceChildren();
-        const maximum = Math.max(1, current.active, current.admissions, current.dismissals);
-        [["Active",current.active],["Admissions",current.admissions],["Dismissals",current.dismissals]].forEach(([label,value]) => {
+        const maximum = Math.max(1, chartNumber(current.active) || 0, chartNumber(current.admissions) || 0, chartNumber(current.dismissals) || 0);
+        const summaryBars = reportOverview ? [] : [[multiplePeriods ? "Active employee-months" : "Active",current.active],
+            ["Admissions",current.admissions],["Dismissals",current.dismissals]];
+        summaryBars.forEach(([label,value]) => {
             const row = document.createElement("div"), text = document.createElement("span"), bar = document.createElement("div");
             row.className = "hbb-row"; bar.className = "hbb-bar"; text.textContent = label + ": " + value;
-            bar.style.width = (100 * value / maximum) + "%"; row.append(text,bar); bars.append(row);
+            bar.style.width = (100 * (chartNumber(value) || 0) / maximum) + "%"; row.append(text,bar); bars.append(row);
         });
+        const trends = element("hbb-trends"); trends.replaceChildren();
+        if (stack.length === 1) {
+            const title = document.createElement("h2"); title.textContent = "Monthly movements"; trends.append(title);
+            const periods = Object.keys(root.children).sort();
+            const maxMovement = Math.max(1, ...periods.flatMap(period => {
+                const month = root.children[period];
+                return [month.admissions,month.dismissals,month.transferIn,month.transferOut].map(chartNumber).filter(value => value !== null);
+            }));
+            periods.forEach(period => {
+                const month = root.children[period], panel = document.createElement("div"), heading = document.createElement("div");
+                const measures = [["Admissions",month.admissions],["Dismissals",month.dismissals],
+                    ["Transfers in",month.transferIn],["Transfers out",month.transferOut]];
+                panel.className = "hbb-month"; heading.className = "hbb-month-title";
+                const final = month.final === undefined ? month.active - month.dismissals : month.final;
+                heading.textContent = period + " | Initial: " + valueText(month.initial) + " | Final: " +
+                    valueText(final) + " | Turnover: " + valueText(month.turnoverPercent) + "%";
+                panel.append(heading);
+                measures.forEach(([label,value]) => {
+                    const row = document.createElement("div"), name = document.createElement("span"), track = document.createElement("div"),
+                        bar = document.createElement("div"), amount = document.createElement("span");
+                    row.className = "hbb-movement"; track.className = "hbb-movement-track"; bar.className = "hbb-bar";
+                    name.textContent = label; amount.textContent = valueText(value);
+                    const numeric = chartNumber(value);
+                    bar.style.width = numeric === null ? "0%" : (100 * Math.max(0,numeric) / maxMovement) + "%";
+                    track.append(bar); row.append(name,track,amount); panel.append(row);
+                });
+                trends.append(panel);
+            });
+        }
         const children = element("hbb-children"), employee = element("hbb-employee");
         children.replaceChildren(); employee.replaceChildren();
         const keys = Object.keys(current.children).sort();
@@ -254,25 +596,62 @@ document.addEventListener("DOMContentLoaded", () => {
             const body = table(children, [levels[stack.length - 1] || "Item", "Initial", "Active", "Admissions", "Dismissals", "Transfers in", "Transfers out", "Turnover %"]);
             keys.forEach(key => {
                 const child = current.children[key], row = document.createElement("tr"), first = document.createElement("td"), button = document.createElement("button");
-                button.type = "button"; button.textContent = key || "(empty)";
-                button.addEventListener("click", () => { stack.push({name:key || "(empty)",node:child}); render(); });
+                button.type = "button"; button.textContent = child.displayName || key || "(empty)";
+                button.disabled = pendingDetail !== null;
+                button.addEventListener("click", () => {
+                    if (isReport && payload.costCenterAvailable && stack.length === 3) {
+                        requestDetail(child, stack[1].key, key);
+                    } else if (isReport && payload.costCenterAvailable && stack.length === 4) {
+                        requestDetail(child, stack[1].key, stack[3].key, key);
+                    } else if (isReport && payload.costCenterAvailable && stack.length === 5) {
+                        requestDetail(child, stack[1].key, stack[3].key, stack[4].key, key);
+                    }
+                    stack.push({name:child.pathName || key || "(empty)",key,node:child}); render();
+                });
                 first.append(button); row.append(first);
                 [child.initial,child.active,child.admissions,child.dismissals,child.transferIn,child.transferOut,child.turnoverPercent].forEach(value => cell(row,"td",value));
                 body.append(row);
             });
-        } else if (stack.length === levels.length + 1) {
+        } else if (stack.length === levels.length + 1 && (!isReport || payload.costCenterAvailable)) {
             const details = current.details;
             if (!details) {
                 employee.textContent = "Employee details were not supplied by the source.";
                 return;
             }
             const body = table(employee, ["Employee detail", "Value"]);
-            [["Name",details.employeeName],["Admission date",details.admissionDate],["Admission in period",current.admissions],
-                ["Dismissal date",details.dismissalDate],["Dismissal in period",current.dismissals],
+            [[isReport ? "Name (current SRA)" : "Name",details.employeeName],
+                [isReport ? "Admission date (current SRA)" : "Admission date",details.admissionDate],["Admission in period",current.admissions],
+                [isReport ? "Dismissal date (current SRA)" : "Dismissal date",details.dismissalDate],["Dismissal in period",current.dismissals],
                 ["Transfers in period",current.transferIn],["Transfers out in period",current.transferOut]].forEach(([label,value]) => {
                 const row = document.createElement("tr"); cell(row,"th",label); cell(row,"td",value); body.append(row);
             });
-            if (details.transfers === null || details.transfers === undefined) {
+            if (isReport) {
+                const notice = document.createElement("p");
+                if (details.sourceEvents === undefined) {
+                    notice.textContent = "Matching SRE transfer records are unavailable; source transfer counts remain visible.";
+                    employee.append(notice);
+                } else {
+                    notice.textContent = "Matching SRE records for this period and selected assignment; coverage may be partial. " +
+                        "P and D are source field suffixes. Transfer counts come from the registered model.";
+                    employee.append(notice);
+                    const eventKeys = Object.keys(details.sourceEvents).sort((a,b) =>
+                        String(details.sourceEvents[a].RE_DATA).localeCompare(String(details.sourceEvents[b].RE_DATA)) ||
+                        a.length - b.length || a.localeCompare(b));
+                    if (!eventKeys.length) {
+                        const empty = document.createElement("p"); empty.textContent = "No matching SRE records were found."; employee.append(empty);
+                    } else {
+                        const events = table(employee, ["Date", "Company P", "Branch P", "Employee P", "Cost center P",
+                            "Company D", "Branch D", "Employee D", "Cost center D", "Matches out", "Matches in"]);
+                        eventKeys.forEach(key => {
+                            const event = details.sourceEvents[key], row = document.createElement("tr");
+                            [event.RE_DATA,event.RE_EMPP,event.RE_FILIALP,event.RE_MATP,event.RE_CCP,
+                                event.RE_EMPD,event.RE_FILIALD,event.RE_MATD,event.RE_CCD,event.MATCHOUT,event.MATCHIN]
+                                .forEach(value => cell(row,"td",value));
+                            events.append(row);
+                        });
+                    }
+                }
+            } else if (details.transfers === null || details.transfers === undefined) {
                 const notice = document.createElement("p"); notice.textContent = "Transfer history was not supplied by the source."; employee.append(notice);
             } else {
                 const eventKeys = Object.keys(details.transfers).sort();
@@ -288,7 +667,14 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             }
         } else {
-            children.textContent = "No rows at this level.";
+            children.textContent = current.detailState === "loading" ? (current.detailKind === "EMPLOYEE" ? "Loading employees..." :
+                    current.detailKind === "JOB" ? "Loading jobs..." : "Loading cost centers...") :
+                current.detailState === "failed" ? "Detail request failed or its outcome is unknown; no automatic retry was made." :
+                current.detailState === "loaded" ? (current.detailKind === "EMPLOYEE" ? "No employees for this selection." :
+                    current.detailKind === "JOB" ? "No jobs for this selection." : "No cost centers for this selection.") :
+                isReport && stack.length > 1 ?
+                (payload.branches ? "No further detail is supplied for this level." : "Detailed levels are not supplied by this monthly source.") :
+                "No rows at this level.";
         }
     };
     element("hbb-back").addEventListener("click", () => { if (stack.length > 1) { stack.pop(); render(); } });

@@ -19,8 +19,41 @@ chamada de símbolos locais aprovados e `hb_ExecFromArray()` para execução.
   filial, centro de custo, função e funcionário, incluindo Back, em TCP e HTTP.
   A origem passou em chamadas diretas MSSQL e no teste UTF-8 em AppServer isolado.
   Ver [evidência sanitizada](docs/validation/turnover.fixture.windows.json).
-- [ ] Definir e reconciliar as regras históricas de turnover com a implementação
-  existente no Protheus antes de afirmar equivalência.
+- [ ] Validar visualmente a simulação atualizada do dashboard com três meses e
+  seu drill-down em TCP e HTTP. A validação anterior cobre a página precedente.
+- [ ] Criar um novo exemplo de turnover usando as consultas fornecidas como
+  fontes de dados, adaptando a execução e o retorno ao hbBridge. Definir e
+  validar suas medidas e navegação sem exigir uma implementação idêntica à
+  anterior. A [análise das fontes](docs/turnover-reconciliation.pt-BR.md)
+  registra SQL cadastrado, mapeamentos JSON e dashboard como referências.
+  Em 2026-11-05, a integração nativa passou 834 checks, incluindo oito novas
+  verificações da fixture isolada de datas.
+- [x] Adicionar a ação opcional `turnoverReport` para resultados já agregados
+  por empresa e mês. A integração nativa passou 843 checks. Um teste isolado
+  Windows/MSSQL executou a query de empresa cadastrada em uma tabela temporária
+  global própria, comparou todos os indicadores dos dez meses retornados pelo
+  addon com a origem e confirmou a liberação da tabela. O intervalo histórico
+  de 202301 a 202310 também passou na mesma comparação. Ver o
+  [exemplo](examples/turnover/README.pt-BR.md).
+- [ ] Validar visualmente o relatório mensal separado fornecido pelo chamador,
+  em TCP e HTTP, com uma tabela temporária preenchida e pertencente ao Protheus.
+  Quando somente o SELECT mensal é fornecido, não há detalhes por filial;
+  os demais níveis exigem a entrada GEP pronta. O fonte TLPP atualizado compilou
+  em AppServer isolado;
+  os testes de markup e JavaScript passaram, inclusive a preservação de decimais.
+- [x] Observar o exemplo GEP pronto de empresa em uma sessão Protheus preparada,
+  em TCP e HTTP. Ele obtém por padrão o último período da SRD, resolve a query
+  cadastrada na ZZ/ZX e é dono da tabela temporária de resultado. A preparação
+  SQL passou dez verificações controladas e outra verificação em AppServer com
+  o SQL cadastrado. O último período não excluído da SRD de desenvolvimento foi
+  202310. Uma tentativa isolada de `RPCSetEnv` não conseguiu preparar a empresa;
+  relatórios em sessão preparada exibiram medidas mensais de 202302 por TCP e
+  de 202303 por HTTP. Essas observações não validam o drill-down nem a
+  reconciliação dos indicadores de negócio.
+- [x] Consultar o REST original do Protheus com os modelos reais de empresa e
+  funcionários: sete verificações sanitizadas passaram, incluindo paginação e
+  campos de funcionários. O teste valida o serviço original, não a integração
+  hbBridge. Ver [diagnóstico](docs/turnover-addon.pt-BR.md#diagnóstico-do-rest-original-do-protheus).
 - [x] Observar as páginas FWWebEx TCP e HTTP da fixture até o nível de função:
   as capturas mostram métricas, barras e dois botões de funcionário. Ver
   [evidência sanitizada](docs/validation/turnover.fixture.windows.json).
@@ -38,6 +71,43 @@ chamada de símbolos locais aprovados e `hb_ExecFromArray()` para execução.
 
 O addon pode conter regras de negócio; o núcleo permanece genérico. O contrato
 inicial, a fórmula e as limitações estão no [exemplo](docs/turnover-addon.pt-BR.md).
+
+- [x] Validar visualmente o detalhamento real por filial em TCP e HTTP na
+  sessão Protheus preparada. Neste ambiente, `FWAllFilial()` retornou as
+  filiais; passar `cEmpAnt` retornou um array vazio. Os
+  lotes cadastrados de empresa e filial preenchem tabelas distintas do
+  chamador; o escopo é a empresa atual, resolvida pelo framework Protheus. Um
+  diagnóstico MSSQL isolado comparou todos os indicadores de dez meses e vinte
+  linhas de duas filiais com suas
+  respectivas origens.
+- [x] Validar visualmente o detalhamento real por centro de custo em TCP e HTTP
+  na sessão Protheus preparada.
+  A requisição usa o período e a filial selecionados, executa sob demanda o
+  lote cadastrado e libera a tabela temporária do Protheus. Um diagnóstico MSSQL
+  isolado comparou 53 linhas com a origem. O teste da página verifica navegação,
+  isolamento das seleções e ausência de repetição automática.
+- [x] Validar visualmente o detalhamento real por função e o Back em TCP e
+  HTTP na sessão Protheus preparada. O modelo
+  cadastrado é executado sob demanda com período, filial e centro de custo
+  selecionados. Um diagnóstico MSSQL isolado comparou quatro linhas com a origem;
+  a página rejeita respostas de outro centro de custo.
+- [x] Validar visualmente o detalhamento real por funcionário e o Back em TCP e
+  HTTP na sessão Protheus preparada. O modelo cadastrado é executado para
+  período, filial, centro de custo
+  e função selecionados. Um diagnóstico MSSQL isolado comparou uma linha e
+  seus atributos atuais da SRA com a origem, sem imprimir dados pessoais.
+- [x] Validar a apresentação das evidências da SRE em TCP e HTTP com os dados
+  de desenvolvimento. A SRE990 disponível estava vazia; a validação não
+  demonstra a apresentação de uma transferência real.
+- [ ] Validar visualmente as evidências de transferência da SRE em TCP e HTTP,
+  usando um funcionário e período com movimentos. A consulta limita os registros
+  ao resultado de funcionários, período, empresa e filial/centro de custo/matrícula
+  correspondentes; preserva os campos P/D e pode não cobrir todos os eventos.
+  Uma fixture MSSQL passou nos dois sentidos, isolamento de identidade e período
+  e comparação entre collations diferentes. A SRE990 de desenvolvimento está
+  vazia; nas amostras reais não houve correspondências. As contagens permanecem
+  as do modelo cadastrado; a conciliação das regras históricas e a completude
+  das evidências permanecem pendentes.
 
 ## Pacote 002 concluído em 2026-11-03
 

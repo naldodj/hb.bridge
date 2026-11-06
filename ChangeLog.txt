@@ -5,6 +5,20 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Organize bilingual documentation and prepare the Wiki portal)"
  */
 
+2026-11-06 18:02 UTC naldodj (Add real turnover drill-down example)
+  + Adapt registered GEP turnover queries to caller-owned temporary tables and
+    present company, branch, cost center, job and employee details via FWWebEx.
+    Resolve the company context and physical table identifiers in Protheus.
+  + Add a bundled application addon for monthly measures and on-demand TLPP
+    queries for selected levels and matching SRE evidence. Do not infer
+    aggregate rates or repeat SQL when the execution outcome is uncertain.
+  + Add sanitized MSSQL and Protheus REST diagnostics and bilingual guides.
+  ; Protheus TCP and HTTP navigation and Back were validated. Native integration
+    passed 846 checks; isolated TLPP compilation and SQL planning passed.
+    MSSQL diagnostics compared source measures and exercised controlled transfer
+    matches, isolation and mixed collations. The development SRE was empty;
+    real movement evidence and historical-rule reconciliation remain pending.
+
 2026-11-05 00:47 UTC naldodj (Record real JOIN CLI validation)
   ; Record the prepared Protheus/MSSQL JOIN CLI results supplied from the
     AppServer: 24 checks passed on TCP and 24 on HTTP, with 60 rows and two

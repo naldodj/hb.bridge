@@ -6,6 +6,20 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Adicionar cobertura de integridade para JSON UTF-8 e MSSQL)"
  */
 
+2026-11-06 18:02 UTC naldodj (Adicionar exemplo de drill-down real de turnover)
+  + Adaptar consultas GEP cadastradas para tabelas temporárias do chamador e
+    apresentar empresa, filial, centro de custo, função e funcionário via
+    FWWebEx. Resolver no Protheus o contexto e os nomes físicos das tabelas.
+  + Adicionar addon de aplicação para indicadores mensais e consultas TLPP
+    sob demanda por nível e evidências correspondentes da SRE, sem inferir taxas
+    agregadas ou repetir automaticamente SQL com resultado incerto.
+  + Adicionar diagnósticos sanitizados MSSQL e REST Protheus e guias bilíngues.
+  ; Navegação e Back foram validados no Protheus por TCP e HTTP. A integração
+    nativa passou 846 checks; compilação TLPP isolada e planejamento SQL
+    passaram. Diagnósticos MSSQL compararam indicadores e exercitaram movimentos
+    controlados, isolamento e collations diferentes. A SRE de desenvolvimento
+    estava vazia; evidências reais e conciliação histórica seguem pendentes.
+
 2026-11-05 00:47 UTC naldodj (Registrar validação real do CLI de JOIN)
   ; Registrar os resultados do CLI de JOIN no Protheus/MSSQL preparado,
     fornecidos pelo console do AppServer: 24 checks passaram por TCP e 24

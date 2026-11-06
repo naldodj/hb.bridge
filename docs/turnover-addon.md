@@ -41,6 +41,36 @@ multiple assignments, employee eligibility, period interpretation and exact
 parity with the existing Protheus reports remain to be specified and validated.
 It must not be used as a validated payroll or HR report.
 
+The [historical-rule comparison](turnover-reconciliation.md) records the
+observed SQL behavior, controlled monthly tests and unresolved differences.
+The separate [`turnoverReport` example](../examples/turnover/README.md)
+consumes already-aggregated monthly results without recalculating them.
+
+## Original Protheus REST diagnostic
+
+`scripts/test-turnover-protheus-rest.ps1` calls the existing Protheus model
+service using the locally configured `FWWEBEX_PROTHEUS` Basic credentials and
+an explicitly supplied application-token file. It requires an HTTPS loopback
+URL, company, branch and a date range with at least two returned monthly rows.
+The service may create and remove its own temporary tables. The script checks
+company pagination and employee field availability; it reports only check
+statuses and HTTP codes, not response rows or credentials. For a development
+server with a self-signed certificate, pass `-SkipCertificateCheck` explicitly.
+
+```powershell
+pwsh -File scripts/test-turnover-protheus-rest.ps1 `
+    -AppServerIni '<path to appserver.ini>' `
+    -ApplicationTokenFile '<path to authentication.aut>' `
+    -Company '<company>' -Branch '<branch>' `
+    -StartPeriod 202501 -EndPeriod 202510 -SkipCertificateCheck
+```
+
+On 2026-11-05 the local Windows/MSSQL development run passed seven checks over
+the original Protheus REST: two company pages, company fields, one employee
+page, employee fields and the absence of an item-level error. This tests the
+legacy service directly, not the new dashboard, an hbBridge addon or equality
+with the historical SQL backup. Employee values were not recorded.
+
 The query and full result are materialized in memory; there is no streaming or
 transaction snapshot across calls. Error results do not contain partial totals.
 The controlled FWWebEx page includes a bar chart, a grid at each level and
@@ -78,6 +108,12 @@ TCP and HTTP using the controlled fixture. The visual entries are
 U_HBBridgeTurnoverViewTCP() and
 U_HBBridgeTurnoverViewHTTP(). They display the same controlled MSSQL fixture;
 FWWebEx must be installed in the RPO to use these entries.
+A newer dashboard simulation adds a three-month synthetic fixture to these
+visual entries, with monthly movement bars and initial/final headcount. Missing
+transfer evidence remains unknown. Cross-month active totals are labeled as
+employee-months and no overall period rate is asserted. The CLI entries retain
+the original three-row fixture. The updated visual presentation still requires
+interactive validation in Protheus; it does not consume the real turnover SQL.
 A Node.js check of the isolated page script is available through
 `node tests/unit/hbbridge.turnover.page.test.js`; it does not replace visual
 AppServer acceptance in other environments.
