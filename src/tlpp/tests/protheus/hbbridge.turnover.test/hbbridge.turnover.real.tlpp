@@ -5,8 +5,11 @@ namespace HBBridge.Examples
 
 procedure U_HBBridgeTurnoverRealTCP(cProfile as character,cStart as character,cEnd as character)
     local bExecute as codeblock
+    if ((Type("cFilAnt")=="C").and.((Empty(cStart).or.Empty(cEnd))))
+        __HBBridgeTurnoverRealParameters(@cStart,@cEnd)
+    endif
     if FindClass("FWWebEx.Tools.FWExampleTools") .and. FindClass("FWWebEx.WebExControl")
-        bExecute:={||HBBridge.Examples.HBBridgeTurnoverReal():Run(cProfile,cStart,cEnd,.F.)}
+        bExecute:={||FWMsgRun(nil,{||HBBridge.Examples.HBBridgeTurnoverReal():Run(cProfile,cStart,cEnd,.F.)},"Loading Turnover","Wait...")}
         if !FWIsInCallStack("Execute")
             FWWebEx.Tools.FWExampleTools():Execute(bExecute,"HBBridgeTurnoverRealTCP",.T.)
         else
@@ -19,8 +22,11 @@ return
 
 procedure U_HBBridgeTurnoverRealHTTP(cProfile as character,cStart as character,cEnd as character)
     local bExecute as codeblock
+    if ((Type("cFilAnt")=="C").and.((Empty(cStart).or.Empty(cEnd))))
+        __HBBridgeTurnoverRealParameters(@cStart,@cEnd)
+    endif
     if FindClass("FWWebEx.Tools.FWExampleTools") .and. FindClass("FWWebEx.WebExControl")
-        bExecute:={||HBBridge.Examples.HBBridgeTurnoverReal():Run(cProfile,cStart,cEnd,.T.)}
+        bExecute:={||FWMsgRun(nil,{||HBBridge.Examples.HBBridgeTurnoverReal():Run(cProfile,cStart,cEnd,.T.)},"Loading Turnover","Wait...")}
         if !FWIsInCallStack("Execute")
             FWWebEx.Tools.FWExampleTools():Execute(bExecute,"HBBridgeTurnoverRealHTTP",.T.)
         else
@@ -856,3 +862,22 @@ static function TurnoverRealSameDatabase(cProfile as character,oClient as object
         DbSelectArea(IIf(nPreviousArea>0,nPreviousArea,Nil))
     endif
 return(lOK)
+
+static function __HBBridgeTurnoverRealParameters(cStart as character,cEnd as character) as logical
+    local aAnswers as array
+    local aParameters as array
+    local lParamBox as logical
+    DEFAULT cStart:="202101"
+    DEFAULT cEnd:="202112"
+    aParameters:={;
+        {1,"Start Period",cStart,"999999","","","",0,.T.},;
+        {1,"End Period",cEnd,"999999","","","",0,.T.};
+    }
+    lParamBox:=(ParamBox(aParameters,"Select the turnover period",@aAnswers).and.(Len(aAnswers)==2))
+    if (lParamBox)
+        cStart:=aAnswers[1]
+        cEnd:=aAnswers[2]
+    endif
+    FWFReeArray(@aAnswers)
+    FWFReeArray(@aParameters)
+return(lParamBox)
