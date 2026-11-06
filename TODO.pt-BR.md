@@ -459,6 +459,9 @@ continuam pendentes.
   job/thread TLPP antes de compartilhar objetos de socket entre execuções.
 - [ ] Reconectar com backoff e jitter; separar reconexão de reenvio, tratando
   resultado desconhecido, idempotência e prazo total da chamada.
+- [ ] Avaliar circuit breaker opcional por endpoint, com limites, espera, sondas
+  de recuperação e estado visível. Coordenar o estado compartilhado com
+  segurança; não reenviar efeitos colaterais após resultado desconhecido.
 - [ ] Definir contexto imutável por chamada: correlação, identidade verificada,
   contexto opaco explícito autorizado e prazo. Protheus resolve empresa/filial
   e regras ERP; metadados do cliente não concedem acesso.
@@ -891,7 +894,9 @@ disponibilidade consultável, sem alterar os transportes para cada extensão.
   Comparar conformidade, recursos, ciclo de vida e homologação Windows/Linux.
 - [ ] Políticas HTTP configuráveis de admissão para fila de sockets aceitos,
   recursos de cabeçalho/corpo e prazos. Workers não limitam a fila; o parser
-  nativo lê o corpo antes da autenticação do adaptador.
+  nativo lê o corpo antes da autenticação do adaptador. Definir respostas de
+  sobrecarga, considerando 503 para saturação e 429 para política explícita
+  de taxa por cliente; testar clientes lentos, recuperação e carga normal.
 - [ ] Ampliar a administração web além do status: sessões/recursos NETIO,
   métricas, gestão de configuração/credenciais e ações privilegiadas com
   autorização/auditoria, reutilizando o núcleo operacional no mesmo processo.
@@ -950,6 +955,11 @@ homologação operacional do conjunto.
   quando o coletor estiver indisponível e excluindo credenciais dos logs.
 - [ ] Registrar correlação, latência, erros, bytes transmitidos/expandidos,
   memória e recursos ativos; distinguir vida do processo e prontidão dos serviços.
+  Definir histogramas de latência limitados, rótulos de baixa cardinalidade,
+  espera SQL e empréstimos lógicos; informar métricas de pool físico somente
+  com fonte comprovada. Excluir dados sensíveis, testar falha e custo do coletor
+  e avaliar exportador Prometheus opcional e protegido. Veja a
+  [revisão operacional](docs/operational-review.pt-BR.md).
 - [ ] Automatizar build e regressões `Health`/`Echo`/`ADDON.Execute`, NETIO, SQL, DBF,
   binários, limites negociados, concorrência e falhas de rede/módulo/driver.
 - [ ] Homologar instalação, inicialização após reinício, parada e recuperação

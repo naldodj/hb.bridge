@@ -66,6 +66,7 @@ sem manter outra cópia de cada guia.
 | [Pacote de trabalho ativo](../WIP.pt-BR.md) | Retomar a próxima tarefa delimitada e seus critérios de conclusão. |
 | [Roadmap](../TODO.pt-BR.md) | Conferir entregas futuras, pré-requisitos e critérios de aceite. |
 | [Histórico de homologação](acceptance.pt-BR.md) | Consultar resultados datados, identidades, plataformas e limitações. |
+| [Revisão operacional](operational-review.pt-BR.md) | Consultar critérios futuros de segurança, admissão, telemetria e resiliência. |
 | [Análise de evolução](evolution.pt-BR.md) | Analisar estado de workers, motores HTTP opcionais, apresentação e resultados em memória futuros. |
 | [Análise de extensões](extensions-review.pt-BR.md) | Avaliar ideias opcionais de SQLRDD, Duktape e CCHarbour. |
 | [Revisão dos utilitários FWWebEx](fwwebex-tools-review.pt-BR.md) | Analisar candidatos de clone JSON, merge, flatten e medição antes de reutilizar. |

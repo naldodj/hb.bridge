@@ -5,6 +5,11 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Organize bilingual documentation and prepare the Wiki portal)"
  */
 
+2026-11-06 18:13 UTC naldodj (Document operational review and future resilience)
+  + Record security boundaries and future admission, telemetry, resilience,
+    contract and dependency-review criteria in bilingual documentation.
+  ; Extend existing roadmap tasks without changing the active work package.
+
 2026-11-06 18:02 UTC naldodj (Add real turnover drill-down example)
   + Adapt registered GEP turnover queries to caller-owned temporary tables and
     present company, branch, cost center, job and employee details via FWWebEx.

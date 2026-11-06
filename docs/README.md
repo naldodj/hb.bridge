@@ -66,6 +66,7 @@ it does not maintain another copy of each guide.
 | [Active work package](../WIP.md) | Resume the next bounded task and its completion criteria. |
 | [Roadmap](../TODO.md) | Review future delivery, prerequisites and acceptance criteria. |
 | [Acceptance history](acceptance.md) | Check dated outcomes, identities, platform coverage and limitations. |
+| [Operational review](operational-review.md) | Review future security, admission, telemetry and resilience criteria. |
 | [Evolution review](evolution.md) | Review worker state, optional HTTP engines, presentation and future in-memory results. |
 | [Extension review](extensions-review.md) | Evaluate optional SQLRDD, Duktape and CCHarbour ideas. |
 | [FWWebEx utility review](fwwebex-tools-review.md) | Review JSON clone, merge, flatten and timing candidates before reuse. |

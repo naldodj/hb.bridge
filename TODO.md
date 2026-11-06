@@ -296,6 +296,9 @@ negotiated compression remain pending. See [milestone 2](docs/milestone2-framing
   bounded queue/expiry and TLPP job/thread lifecycle before socket sharing.
 - [ ] Reconnect backoff/jitter, separate retransmission/idempotence/unknown
   result and total budget; immutable correlation/identity/context per call.
+- [ ] Evaluate an optional per-endpoint circuit breaker with bounded thresholds,
+  cooldown, recovery probes and visible state. Coordinate shared state safely;
+  do not replay side effects after an uncertain outcome.
 - [ ] Cleanup areas/SET/transactions/buffers in every outcome; test
   STATIC/PUBLIC/PRIVATE and connector concurrency.
 - [ ] Opaque session/user/tenant resources, TTL, owner validation and explicit
@@ -643,7 +646,9 @@ and Oracle require their own evidence.
   conformance, resource use, lifecycle and Windows/Linux acceptance first.
 - [ ] Configurable HTTP admission policies for the native accepted-socket queue,
   header/body resources and deadlines. Worker count alone does not bound the
-  queue; native parsing reads the body before adapter authentication.
+  queue; native parsing reads the body before adapter authentication. Define
+  overload responses, considering 503 for saturation and 429 for explicit
+  per-client rate policies; test slow clients, recovery and normal load.
 - [ ] Expand web administration beyond status: NETIO sessions/resources,
   metrics, configuration/credential management and privileged actions with
   authorization/audit, sharing the operational core rather than spawning hbnetio.
@@ -686,7 +691,11 @@ and Oracle require their own evidence.
 - [ ] Configurable concurrency/timeout/queues/memory and driver/thread acceptance;
   connect Syslog lifecycle/calls, collector-failure resilience and redaction.
 - [ ] Correlation/latency/errors/wire+expanded bytes/memory/active resources;
-  distinguish process liveness and service readiness.
+  distinguish process liveness and service readiness. Define bounded latency
+  histograms, low-cardinality labels, SQL wait and logical lease counts; report
+  physical-pool metrics only from a verified source. Exclude sensitive data,
+  test collector failure and overhead, and evaluate an optional protected
+  Prometheus exporter. See the [operational review](docs/operational-review.md).
 - [ ] Automated RPC/NETIO/SQL/DBF/binary/limit/concurrency/network/module/driver
   regressions, Windows/Linux restart/stop/recovery/port-conflict/bad-config tests.
 - [ ] Reproducible packaging with explicit versions, installation/diagnosis/
