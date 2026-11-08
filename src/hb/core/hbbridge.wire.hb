@@ -5,11 +5,11 @@ FUNCTION HBBridgeWireEncode( xValue )
 
     LOCAL cJSON := HBBridgeJSONEncode( xValue )
 
-    IF ! HB_ISSTRING( cJSON )
+    IF !HB_ISSTRING( cJSON )
         RETURN HBBridgeJSONEncode( HBBridgeError( "INVALID_NUMBER_RESULT", ;
             "JSON result contains an unsupported numeric value." ) )
     ENDIF
-    IF ! HBBridgeUTF8Valid( cJSON )
+    IF !HBBridgeUTF8Valid( cJSON )
         RETURN HBBridgeJSONEncode( HBBridgeError( "INVALID_UTF8_RESULT", ;
             "Service result must use valid UTF-8 text." ) )
     ENDIF
@@ -18,17 +18,20 @@ RETURN cJSON
 
 FUNCTION HBBridgeJSONComplete( cJSON, nConsumed )
 
-    LOCAL nByte, nLength
+    LOCAL nAsc,nByte, nLength
 
     IF nConsumed < 1
         RETURN .F.
     ENDIF
     nLength := hb_BLen( cJSON )
     FOR nByte := nConsumed + 1 TO nLength
-        IF ! ( Asc( hb_BSubStr( cJSON, nByte, 1 ) ) == 32 .OR. ;
-            Asc( hb_BSubStr( cJSON, nByte, 1 ) ) == 9 .OR. ;
-            Asc( hb_BSubStr( cJSON, nByte, 1 ) ) == 10 .OR. ;
-            Asc( hb_BSubStr( cJSON, nByte, 1 ) ) == 13 )
+        nAsc:=Asc( hb_BSubStr( cJSON, nByte, 1 ) )
+        IF !(;
+                nAsc == 32 .OR. ;
+                nAsc == 9 .OR. ;
+                nAsc == 10 .OR. ;
+                nAsc == 13;
+            )
             RETURN .F.
         ENDIF
     NEXT

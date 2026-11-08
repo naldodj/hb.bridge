@@ -3,6 +3,8 @@
 
 namespace HBBridge.Client
 
+static __cCHR_0:=Chr(0) as character
+
 class HBBridgeJSON
 
     static method Encode(jValue as json) as character
@@ -42,7 +44,7 @@ static method Parse(cJSON, jResult) class HBBridgeJSON
 
     local nPosition := 1 as numeric
 
-    if Chr(0) $ cJSON
+    if __cCHR_0 $ cJSON
         jResult:FromJSON("{}")
         return .F.
     endif
@@ -71,7 +73,7 @@ static function JSONNulMode(xValue as variant) as numeric
     local aNames as array
 
     local cType := ValType(xValue) as character
-    local cCHR_0 := Chr(0) as character
+    local cCHR_0 := __cCHR_0 as character
 
     local nIndex := 0, nMode := 0, nChild := 0, nLength := 0 as numeric
 
@@ -121,7 +123,7 @@ static function JSONEncodeValue(xValue as variant, jScratch as json, lValid as l
 
     local aNames as array
 
-    local cCHR_0 := Chr(0) as character
+    local cCHR_0 := __cCHR_0 as character
     local cType := ValType(xValue), cResult := "", cToken := "" as character
 
     local nIndex := 0, nStart := 1, nPosition := 1, nRun := 0 as numeric
@@ -245,7 +247,7 @@ return .T.
 
 static function JSONDecodeNulString(cToken as character, jScratch as json, cValue as character, lHasNul as logical) as logical
 
-    local cCHR_0 := Chr(0) as character
+    local cCHR_0 := __cCHR_0 as character
     local cSegment := "" as character
 
     local nPosition := 2, nStart := 2 as numeric

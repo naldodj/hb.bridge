@@ -9,12 +9,17 @@ Released to Public Domain.
 --------------------------------------------------------------------------------------
 */
 
+static lhbmtvm
+
 FUNCTION HBBridgeHostStart( hConfig, cError )
 
     LOCAL hRegistry, hHost, hListener
 
     cError := ""
-    IF ! hb_mtvm() .OR. ! HBBridgeConfigValid( hConfig, @cError )
+    if lhbmtvm=nil
+        lhbmtvm:=hb_mtvm()
+    endif
+    IF ! lhbmtvm .OR. ! HBBridgeConfigValid( hConfig, @cError )
         IF Empty( cError )
             cError := "hbBridge requires multithreaded Harbour (-mt)"
         ENDIF

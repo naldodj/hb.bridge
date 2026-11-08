@@ -65,57 +65,164 @@ static method HTML() class HBBridgeBenchmarkPage
     beginContent var cHTML
 <style id="hbb-benchmark-style">
     #hbb-benchmark {
-        --hbb-ink: #17263b;
-        --hbb-muted: #64748b;
-        --hbb-line: #dce4ed;
-        --hbb-tcp: #087f8c;
-        --hbb-http: #6d55b5;
+        /* Tokens dinamicos alinhados ao Bootstrap */
+        --hbb-ink: var(--bs-body-color);
+        --hbb-muted: var(--bs-secondary-color);
+        --hbb-line: var(--bs-border-color);
+        --hbb-bg-surface: var(--bs-body-bg);
+        --hbb-bg-panel: var(--bs-card-bg, var(--bs-body-bg));
+        --hbb-tcp: var(--bs-teal, #087f8c);
+        --hbb-http: var(--bs-indigo, #6d55b5);
+
         box-sizing: border-box;
         max-width: 1260px;
         margin: 0 auto;
-        padding: 30px;
+        padding: var(--bs-spacer-4, 30px);
         color: var(--hbb-ink);
-        background: #f5f7fb;
-        font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+        background: var(--bs-tertiary-bg, #f5f7fb);
+        font: 15px/1.55 var(--bs-body-font-family, system-ui, -apple-system, "Segoe UI", sans-serif);
     }
+
     #hbb-benchmark *, #hbb-benchmark *::before, #hbb-benchmark *::after { box-sizing: border-box; }
     #hbb-benchmark h1, #hbb-benchmark h2, #hbb-benchmark p { margin: 0; }
-    #hbb-benchmark h1 { font-size: clamp(26px, 3vw, 36px); letter-spacing: -1px; font-weight: 750; }
-    #hbb-benchmark h2 { font-size: 18px; font-weight: 700; }
+    #hbb-benchmark h1 { font-size: clamp(26px, 3vw, 36px); letter-spacing: -1px; font-weight: 750; color: var(--bs-heading-color, inherit); }
+    #hbb-benchmark h2 { font-size: 18px; font-weight: 700; color: var(--bs-heading-color, inherit); }
     #hbb-benchmark .hbb-eyebrow { color: var(--hbb-tcp); font-size: 11px; font-weight: 800; letter-spacing: 1.8px; text-transform: uppercase; }
     #hbb-benchmark .hbb-muted { color: var(--hbb-muted); }
     #hbb-benchmark .hbb-head { display: flex; align-items: start; justify-content: space-between; gap: 20px; margin-bottom: 24px; }
-    #hbb-benchmark .hbb-badge { white-space: nowrap; border: 1px solid #bbdce0; border-radius: 24px; padding: 7px 13px; background: #eaf5f5; color: #13636d; font-size: 12px; font-weight: 700; }
-    #hbb-benchmark .hbb-panel { border: 1px solid var(--hbb-line); border-radius: 14px; background: #fff; padding: 22px; margin-bottom: 18px; }
+
+    #hbb-benchmark .hbb-badge {
+        white-space: nowrap;
+        border: 1px solid var(--bs-info-border-subtle, #bbdce0);
+        border-radius: var(--bs-border-radius-pill, 24px);
+        padding: 7px 13px;
+        background: var(--bs-info-bg-subtle, #eaf5f5);
+        color: var(--bs-info-text-emphasis, #13636d);
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+    #hbb-benchmark .hbb-panel {
+        border: 1px solid var(--hbb-line);
+        border-radius: var(--bs-border-radius-xl, 14px);
+        background: var(--hbb-bg-panel);
+        padding: 22px;
+        margin-bottom: 18px;
+    }
+
     #hbb-benchmark .hbb-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
     #hbb-benchmark .hbb-profile { margin-top: 6px; overflow-wrap: anywhere; }
-    #hbb-benchmark .hbb-profile strong { color: var(--hbb-ink); }
+    #hbb-benchmark .hbb-profile strong { color: var(--bs-heading-color, var(--hbb-ink)); }
     #hbb-benchmark .hbb-fields { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; }
-    #hbb-benchmark label { display: block; color: #43536a; font-size: 12px; font-weight: 700; }
-    #hbb-benchmark input { width: 100%; height: 43px; margin-top: 7px; border: 1px solid #cbd5e1; border-radius: 7px; background: #fff; color: var(--hbb-ink); padding: 8px 10px; font: inherit; }
-    #hbb-benchmark input:focus, #hbb-benchmark button:focus-visible, #hbb-benchmark summary:focus-visible { outline: 3px solid #a6dcdf; outline-offset: 2px; }
-    #hbb-benchmark input:disabled { background: #f1f5f9; }
+
+    #hbb-benchmark label { display: block; color: var(--bs-secondary-color, #43536a); font-size: 12px; font-weight: 700; }
+    #hbb-benchmark input {
+        width: 100%;
+        height: 43px;
+        margin-top: 7px;
+        border: var(--bs-border-width, 1px) solid var(--bs-border-color);
+        border-radius: var(--bs-border-radius, 7px);
+        background: var(--bs-body-bg);
+        color: var(--bs-body-color);
+        padding: 8px 10px;
+        font: inherit;
+        transition: border-color .15s ease-in-out, box-shadow .15s ease-in-out;
+    }
+    #hbb-benchmark input:focus,
+    #hbb-benchmark button:focus-visible,
+    #hbb-benchmark summary:focus-visible {
+        outline: 0;
+        border-color: var(--bs-focus-ring-color, #86b7fe);
+        box-shadow: 0 0 0 0.25rem rgba(var(--bs-primary-rgb, 13, 110, 253), 0.25);
+    }
+    #hbb-benchmark input:disabled {
+        background: var(--bs-secondary-bg, #f1f5f9);
+        opacity: 0.8;
+    }
+
     #hbb-benchmark .hbb-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 19px; }
-    #hbb-benchmark .hbb-routes { border: 1px solid var(--hbb-line); border-radius: 8px; margin: 19px 0 0; padding: 14px; }
-    #hbb-benchmark .hbb-routes legend { font-size: 12px; font-weight: 700; padding: 0 6px; }
+    #hbb-benchmark .hbb-routes { border: 1px solid var(--hbb-line); border-radius: var(--bs-border-radius, 8px); margin: 19px 0 0; padding: 14px; }
+    #hbb-benchmark .hbb-routes legend { font-size: 12px; font-weight: 700; padding: 0 6px; color: var(--bs-heading-color, inherit); }
     #hbb-benchmark .hbb-route-options { display: flex; flex-wrap: wrap; gap: 12px 24px; }
-    #hbb-benchmark .hbb-route-options label { display: flex; align-items: center; gap: 7px; }
+    #hbb-benchmark .hbb-route-options label { display: flex; align-items: center; gap: 7px; color: var(--bs-body-color); }
     #hbb-benchmark .hbb-route-options input { width: 17px; height: 17px; margin: 0; padding: 0; }
-    #hbb-benchmark button { border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 15px; background: #fff; color: var(--hbb-ink); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
-    #hbb-benchmark button.hbb-primary { background: var(--hbb-tcp); color: #fff; border-color: var(--hbb-tcp); }
+
+    #hbb-benchmark button {
+        border: var(--bs-border-width, 1px) solid var(--bs-border-color);
+        border-radius: var(--bs-border-radius, 8px);
+        padding: 10px 15px;
+        background: var(--bs-body-bg);
+        color: var(--bs-body-color);
+        font: inherit;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: color .15s ease-in-out, background-color .15s ease-in-out, border-color .15s ease-in-out;
+    }
+    #hbb-benchmark button:hover:not(:disabled) {
+        background: var(--bs-secondary-bg);
+    }
+    #hbb-benchmark button.hbb-primary {
+        background: var(--hbb-tcp);
+        color: #fff;
+        border-color: var(--hbb-tcp);
+    }
+    #hbb-benchmark button.hbb-primary:hover:not(:disabled) {
+        filter: brightness(0.92);
+    }
     #hbb-benchmark button:disabled { opacity: .5; cursor: not-allowed; }
     #hbb-benchmark .hbb-help { font-size: 12px; color: var(--hbb-muted); }
-    #hbb-benchmark .hbb-status { border-left: 3px solid #93a4b8; border-radius: 4px; padding: 11px 14px; margin-bottom: 18px; background: #eef2f7; color: #43536a; overflow-wrap: anywhere; }
-    #hbb-benchmark .hbb-status[data-state="running"] { border-color: var(--hbb-tcp); background: #eaf5f5; }
-    #hbb-benchmark .hbb-status[data-state="failed"] { border-color: #b14542; background: #fff0ee; color: #923b37; }
-    #hbb-benchmark .hbb-status[data-state="passed"] { border-color: #287848; background: #edf7f0; color: #25653e; }
+
+    /* Alertas e status usando paleta sutil do Bootstrap */
+    #hbb-benchmark .hbb-status {
+        border-left: 4px solid var(--bs-secondary-color, #93a4b8);
+        border-radius: var(--bs-border-radius-sm, 4px);
+        padding: 11px 14px;
+        margin-bottom: 18px;
+        background: var(--bs-secondary-bg, #eef2f7);
+        color: var(--bs-secondary-text-emphasis, #43536a);
+        overflow-wrap: anywhere;
+    }
+    #hbb-benchmark .hbb-status[data-state="running"] {
+        border-left-color: var(--hbb-tcp);
+        background: var(--bs-info-bg-subtle, #eaf5f5);
+        color: var(--bs-info-text-emphasis, inherit);
+    }
+    #hbb-benchmark .hbb-status[data-state="failed"] {
+        border-left-color: var(--bs-danger, #b14542);
+        background: var(--bs-danger-bg-subtle, #fff0ee);
+        color: var(--bs-danger-text-emphasis, #923b37);
+    }
+    #hbb-benchmark .hbb-status[data-state="passed"] {
+        border-left-color: var(--bs-success, #287848);
+        background: var(--bs-success-bg-subtle, #edf7f0);
+        color: var(--bs-success-text-emphasis, #25653e);
+    }
+
     #hbb-benchmark .hbb-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); grid-auto-rows: 1fr; align-items: stretch; gap: 14px; margin-bottom: 18px; }
-    #hbb-benchmark .hbb-card { display: flex; flex-direction: column; height: 100%; border: 1px solid var(--hbb-line); border-radius: 12px; padding: 18px; background: #fff; }
+    #hbb-benchmark .hbb-card {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        border: 1px solid var(--hbb-line);
+        border-radius: var(--bs-border-radius-lg, 12px);
+        padding: 18px;
+        background: var(--hbb-bg-panel);
+    }
     #hbb-benchmark .hbb-card-label { display: block; min-height: 3.2em; font-size: 11px; color: var(--hbb-muted); font-weight: 700; text-transform: uppercase; letter-spacing: .8px; }
-    #hbb-benchmark .hbb-value { display: block; font-size: clamp(21px, 2.4vw, 30px); line-height: 1.3; margin: 8px 0 3px; font-weight: 750; letter-spacing: -.6px; }
+    #hbb-benchmark .hbb-value { display: block; font-size: clamp(21px, 2.4vw, 30px); line-height: 1.3; margin: 8px 0 3px; font-weight: 750; letter-spacing: -.6px; color: var(--bs-heading-color, inherit); }
     #hbb-benchmark .hbb-card > .hbb-help { margin-top: auto; }
+
     #hbb-benchmark .hbb-server-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); align-items: stretch; gap: 16px; margin: 18px 0; }
-    #hbb-benchmark .hbb-server-route { display: flex; flex-direction: column; min-width: 0; padding: 16px; border: 1px solid var(--hbb-line); border-radius: 10px; background: #fff; }
+    #hbb-benchmark .hbb-server-route {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        padding: 16px;
+        border: 1px solid var(--hbb-line);
+        border-radius: var(--bs-border-radius, 10px);
+        background: var(--hbb-bg-panel);
+    }
     #hbb-benchmark .hbb-server-route .hbb-panel-head { display: block; min-height: 104px; margin-bottom: 14px; }
     #hbb-benchmark .hbb-server-route h2 { min-height: 3.1em; }
     #hbb-benchmark .hbb-server-route .hbb-badge { display: inline-block; margin-top: 6px; }
@@ -123,34 +230,61 @@ static method HTML() class HBBridgeBenchmarkPage
     #hbb-benchmark .hbb-server-route .hbb-card { padding: 13px; }
     #hbb-benchmark .hbb-total-duration { font-size: 16px; margin: 14px 0; }
     #hbb-benchmark .hbb-total-duration strong { font-variant-numeric: tabular-nums; }
+
     #hbb-benchmark .hbb-tcp { color: var(--hbb-tcp); }
     #hbb-benchmark .hbb-http { color: var(--hbb-http); }
-    #hbb-benchmark .hbb-startjob { color: #c76b21; }
-    #hbb-benchmark .hbb-rest { color: #316bb0; }
-    #hbb-benchmark .hbb-addon { color: #496b32; }
-    #hbb-benchmark .hbb-progress { display: flex; align-items: center; gap: 11px; margin-bottom: 16px; color: #43536a; font-size: 13px; }
-    #hbb-benchmark .hbb-spinner { width: 18px; height: 18px; border: 2px solid #b8d8dc; border-top-color: var(--hbb-tcp); border-radius: 50%; animation: HBBenchmarkSpin .85s linear infinite; }
+    #hbb-benchmark .hbb-startjob { color: var(--bs-warning-text-emphasis, #c76b21); }
+    #hbb-benchmark .hbb-rest { color: var(--bs-primary-text-emphasis, #316bb0); }
+    #hbb-benchmark .hbb-addon { color: var(--bs-success-text-emphasis, #496b32); }
+
+    #hbb-benchmark .hbb-progress { display: flex; align-items: center; gap: 11px; margin-bottom: 16px; color: var(--bs-secondary-color, #43536a); font-size: 13px; }
+    #hbb-benchmark .hbb-spinner {
+        width: 18px;
+        height: 18px;
+        border: 2px solid var(--bs-border-color, #b8d8dc);
+        border-top-color: var(--hbb-tcp);
+        border-radius: 50%;
+        animation: HBBenchmarkSpin .85s linear infinite;
+    }
     #hbb-benchmark .hbb-elapsed { font-variant-numeric: tabular-nums; font-weight: 700; }
-    #hbb-benchmark .hbb-addon-panel { border-color: #c4d6b4; background: #fcfef9; }
+    #hbb-benchmark .hbb-addon-panel {
+        border-color: var(--bs-success-border-subtle, #c4d6b4);
+        background: var(--bs-success-bg-subtle, #fcfef9);
+    }
     @keyframes HBBenchmarkSpin { to { transform: rotate(360deg); } }
     @media (prefers-reduced-motion: reduce) { #hbb-benchmark .hbb-spinner { animation: none; } }
+
     #hbb-benchmark .hbb-charts { display: grid; grid-template-columns: 1fr 1.45fr; gap: 18px; }
     #hbb-benchmark .hbb-chart-box { min-width: 0; }
     #hbb-benchmark .hbb-chart-box svg { display: block; width: 100%; height: auto; min-height: 160px; }
     #hbb-benchmark .hbb-legend { display: flex; flex-wrap: wrap; gap: 16px; font-size: 12px; margin: 9px 0 0; color: var(--hbb-muted); }
     #hbb-benchmark .hbb-dot { display: inline-block; width: 9px; height: 9px; margin-right: 6px; border-radius: 50%; background: currentColor; }
+
     #hbb-benchmark .hbb-scroll { overflow-x: auto; }
-    #hbb-benchmark table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    #hbb-benchmark table { width: 100%; border-collapse: collapse; font-size: 13px; color: var(--bs-body-color); }
     #hbb-benchmark caption { text-align: left; color: var(--hbb-muted); font-size: 12px; padding-bottom: 10px; }
-    #hbb-benchmark th, #hbb-benchmark td { padding: 11px 12px; border-bottom: 1px solid #e7edf3; white-space: nowrap; text-align: right; }
+    #hbb-benchmark th, #hbb-benchmark td {
+        padding: 11px 12px;
+        border-bottom: var(--bs-border-width, 1px) solid var(--bs-border-color-subtle, #e7edf3);
+        white-space: nowrap;
+        text-align: right;
+    }
     #hbb-benchmark th:first-child, #hbb-benchmark td:first-child { text-align: left; }
-    #hbb-benchmark thead th { color: #64748b; background: #f7f9fc; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; }
-    #hbb-benchmark tbody th { font-weight: 700; }
+    #hbb-benchmark thead th {
+        color: var(--bs-secondary-color, #64748b);
+        background: var(--bs-tertiary-bg, #f7f9fc);
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: .5px;
+    }
+    #hbb-benchmark tbody th { font-weight: 700; color: var(--bs-heading-color, inherit); }
+
     #hbb-benchmark .hbb-notes { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; font-size: 12px; color: var(--hbb-muted); }
-    #hbb-benchmark .hbb-notes strong { display: block; color: #43536a; font-size: 12px; margin-bottom: 5px; }
+    #hbb-benchmark .hbb-notes strong { display: block; color: var(--bs-secondary-color, #43536a); font-size: 12px; margin-bottom: 5px; }
     #hbb-benchmark .hbb-meta { font-size: 12px; color: var(--hbb-muted); overflow-wrap: anywhere; margin-bottom: 18px; }
-    #hbb-benchmark details summary { cursor: pointer; font-size: 13px; font-weight: 700; margin-bottom: 12px; }
+    #hbb-benchmark details summary { cursor: pointer; font-size: 13px; font-weight: 700; margin-bottom: 12px; color: var(--bs-heading-color, inherit); }
     #hbb-benchmark [hidden] { display: none !important; }
+
     @media (max-width: 760px) {
         #hbb-benchmark { padding: 16px; }
         #hbb-benchmark .hbb-head { flex-direction: column; }
@@ -159,9 +293,10 @@ static method HTML() class HBBridgeBenchmarkPage
         #hbb-benchmark .hbb-charts, #hbb-benchmark .hbb-notes, #hbb-benchmark .hbb-server-cards { grid-template-columns: 1fr; }
         #hbb-benchmark .hbb-panel { padding: 16px; }
     }
+
     @media print {
-        #hbb-benchmark { max-width: none; padding: 0; background: #fff; }
-        #hbb-benchmark .hbb-panel, #hbb-benchmark .hbb-card { break-inside: avoid; }
+        #hbb-benchmark { max-width: none; padding: 0; background: transparent; color: #000; }
+        #hbb-benchmark .hbb-panel, #hbb-benchmark .hbb-card { break-inside: avoid; border-color: #ccc; }
     }
 </style>
 <main id="hbb-benchmark">
@@ -171,7 +306,7 @@ static method HTML() class HBBridgeBenchmarkPage
             <h1>Benchmark explorer</h1>
             <p id="hbb-description" class="hbb-muted">Compare complete paged traversals through TCP and HTTP.</p>
         </div>
-        <span id="hbb-route-badge" class="hbb-badge">M08 · One client · Two routes</span>
+        <span id="hbb-route-badge" class="hbb-badge">M08 &middot; One client &middot; Two routes</span>
     </header>
     <form id="hbb-form" class="hbb-panel" novalidate>
         <div class="hbb-panel-head">
@@ -195,7 +330,7 @@ static method HTML() class HBBridgeBenchmarkPage
             <p class="hbb-help">Editing Call timeout switches to manual. Both modes respect the operational ceiling; manual values above it are rejected. A timeout is an estimate, not a runtime guarantee or cancellation mechanism.</p>
         </fieldset>
         <fieldset class="hbb-routes">
-            <legend>Execution routes · only selected routes run</legend>
+            <legend>Execution routes &middot; only selected routes run</legend>
             <div id="hbb-route-options" class="hbb-route-options"></div>
             <div id="hbb-presets" class="hbb-actions" aria-label="Route selection presets"></div>
             <p class="hbb-help">Capabilities are configured by the server. Route order remains fixed. Select at least one route; each selected route includes its own warmup.</p>
@@ -222,11 +357,11 @@ static method HTML() class HBBridgeBenchmarkPage
         <p id="hbb-result-timeout" class="hbb-meta"></p>
         <p id="hbb-comparison" class="hbb-status"></p>
         <div id="hbb-client-cards" class="hbb-cards">
-            <div id="hbb-tcp-card" class="hbb-card"><span class="hbb-card-label">TCP average</span><strong id="hbb-tcp-average" class="hbb-value hbb-tcp">—</strong><span class="hbb-help">per complete traversal</span></div>
-            <div id="hbb-http-card" class="hbb-card"><span class="hbb-card-label">HTTP average</span><strong id="hbb-http-average" class="hbb-value hbb-http">—</strong><span class="hbb-help">per complete traversal</span></div>
-            <div id="hbb-startjob-card" class="hbb-card" hidden><span class="hbb-card-label">Protheus StartJob average</span><strong id="hbb-startjob-average" class="hbb-value hbb-startjob">—</strong><span class="hbb-help">in-process job, complete traversal</span></div>
-            <div id="hbb-rest-card" class="hbb-card" hidden><span class="hbb-card-label">Protheus REST average</span><strong id="hbb-rest-average" class="hbb-value hbb-rest">—</strong><span class="hbb-help">per complete traversal</span></div>
-            <div class="hbb-card"><span class="hbb-card-label">Measured client rows</span><strong id="hbb-measured-rows" class="hbb-value">—</strong><span class="hbb-help">successful measured client iterations</span></div>
+            <div id="hbb-tcp-card" class="hbb-card"><span class="hbb-card-label">TCP average</span><strong id="hbb-tcp-average" class="hbb-value hbb-tcp">&mdash;</strong><span class="hbb-help">per complete traversal</span></div>
+            <div id="hbb-http-card" class="hbb-card"><span class="hbb-card-label">HTTP average</span><strong id="hbb-http-average" class="hbb-value hbb-http">&mdash;</strong><span class="hbb-help">per complete traversal</span></div>
+            <div id="hbb-startjob-card" class="hbb-card" hidden><span class="hbb-card-label">Protheus StartJob average</span><strong id="hbb-startjob-average" class="hbb-value hbb-startjob">&mdash;</strong><span class="hbb-help">in-process job, complete traversal</span></div>
+            <div id="hbb-rest-card" class="hbb-card" hidden><span class="hbb-card-label">Protheus REST average</span><strong id="hbb-rest-average" class="hbb-value hbb-rest">&mdash;</strong><span class="hbb-help">per complete traversal</span></div>
+            <div class="hbb-card"><span class="hbb-card-label">Measured client rows</span><strong id="hbb-measured-rows" class="hbb-value">&mdash;</strong><span class="hbb-help">successful measured client iterations</span></div>
         </div>
         <div id="hbb-client-charts" class="hbb-charts">
             <section class="hbb-panel hbb-chart-box" aria-labelledby="hbb-average-title">
@@ -250,27 +385,27 @@ static method HTML() class HBBridgeBenchmarkPage
             <p id="hbb-statistics-method" class="hbb-help"></p>
         </section>
         <section id="hbb-server-panel" class="hbb-panel hbb-addon-panel" aria-labelledby="hbb-server-title" hidden>
-            <h2 id="hbb-server-title">Server processing · per measured traversal</h2>
+            <h2 id="hbb-server-title">Server processing &middot; per measured traversal</h2>
             <p class="hbb-help">Both routes execute the paged fixture inside the server and return metrics. Compare one successful measured traversal at a time: SQL, page processing and value checks. Warmup, whole-request setup and transport are outside these internal averages.</p>
             <div class="hbb-server-cards">
                 <article id="hbb-addon-panel" class="hbb-server-route" aria-labelledby="hbb-addon-title" hidden>
                     <div class="hbb-panel-head">
-                        <h2 id="hbb-addon-title">hbBridge addon · Harbour</h2>
+                        <h2 id="hbb-addon-title">hbBridge addon &middot; Harbour</h2>
                         <span id="hbb-addon-state" class="hbb-badge">Internal timing</span>
                     </div>
                     <div class="hbb-cards">
-                        <div class="hbb-card"><span class="hbb-card-label">Average per measured traversal</span><strong id="hbb-addon-average" class="hbb-value hbb-addon">—</strong><span class="hbb-help">one internal iteration; warmup excluded</span></div>
-                        <div class="hbb-card"><span class="hbb-card-label">Measured server rows</span><strong id="hbb-addon-rows" class="hbb-value">—</strong><span class="hbb-help">rows consumed within Harbour</span></div>
+                        <div class="hbb-card"><span class="hbb-card-label">Average per measured traversal</span><strong id="hbb-addon-average" class="hbb-value hbb-addon">&mdash;</strong><span class="hbb-help">one internal iteration; warmup excluded</span></div>
+                        <div class="hbb-card"><span class="hbb-card-label">Measured server rows</span><strong id="hbb-addon-rows" class="hbb-value">&mdash;</strong><span class="hbb-help">rows consumed within Harbour</span></div>
                     </div>
                 </article>
                 <article id="hbb-protheus-server-panel" class="hbb-server-route" aria-labelledby="hbb-protheus-server-title" hidden>
                     <div class="hbb-panel-head">
-                        <h2 id="hbb-protheus-server-title">Protheus server · one StartJob</h2>
+                        <h2 id="hbb-protheus-server-title">Protheus server &middot; one StartJob</h2>
                         <span id="hbb-protheus-server-state" class="hbb-badge">Internal timing</span>
                     </div>
                     <div class="hbb-cards">
-                        <div class="hbb-card"><span class="hbb-card-label">Average per measured traversal</span><strong id="hbb-protheus-server-average" class="hbb-value hbb-startjob">—</strong><span class="hbb-help">one internal iteration; warmup excluded</span></div>
-                        <div class="hbb-card"><span class="hbb-card-label">Measured server rows</span><strong id="hbb-protheus-server-rows" class="hbb-value">—</strong><span class="hbb-help">rows consumed within Protheus/DBAccess</span></div>
+                        <div class="hbb-card"><span class="hbb-card-label">Average per measured traversal</span><strong id="hbb-protheus-server-average" class="hbb-value hbb-startjob">&mdash;</strong><span class="hbb-help">one internal iteration; warmup excluded</span></div>
+                        <div class="hbb-card"><span class="hbb-card-label">Measured server rows</span><strong id="hbb-protheus-server-rows" class="hbb-value">&mdash;</strong><span class="hbb-help">rows consumed within Protheus/DBAccess</span></div>
                     </div>
                 </article>
             </div>
@@ -288,8 +423,8 @@ static method HTML() class HBBridgeBenchmarkPage
             <p id="hbb-server-statistics-method" class="hbb-help"></p>
         </section>
         <section id="hbb-whole-execution" class="hbb-panel" aria-labelledby="hbb-whole-title">
-            <h2 id="hbb-whole-title">Whole execution · totals</h2>
-            <p class="hbb-total-duration">Complete benchmark: <strong id="hbb-run-time">—</strong></p>
+            <h2 id="hbb-whole-title">Whole execution &middot; totals</h2>
+            <p class="hbb-total-duration">Complete benchmark: <strong id="hbb-run-time">&mdash;</strong></p>
             <p class="hbb-help">All selected routes, warmups, measured iterations, setup and orchestration. This is a total duration, not an average iteration.</p>
             <div id="hbb-server-request-details" hidden>
                 <h2>Complete server requests</h2>
@@ -299,15 +434,15 @@ static method HTML() class HBBridgeBenchmarkPage
                         <caption>One request for all server traversals. Internal averages and complete request totals have different scopes.</caption>
                         <thead><tr><th scope="col">Request</th><th scope="col">Result</th><th scope="col">Complete call elapsed</th><th scope="col">Measured traversals</th><th scope="col">Warmup traversals</th><th scope="col">Included work</th></tr></thead>
                         <tbody>
-                            <tr id="hbb-addon-request-row" hidden><th scope="row">hbBridge · one ADDON.Execute TCP call</th><td id="hbb-addon-request-state"></td><td id="hbb-addon-call"></td><td id="hbb-addon-request-measured"></td><td id="hbb-addon-request-warmup"></td><td>HRB loading, all traversals, JSON and transport</td></tr>
-                            <tr id="hbb-protheus-server-request-row" hidden><th scope="row">Protheus · one StartJob</th><td id="hbb-protheus-server-request-state"></td><td id="hbb-protheus-server-call"></td><td id="hbb-protheus-server-request-measured"></td><td id="hbb-protheus-server-request-warmup"></td><td>Job/environment preparation, all traversals and result</td></tr>
+                            <tr id="hbb-addon-request-row" hidden><th scope="row">hbBridge &middot; one ADDON.Execute TCP call</th><td id="hbb-addon-request-state"></td><td id="hbb-addon-call"></td><td id="hbb-addon-request-measured"></td><td id="hbb-addon-request-warmup"></td><td>HRB loading, all traversals, JSON and transport</td></tr>
+                            <tr id="hbb-protheus-server-request-row" hidden><th scope="row">Protheus &middot; one StartJob</th><td id="hbb-protheus-server-request-state"></td><td id="hbb-protheus-server-call"></td><td id="hbb-protheus-server-request-measured"></td><td id="hbb-protheus-server-request-warmup"></td><td>Job/environment preparation, all traversals and result</td></tr>
                         </tbody>
                     </table>
                 </div>
             </div>
         </section>
         <details class="hbb-panel">
-            <summary>Warmup observations — excluded from measured statistics</summary>
+            <summary>Warmup observations &mdash; excluded from measured statistics</summary>
             <div class="hbb-scroll">
                 <table>
                     <caption id="hbb-warmup-caption">Warmup samples by transport.</caption>
@@ -435,7 +570,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
                 input.disabled = !Capabilities[route.key];
                 input.addEventListener('change', UpdateTimeout);
                 label.appendChild(input);
-                label.appendChild(document.createTextNode(route.name + (Capabilities[route.key] ? '' : ' · unavailable')));
+                label.appendChild(document.createTextNode(route.name + (Capabilities[route.key] ? '' : ' \u00B7 unavailable')));
                 options.appendChild(label);
             });
             Presets.forEach(preset => {
@@ -491,7 +626,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
         function Heading(compare, addon) {
             Text('description', compare ? 'Compare the same paged fixture through hbBridge and Protheus execution routes.' :
                 'Compare complete paged traversals through TCP and HTTP.');
-            Text('route-badge', 'M08 · One client · ' + (compare ? 'Four client routes + Protheus server' : 'Two client routes') + (addon ? ' + server addon' : ''));
+            Text('route-badge', 'M08 \u00B7 One client \u00B7 ' + (compare ? 'Four client routes + Protheus server' : 'Two client routes') + (addon ? ' + server addon' : ''));
             Text('run-help', compare ? 'Fixed fixture. Concurrency 1. TCP, HTTP, Protheus StartJob, then Protheus REST. Warmup is excluded.' :
                 'Fixed fixture. Concurrency 1. TCP runs before HTTP. Warmup is excluded.');
         }
@@ -650,7 +785,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
             if (!comparable) return 'Relative comparison unavailable. At least two complete, successful client traversal routes with the same fixture and counts are required. Protheus server and addon internal timings have a separate scope.';
             const fastest = routes.reduce((best, route) => route.data.avgMs < best.data.avgMs ? route : best);
             return 'Lowest observed client average: ' + fastest.name + '. Mean elapsed / lowest mean: ' +
-                routes.map(route => route.name + ' ' + Format(route.data.avgMs / fastest.data.avgMs, 2) + '×').join('; ') +
+                routes.map(route => route.name + ' ' + Format(route.data.avgMs / fastest.data.avgMs, 2) + '&times;').join('; ') +
                 '. Fixed execution order and local conditions can affect this comparison; Protheus server and addon internal timings are excluded.';
         }
 
@@ -716,17 +851,17 @@ document.addEventListener("DOMContentLoaded", ()=>{
             const rows = routes.every(route => Finite(route.data.measuredRows)) ?
                 routes.reduce((total, route) => total + route.data.measuredRows, 0) : null;
             Text('result-state', passed ? 'PASSED' : 'FAILED / partial results');
-            Text('result-meta', 'Run ' + String(report.runID || 'unavailable') + ' · ' + String(report.startedLocal || 'date unavailable') +
-                ' · Profile ' + String(report.profile || Config.profile) + ' · ' + Format(report.rowsPerIteration) + ' rows / ' + Format(report.pageSize) +
-                ' per page · ' + Format(report.iterations) + ' measured + ' + Format(report.warmupIterations) + ' warmup / route');
+            Text('result-meta', 'Run ' + String(report.runID || 'unavailable') + ' \u00B7 ' + String(report.startedLocal || 'date unavailable') +
+                ' \u00B7 Profile ' + String(report.profile || Config.profile) + ' \u00B7 ' + Format(report.rowsPerIteration) + ' rows / ' + Format(report.pageSize) +
+                ' per page \u00B7 ' + Format(report.iterations) + ' measured + ' + Format(report.warmupIterations) + ' warmup / route');
             Text('result-routes', selected ? 'Completed-run selection: ' + AllRoutes.map(route => route.name + ': ' +
                 (selected[route.key] ? (report.routeSelectionVersion === 1 && Record(report.routeStates) ? String(report.routeStates[route.key] || 'notStarted') :
-                (RoutePassed(report, route.key) ? 'completed' : 'failed / not started')) : 'skipped')).join(' · ') :
+                (RoutePassed(report, route.key) ? 'completed' : 'failed / not started')) : 'skipped')).join(' \u00B7 ') :
                 'Invalid completed-run route selection. The report cannot pass.');
             const policy = Record(report.timeoutPolicy) ? report.timeoutPolicy : null;
-            Text('result-timeout', policy ? 'Completed-run timeout: ' + String(policy.mode || 'Unavailable') + ' · effective ' +
-                Format(policy.timeoutSeconds) + ' s · operational ceiling ' + Format(policy.maximumSeconds) + ' s · uncapped estimate ' +
-                Format(policy.estimatedSeconds) + ' s · ceiling reached: ' + (typeof policy.ceilingReached === 'boolean' ? String(policy.ceilingReached) : 'Unavailable') +
+            Text('result-timeout', policy ? 'Completed-run timeout: ' + String(policy.mode || 'Unavailable') + ' \u00B7 effective ' +
+                Format(policy.timeoutSeconds) + ' s \u00B7 operational ceiling ' + Format(policy.maximumSeconds) + ' s \u00B7 uncapped estimate ' +
+                Format(policy.estimatedSeconds) + ' s \u00B7 ceiling reached: ' + (typeof policy.ceilingReached === 'boolean' ? String(policy.ceilingReached) : 'Unavailable') +
                 '. ' + String(policy.scope || '') + ' ' + String(policy.method || '') :
                 'Completed-run timeout policy: Unavailable in this report. Current controls do not describe a previous run.');
             Text('comparison', Comparison(report, routes, passed));
@@ -763,7 +898,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
                 const metrics = Metrics(data);
                 const serverPassed = RoutePassed(report, server.key);
                 servers.push({...server, metrics});
-                Text(server.prefix + '-state', serverPassed ? 'PASS · Internal timing' : 'FAILED · Partial internal timing');
+                Text(server.prefix + '-state', serverPassed ? 'PASS \u00B7 Internal timing' : 'FAILED \u00B7 Partial internal timing');
                 Text(server.prefix + '-average', Milliseconds(data.avgMs));
                 Text(server.prefix + '-rows', Format(data.measuredRows));
                 Text(server.prefix + '-request-state', serverPassed ? 'PASS' : 'FAILED / not started');
@@ -801,7 +936,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
                     warmupShown++;
                 });
             });
-            if (warmupCount === 0) Row(warmup, ['No warmup samples recorded', '—', '—', '—', '—', '—']);
+            if (warmupCount === 0) Row(warmup, ['No warmup samples recorded', '&mdash;', '&mdash;', '&mdash;', '&mdash;', '&mdash;']);
             Text('warmup-caption', warmupCount > 100 ? 'Showing the first 100 warmup samples; all ' + Format(warmupCount) +
                 ' are available in JSON. Excluded from measured statistics.' : 'Warmup samples by transport. Excluded from measured statistics.');
             const failures = Element('failures-body');

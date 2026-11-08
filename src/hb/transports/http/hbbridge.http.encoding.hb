@@ -74,14 +74,16 @@ FUNCTION HBBridgeHTTPContent( cBody, cAccept, hConfig )
 
     LOCAL lGzip := hConfig[ "httpCompression" ] == "auto" .AND. hWeights[ "gzip" ] > 0
 
+    Local nBodyLen:=hb_BLen( cBody )
+
     UAddHeader( "Vary", "Accept-Encoding" )
     IF lGzip .AND. Empty( UGetHeader( "Content-Encoding", "" ) ) .AND. ;
         ( hWeights[ "identity" ] == 0 .OR. ;
         ( hWeights[ "gzip" ] >= hWeights[ "identity" ] .AND. ;
-        hb_BLen( cBody ) >= hConfig[ "httpCompressionMinBytes" ] ) )
+        nBodyLen >= hConfig[ "httpCompressionMinBytes" ] ) )
         cCompressed := HTTPGzip( cBody, hConfig[ "httpCompressionLevel" ] )
         IF HB_ISSTRING( cCompressed ) .AND. ! Empty( cCompressed ) .AND. ;
-            ( hWeights[ "identity" ] == 0 .OR. hb_BLen( cCompressed ) < hb_BLen( cBody ) )
+            ( hWeights[ "identity" ] == 0 .OR. hb_BLen( cCompressed ) < nBodyLen )
             UAddHeader( "Content-Encoding", "gzip" )
             RETURN cCompressed
         ENDIF

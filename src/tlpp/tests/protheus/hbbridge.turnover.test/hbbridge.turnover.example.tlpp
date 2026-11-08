@@ -336,7 +336,7 @@ static method Page(jResponse, cFile) class HBBridgeTurnoverExample
     oBody:AddChild(oContent)
     oPage:SetObjPageBody(oBody)
     oPage:DisableFooter(.T.)
-    oPage:DisableDarkTheme(.T.)
+    *oPage:DisableDarkTheme(.T.)
     lWritten := FWWebEx.WebFileTools():HTMLFromControl(oPage, oPage:GetFWWebExTmpPath(), @cFile, @cHTML, .T.)
     oPage:Clean()
     FreeObj(@oPage)
@@ -359,27 +359,137 @@ static method Markup(jResponse) class HBBridgeTurnoverExample
     cData := DecodeUTF8(cData)
     beginContent var cHTML
 <style>
-#hbb-turnover { max-width: 1100px; margin: 2rem auto; padding: 1.5rem; font: 15px system-ui, sans-serif; }
-#hbb-turnover .hbb-cards { display: flex; flex-wrap: wrap; gap: 1rem; margin: 1rem 0; }
-#hbb-turnover .hbb-card { flex: 1; min-width: 150px; border: 1px solid #777; border-radius: 8px; padding: 1rem; }
-#hbb-turnover .hbb-value { display: block; font-size: 1.6rem; font-weight: bold; }
-#hbb-turnover .hbb-bar { height: 1rem; background: #328bd0; border-radius: 4px; }
-#hbb-turnover .hbb-trends { margin: 1.5rem 0; }
-#hbb-turnover .hbb-month { border: 1px solid #bbb; border-radius: 8px; padding: .8rem; margin: .6rem 0; }
-#hbb-turnover .hbb-month-title { font-weight: bold; }
-#hbb-turnover .hbb-movement { display: grid; grid-template-columns: 8rem 1fr 5rem; align-items: center; gap: .5rem; margin: .3rem 0; }
-#hbb-turnover .hbb-movement-track { background: #e6e6e6; border-radius: 4px; }
-#hbb-turnover .hbb-movement .hbb-bar { min-height: .65rem; height: .65rem; }
-#hbb-turnover .hbb-movement:nth-child(3) .hbb-bar { background: #ed8263; }
-#hbb-turnover .hbb-movement:nth-child(4) .hbb-bar { background: #36a487; }
-#hbb-turnover .hbb-movement:nth-child(5) .hbb-bar { background: #ad84c6; }
-#hbb-turnover .hbb-row { margin: 0.7rem 0; }
-#hbb-turnover button { margin: .25rem; padding: .45rem .8rem; cursor: pointer; }
-#hbb-turnover .hbb-scroll { overflow-x: auto; }
-#hbb-turnover table { border-collapse: collapse; width: 100%; margin: .6rem 0 1.2rem; }
-#hbb-turnover th, #hbb-turnover td { border: 1px solid #aaa; padding: .5rem; text-align: left; }
-#hbb-turnover th { background: #e6e6e6; }
+
+#hbb-turnover {
+    max-width: 1100px;
+    margin: var(--bs-spacer-4, 2rem) auto;
+    padding: var(--bs-spacer-3, 1.5rem);
+    font-family: var(--bs-body-font-family);
+    font-size: var(--bs-body-font-size, 15px);
+    color: var(--bs-body-color);
+    background-color: var(--bs-body-bg);
+}
+
+#hbb-turnover .hbb-cards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--bs-spacer-3, 1rem);
+    margin: var(--bs-spacer-3, 1rem) 0;
+}
+
+#hbb-turnover .hbb-card {
+    flex: 1;
+    min-width: 150px;
+    border: var(--bs-border-width, 1px) solid var(--bs-border-color);
+    border-radius: var(--bs-border-radius-lg, 0.5rem);
+    padding: var(--bs-spacer-3, 1rem);
+    background-color: var(--bs-card-bg, var(--bs-body-bg));
+    color: var(--bs-card-color, var(--bs-body-color));
+}
+
+#hbb-turnover .hbb-value {
+    display: block;
+    font-size: calc(var(--bs-body-font-size, 1rem) * 1.6);
+    font-weight: var(--bs-font-weight-bold, 700);
+}
+
+#hbb-turnover .hbb-bar {
+    height: 1rem;
+    background-color: var(--bs-primary, #328bd0);
+    border-radius: var(--bs-border-radius-sm, 0.25rem);
+}
+
+#hbb-turnover .hbb-trends {
+    margin: var(--bs-spacer-4, 1.5rem) 0;
+}
+
+#hbb-turnover .hbb-month {
+    border: var(--bs-border-width, 1px) solid var(--bs-border-color-subtle, var(--bs-border-color));
+    border-radius: var(--bs-border-radius-lg, 0.5rem);
+    padding: var(--bs-spacer-3, 0.8rem);
+    margin: var(--bs-spacer-2, 0.6rem) 0;
+    background-color: var(--bs-tertiary-bg, transparent);
+}
+
+#hbb-turnover .hbb-month-title {
+    font-weight: var(--bs-font-weight-bold, 700);
+    color: var(--bs-heading-color, inherit);
+}
+
+#hbb-turnover .hbb-movement {
+    display: grid;
+    grid-template-columns: 8rem 1fr 5rem;
+    align-items: center;
+    gap: var(--bs-spacer-2, 0.5rem);
+    margin: var(--bs-spacer-1, 0.3rem) 0;
+}
+
+#hbb-turnover .hbb-movement-track {
+    background-color: var(--bs-secondary-bg, rgba(var(--bs-body-color-rgb), 0.1));
+    border-radius: var(--bs-border-radius-sm, 0.25rem);
+}
+
+#hbb-turnover .hbb-movement .hbb-bar {
+    min-height: 0.65rem;
+    height: 0.65rem;
+}
+
+/* Cores das barras usando a paleta do Bootstrap (com fallback compativel) */
+#hbb-turnover .hbb-movement:nth-child(3) .hbb-bar {
+    background-color: var(--bs-danger, #ed8263);
+}
+
+#hbb-turnover .hbb-movement:nth-child(4) .hbb-bar {
+    background-color: var(--bs-success, #36a487);
+}
+
+#hbb-turnover .hbb-movement:nth-child(5) .hbb-bar {
+    background-color: var(--bs-indigo, var(--bs-info, #ad84c6));
+}
+
+#hbb-turnover .hbb-row {
+    margin: var(--bs-spacer-2, 0.7rem) 0;
+}
+
+#hbb-turnover button {
+    margin: var(--bs-spacer-1, 0.25rem);
+    padding: 0.45rem 0.8rem;
+    cursor: pointer;
+    border-radius: var(--bs-border-radius, 0.375rem);
+    border: var(--bs-border-width, 1px) solid var(--bs-border-color);
+    background-color: var(--bs-body-bg);
+    color: var(--bs-body-color);
+    transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out;
+}
+
+#hbb-turnover button:hover {
+    background-color: var(--bs-secondary-bg);
+}
+
+#hbb-turnover .hbb-scroll {
+    overflow-x: auto;
+}
+
+#hbb-turnover table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: var(--bs-spacer-2, 0.6rem) 0 var(--bs-spacer-3, 1.2rem);
+    color: var(--bs-body-color);
+}
+
+#hbb-turnover th,
+#hbb-turnover td {
+    border: var(--bs-border-width, 1px) solid var(--bs-border-color);
+    padding: 0.5rem;
+    text-align: left;
+}
+
+#hbb-turnover th {
+    background-color: var(--bs-tertiary-bg, var(--bs-secondary-bg));
+    color: var(--bs-heading-color, inherit);
+}
 </style>
+
 <section id="hbb-turnover">
 <h1 id="hbb-title">Turnover: controlled fixture</h1>
 <p id="hbb-description">Example only. Historical transfer rules and real ERP results require validation.</p>

@@ -741,22 +741,30 @@ static procedure BrowseNativeColumns(oNativeTable as object,aColumns as array,aS
     local jSchema:=oNativeTable:Schema() as json
     local jField as json
 
+    local lHBBridgeNativeBrowseSRASRB:=FWIsINCallStack("U_HBBridgeNativeBrowseSRASRB") as logical
+
     local nFields:=oNativeTable:FieldCount() as numeric
     local nField:=0 as numeric
     local nSize:=0 as numeric
+    local nIndex:=0 as numeric
 
     local oColumn as object
 
     // Only native widget APIs require these positional arrays. Values remain
     // in the actual native alias; this creates no array copy of result rows.
-    aColumns:=Array(nFields)
-    aDataBlocks:=Array(nFields)
-    aSeek:=Array(nFields)
-    aAcho:=Array(nFields)
+    aColumns:=Array(0)
+    aDataBlocks:=Array(0)
+    aSeek:=Array(0)
+    aAcho:=Array(0)
     for nField:=1 to nFields
         cField:=oNativeTable:ProjectionName(nField)
+        if (lHBBridgeNativeBrowseSRASRB)
+            if ((cField=="EMPLOYEE_KEY").or.(oNativeTable:SourceFieldName(cField)=="RB_MAT"))
+                loop
+            endif
+        endif
         cNative:=oNativeTable:FieldName(cField)
-        aAcho[nField]:=cNative
+        aAdd(aAcho,cNative)
         cSearch:=oNativeTable:SearchFieldName(cField)
         jField:=jSchema["fields"][cField]
         cType:=Upper(Left(jField["type"],1))
@@ -768,19 +776,19 @@ static procedure BrowseNativeColumns(oNativeTable as object,aColumns as array,aS
             nSize:=5
         endif
         oColumn:=FWBrwColumn():New()
-        aDataBlocks[nField]:=BrowseNativeColumn(oNativeTable,cNative,jField["type"]=="logical")
-        oColumn:SetData(aDataBlocks[nField])
+        aAdd(aDataBlocks,BrowseNativeColumn(oNativeTable,cNative,jField["type"]=="logical"))
+        oColumn:SetData(aTail(aDataBlocks))
         oColumn:SetTitle(jField["caption"])
         oColumn:SetType(cType)
         oColumn:SetSize(nSize)
         oColumn:SetDecimal(jField["decimals"])
         oColumn:SetPicture(jField["picture"])
         oColumn:SetAlign(if(cType=="N",2,if(cType=="C",1,0)))
-        aColumns[nField]:=oColumn
+        aAdd(aColumns,oColumn)
         oColumn:=nil
         // The seek option is a stable projection token, not a physical index
         // ordinal. Indexes are created in the order actually requested.
-        aSeek[nField]:={jField["caption"],{{"",cType,nSize,jField["decimals"],jField["caption"],jField["picture"],cSearch}},nField,.T.}
+        aAdd(aSeek,{jField["caption"],{{"",cType,nSize,jField["decimals"],jField["caption"],jField["picture"],cSearch}},++nIndex,.T.})
     next nField
     FreeObj(@jSchema)
 
@@ -978,7 +986,7 @@ static function BrowseNativeSeekProjection(oSeek as object,oNativeTable as objec
     if (Len(aDetails[nOption][1])<7)
         return("")
     endif
-    cProjection:=oNativeTable:ProjectionName(nOption)
+    cProjection:=oNativeTable:ProjectionName(aDetails[nOption][1][7])
     if (aDetails[nOption][1][7]!=oNativeTable:SearchFieldName(cProjection))
         return("")
     endif
@@ -997,6 +1005,8 @@ static procedure BrowseNativeFilter(oBrowse as object,oNativeTable as object,oDa
 
     local jSchema:=oNativeTable:Schema() as json
 
+    local lHBBridgeNativeBrowseSRASRB:=FWIsINCallStack("U_HBBridgeNativeBrowseSRASRB") as logical
+
     local nField:=0 as numeric
     local nFields:=oNativeTable:FieldCount() as numeric
     local nOperator as numeric
@@ -1008,12 +1018,17 @@ static procedure BrowseNativeFilter(oBrowse as object,oNativeTable as object,oDa
         return
     endif
 
-    aFields:=Array(nFields)
-    aNames:=Array(nFields)
+    aFields:=Array(0)
+    aNames:=Array(0)
     for nField:=1 to nFields
         cField:=oNativeTable:ProjectionName(nField)
-        aNames[nField]:=cField
-        aFields[nField]:=jSchema["fields"][cField]["caption"]
+        if (lHBBridgeNativeBrowseSRASRB)
+            if ((cField=="EMPLOYEE_KEY").or.(oNativeTable:SourceFieldName(cField)=="RB_MAT"))
+                loop
+            endif
+        endif
+        aAdd(aNames,cField)
+        aAdd(aFields,jSchema["fields"][cField]["caption"])
     next nField
     FreeObj(@jSchema)
 

@@ -16,6 +16,9 @@ Released to Public Domain.
 
 namespace HBBridge.Client
 
+static __cCHR_10:=Chr(10) as character
+static __cGzipHeader:=(Chr(31)+Chr(139)+Chr(8)) as character
+
 class HBBridgeClient
 
     private data cHost as character
@@ -148,7 +151,7 @@ method CallService(cService, jParams) class HBBridgeClient
         return ClientFailure("REQUEST_SIZE", "Request exceeds the configured JSON payload budget.")
     endif
 
-    cFrame := HBBRIDGE_PROTOCOL_SIGNATURE + "|JSON|" + tlpp.ToStr(Len(cJSONReq)) + Chr(10) + cJSONReq
+    cFrame := HBBRIDGE_PROTOCOL_SIGNATURE + "|JSON|" + tlpp.ToStr(Len(cJSONReq)) + __cCHR_10 + cJSONReq
     cJSONReq := ""
     if !GzStrComp(cFrame, @cCompressed, @nFrame)
         FreeObj(@jResp)
@@ -380,7 +383,8 @@ static function GzipDeclaredSize(cCompressed as character) as numeric
     if nSize < 18
         return -1
     endif
-    if !(Left(cCompressed, 3) == Chr(31) + Chr(139) + Chr(8))
+
+    if !(Left(cCompressed, 3) == __cGzipHeader)
         return -1
     endif
 
@@ -394,7 +398,7 @@ static function ParseResponseFrame(cFrame as character, nMaxPayloadBytes as nume
 
     local cHeader := "", cSignature := "", cCodec := "", cSize := "" as character
 
-    local nHeaderEnd := At(Chr(10), cFrame) as numeric
+    local nHeaderEnd := At(__cCHR_10, cFrame) as numeric
     local nFirst := 0, nSecond := 0, nIndex := 0, nDigit := 0, nSize := 0 as numeric
     local nSizeLength := 0 as numeric
 

@@ -41,7 +41,7 @@ RETURN lOK
  */
 FUNCTION HBBridgeSQLQuery( hParams, hProfiles )
 
-    LOCAL cProfile, cSQL, cError
+    LOCAL cProfile, cSQL, cError,cNul := Chr( 0 )
 
     LOCAL hPage := NIL
 
@@ -54,7 +54,7 @@ FUNCTION HBBridgeSQLQuery( hParams, hProfiles )
         RETURN HBBridgeError( "INVALID_PARAMS", "Connection profile and SQL must be strings." )
     ENDIF
     IF Empty( AllTrim( cProfile ) ) .OR. Empty( AllTrim( cSQL ) ) .OR. ;
-        Chr( 0 ) $ cProfile .OR. Chr( 0 ) $ cSQL
+        cNul $ cProfile .OR. cNul $ cSQL
         RETURN HBBridgeError( "INVALID_PARAMS", "Connection profile and SQL must be nonempty and contain no NUL." )
     ENDIF
     IF ! hb_HHasKey( hProfiles, cProfile )
@@ -122,7 +122,7 @@ RETURN hb_mutexEval( s_hSQLMutex, {|| SQLQueryLocked( cSQL, cProfile, hProfiles[
  * cannot prove that the database did not apply it. No retry is performed. */
 FUNCTION HBBridgeSQLExecute( hParams, hProfiles )
 
-    LOCAL cProfile, cSQL
+    LOCAL cProfile, cSQL, cNul:=Chr( 0 )
 
     IF ! HB_ISHASH( hParams ) .OR. Len( hParams ) != 3 .OR. ;
         ! hb_HHasKey( hParams, "requestVersion" ) .OR. ! hb_HHasKey( hParams, "alias" ) .OR. ;
@@ -138,7 +138,7 @@ FUNCTION HBBridgeSQLExecute( hParams, hProfiles )
         RETURN SQLExecuteFailure( "INVALID_PARAMS", "Profile and SQL must be strings.", "notStarted" )
     ENDIF
     IF Empty( AllTrim( cProfile ) ) .OR. Empty( AllTrim( cSQL ) ) .OR. ;
-        Chr( 0 ) $ cProfile .OR. Chr( 0 ) $ cSQL
+        cNul $ cProfile .OR. cNul $ cSQL
         RETURN SQLExecuteFailure( "INVALID_PARAMS", "Profile and SQL must be nonempty and contain no NUL.", "notStarted" )
     ENDIF
     IF ! HB_ISHASH( hProfiles ) .OR. ! hb_HHasKey( hProfiles, cProfile )

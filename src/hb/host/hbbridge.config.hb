@@ -9,12 +9,13 @@ Released to Public Domain.
 --------------------------------------------------------------------------------------
 */
 
-/* Precedence: defaults < INI/JSON file < CLI. No listeners/directory creation. */
 #include "hbbridge.h"
+
+/* Precedence: defaults < INI/JSON file < CLI. No listeners/directory creation. */
 FUNCTION HBBridgeConfig( aArgs, cError )
 
     LOCAL cNul := Chr( 0 )
-    LOCAL cArg, cName, cValue, cKey, cFile, cContents, cAutoFile
+    LOCAL cArg, cName, cValue, cKey, cFile, cContents, cAutoFile,cPath,cCDW:=hb_cwd()
 
     LOCAL hConfig, hOptions, hFile
 
@@ -92,7 +93,7 @@ FUNCTION HBBridgeConfig( aArgs, cError )
         RETURN NIL
     ENDIF
     FOR EACH cKey IN { "netioRoot", "addonRoot" }
-        hConfig[ cKey ] := HBBridgeAbsolutePath( hConfig[ cKey ], hb_cwd() )
+        hConfig[ cKey ] := HBBridgeAbsolutePath( hConfig[ cKey ], cCDW )
     NEXT
     FOR EACH cArg IN aArgs
         IF ! HB_ISSTRING( cArg )
@@ -104,12 +105,13 @@ FUNCTION HBBridgeConfig( aArgs, cError )
             RETURN NIL
         ENDIF
         IF Left( cArg, 8 ) == "-config="
-            IF lExplicitConfig .OR. Empty( SubStr( cArg, 9 ) )
+            cPath:=SubStr( cArg, 9 )
+            IF lExplicitConfig .OR. Empty( cPath )
                 cError := "Specify a single -config=<file.ini|file.json>"
                 RETURN NIL
             ENDIF
             lExplicitConfig := .T.
-            cFile := HBBridgeAbsolutePath( SubStr( cArg, 9 ), hb_cwd() )
+            cFile := HBBridgeAbsolutePath( cPath, cCDW )
             IF Empty( cFile )
                 cError := "Invalid configuration path"
                 RETURN NIL
@@ -119,7 +121,7 @@ FUNCTION HBBridgeConfig( aArgs, cError )
     IF ! lExplicitConfig
         cAutoFile := hb_FNameDir( hb_ProgName() ) + "hbbridge.ini"
         IF hb_FileExists( cAutoFile )
-            cFile := HBBridgeAbsolutePath( cAutoFile, hb_cwd() )
+            cFile := HBBridgeAbsolutePath( cAutoFile, cCDW )
         ENDIF
     ENDIF
     IF ! Empty( cFile )
@@ -169,7 +171,7 @@ FUNCTION HBBridgeConfig( aArgs, cError )
         NEXT
     ENDIF
     hConfig[ "sqlProfiles" ] := HBBridgeSQLProfiles( hConfig[ "sqlProfiles" ], ;
-        iif( Empty( cFile ), hb_cwd(), hb_FNameDir( cFile ) ), @cError )
+        iif( Empty( cFile ), cCDW, hb_FNameDir( cFile ) ), @cError )
     IF hConfig[ "sqlProfiles" ] == NIL
         RETURN NIL
     ENDIF
@@ -196,7 +198,7 @@ FUNCTION HBBridgeConfig( aArgs, cError )
             ENDIF
             hConfig[ cKey ] := Val( cValue )
         ELSEIF cKey == "netioRoot" .OR. cKey == "addonRoot"
-            hConfig[ cKey ] := HBBridgeAbsolutePath( cValue, hb_cwd() )
+            hConfig[ cKey ] := HBBridgeAbsolutePath( cValue, cCDW )
         ELSE
             hConfig[ cKey ] := cValue
         ENDIF
@@ -441,6 +443,9 @@ STATIC FUNCTION ValidIPv4( cAddress )
     LOCAL aParts
 
     LOCAL cPart
+
+    LOCAL nPart
+
     IF ! HB_ISSTRING( cAddress )
         RETURN .F.
     ENDIF
@@ -449,28 +454,32 @@ STATIC FUNCTION ValidIPv4( cAddress )
         RETURN .F.
     ENDIF
     FOR EACH cPart IN aParts
-        IF Empty( cPart ) .OR. ! ( cPart == hb_ntos( Val( cPart ) ) ) .OR. Val( cPart ) < 0 .OR. Val( cPart ) > 255
+        nPart:=Val( cPart )
+        IF Empty( cPart ) .OR. ! ( cPart == hb_ntos( nPart ) ) .OR. nPart < 0 .OR. nPart > 255
             RETURN .F.
         ENDIF
     NEXT
 RETURN .T.
 
 FUNCTION HBBridgeAbsolutePath( cPath, cBase )
+
+    LOCAL cPs:=hb_ps()
     LOCAL cBaseDrive
+    LOCAL cOsDriveSeparator:=hb_osDriveSeparator()
 
     LOCAL nDriveEnd
     IF ! HB_ISSTRING( cPath ) .OR. Chr( 0 ) $ cPath
         RETURN ""
     ENDIF
     cPath := hb_DirSepToOS( cPath )
-    IF ! Empty( hb_osDriveSeparator() )
-        nDriveEnd := At( hb_osDriveSeparator(), cPath )
-        IF nDriveEnd > 0 .AND. SubStr( cPath, nDriveEnd + 1, 1 ) != hb_ps()
+    IF ! Empty( cOsDriveSeparator )
+        nDriveEnd := At( cOsDriveSeparator, cPath )
+        IF nDriveEnd > 0 .AND. SubStr( cPath, nDriveEnd + 1, 1 ) != cPs
             /* Drive-relative paths depend on hidden per-drive working directories. */
             RETURN ""
         ENDIF
-        IF nDriveEnd == 0 .AND. Left( cPath, 1 ) == hb_ps() .AND. Left( cPath, 2 ) != hb_ps() + hb_ps()
-            cBaseDrive := Left( cBase, At( hb_osDriveSeparator(), cBase ) )
+        IF nDriveEnd == 0 .AND. Left( cPath, 1 ) == cPs .AND. Left( cPath, 2 ) != cPs + cPs
+            cBaseDrive := Left( cBase, At( cOsDriveSeparator, cBase ) )
             IF Empty( cBaseDrive )
                 RETURN ""
             ENDIF
