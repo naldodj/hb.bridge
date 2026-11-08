@@ -936,7 +936,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
                     warmupShown++;
                 });
             });
-            if (warmupCount === 0) Row(warmup, ['No warmup samples recorded', '&mdash;', '&mdash;', '&mdash;', '&mdash;', '&mdash;']);
+            if (warmupCount === 0) Row(warmup, ['No warmup samples recorded', '\u2014', '\u2014', '\u2014', '\u2014', '\u2014']);
             Text('warmup-caption', warmupCount > 100 ? 'Showing the first 100 warmup samples; all ' + Format(warmupCount) +
                 ' are available in JSON. Excluded from measured statistics.' : 'Warmup samples by transport. Excluded from measured statistics.');
             const failures = Element('failures-body');
