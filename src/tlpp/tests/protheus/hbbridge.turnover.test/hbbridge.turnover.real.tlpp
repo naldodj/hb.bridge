@@ -67,6 +67,7 @@ static method Run(cProfile,cStart,cEnd,lHTTP,lShow) class HBBridgeTurnoverReal
     local cBranchAlias:="", cBranchCode:="", cBranchReportSQL:="", cBranchSource:="", cBranchTarget:="", cCompanyBranch:="" as character
 
     local jAction, jArgs, jBranches:=JSONObject():New(), jConfig, jRequest, jResponse, jTables:=JSONObject():New() as json
+    local jBranchType:=SM0LayoutLevelType(cEmpAnt,cFilAnt) as json
 
     local lOK:=.F. as logical
 
@@ -88,11 +89,8 @@ static method Run(cProfile,cStart,cEnd,lHTTP,lShow) class HBBridgeTurnoverReal
         if Empty(cCompany) .or. ValType(cBranch)!="C" .or. Chr(0)$cCompany .or. Chr(0)$cBranch
             throw "The current company or branch is unavailable."
         endif
-        if (HasUnitBusiness(cEmpAnt,cFilAnt).or.HasCompany(cEmpAnt,cFilAnt))
-            aCompanyBranches:=FWAllFilial(nil,nil,nil,.F.)
-        else
-            aCompanyBranches:=FWAllFilial()
-        endif
+        aCompanyBranches:=FWAllFilial(nil,nil,nil,!(jBranchType["lHasCompany"].or.jBranchType["lHasUnit"]))
+        FreeObj(@jBranchType)
         if ValType(aCompanyBranches)!="A" .or. Len(aCompanyBranches)==0
             throw "The current company's branches could not be resolved."
         endif
@@ -886,32 +884,26 @@ static function __HBBridgeTurnoverRealParameters(cStart as character,cEnd as cha
     FWFReeArray(@aParameters)
 return(lParamBox)
 
-static function HasCompany(cGrpEmp as Character, cFil as Character) as Logical
-return(HasLayoutLevel("E",cGrpEmp,cFil))
-
-static function HasUnitBusiness(cGrpEmp as Character, cFil as Character) as Logical
-return(HasLayoutLevel("U",cGrpEmp,cFil))
-
-static function HasBranch(cGrpEmp as Character, cFil as Character) as Logical
-return(HasLayoutLevel("F",cGrpEmp,cFil))
-
-static function HasLayoutLevel(cLevel as Character, cGrpEmp as Character, cFil as Character) as Logical
+static function SM0LayoutLevelType(cGrpEmp as Character, cFil as Character) as json
 
     local aSM0Data as array
-    local lHasLevel as logical
 
-    DEFAULT cLevel  := ""
+    local cLevel as character
+
+    local jLevel as json
+
     DEFAULT cGrpEmp := cEmpAnt
     DEFAULT cFil    := cFilAnt
 
-    lHasLevel:=.F.
+    jLevel:={"lHasCompany":.F.,"lHasUnit":.F.,"lHasBranch":.T.}
 
-    if (!Empty(cLevel))
-        aSM0Data:=FWSM0Util():GetSM0Data(cGrpEmp,cFil,{"M0_LEIAUTE"})
-        if (Len(aSM0Data)>0)
-            lHasLevel:=(Upper(AllTrim(cLevel))$Upper(AllTrim(aSM0Data[1][2])))
-        endif
-        FWFreeArray(@aSM0Data)
+    aSM0Data:=FWSM0Util():GetSM0Data(cGrpEmp,cFil,{"M0_LEIAUTE"})
+    if (Len(aSM0Data)>0)
+        cLevel:=Upper(AllTrim(aSM0Data[1][2]))
+        jLevel["lHasCompany"]:=("E"$cLevel)
+        jLevel["lHasUnit"]:=("U"$cLevel)
+        jLevel["lHasBranch"]:=("F"$cLevel)
     endif
+    FWFreeArray(@aSM0Data)
 
-return(lHasLevel)
+return(jLevel)
