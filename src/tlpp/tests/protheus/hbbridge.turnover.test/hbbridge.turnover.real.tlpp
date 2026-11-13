@@ -88,7 +88,11 @@ static method Run(cProfile,cStart,cEnd,lHTTP,lShow) class HBBridgeTurnoverReal
         if Empty(cCompany) .or. ValType(cBranch)!="C" .or. Chr(0)$cCompany .or. Chr(0)$cBranch
             throw "The current company or branch is unavailable."
         endif
-        aCompanyBranches:=FWAllFilial()
+        if (HasUnitBusiness(cEmpAnt,cFilAnt).or.HasCompany(cEmpAnt,cFilAnt))
+            aCompanyBranches:=FWAllFilial(nil,nil,nil,.F.)
+        else
+            aCompanyBranches:=FWAllFilial()
+        endif
         if ValType(aCompanyBranches)!="A" .or. Len(aCompanyBranches)==0
             throw "The current company's branches could not be resolved."
         endif
@@ -881,3 +885,33 @@ static function __HBBridgeTurnoverRealParameters(cStart as character,cEnd as cha
     FWFReeArray(@aAnswers)
     FWFReeArray(@aParameters)
 return(lParamBox)
+
+static function HasCompany(cGrpEmp as Character, cFil as Character) as Logical
+return(HasLayoutLevel("E",cGrpEmp,cFil))
+
+static function HasUnitBusiness(cGrpEmp as Character, cFil as Character) as Logical
+return(HasLayoutLevel("U",cGrpEmp,cFil))
+
+static function HasBranch(cGrpEmp as Character, cFil as Character) as Logical
+return(HasLayoutLevel("F",cGrpEmp,cFil))
+
+static function HasLayoutLevel(cLevel as Character, cGrpEmp as Character, cFil as Character) as Logical
+
+    local aSM0Data as array
+    local lHasLevel as logical
+
+    DEFAULT cLevel  := ""
+    DEFAULT cGrpEmp := cEmpAnt
+    DEFAULT cFil    := cFilAnt
+
+    lHasLevel:=.F.
+
+    if (!Empty(cLevel))
+        aSM0Data:=FWSM0Util():GetSM0Data(cGrpEmp,cFil,{"M0_LEIAUTE"})
+        if (Len(aSM0Data)>0)
+            lHasLevel:=(Upper(AllTrim(cLevel))$Upper(AllTrim(aSM0Data[1][2])))
+        endif
+        FWFreeArray(@aSM0Data)
+    endif
+
+return(lHasLevel)
