@@ -19,9 +19,8 @@ if ($patchHash -ne $patchDefinition.sha256) {
 }
 
 $installRoot = Split-Path -Parent $toolchain.HarbourBin
-$libraryPlatform = if ($IsWindows) { 'win' } else { 'linux' }
-$libraryRoot = Join-Path $installRoot "lib/$libraryPlatform/$($toolchain.Compiler)"
-$managedHTTPRoot = Join-Path $projectRoot '.deps/http'
+$libraryRoot = Join-Path $installRoot $toolchain.LibraryDirectory
+$managedHTTPRoot = Get-HBBridgeManagedContribRoot -ProjectRoot $projectRoot -Name 'http' -Toolchain $toolchain
 $receiptFile = Join-Path $managedHTTPRoot 'receipt.json'
 New-Item -ItemType Directory -Force -Path $managedHTTPRoot | Out-Null
 $tlsEnabled = $env:HB_HTTP_TLS -eq '1'
@@ -82,7 +81,6 @@ finally { Pop-Location }
 $patchedCore = Get-Content -LiteralPath (Join-Path $stageRoot 'hbhttpd/core.prg') -Raw
 if (-not $patchedCore.Contains('hb_socketListen( ::hListen, ::hConfig[ "ListenBacklog" ] )') -or
     -not $patchedCore.Contains('server[ "REQUEST_BODY" ] := cRequest') -or
-    -not $patchedCore.Contains('iif( Empty( server[ "HTTP_ACCEPT_ENCODING" ] ), "", "," ) + cI') -or
     -not $patchedCore.Contains('Len( aThreads ) < ::hConfig[ "MaxWorkers" ]') -or
     -not $patchedCore.Contains('Eval( ::hConfig[ "Ready" ], Self )') -or
     -not $patchedCore.Contains('LOCAL cHeaderEnd := CR_LF + CR_LF') -or
@@ -90,7 +88,10 @@ if (-not $patchedCore.Contains('hb_socketListen( ::hListen, ::hConfig[ "ListenBa
     -not $patchedCore.Contains('hb_BLeft( cRequest, hb_BAt( cHeaderEnd, cRequest ) + 1 )') -or
     -not $patchedCore.Contains('ParseRequestHeader( @cRequest, cHeaderEnd )') -or
     -not $patchedCore.Contains('STATIC FUNCTION ParseRequestHeader( cRequest, cHeaderEnd )') -or
-    -not $patchedCore.Contains('nI := hb_BAt( cHeaderEnd, cRequest )') -or
+    -not $patchedCore.Contains('RETURN ParseRequestHeaderC( @cRequest, cHeaderEnd, server, cookie, get )') -or
+    -not $patchedCore.Contains('HB_FUNC( PARSEREQUESTHEADERC )') -or
+    -not $patchedCore.Contains('HB_FUNC( PARSEFORMURLENCODED )') -or
+    -not $patchedCore.Contains('HB_FUNC( BUILDRESPONSEHEADERS )') -or
     -not $patchedCore.Contains('"SendTimeout"          => 30000') -or
     -not $patchedCore.Contains('"SendChunkSize"        => 65536') -or
     -not $patchedCore.Contains('IF ! SendResponse( oServer, hSSL, hSocket, cBuf )') -or

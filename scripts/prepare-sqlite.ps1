@@ -21,13 +21,15 @@ foreach ($source in @('src/c/hbbridge.sql.typed.h', 'src/c/hbbridge.sqlite.typed
     $sourceHashes[$source] = (Get-FileHash -LiteralPath (Join-Path $projectRoot $source) -Algorithm SHA256).Hash
 }
 $installRoot = Split-Path -Parent $toolchain.HarbourBin
-$libraryPlatform = if ($IsWindows) { 'win' } else { 'linux' }
-$libraryRoot = Join-Path $installRoot "lib/$libraryPlatform/$($toolchain.Compiler)"
+$libraryPlatform = $toolchain.HarbourPlatform
+$libraryRoot = Join-Path $installRoot $toolchain.LibraryDirectory
 $libraryFile = Join-Path $libraryRoot 'libsddsqlt3.a'
-$managedRoot = Join-Path $projectRoot '.deps/sqlite'
+$installSQLiteHbc = Join-Path $installRoot 'contrib/3rd/sqlite3/sqlite3.hbc'
+$managedRoot = Get-HBBridgeManagedContribRoot -ProjectRoot $projectRoot -Name 'sqlite' -Toolchain $toolchain
 $receiptFile = Join-Path $managedRoot 'receipt.json'
 [IO.Directory]::CreateDirectory($managedRoot) | Out-Null
-if (-not $ForceBuild -and (Test-Path -LiteralPath $libraryFile) -and (Test-Path -LiteralPath $receiptFile)) {
+if (-not $ForceBuild -and (Test-Path -LiteralPath $libraryFile) -and
+    (Test-Path -LiteralPath $installSQLiteHbc -PathType Leaf) -and (Test-Path -LiteralPath $receiptFile)) {
     $receipt = Get-Content -LiteralPath $receiptFile -Raw | ConvertFrom-Json -AsHashtable
     $sourcesMatch = $receipt.sourceHashes -is [Collections.IDictionary]
     foreach ($source in $sourceHashes.Keys) {
@@ -71,6 +73,8 @@ try {
     [IO.Directory]::CreateDirectory($installModule) | Out-Null
     Copy-Item -LiteralPath (Join-Path $moduleRoot 'sddsqlt3.hbc') -Destination $installModule -Force
     Copy-Item -LiteralPath (Join-Path $moduleRoot 'sddsqlt3.hbx') -Destination (Join-Path $installRoot 'include') -Force
+    [IO.Directory]::CreateDirectory((Split-Path -Parent $installSQLiteHbc)) | Out-Null
+    Copy-Item -LiteralPath (Join-Path $sqliteHeaders 'sqlite3.hbc') -Destination $installSQLiteHbc -Force
     $receipt = @{
         harbourRevision = $dependencies.harbour.revision
         patchSha256 = $patchHash

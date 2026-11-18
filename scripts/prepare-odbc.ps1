@@ -29,12 +29,12 @@ if ($patchHash -ne $patchDefinition.sha256) {
 }
 
 $installRoot = Split-Path -Parent $toolchain.HarbourBin
-$libraryPlatform = if ($IsWindows) { 'win' } else { 'linux' }
-$libraryRoot = Join-Path $installRoot "lib/$libraryPlatform/$($toolchain.Compiler)"
+$libraryPlatform = $toolchain.HarbourPlatform
+$libraryRoot = Join-Path $installRoot $toolchain.LibraryDirectory
 $libraryFile = Join-Path $libraryRoot 'libsddodbc.a'
 $installModule = Join-Path $installRoot 'contrib/sddodbc'
 $includeRoot = Join-Path $installRoot 'include'
-$managedODBCRoot = Join-Path $projectRoot '.deps/odbc'
+$managedODBCRoot = Get-HBBridgeManagedContribRoot -ProjectRoot $projectRoot -Name 'odbc' -Toolchain $toolchain
 $receiptFile = Join-Path $managedODBCRoot 'receipt.json'
 New-Item -ItemType Directory -Force -Path $managedODBCRoot | Out-Null
 if (-not $ForceBuild -and (Test-Path -LiteralPath $libraryFile -PathType Leaf) -and

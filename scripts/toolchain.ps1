@@ -18,6 +18,43 @@ function Get-HBBridgeDependencies {
         ConvertFrom-Json -AsHashtable
 }
 
+function Get-HBBridgeHarbourProfile {
+    param([string] $Compiler)
+
+    if ([string]::IsNullOrWhiteSpace($Compiler)) { $Compiler = $env:HBBRIDGE_HARBOUR_COMPILER }
+    if ([string]::IsNullOrWhiteSpace($Compiler)) { $Compiler = 'zig' }
+    $Compiler = $Compiler.Trim().ToLowerInvariant()
+    if ($Compiler -notin @('zig', 'gcc')) {
+        throw "Unknown Harbour compiler '$Compiler'. Choose zig or gcc."
+    }
+    if ($IsWindows -and $Compiler -ne 'zig') {
+        throw 'The GCC Harbour profile is available only on Linux.'
+    }
+
+    $platform = if ($IsWindows) { 'win' } else { 'linux' }
+    $name = if ($IsWindows) { 'zig' } elseif ($Compiler -eq 'gcc') { 'linux' } else { 'linux-zig' }
+    return @{
+        Name = $name
+        Compiler = $Compiler
+        Platform = $platform
+        LibraryDirectory = "lib/$platform/$Compiler"
+    }
+}
+
+function Get-HBBridgeManagedContribRoot {
+    param(
+        [Parameter(Mandatory)][string] $ProjectRoot,
+        [Parameter(Mandatory)][string] $Name,
+        [Parameter(Mandatory)][hashtable] $Toolchain
+    )
+
+    $path = Join-Path $ProjectRoot ".deps/$Name"
+    if ($Toolchain.Profile -eq 'linux-zig') {
+        $path = Join-Path $path $Toolchain.Profile
+    }
+    return $path
+}
+
 function Resolve-HBBridgeToolchain {
     param(
         [Parameter(Mandatory)][string] $ProjectRoot,
@@ -31,14 +68,14 @@ function Resolve-HBBridgeToolchain {
         $HbCompileRoot = Join-Path $managedRoot 'hb_compile'
     }
     $HbCompileRoot = [System.IO.Path]::GetFullPath($HbCompileRoot)
-    $profile = if ($IsWindows) { 'zig' } else { 'linux' }
+    $profile = Get-HBBridgeHarbourProfile
     $extension = if ($IsWindows) { '.exe' } else { '' }
-    $harbourBin = Join-Path $HbCompileRoot "out/$profile/bin"
+    $harbourBin = Join-Path $HbCompileRoot "out/$($profile.Name)/bin"
     $hbmk2 = Join-Path $harbourBin "hbmk2$extension"
     $hbrun = Join-Path $harbourBin "hbrun$extension"
     foreach ($required in @($hbmk2, $hbrun)) {
         if (-not (Test-Path -LiteralPath $required -PathType Leaf)) {
-            throw "Managed Harbour tool not found: $required. Run pwsh ./scripts/bootstrap.ps1 first."
+            throw "Managed Harbour tool not found: $required. Run pwsh ./scripts/bootstrap.ps1 -Compiler $($profile.Compiler) first."
         }
     }
 
@@ -62,7 +99,10 @@ function Resolve-HBBridgeToolchain {
         Hbmk2 = $hbmk2
         Hbrun = $hbrun
         Zig = [System.IO.Path]::GetFullPath($ZigPath)
-        Compiler = if ($IsWindows) { 'zig' } else { 'gcc' }
+        Compiler = $profile.Compiler
+        Profile = $profile.Name
+        HarbourPlatform = $profile.Platform
+        LibraryDirectory = $profile.LibraryDirectory
         ExecutableExtension = $extension
     }
 }
@@ -70,16 +110,15 @@ function Resolve-HBBridgeToolchain {
 function Enter-HBBridgeToolchain {
     param([Parameter(Mandatory)][hashtable] $Toolchain)
     $installRoot = Split-Path -Parent $Toolchain.HarbourBin
-    $platform = if ($IsWindows) { 'win' } else { 'linux' }
     $environment = @{
         PATH = $Toolchain.HarbourBin + [System.IO.Path]::PathSeparator +
             [System.IO.Path]::GetDirectoryName($Toolchain.Zig) + [System.IO.Path]::PathSeparator + $env:PATH
         HB_COMPILER = $Toolchain.Compiler
-        HB_PLATFORM = $platform
+        HB_PLATFORM = $Toolchain.HarbourPlatform
         HB_INSTALL_PREFIX = $installRoot
         HB_INSTALL_BIN = $Toolchain.HarbourBin
         HB_INSTALL_INC = Join-Path $installRoot 'include'
-        HB_INSTALL_LIB = Join-Path $installRoot "lib/$platform/$($Toolchain.Compiler)"
+        HB_INSTALL_LIB = Join-Path $installRoot $Toolchain.LibraryDirectory
         HB_BUILD_NAME = $null
         HB_HOST_BIN = $Toolchain.HarbourBin
         # hbmk2's Zig compiler command is "zig cc". Prefixing HB_CCPATH can

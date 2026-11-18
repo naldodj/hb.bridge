@@ -154,8 +154,10 @@ try {
             resultSHA256 = (Get-FileHash -LiteralPath $resultPath -Algorithm SHA256).Hash
             result = $report
         }
-        foreach ($managed in @('.deps/odbc/receipt.json', '.deps/sqlite/receipt.json', '.deps/http/receipt.json')) {
-            $managedPath = Join-Path $projectRoot $managed
+        foreach ($name in @('odbc', 'sqlite', 'http')) {
+            $managedRoot = Get-HBBridgeManagedContribRoot -ProjectRoot $projectRoot -Name $name -Toolchain $toolchain
+            $managedPath = Join-Path $managedRoot 'receipt.json'
+            $managed = [IO.Path]::GetRelativePath($projectRoot, $managedPath).Replace('\', '/')
             if (-not (Test-Path -LiteralPath $managedPath -PathType Leaf)) { throw "Missing managed build receipt: $managed." }
             $receipt.managedReceiptSHA256[$managed] = (Get-FileHash -LiteralPath $managedPath -Algorithm SHA256).Hash
         }

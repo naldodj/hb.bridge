@@ -1,5 +1,5 @@
 # Shared product components; entry points belong to their .hbp targets.
--w3 -es2
+-w3 -es2 -gc3
 -mt
 -head=full
 -Lzig-out/lib
@@ -27,11 +27,14 @@ src/hb/host/hbbridge.life.cycle.hb
 src/hb/core/hbbridge.dispatcher.hb
 src/hb/core/hbbridge.wire.hb
 src/hb/services/hbbridge.services.hb
+src/hb/services/hbbridge.credentials.hb
+src/hb/services/hbbridge.credential.config.hb
 src/hb/services/hbbridge.query.hb
 src/hb/services/hbbridge.sql.pool.hb
 src/hb/addons/hbbridge.addon.hb
 src/hb/telemetry/hbbridge.syslog.hb
 src/c/hbbridge.zig.c
+src/c/hbbridge.credentials.native.c
 src/c/hbbridge.time.c
 src/c/hbbridge.utf8.c
 src/c/hbbridge.json.c

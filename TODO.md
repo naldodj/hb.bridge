@@ -549,11 +549,11 @@ and Oracle require their own evidence.
   visually over TCP/HTTP with a filled Protheus-owned temporary table. The
   registered-source dashboard was accepted separately; historical rule and
   measure reconciliation remains future work. See [package 003](docs/validation/package-003.md).
-- [ ] When suitable movements are available, visually validate the optional
-  turnover example's SRE transfer evidence over TCP and HTTP; reconcile historical
-  rules and coverage separately. The controlled fixture passed, while the
-  development SRE was empty. Do not treat this application-specific validation
-  as a generic hbBridge service requirement. See [reconciliation](docs/turnover-reconciliation.md).
+- [x] Visually validate the optional turnover example's SRE transfer evidence over
+  TCP and HTTP for the observed movement. See [package 003](docs/validation/package-003.md).
+- [ ] Reconcile turnover's historical transfer rules and evidence coverage for
+  other movements. This application-specific work is not a generic hbBridge
+  service requirement. See [reconciliation](docs/turnover-reconciliation.md).
 - [ ] Extend dictionary-backed native examples with selected fields and JOINs
   over TCP/gzip HTTP. Define schema/source mappings per unique output alias,
   correct SX3 origins and explicit computed fields; test one-to-many ordering/
@@ -680,6 +680,9 @@ and Oracle require their own evidence.
 - [ ] Identity/token renewal, service/explicit-tenant authorization and persistent
   revalidation; invalid key/signature/audience/expiry/context/certificate tests,
   no secrets/tokens in logs. ERP context remains caller-resolved.
+  Evaluate per-client identities, mTLS or scoped short-lived tokens and optional
+  interactive TOTP without exporting backend secrets; NETIO requires its own
+  gateway/protocol design. See [client authentication](docs/credentials.md#future-client-authentication-and-server-side-credentials).
 - [ ] Portable authenticated encrypted INI secret/key-provider contract, external
   keys, local CLI set/delete/test and optional encryption-key replacement,
   later shared-core GUI; tamper/wrong

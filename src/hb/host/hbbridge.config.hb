@@ -56,6 +56,8 @@ FUNCTION HBBridgeConfig( aArgs, cError )
             ,"netioTimeout" => 0;
             ,"sqlODBCPooling" => "off";
             ,"sqlProfiles" => {=>};
+            ,"credentials" => {=>};
+            ,"credentialKeys" => {=>};
         }
     hOptions := {;
             "host" => "protheusHost";
@@ -169,6 +171,12 @@ FUNCTION HBBridgeConfig( aArgs, cError )
                 hConfig[ cKey ] := HBBridgeAbsolutePath( hConfig[ cKey ], hb_FNameDir( cFile ) )
             ENDIF
         NEXT
+    ENDIF
+    hConfig[ "sqlProfiles" ] := HBBridgeCredentialBindProfiles( hConfig[ "sqlProfiles" ], ;
+        hConfig[ "credentials" ], hConfig[ "credentialKeys" ], ;
+        iif( Empty( cFile ), cCDW, hb_FNameDir( cFile ) ), @cError )
+    IF hConfig[ "sqlProfiles" ] == NIL
+        RETURN NIL
     ENDIF
     hConfig[ "sqlProfiles" ] := HBBridgeSQLProfiles( hConfig[ "sqlProfiles" ], ;
         iif( Empty( cFile ), cCDW, hb_FNameDir( cFile ) ), @cError )

@@ -2,6 +2,47 @@
 
 [English](README.md)
 
+## Provas de viabilidade de credenciais
+
+Execute `pwsh ./scripts/test-credentials-serialization.ps1` para serialização
+binária Harbour e `pwsh ./scripts/test-credentials-crypto.ps1` para cifragem
+autenticada e entropia segura no Zig 0.16. Ambos usam dados sintéticos; não
+implementam armazenamento de credenciais. Use `-CompileOnlyTarget
+x86_64-linux-gnu` na prova Zig para compilar para Linux sem executá-la.
+Execute `pwsh ./scripts/test-credentials-abi.ps1` para compilar e executar a
+prova sintética Harbour/C/Zig, incluindo entropia segura do SO na biblioteca
+Zig vinculada. Para a validação nativa, execute os três scripts após
+`pwsh ./scripts/bootstrap.ps1` no Windows ou no Linux. O build da prova de
+ABI em `tmp/` é descartável.
+
+`pwsh ./scripts/test-credentials-key-publication.ps1` compila um hook somente
+de teste, interrompe a criação da chave sintética antes da publicação e verifica
+que o destino fica ausente e a chave temporária é privada. Testa a recuperação
+após o processo interrompido terminar e simula falha na limpeza após colisão e,
+no Unix, após a publicação. Os arquivos sintéticos são removidos ao concluir.
+
+`pwsh ./scripts/test-credentials-permissions.ps1` verifica se cifragem e
+decifragem rejeitam uma chave sintética com permissões amplas e voltam a
+funcionar após restaurar a proteção. No Windows também verifica herança de DACL.
+
+`pwsh ./scripts/test-credentials-sql.ps1` exercita o perfil SQL protegido,
+leitura INI/JSON, vínculo de contexto, falhas e sanitização com valores
+sintéticos e um DSN inexistente. A prova não conecta a um banco real.
+
+Para a prova de portabilidade do provedor, crie um diretório vazio e execute
+`pwsh ./scripts/test-credentials-portability.ps1 -Mode Create -FixtureDirectory <caminho>`
+na origem. Transfira somente os dois arquivos **sintéticos** a um diretório
+privado no destino, ajuste as permissões da chave para a identidade do destino e
+execute o mesmo script com `-Mode Verify`. Repita no sentido contrário. O
+chamador é responsável por remover os arquivos; a prova não é um utilitário de
+migração de credenciais. Prepare a toolchain gerenciada em cada plataforma.
+
+`pwsh ./scripts/test-hbbridge-mssql-credential.ps1 -Config <privado.ini> -Profile <alias>`
+testa no MSSQL um perfil estruturado existente com autenticação SQL em texto
+aberto. A prova cria perfil JSON temporário com envelope cifrado e chave privada,
+executa `SELECT 1` pelo caminho normal e remove os dois arquivos. A senha não é
+gravada na fixture nem exibida. A configuração original permanece inalterada.
+
 ## Portal Wiki
 
 Os READMEs principais apresentam o projeto e a primeira execução. Os guias
@@ -142,11 +183,14 @@ serviço SQL/cache do produto nem Linux. Veja [vida útil, escopo e trabalho fut
 O bootstrap verifica o checksum do arquivo Zig e as revisões Git de
 [dependencies.json](../config/dependencies.json). Uma instalação completa
 registrada evita recompilações desnecessárias. `-ForceBuild` recompila o
-Harbour; `-SkipHarbourBuild` resolve somente fontes e Zig. Windows compila
-pelo hb_compile; Linux usa seu preparador de compatibilidade e make/GCC
-nativos. Linux requer PowerShell 7, Git, make/GCC/binutils e headers de
-desenvolvimento unixODBC. Drivers ODBC SQL Server e recursos licenciados
-TOTVS são instalados separadamente. A execução Linux exige homologação própria.
+perfil Harbour selecionado. `-SkipHarbourBuild` resolve fontes e Zig.
+O Windows usa o runner do hb_compile. O Linux usa seu preparador de
+compatibilidade e GNU make com Zig gerenciado por padrão. No Linux, selecione
+o perfil GCC com `-Compiler gcc` e use `HBBRIDGE_HARBOUR_COMPILER=gcc` nos
+scripts seguintes. Consulte a
+[seleção de compilador no Linux](../docs/dependencies.pt-BR.md#seleção-de-compilador-no-linux)
+para os pré-requisitos e comandos. Drivers ODBC SQL Server e recursos
+licenciados TOTVS são instalados separadamente.
 
 O bootstrap também prepara hbhttpd/hbtcpio e o patch do projeto com checksum
 verificado através de `prepare-http.ps1`. HTTPS direto exige build opcional

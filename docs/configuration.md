@@ -40,6 +40,8 @@ hbBridge's own settings.
 | `[HTTP]` | `Enabled`, `Host`, `Port`, `ListenBacklog`, `SendTimeoutMs`, `Compression`, `CompressionMinBytes`, `CompressionLevel`, `Password`, `TLS`, `Certificate`, `PrivateKey`. |
 | `[SQL]` | `ODBCPooling` (`off` or `driver`), a process-wide physical connection policy. |
 | `[SQL/profile_name]` | SQLite: `Driver`/`Database`; MSSQL: structured fields below or `Driver`/`ConnectionString`. |
+| `[Credential/name]` | `User`, `KeyId`, encrypted `Password` for a structured SQL profile. |
+| `[Key/name]` | `Provider=file`, `Location` for the separate binary key. |
 
 ~~~ini
 [Protheus]
@@ -72,9 +74,9 @@ pwsh ./examples/sql/run.ps1 -Config config/examples/mssql.ini -Profile mssql_dem
 
 ## MSSQL profiles
 
-Rebuild hbBridge before using structured MSSQL fields. They normalize to the
-same private ODBC connection string used by the existing SQLMIX/SDDODBC
-executor. Choose one destination form and one authentication mode:
+Rebuild hbBridge before using structured MSSQL fields. Plaintext credentials
+normalize to an ODBC connection string; protected references are resolved only
+for a connection attempt. Choose one destination form and authentication mode:
 
 | INI key | JSON key | Meaning |
 | --- | --- | --- |
@@ -84,19 +86,20 @@ executor. Choose one destination form and one authentication mode:
 | `Server` | `server` | SQL Server endpoint, such as `localhost,1433`; requires `ODBCDriver` and `Database`. |
 | `Database` | `database` | Required without a DSN; optional database override with a DSN. |
 | `Authentication` | `authentication` | Required: `sql` or `integrated`. These are hbBridge modes. |
-| `Username` | `username` | Required, nonempty SQL login with `Authentication=sql`. |
-| `Password` | `password` | Required, nonempty SQL password with `Authentication=sql`. |
+| `Username` | `username` | Nonempty SQL login with `Authentication=sql` when `Credential` is omitted. |
+| `Password` | `password` | Nonempty SQL password with `Authentication=sql` when `Credential` is omitted. |
+| `Credential` | `credential` | Alternative to `Username`/`Password`; identifies a protected SQL credential. |
 | `Encrypt` | `encrypt` | Optional: `optional`, `mandatory`, `strict`, mapped to ODBC `No`, `Yes`, `Strict`. Omission retains the driver's default. |
 | `TrustServerCertificate` | `trustServerCertificate` | Optional boolean: INI `true`/`false`, JSON `true`/`false`. |
 | `LoginTimeoutSeconds` | `loginTimeoutSeconds` | Optional nonnegative integer seconds for native ODBC login; omission retains the driver default and explicit `0` disables this timeout. |
 | `QueryTimeoutSeconds` | `queryTimeoutSeconds` | Optional nonnegative integer seconds for each native ODBC statement, including the separate page-count statement; omission retains the driver default and explicit `0` disables this timeout. |
 
-`Authentication=integrated` omits `Username` and `Password` entirely; even
+`Authentication=integrated` omits `Username`, `Password` and `Credential` entirely; even
 empty credential fields are rejected. It uses the hbBridge process identity
 on Windows. Linux requires an operational Kerberos setup and valid service
 credentials. See [Microsoft's integrated-authentication guide](https://learn.microsoft.com/en-us/sql/connect/odbc/linux-mac/using-integrated-authentication?view=sql-server-ver17).
 
-For SQL authentication, fill the existing login and password in a private
+For SQL authentication with plaintext settings, fill the existing login and password in a private
 file outside Git. This example uses a DSN with an explicit database override;
 replace both credential placeholders before enabling the profile:
 
@@ -140,7 +143,7 @@ which are native attributes rather than connection-string entries. It cannot
 be mixed with structured connection fields, including authentication,
 database or encryption options. Store any
 credential-bearing connection string in the same private installation file.
-Structured fields provide configuration, without encrypted credential storage.
+Structured fields can also reference an encrypted credential as described below.
 
 <a id="native-mssql-timeouts"></a>
 
@@ -434,20 +437,18 @@ failure/clock/type scenarios remain pending.
 
 ## Portable credential storage
 
-**Current behavior:** INI/JSON accept structured MSSQL connection fields,
-including a plain SQL username/password, or an ODBC connection string. There is
-no implemented encrypted credential envelope, local credential utility or
-administration GUI. An integrated-authentication connection uses the server
-process identity. AppServer carries only SQLProfile for selecting a database
-profile. The strict parser does not yet accept proposed credential-provider
-sections or fields.
+**Current behavior:** INI/JSON accept structured MSSQL fields with a protected
+credential reference, a plaintext username/password, or a raw ODBC connection
+string. The local credential utility and administration GUI remain pending.
+Integrated authentication uses the server process identity. AppServer carries
+only SQLProfile for selecting a database profile. See the [credential contract](credentials.md#structured-sql-credential-contract).
 
 This database boundary does not eliminate other client secrets: AppServer's
 `HTTPToken` is currently plaintext too. The same provider design must cover
 NETIO/admin/HTTP credentials on hbBridge and the relevant client credentials,
 with independently provisioned keys. See the [full inventory](credentials.md).
 
-**Proposed architecture:** retain public profile fields and a versioned encrypted
+**Architecture:** retain public profile fields and a versioned encrypted
 password envelope in INI/JSON, keeping its master key outside that file/repository.
 A key-provider abstraction supports a protected external file on Windows/Linux
 and optional environment/vault/OS providers. Use authenticated encryption from

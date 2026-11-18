@@ -2,14 +2,38 @@
 
 [English](credentials.md)
 
-A configuração atual aceita campos MSSQL estruturados ou `connectionString`
-ODBC. Autenticação SQL usa `Username`/`Password` em texto aberto no arquivo
-privado do servidor; autenticação integrada omite esses campos.
-Armazenamento cifrado continua como proposta de arquitetura: **ainda não
-implementa** senha cifrada, editor de credenciais nem provedor de chaves.
-Não coloque `encrypted_secret` no arquivo
-esperando decifração. Protheus envia o alias do perfil e a consulta, sem
-credenciais de banco. As credenciais pertencem à instalação do servidor hbBridge.
+A configuração aceita campos MSSQL estruturados ou `connectionString` ODBC.
+Na autenticação SQL estruturada é possível usar uma referência cifrada com
+chave em arquivo separado ou a forma existente `Username`/`Password` em texto
+aberto. A autenticação integrada omite credenciais SQL. O editor local e seu
+comando de teste de conexão ainda não foram implementados; textos de exemplo
+não são credenciais cifradas válidas. Protheus envia o alias do perfil e a
+consulta, sem credenciais de banco. Elas pertencem ao servidor hbBridge.
+
+O provedor local Harbour/C/Zig está ligado ao caminho SQL estruturado. No Windows,
+45 verificações passaram com DACL protegida; outras 45 passaram como root no
+Ubuntu WSL, com modo 600, usando tanto o Harbour global quanto a toolchain
+Harbour/Zig gerenciada e fixada pelo projeto, isolada em filesystem Linux.
+As permissões da identidade real de serviço ainda exigem aceite. A criação grava e sincroniza um arquivo
+temporário privado antes da publicação exclusiva; em interrupções controladas,
+o destino permaneceu ausente no Windows e no WSL Linux. Uma falha pode deixar
+arquivo temporário restrito, exigindo inspeção e remoção explícitas; use um
+diretório confiável e não presuma durabilidade após falha. `KEY_CLEANUP_FAILED`
+indica falha na limpeza: a chave final pode já existir, portanto inspecione os
+dois caminhos antes de repetir a operação.
+Antes de gravar a chave, a ponte Windows verifica a DACL protegida criada; a
+ponte Unix rejeita arquivo temporário com acesso por grupo ou outros. Antes de
+ler uma chave existente, a ponte Unix rejeita permissões de grupo ou outros. No
+Windows, o leitor exige DACL protegida com entradas explícitas de permissão
+somente para o proprietário, a identidade atual ou LocalSystem; outras entradas,
+inclusive negações ou herdadas, são rejeitadas preventivamente. O proprietário é
+considerado confiável: o diretório e sua administração também devem ser. A
+identidade do serviço precisa de leitura e READ_CONTROL e pode ser diferente do
+proprietário. Esta política inicial não aceita grupo dedicado nem entrada de
+administrador adicional; prepare a ACL de acordo. Permissões inadequadas ou não
+verificáveis retornam `KEY_PERMISSIONS_UNSAFE`; arquivo inacessível pode retornar
+`KEY_UNAVAILABLE`. Essas verificações não impedem acesso de administradores
+privilegiados ou root; filesystem e identidade real de serviço exigem aceite.
 
 ## Todos os consumidores de credenciais: estado atual e proteção prevista
 
@@ -82,8 +106,8 @@ manual atômica e migração explícita. Exercitar SQL, NETIO serviço/admin e H
 serviço/admin, incluindo o cliente TLPP, e verificar ausência de segredos em
 diagnósticos, descoberta, logs e exceções. Falta de decifração deve falhar
 explicitamente, sem enviar o texto cifrado como senha nem recorrer
-silenciosamente à cópia em texto aberto. São critérios futuros; esta análise
-não acrescenta criptografia ao runtime.
+silenciosamente à cópia em texto aberto. São critérios para o plano ampliado;
+somente o provedor SQL inicial e os testes registrados foram implementados.
 
 Na instalação Protheus de referência, senhas de banco raramente mudam,
 e uma mudança exige coordenação manual do acesso ao banco e das configurações
@@ -114,15 +138,20 @@ do serviço; cofres Windows/Linux podem seguir. O arquivo registra provedor e
 identificador da chave, sem chave fixa nem senha mestra embutida. Autenticação
 integrada continua disponível onde a instalação puder configurá-la.
 
-## Contrato proposto, ainda não aceito pelo parser
+## Contrato de credencial SQL estruturada
 
-Estes nomes permitem revisar o desenho; o parser estrito atual rejeita as
-seções/campos adicionais até a implementação:
+O parser estrito de INI aceita as seções e campos a seguir. O envelope exibido
+é ilustrativo e não uma credencial utilizável; o editor local ainda está pendente.
 
 ```ini
 [SQL/protheus]
 Driver=mssql
-ConnectionString=Driver={ODBC Driver 18 for SQL Server};Server=tcp:sql.example,1433;Database=protheus;Encrypt=Yes;TrustServerCertificate=No;
+Authentication=sql
+ODBCDriver=ODBC Driver 18 for SQL Server
+Server=tcp:sql.example,1433
+Database=protheus
+Encrypt=mandatory
+TrustServerCertificate=false
 Credential=protheus
 
 [Credential/protheus]
@@ -135,23 +164,118 @@ Provider=file
 Location=/etc/hbbridge/keys/primary.key
 ```
 
-O caminho Windows depende da instalação. Com `Credential`, a string pública
-não fornece também `UID/PWD`. A validação deve rejeitar credenciais ambíguas
-e campos ODBC duplicados. Usuário/senha devem usar o escape ODBC, incluindo
-ponto e vírgula e chaves de fechamento. O servidor resolve o segredo logo
-antes da conexão; nunca o retorna por `--config-info`, descoberta RPC, erros
-SQL ou INI do AppServer.
+O perfil protegido usa autenticação SQL com campos estruturados.
+Um perfil com `Credential` rejeita `Username`, `Password`, `ConnectionString`
+livre e autenticação integrada. Os perfis existentes sem referência mantêm
+a validação atual. O servidor aplica o escape ODBC existente e resolve a
+credencial imediatamente antes da conexão. O campo estruturado `Password` em
+texto aberto reserva o prefixo `enc:v` para impedir o envio de um envelope como
+senha. Caminhos relativos da chave são resolvidos a partir do diretório do arquivo de configuração.
+Em JSON, os objetos de primeiro nível `credentials` e `credentialKeys` usam,
+respectivamente, `user`, `keyId`, `password` e `provider`, `location`; o perfil
+SQL referencia a credencial por `credential`.
+A validação da configuração verifica referências e prefixo do envelope sem
+abrir a chave nem conectar ao banco; chave ausente ou incorreta e envelope
+inválido impedem a conexão. Portanto, `--config-info` não testa a credencial nem
+a conexão com o banco.
 
-Use cifra autenticada padrão disponível no Zig fixado, como
-XChaCha20-Poly1305, com chave/nonce aleatórios, versão do envelope, algoritmo
-e ID da chave. Vincule a identidade do perfil/credencial como dados autenticados
-para impedir sua troca entre registros. Base64 apenas codifica. Não invente
-cifra nem reutilize nonce fixo. Antes do aceite, teste adulteração, chave
-incorreta, truncamento, senhas não ASCII e suporte à troca opcional da chave
-mestra de criptografia. Verifique APIs de entropia e limpeza de memória no Zig
-fixado; não presuma APIs de outra versão. Na troca explícita dessa chave
-mestra, a mesma senha SQL será cifrada novamente; isso não muda a senha
-no banco nem exige rotação da senha SQL.
+A versão 1 usa XChaCha20-Poly1305. O provedor lê uma chave binária de 32 bytes
+do caminho configurado fora do INI. O valor após `enc:v1:` usa Base64 padrão
+com preenchimento para o nonce de 24 bytes, o texto cifrado e a tag de 16 bytes,
+nessa ordem. O conteúdo cifrado é a senha SQL em UTF-8. Cada cifragem usa
+um novo nonce do gerador criptográfico do SO. Falhas de entropia, formato e
+autenticação interrompem a operação com erro sanitizado.
+
+O provedor atual aceita senhas UTF-8 não vazias de até 4096 bytes, sem NUL, CR
+ou LF. Cada campo do contexto autenticado é limitado a 1024 bytes UTF-8. Esses
+limites pertencem à implementação atual do provedor de credenciais, separados
+das políticas de payload RPC; entradas inválidas ou maiores falham sem truncar.
+
+Os dados autenticados começam pelos bytes literais `hbbridge/credential/v1`.
+Em seguida vêm a finalidade `sql`, o identificador canônico do perfil SQL,
+o identificador da credencial, o identificador da chave e o usuário SQL,
+nessa ordem. Cada campo usa bytes UTF-8 precedidos pelo comprimento em bytes
+como inteiro sem sinal de 32 bits em big-endian. Usar os identificadores
+resolvidos pelo parser para manter os mesmos bytes em buscas equivalentes.
+Cada envelope fica vinculado a um perfil. Mover o envelope para outro perfil,
+alterar um campo vinculado ou trocar a chave exige nova cifragem. A senha no
+banco permanece a mesma.
+
+## C01: recursos nativos e administração local
+
+A interface administrativa prevista usa um modo de comando local do próprio
+executável `hbbridge` e compartilha o provedor com o host. A administração
+local funciona sem listeners. Os nomes dos comandos ainda serão definidos.
+
+A primeira entrega SQL guarda o envelope no INI e a chave em arquivo binário
+separado. A prova de serialização Harbour registra interoperabilidade para
+possíveis segredos estruturados futuros. Limitar o tamanho do envelope e
+validar versão e codificação antes de decodificar. Autenticar antes de
+entregar o texto aberto ao chamador. A configuração e o diretório de chaves
+exigem controle administrativo de gravação. O envelope protege uma cópia
+do INI sem a chave e detecta alterações nos dados autenticados. O controle
+do host, do processo ou da configuração do destino SQL por um atacante está
+fora desse modelo de proteção.
+
+Usar a biblioteca estática existente `hbbridge_zig` e um adaptador C/Harbour.
+Passar entradas binárias como ponteiros com comprimento explícito em bytes.
+O chamador controla os buffers de saída e recebe um código de estado. Validar
+comprimentos e capacidades antes de acessar memória. Limpar chaves e texto
+aberto em buffers do provedor em todas as saídas. Em caso de falha, a saída
+fica indisponível ao chamador Harbour.
+
+Preservar a referência protegida nas duas normalizações do perfil SQL e
+resolvê-la antes de `RDDI_CONNECT` no pool. Auditar diagnósticos nativos ODBC
+e falhas de alocação junto com os erros RPC. O driver gerenciado deixou de
+solicitar o buffer com a string de conexão completa e de passar a string de
+entrada aos erros de alocação. Falhas de conexão preservam um SQLSTATE validado
+e mensagem fixa, sem o texto fornecido pelo driver. Um teste com DSN sintético
+ausente verifica o diagnóstico nativo e a resposta RPC; o aceite MSSQL somente
+de leitura passou no Windows. O Harbour e o driver ODBC
+ainda podem manter texto aberto temporário fora dos buffers controlados
+pelo provedor.
+
+As primeiras provas em WSL2 x86_64, em 2026-11-06, usaram o Harbour 3.2.0dev
+r2307062207 do sistema e Zig 0.16.0 compilado de forma cruzada no Windows.
+Em 2026-11-11, as provas no Windows x64 usaram Harbour gerenciado 3.2.1dev
+r2609292008 e Zig 0.16.0. A serialização preservou bytes NUL e EOF. Os
+testes Zig rejeitaram alteração do texto cifrado, tag, chave, nonce e
+contexto. A prova da ABI Harbour/C/Zig passou com a toolchain fixada e
+exercitou a entropia do SO por meio de uma instância explícita de
+`std.Io.Threaded` na biblioteca Zig vinculada ao executável. A prova usa
+`Io.randomSecure` e falha em caso de erro de entropia.
+
+As três provas também passaram em 2026-11-11 com Zig 0.16.0 nativo Linux,
+Harbour fixado 3.2.1dev r2609292008 e GCC 16.2.0 no WSL2 x86_64 (Kali Linux).
+O bootstrap do perfil GCC instala as bibliotecas Harbour em `lib/linux/gcc`,
+diretório usado pela toolchain gerenciada do hbBridge. Executar as
+[provas de viabilidade](../scripts/README.pt-BR.md#provas-de-viabilidade-de-credenciais)
+após o bootstrap no sistema de destino. O executável Linux também foi
+vinculado com o perfil GCC após habilitar PIC no módulo Zig e instalar os
+metadados de vinculação do SQLite. Em uma prova separada no WSL2,
+`hbmk2 -plat=linux -comp=zig` compilou e vinculou um programa Harbour com as
+bibliotecas Harbour já compiladas com GCC. O programa executou com sucesso.
+Em 2026-11-12, o bootstrap Linux limpo com Zig, a preparação dos contribs
+gerenciados, o build do produto e a prova de ABI de credenciais passaram
+no WSL2 x86_64. O perfil GCC também passou no bootstrap, no build do produto
+e na prova de ABI. O [guia de dependências](dependencies.pt-BR.md#seleção-de-compilador-no-linux)
+registra como selecionar cada perfil.
+
+As provas Windows Authz usaram uma DACL em memória e contextos de SID sem
+grupos. `LocalService` pôde ler e teve gravação negada, `NetworkService`
+teve leitura negada e `LocalSystem` pôde gravar. No WSL2, unidades
+transitórias do systemd usaram um arquivo sintético de 32 bytes no sistema
+de arquivos nativo Linux. Com dono/grupo `root:nogroup` e modo `0640`, a
+unidade com `nobody:nogroup` leu o arquivo e teve gravação negada. A unidade
+com `daemon:daemon` teve leitura negada. As unidades e o arquivo sintético
+foram temporários.
+[API Windows Authz](https://learn.microsoft.com/en-us/windows/win32/api/authz/nf-authz-authzaccesscheck)
+· [Identidade de serviço no systemd](https://www.freedesktop.org/software/systemd/man/256/systemd.exec.html#User=).
+
+Essas provas estabelecem a viabilidade. O provedor e a ABI de produção
+exigem validação no C02. O C05 cobre os tokens de serviço da instalação,
+as permissões de arquivo após substituição atômica e a conexão SQL real.
+O consumidor TLPP tem escopo de aceite próprio.
 
 ## Provedor OpenBao opcional: análise da RFC em 2026-10-07
 
@@ -227,6 +351,39 @@ Reduzir vida útil e cópias sem prometer eliminação total após o handshake.
 Provedores servidor resolvem/conectam internamente e retornam apenas resultados
 da execução ou diagnósticos autorizados e sanitizados.
 
+## Autenticação futura de clientes e credenciais no servidor
+
+O provedor comum poderá proteger as credenciais SQL, NETIO, HTTP e de
+administração usadas pelo hbBridge. Isso não exige um serviço remoto que devolva
+essas senhas: o cliente autenticado recebe autorização para executar operações
+permitidas, e o servidor mantém e utiliza as credenciais dos serviços de destino.
+Uma API externa para exportar segredos exigiria justificativa, contrato e revisão
+de segurança próprios; ela não está proposta aqui.
+
+Para integrações automáticas, avaliar identidade distinta por cliente e TLS
+autenticado, como certificado do cliente, ou um provedor de identidade confiável
+que emita tokens curtos com permissões delimitadas. Certificados e tokens precisam
+ser suportados e homologados em cada cliente Protheus/Harbour e transporte; o
+cliente ainda precisa proteger sua chave privada ou outra identidade inicial.
+Limitar autorização por serviço/perfil e contexto explícito, auditar acessos e
+permitir revogação. O Protheus continua resolvendo empresa, filial e permissões
+ERP; valores informados pelo cliente não concedem autorização por si. Tokens
+OAuth vinculados a certificado são especificados na
+[RFC 8705](https://www.rfc-editor.org/rfc/rfc8705).
+
+O [TOTP](https://www.rfc-editor.org/rfc/rfc6238) exige segredo compartilhado e
+relógios coordenados. Pode ser útil como fator adicional na administração
+interativa; um cliente automático que gere o código ainda precisa proteger seu
+próprio segredo TOTP. Avaliar limitação de tentativas, prevenção de reutilização,
+recuperação e horário confiável. Esta proposta não implementa TOTP, mTLS nem
+emissor de tokens.
+
+O protocolo NETIO nativo atual usa sua senha configurada na conexão. Um cliente
+NETIO sem alterações continua precisando dessa senha; mantê-la somente no
+servidor exigiria gateway ou mudança de protocolo com desenho próprio. HTTP, TCP
+e NETIO exigem aceites separados. Esta é uma evolução posterior, não um
+pré-requisito da entrega atual do provedor local de credenciais SQL.
+
 ## Utilitário de administração
 
 Começar por uma CLI local que use os mesmos serviços de configuração e
@@ -242,11 +399,50 @@ o fluxo DBMonitor, sem depender do armazenamento DBAccess nem decifrar suas
 senhas. Autenticação, autorização e auditoria remotas ficam em outra etapa;
 o primeiro editor é local.
 
+O teste de conexão resolverá o perfil e a credencial salvos, executará uma
+consulta inofensiva e liberará a conexão, retornando sucesso ou erro sanitizado
+sem iniciar listeners, expor segredos ou alterar dados. Ele ainda precisa ser
+implementado e validado junto à integração SQL.
+
 Faça backup de texto cifrado e chaves com controles de acesso separados.
 Copiar só o INI não deve transferir senhas utilizáveis; migração exige
 importação/exportação explícita de chave. Um processo comprometido com acesso
 à chave consegue decifrar seus segredos. Cifragem em repouso, permissões de
 arquivo e TLS ODBC tratam partes diferentes do problema.
+
+O envelope versão 1 e sua chave de 32 bytes foram projetados para portabilidade
+entre Windows e Linux. O envelope é autenticado com perfil SQL, identificador
+da credencial, identificador da chave e usuário SQL; alterar qualquer um deles
+exige nova cifragem usando a chave e o contexto originais. Caminhos de arquivo e
+identidades do sistema operacional não fazem parte desse contexto. A migração
+deve proteger a chave separadamente, preparar permissões no destino e ajustar
+configurações ODBC locais. Uma prova externa com dados sintéticos passou nos dois
+sentidos entre Windows com Harbour gerenciado r2609292008 e Ubuntu WSL com
+Harbour global r2610242111. Ela valida formato e vínculo do contexto no provedor,
+não um utilitário de migração de INI nem uma conexão SQL real.
+
+### Recuperação após interrupção da criação da chave
+
+O procedimento se aplica ao provedor local experimental; o editor integrado de
+credenciais ainda não existe. Um arquivo `nome-da-chave.tmp.*` contém material
+de chave. Não exiba seu conteúdo, não o mova para diretório desprotegido nem o
+remova enquanto outro processo possa estar criando a chave.
+
+1. Pare ou coordene todos os processos de criação para aquele destino. Inspecione
+   os caminhos exatos do destino e dos arquivos temporários no diretório confiável.
+2. Se o destino existir, preserve-o. `KEY_CLEANUP_FAILED` pode ocorrer após a
+   publicação no Unix. Uma nova tentativa não deve substituir esse destino.
+3. Se o destino estiver ausente e a chave já tiver sido usada, restaure a chave
+   correspondente de um backup protegido. Outra chave não recupera o texto cifrado
+   com a chave perdida. Não promova arquivo temporário apenas por nome ou tamanho.
+4. Somente depois de confirmar que o arquivo temporário não está em uso nem é
+   necessário para recuperação, remova esse arquivo específico com ferramentas
+   autorizadas do sistema. Se for comprovadamente a primeira criação e não houver
+   texto cifrado dependente, tente criar novamente; caso contrário, preserve a
+   chave original.
+5. Verifique as permissões e, quando a integração SQL estiver disponível, teste
+   a conexão configurada. O protocolo ainda não garante a durabilidade dos metadados
+   do diretório após perda de energia; valide o filesystem utilizado.
 
 ## Homologação MSSQL atual
 

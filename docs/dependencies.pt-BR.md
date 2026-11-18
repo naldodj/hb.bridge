@@ -29,7 +29,8 @@ existentes do desenvolvedor permanecem intactos.
 | `.deps/harbour/` | Fontes Harbour fixados e próprios do projeto. |
 | `.deps/tools/zig/` | Zig fixado, arquivo e executável, com SHA256 verificado. |
 | `.deps/hb_compile/out/zig/` | Ferramentas, includes e bibliotecas Harbour Windows. |
-| `.deps/hb_compile/out/linux/` | Instalação Harbour nativa Linux. |
+| `.deps/hb_compile/out/linux-zig/` | Instalação Harbour Linux compilada com Zig (padrão). |
+| `.deps/hb_compile/out/linux/` | Instalação Harbour Linux compilada com GCC. |
 | `.deps/http/` | Preparo isolado hbhttpd/hbtcpio e registro de patch/build verificados. |
 | `.deps/odbc/` | Preparo isolado SDDODBC e registro de patch/build verificados. |
 | `.deps/sqlite/` | Preparo isolado do leitor tipado SDDSQLite3 e registro de patch/build verificados. |
@@ -39,13 +40,16 @@ existentes do desenvolvedor permanecem intactos.
 | `scripts/`, `tests/` | Automação, fixtures e probes reutilizáveis versionados. |
 | `docs/validation/` | Resumos históricos sanitizados e comandos de reprodução. |
 
+O perfil Zig no Linux mantém os estágios de preparação e registros HTTP,
+ODBC e SQLite em um subdiretório `linux-zig/` de cada raiz de preparação.
+
 `.deps/`, resultados de build e identidade local são ignorados pelo Git.
 Não se distribui outro runtime `bin/harbour`. Um build concluído grava
-`hbbridge-toolchain.json` com hash do manifesto, plataforma e revisões.
-A ferramenta completa e inalterada é reaproveitada; `-ForceBuild` recompila.
-`-SkipHarbourBuild` só resolve fontes/Zig, sem completar o Harbour.
-Atualizar versões fixadas exige manutenção explícita, novo build, regressões
-e atualização dos registros de procedência/licença.
+`hbbridge-toolchain.json` com hash do manifesto, plataforma, compilador e
+revisões. O bootstrap reaproveita a instalação completa do perfil
+selecionado. `-ForceBuild` recompila esse perfil. `-SkipHarbourBuild` obtém
+as dependências. Atualizar versões fixadas exige manutenção explícita,
+novo build, regressões e atualização dos registros de procedência/licença.
 
 ## Integração hb_compile
 
@@ -78,6 +82,19 @@ de biblioteca do hbmk2, não uma dependência contrib separada.
 Os [atributos Git](../.gitattributes) impõem LF em `config/patches/*.patch`,
 mantendo checksums do manifesto iguais em clones Windows/Linux.
 
+O patch também usa C nativo em trechos do processamento de requisições e
+respostas. Ele permanece como patch sobre a versão fixada porque altera partes
+internas do servidor; uma substituição independente exigiria manter um fork.
+O parser rejeita Content-Length fora da capacidade do inteiro nativo com
+sinal. Revalide comportamento e desempenho ao mudar a versão fixada do Harbour.
+
+`hbbridge.hbm` seleciona `-gc3` para os fontes do executável do projeto,
+gerando operações C em vez de um array compacto de p-code. Isso pode melhorar
+cargas limitadas por CPU, mas pode aumentar o tempo de compilação ou o tamanho
+do executável; meça cada cenário. A opção não altera a geração de addons HRB
+nem força a recompilação do Harbour e das contribs. O bootstrap preserva as
+opções de compilação informadas pelo ambiente.
+
 O aceite MSSQL identificou uma falha de leitura variável do SDDODBC quando a
 sondagem Unicode de tamanho com `SQLGetData` retorna `SQL_NO_TOTAL`. O patch
 gerenciado [sddodbc.patch](../config/patches/sddodbc.patch) corrige esse caminho,
@@ -94,7 +111,8 @@ Isso altera a interface do conector em staging, sem editar o checkout upstream
 fixado nem corrigir a perda fracionária de FLOAT bruto registrada em D03.
 [prepare-odbc.ps1](../scripts/prepare-odbc.ps1)
 verifica o checksum `harbour.odbcPatch` do manifesto e aplica o patch revisado
-em `.deps/odbc/stage-<id>/sddodbc`, preservando o checkout de fontes fixado.
+em um estágio isolado de `sddodbc` sob `.deps/odbc/`, preservando o checkout
+de fontes fixado.
 Compila somente SDDODBC e instala biblioteca/metadados na instalação Harbour
 gerenciada selecionada. Windows usa bibliotecas ODBC nativas; Linux exige
 headers e bibliotecas de desenvolvimento unixODBC.
@@ -114,8 +132,8 @@ respectivos leitores [ODBC](../src/c/hbbridge.odbc.typed.c)/
 
 O bootstrap prepara esses conectores após Harbour, inclusive quando reaproveita
 o toolchain base. Builds do produto e launchers de testes Harbour os preparam
-antes de vincular. `.deps/odbc/receipt.json` e `.deps/sqlite/receipt.json`
-registram revisão Harbour, SHA256 do patch, hashes dos helpers nativos,
+antes de vincular. Os registros sob `.deps/odbc/` e `.deps/sqlite/` incluem
+revisão Harbour, SHA256 do patch, hashes dos helpers nativos,
 plataforma/compilador e SHA256 da biblioteca instalada. Alterações dos helpers
 invalidam o cache, assim como alterações do patch/biblioteca.
 `./scripts/prepare-odbc.ps1 -ForceBuild` recompila os dois conectores em staging;
@@ -132,14 +150,34 @@ dos fontes Harbour não basta. HTTPS e Linux precisam de aceite próprio.
 Veja [configuração/rotas HTTP](http.pt-BR.md).
 Deixe HB_HTTP_TLS ausente no build HTTP padrão; outros valores não vazios falham.
 
-O runner PowerShell nativo do hb_compile fixado atende Windows. No Linux,
-hbBridge chama sua preparação de compatibilidade e compila os mesmos fontes
-fixados por GNU make/GCC, instalando no prefixo Linux próprio. Instale antes
-PowerShell 7, Git, make, GCC/binutils e headers de desenvolvimento unixODBC.
-O bootstrap informa pré-requisitos ausentes, sem alterar silenciosamente o
-gerenciador de pacotes. A biblioteca Zig do produto usa Zig gerenciado e
-hbmk2 usa o compilador da plataforma. Execução Linux exige homologação
-própria; compilar no Windows não comprova funcionamento no Linux.
+## Seleção de compilador no Linux
+
+O runner PowerShell do hb_compile fixado compila com Zig no Windows. No
+Linux, o hbBridge usa o mesmo preparador de compatibilidade e compila o
+Harbour fixado com GNU make e o compilador selecionado. A revisão atual
+do hb_compile fornece os dois pontos de integração.
+
+Instale PowerShell 7, Git, GNU make e os arquivos de desenvolvimento do
+unixODBC no Linux. O perfil GCC também exige GCC e binutils. O Zig 0.16.0
+gerenciado é o compilador padrão e gera a biblioteca estática Zig do produto
+nos dois perfis. O `hbmk2` usa o perfil selecionado para compilar e vincular
+o código C.
+
+Para executar o bootstrap com GCC e selecioná-lo nos builds e testes
+seguintes, execute os comandos na raiz do repositório, na mesma sessão do
+PowerShell.
+
+```powershell
+pwsh ./scripts/bootstrap.ps1 -Compiler gcc
+$env:HBBRIDGE_HARBOUR_COMPILER = 'gcc'
+pwsh ./scripts/build-hbbridge.ps1
+pwsh ./scripts/test-hbbridge.ps1
+```
+
+O bootstrap também aceita `HBBRIDGE_HARBOUR_COMPILER`. A opção explícita
+`-Compiler` tem precedência. Para voltar ao Zig nos comandos seguintes,
+remova a variável com `Remove-Item Env:HBBRIDGE_HARBOUR_COMPILER`. O Windows
+usa Zig.
 
 `scripts/toolchain.ps1` centraliza caminhos e versões. Build/teste/commit usam
 seus `hbrun`, `hbmk2`, Zig e compilador. `-HbCompileRoot` e `-ZigPath` permitem

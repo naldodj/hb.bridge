@@ -7,9 +7,9 @@
 FUNCTION HBBridgeConfigINI( cContents, hDefaults, cError )
 
     LOCAL cCR := Chr( 13 ), cLF := Chr( 10 ), cNul := Chr( 0 )
-    LOCAL cSection, cProfile, cSectionID, cLine, cKey, cValue, cTarget
+    LOCAL cSection, cProfile, cSectionID, cLine, cKey, cValue, cTarget, cKind
 
-    LOCAL hSections, hProfileKeys, hFile, hSeenSections, hSeenKeys
+    LOCAL hSections, hProfileKeys, hCredentialKeys, hKeyKeys, hFile, hSeenSections, hSeenKeys
 
     LOCAL lHasSection
 
@@ -33,14 +33,17 @@ FUNCTION HBBridgeConfigINI( cContents, hDefaults, cError )
     hProfileKeys := { "DRIVER" => "driver", "DATABASE" => "database", ;
         "CONNECTIONSTRING" => "connectionString", "AUTHENTICATION" => "authentication", ;
         "DSN" => "dsn", "ODBCDRIVER" => "odbcDriver", "SERVER" => "server", ;
-        "USERNAME" => "username", "PASSWORD" => "password", "ENCRYPT" => "encrypt", ;
+        "USERNAME" => "username", "PASSWORD" => "password", "CREDENTIAL" => "credential", "ENCRYPT" => "encrypt", ;
         "TRUSTSERVERCERTIFICATE" => "trustServerCertificate", ;
         "LOGINTIMEOUTSECONDS" => "loginTimeoutSeconds", "QUERYTIMEOUTSECONDS" => "queryTimeoutSeconds" }
+    hCredentialKeys := { "USER" => "user", "KEYID" => "keyId", "PASSWORD" => "password" }
+    hKeyKeys := { "PROVIDER" => "provider", "LOCATION" => "location" }
     hFile := {=>}
     hSeenSections := {=>}
     hSeenKeys := {=>}
     cSection := ""
     cProfile := ""
+    cKind := ""
     nStart := 1
     nLine := 0
     lHasSection := .F.
@@ -75,12 +78,19 @@ FUNCTION HBBridgeConfigINI( cContents, hDefaults, cError )
                 RETURN NIL
             ENDIF
             cProfile := ""
+            cKind := ""
             IF Upper( Left( cSection, 4 ) ) == "SQL/"
                 cProfile := SubStr( cSection, 5 )
-                IF Empty( AllTrim( cProfile ) )
-                    RETURN NIL
-                ENDIF
+                cKind := "sqlProfiles"
                 cSectionID := "SQL/" + cProfile
+            ELSEIF Upper( Left( cSection, 11 ) ) == "CREDENTIAL/"
+                cProfile := SubStr( cSection, 12 )
+                cKind := "credentials"
+                cSectionID := "CREDENTIAL/" + cProfile
+            ELSEIF Upper( Left( cSection, 4 ) ) == "KEY/"
+                cProfile := SubStr( cSection, 5 )
+                cKind := "credentialKeys"
+                cSectionID := "KEY/" + cProfile
             ELSE
                 cSection := Upper( cSection )
                 IF ! hb_HHasKey( hSections, cSection )
@@ -89,6 +99,9 @@ FUNCTION HBBridgeConfigINI( cContents, hDefaults, cError )
                 ENDIF
                 cSectionID := cSection
             ENDIF
+            IF ! Empty( cKind ) .AND. Empty( AllTrim( cProfile ) )
+                RETURN NIL
+            ENDIF
             IF hb_HHasKey( hSeenSections, cSectionID )
                 cError := "Duplicate INI section at line " + hb_ntos( nLine ) + "."
                 RETURN NIL
@@ -96,11 +109,11 @@ FUNCTION HBBridgeConfigINI( cContents, hDefaults, cError )
             hSeenSections[ cSectionID ] := .T.
             hSeenKeys := {=>}
             lHasSection := .T.
-            IF ! Empty( cProfile )
-                IF ! hb_HHasKey( hFile, "sqlProfiles" )
-                    hFile[ "sqlProfiles" ] := {=>}
+            IF ! Empty( cKind )
+                IF ! hb_HHasKey( hFile, cKind )
+                    hFile[ cKind ] := {=>}
                 ENDIF
-                hFile[ "sqlProfiles" ][ cProfile ] := {=>}
+                hFile[ cKind ][ cProfile ] := {=>}
             ENDIF
             LOOP
         ENDIF
@@ -115,7 +128,7 @@ FUNCTION HBBridgeConfigINI( cContents, hDefaults, cError )
             RETURN NIL
         ENDIF
         hSeenKeys[ cKey ] := .T.
-        IF ! Empty( cProfile )
+        IF cKind == "sqlProfiles"
             IF ! hb_HHasKey( hProfileKeys, cKey )
                 cError := "Unknown SQL profile INI key at line " + hb_ntos( nLine ) + "."
                 RETURN NIL
@@ -138,6 +151,21 @@ FUNCTION HBBridgeConfigINI( cContents, hDefaults, cError )
             ELSE
                 hFile[ "sqlProfiles" ][ cProfile ][ cTarget ] := cValue
             ENDIF
+        ELSEIF cKind == "credentials" .OR. cKind == "credentialKeys"
+            IF cKind == "credentials"
+                IF ! hb_HHasKey( hCredentialKeys, cKey )
+                    cError := "Unknown credential INI key at line " + hb_ntos( nLine ) + "."
+                    RETURN NIL
+                ENDIF
+                cTarget := hCredentialKeys[ cKey ]
+            ELSE
+                IF ! hb_HHasKey( hKeyKeys, cKey )
+                    cError := "Unknown key-provider INI key at line " + hb_ntos( nLine ) + "."
+                    RETURN NIL
+                ENDIF
+                cTarget := hKeyKeys[ cKey ]
+            ENDIF
+            hFile[ cKind ][ cProfile ][ cTarget ] := iif( cTarget == "provider", Lower( cValue ), cValue )
         ELSE
             IF ! hb_HHasKey( hSections[ cSection ], cKey )
                 cError := "Unknown INI key at line " + hb_ntos( nLine ) + "."

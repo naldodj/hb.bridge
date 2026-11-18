@@ -44,6 +44,8 @@ locais analisados; as chaves descrevem recursos próprios do hbBridge.
 | `[HTTP]` | `Enabled`, `Host`, `Port`, `ListenBacklog`, `SendTimeoutMs`, `Compression`, `CompressionMinBytes`, `CompressionLevel`, `Password`, `TLS`, `Certificate`, `PrivateKey` |
 | `[SQL]` | `ODBCPooling` (`off` ou `driver`), política física de conexões do processo |
 | `[SQL/profile_name]` | SQLite: `Driver`/`Database`; MSSQL: campos estruturados abaixo ou `Driver`/`ConnectionString` |
+| `[Credential/name]` | `User`, `KeyId`, `Password` cifrado para perfil SQL estruturado |
+| `[Key/name]` | `Provider=file`, `Location` para a chave binária separada |
 
 Exemplo mínimo para o teste SQLite:
 
@@ -78,9 +80,9 @@ ODBC disponíveis ao processo. O teste Protheus deve informar o perfil:
 
 ## Perfis MSSQL
 
-Recompile o hbBridge antes de usar os campos MSSQL estruturados. Eles são
-normalizados para a mesma string ODBC privada usada pelo executor SQLMIX/SDDODBC
-existente. Escolha uma forma de destino e um modo de autenticação:
+Recompile o hbBridge antes de usar os campos MSSQL estruturados. Credenciais em
+texto aberto são normalizadas para uma string ODBC; referências protegidas são
+resolvidas apenas na tentativa de conexão. Escolha destino e autenticação:
 
 | Chave INI | Chave JSON | Significado |
 | --- | --- | --- |
@@ -90,19 +92,20 @@ existente. Escolha uma forma de destino e um modo de autenticação:
 | `Server` | `server` | Endpoint SQL Server, como `localhost,1433`; exige `ODBCDriver` e `Database`. |
 | `Database` | `database` | Obrigatório sem DSN; opcional com DSN para substituir seu banco. |
 | `Authentication` | `authentication` | Obrigatório: `sql` ou `integrated`. São modos do hbBridge. |
-| `Username` | `username` | Login SQL não vazio, obrigatório com `Authentication=sql`. |
-| `Password` | `password` | Senha SQL não vazia, obrigatória com `Authentication=sql`. |
+| `Username` | `username` | Login SQL não vazio com `Authentication=sql`, quando `Credential` é omitido. |
+| `Password` | `password` | Senha SQL não vazia com `Authentication=sql`, quando `Credential` é omitido. |
+| `Credential` | `credential` | Alternativa a `Username`/`Password`; identifica uma credencial SQL protegida. |
 | `Encrypt` | `encrypt` | Opcional: `optional`, `mandatory`, `strict`, mapeados para ODBC `No`, `Yes`, `Strict`. A omissão mantém o padrão do driver. |
 | `TrustServerCertificate` | `trustServerCertificate` | Booleano opcional: INI `true`/`false`, JSON `true`/`false`. |
 | `LoginTimeoutSeconds` | `loginTimeoutSeconds` | Segundos inteiros não negativos, opcionais, para login ODBC nativo; a omissão mantém o padrão do driver e `0` explícito desativa esse timeout. |
 | `QueryTimeoutSeconds` | `queryTimeoutSeconds` | Segundos inteiros não negativos, opcionais, para cada instrução ODBC nativa, incluindo a contagem separada da página; a omissão mantém o padrão do driver e `0` explícito desativa esse timeout. |
 
-`Authentication=integrated` omite completamente `Username` e `Password`;
+`Authentication=integrated` omite completamente `Username`, `Password` e `Credential`;
 campos de credenciais são rejeitados mesmo vazios. Usa a identidade do processo
 hbBridge no Windows. No Linux exige Kerberos configurado e credenciais de
 serviço válidas. Veja o [guia Microsoft de autenticação integrada](https://learn.microsoft.com/en-us/sql/connect/odbc/linux-mac/using-integrated-authentication?view=sql-server-ver17).
 
-Para autenticação SQL, preencha login e senha existentes em arquivo privado
+Para autenticação SQL em texto aberto, preencha login e senha existentes em arquivo privado
 fora do Git. O exemplo usa DSN com banco explícito; substitua os dois
 placeholders de credenciais antes de ativar o perfil:
 
@@ -147,8 +150,8 @@ aceito sem alteração. Pode incluir os dois campos de timeout acima, que são
 atributos nativos em vez de partes da string de conexão. Não pode ser combinado
 com campos estruturados da conexão, incluindo autenticação, banco ou
 criptografia. Guarde strings com credenciais
-no mesmo arquivo privado da instalação. Campos estruturados configuram a
-conexão, sem implementar armazenamento cifrado de credenciais.
+no mesmo arquivo privado da instalação. Campos estruturados também podem
+referenciar uma credencial cifrada conforme descrito adiante.
 
 <a id="native-mssql-timeouts"></a>
 
@@ -459,20 +462,18 @@ com argumentos omitidos, Linux e falhas/relógio/tipos ampliados permanecem pend
 
 ## Armazenamento portável de credenciais
 
-**Comportamento atual:** INI/JSON aceitam campos MSSQL estruturados, incluindo
-usuário/senha SQL em texto aberto, ou uma string de conexão ODBC;
-envelope de credencial cifrada, utilitário local de credenciais e interface
-gráfica de administração ainda não foram implementados. Autenticação integrada
-usa a identidade do processo servidor. Para selecionar um perfil de banco,
-o AppServer usa somente SQLProfile. O parser estrito ainda não aceita as
-seções ou campos propostos para provedores de credenciais.
+**Comportamento atual:** INI/JSON aceitam campos MSSQL estruturados com referência
+de credencial cifrada, usuário/senha em texto aberto ou string de conexão ODBC.
+O utilitário local e a interface gráfica de administração permanecem pendentes.
+Autenticação integrada usa a identidade do servidor. O AppServer usa somente
+SQLProfile para selecionar o perfil. Veja o [contrato de credenciais](credentials.pt-BR.md#contrato-de-credencial-sql-estruturada).
 
 Essa separação do banco não elimina outros segredos cliente: `HTTPToken` no
 AppServer também está em texto aberto. O mesmo desenho de provedores deve
 abranger credenciais NETIO/admin/HTTP no hbBridge e as credenciais dos clientes,
 com chaves provisionadas separadamente. Veja o [inventário](credentials.pt-BR.md).
 
-**Arquitetura proposta:** manter campos públicos do perfil e um envelope
+**Arquitetura:** manter campos públicos do perfil e um envelope
 versionado de senha cifrada em INI/JSON, com chave mestra fora desse arquivo
 e do repositório. Uma abstração de provedor de chaves admite arquivo externo
 protegido no Windows/Linux e provedores opcionais de ambiente/cofre/SO.

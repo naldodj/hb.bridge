@@ -69,7 +69,7 @@ RETURN hb_mutexEval( ::pMutex, {|| ::AcquireLocked( cProfile ) } )
 METHOD AcquireLocked( cProfile ) CLASS HBBridgeSQLPool
     LOCAL aConnection
 
-    LOCAL cID
+    LOCAL cID, cConnection, cError
 
     LOCAL hProfile, hLease
 
@@ -87,7 +87,11 @@ METHOD AcquireLocked( cProfile ) CLASS HBBridgeSQLPool
         ENDIF
         aConnection := { "SQLITE3", hProfile[ "database" ] }
     ELSE
-        aConnection := { "ODBC", hProfile[ "connectionString" ], ;
+        cConnection := HBBridgeSQLConnection( cProfile, hProfile, @cError )
+        IF cConnection == NIL
+            RETURN NIL
+        ENDIF
+        aConnection := { "ODBC", cConnection, ;
             hb_HGetDef( hProfile, "loginTimeoutSeconds", NIL ), ;
             hb_HGetDef( hProfile, "queryTimeoutSeconds", NIL ) }
     ENDIF
@@ -96,6 +100,8 @@ METHOD AcquireLocked( cProfile ) CLASS HBBridgeSQLPool
     RECOVER
         nConnection := 0
     END SEQUENCE
+    aConnection := NIL
+    cConnection := NIL
     IF nConnection > 0
         ::nNextLease++
         cID := hb_ntos( ::nNextLease )

@@ -122,8 +122,11 @@ try {
             validationErrors = $validationErrors.ToArray()
             result = $result
         }
-        foreach ($managedReceipt in @('.deps/odbc/receipt.json', '.deps/http/receipt.json')) {
-            $receipt.managedReceiptSHA256[$managedReceipt] = (Get-FileHash -LiteralPath (Join-Path $projectRoot $managedReceipt) -Algorithm SHA256).Hash
+        foreach ($name in @('odbc', 'http')) {
+            $managedRoot = Get-HBBridgeManagedContribRoot -ProjectRoot $projectRoot -Name $name -Toolchain $toolchain
+            $managedPath = Join-Path $managedRoot 'receipt.json'
+            $managedReceipt = [IO.Path]::GetRelativePath($projectRoot, $managedPath).Replace('\', '/')
+            $receipt.managedReceiptSHA256[$managedReceipt] = (Get-FileHash -LiteralPath $managedPath -Algorithm SHA256).Hash
         }
         foreach ($source in @('tests/probes/hbbridge.mssql.bind.test.hb', 'tests/probes/hbbridge.mssql.bind.native.c',
             'tests/probes/hbbridge.mssql.bind.test.hbp', 'scripts/test-harbour-mssql-bind.ps1')) {

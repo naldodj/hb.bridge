@@ -1,4 +1,5 @@
 diff --git a/hbhttpd/core.prg b/hbhttpd/core.prg
+index 9b6f73d..836e694 100644
 --- a/hbhttpd/core.prg
 +++ b/hbhttpd/core.prg
 @@ -77,11 +77,16 @@ METHOD Run( hConfig ) CLASS UHttpd
@@ -95,7 +96,7 @@ diff --git a/hbhttpd/core.prg b/hbhttpd/core.prg
                 nJobs >= nWorkers
              AAdd( aThreads, hb_threadStart( HB_THREAD_INHERIT_PUBLIC, @ProcessConnection(), Self ) )
           ENDIF
-@@ -211,7 +246,7 @@ METHOD LogAccess() CLASS UHttpd
+@@ -211,25 +246,13 @@ METHOD LogAccess() CLASS UHttpd
        server[ "REMOTE_ADDR" ] + " - - [" + Right( cDate, 2 ) + "/" + ;
        { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" }[ Val( SubStr( cDate, 5, 2 ) ) ] + ;
        "/" + Left( cDate, 4 ) + ":" + cTime + ' +0000] "' + server[ "REQUEST_ALL" ] + '" ' + ;
@@ -104,7 +105,43 @@ diff --git a/hbhttpd/core.prg b/hbhttpd/core.prg
        ' "' + server[ "HTTP_REFERER" ] + '" "' + server[ "HTTP_USER_AGENT" ] + ;
        '"' )
     hb_mutexUnlock( ::hmtxLog )
-@@ -425,6 +460,7 @@ STATIC FUNCTION MY_SSL_ACCEPT( hConfig, hSSL, hSocket, nTimeout )
+
+    RETURN NIL
+
+-STATIC FUNCTION IPAddr2Num( cIP )
+-
+-   LOCAL aA, n1, n2, n3, n4
+-
+-   aA := hb_regex( "^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$", cIP )
+-   IF Len( aA ) == 5 .AND. ( n1 := Val( aA[ 2 ] ) ) <= 255 .AND. ( n2 := Val( aA[ 3 ] ) ) <= 255 .AND. ;
+-         ( n3 := Val( aA[ 4 ] ) ) <= 255 .AND. ( n4 := Val( aA[ 5 ] ) ) <= 255
+-      RETURN ( ( ( n1 * 256 ) + n2 ) * 256 + n3 ) * 256 + n4
+-   ENDIF
+-
+-   RETURN NIL
+-
+ STATIC FUNCTION ParseFirewallFilter( cFilter, aFilter )
+
+    LOCAL cExpr, nI, cI, nPrefix, nAddr, nAddr2, nPos, nPos2, lDeny, aDeny, aI
+@@ -246,7 +269,7 @@ STATIC FUNCTION ParseFirewallFilter( cFilter, aFilter )
+             cI := SubStr( cExpr, nI + 1 )
+             cExpr := Left( cExpr, nI - 1 )
+             IF "." $ cI
+-               IF ( nI := IPAddr2Num( cI ) ) == NIL
++               IF ( nI := HBBridgeHttpdIPAddr2Num( cI ) ) == NIL
+                   RETURN .F.
+                ENDIF
+                nPrefix := 32
+@@ -266,7 +289,7 @@ STATIC FUNCTION ParseFirewallFilter( cFilter, aFilter )
+          ELSE
+             nPrefix := 32
+          ENDIF
+-         IF ( nAddr := IPAddr2Num( cExpr ) ) == NIL
++         IF ( nAddr := HBBridgeHttpdIPAddr2Num( cExpr ) ) == NIL
+             RETURN .F.
+          ENDIF
+          nPrefix := 0x100000000 - hb_bitShift( 1, 32 - nPrefix )
+@@ -425,6 +448,7 @@ STATIC FUNCTION MY_SSL_ACCEPT( hConfig, hSSL, hSocket, nTimeout )
 
  STATIC FUNCTION ProcessConnection( oServer )
 
@@ -112,7 +149,16 @@ diff --git a/hbhttpd/core.prg b/hbhttpd/core.prg
     LOCAL hSocket, cRequest, aI, nLen, nErr, nTime, nReqLen, cBuf, aServer
     LOCAL hSSL
 
-@@ -514,7 +550,7 @@ STATIC FUNCTION ProcessConnection( oServer )
+@@ -456,7 +480,7 @@ STATIC FUNCTION ProcessConnection( oServer )
+       ENDIF
+
+       /* Firewall */
+-      nLen := IPAddr2Num( aServer[ "REMOTE_ADDR" ] )
++      nLen := HBBridgeHttpdIPAddr2Num( aServer[ "REMOTE_ADDR" ] )
+       hb_HHasKey( oServer:aFirewallFilter, nLen, @nErr )
+       IF nErr > 0 .AND. nLen <= hb_HValueAt( oServer:aFirewallFilter, nErr )
+          Eval( oServer:hConfig[ "Trace" ], "Firewall denied", aServer[ "REMOTE_ADDR" ] )
+@@ -514,7 +538,7 @@ STATIC FUNCTION ProcessConnection( oServer )
           nLen := 1
           nTime := hb_MilliSeconds()
           cBuf := Space( 4096 )
@@ -121,7 +167,7 @@ diff --git a/hbhttpd/core.prg b/hbhttpd/core.prg
              IF oServer:lHasSSL .AND. oServer:hConfig[ "SSL" ]
                 nLen := MY_SSL_READ( oServer:hConfig, hSSL, hSocket, @cBuf, 1000, @nErr )
              ELSE
-@@ -559,9 +595,9 @@ STATIC FUNCTION ProcessConnection( oServer )
+@@ -559,9 +583,9 @@ STATIC FUNCTION ProcessConnection( oServer )
           t_nStatusCode := 200
           t_aSessionData := NIL
 
@@ -133,7 +179,7 @@ diff --git a/hbhttpd/core.prg b/hbhttpd/core.prg
           IF nReqLen == NIL
              USetStatusCode( 400 )
              UAddHeader( "Connection", "close" )
-@@ -571,7 +607,7 @@ STATIC FUNCTION ProcessConnection( oServer )
+@@ -571,7 +595,7 @@ STATIC FUNCTION ProcessConnection( oServer )
              nLen := 1
              nTime := hb_MilliSeconds()
              cBuf := Space( 4096 )
@@ -142,7 +188,7 @@ diff --git a/hbhttpd/core.prg b/hbhttpd/core.prg
                 IF oServer:lHasSSL .AND. oServer:hConfig[ "SSL" ]
                    nLen := MY_SSL_READ( oServer:hConfig, hSSL, hSocket, @cBuf, 1000, @nErr )
                 ELSE
-@@ -605,8 +641,8 @@ STATIC FUNCTION ProcessConnection( oServer )
+@@ -605,8 +629,8 @@ STATIC FUNCTION ProcessConnection( oServer )
              ENDIF
 
              Eval( oServer:hConfig[ "Trace" ], cRequest )
@@ -153,7 +199,7 @@ diff --git a/hbhttpd/core.prg b/hbhttpd/core.prg
 
              /* Deal with supported protocols and methods */
              IF !( Left( server[ "SERVER_PROTOCOL" ], 5 ) == "HTTP/" )
-@@ -635,24 +671,9 @@ STATIC FUNCTION ProcessConnection( oServer )
+@@ -635,24 +659,9 @@ STATIC FUNCTION ProcessConnection( oServer )
 
           // Send response
           cBuf := MakeResponse( oServer:hConfig )
@@ -181,7 +227,7 @@ diff --git a/hbhttpd/core.prg b/hbhttpd/core.prg
 
           IF oServer:lStop
              EXIT
-@@ -676,6 +697,68 @@ STATIC FUNCTION ProcessConnection( oServer )
+@@ -676,6 +685,68 @@ STATIC FUNCTION ProcessConnection( oServer )
 
     RETURN 0
 
@@ -250,55 +296,133 @@ diff --git a/hbhttpd/core.prg b/hbhttpd/core.prg
  STATIC PROCEDURE ProcessRequest( oServer )
 
     LOCAL nI, aMount, cMount, cPath, bEval, xRet, nT := hb_MilliSeconds()
-@@ -727,13 +810,13 @@ STATIC PROCEDURE ProcessRequest( oServer )
+@@ -727,95 +798,15 @@ STATIC PROCEDURE ProcessRequest( oServer )
 
     RETURN
 
 -STATIC FUNCTION ParseRequestHeader( cRequest )
-+STATIC FUNCTION ParseRequestHeader( cRequest, cHeaderEnd )
-
+-
 -   LOCAL aRequest, aLine, nI, nJ, cI, nK, nContentLength := 0
-+   LOCAL aRequest, aLine, nI, nJ, cI, nK, nContentLength := 0, lHasContentLength := .F.
-
+-
 -   nI := At( CR_LF + CR_LF, cRequest )
 -   aRequest := hb_ATokens( Left( cRequest, nI - 1 ), CR_LF )
 -   cRequest := SubStr( cRequest, nI + 4 )
-+   nI := hb_BAt( cHeaderEnd, cRequest )
-+   aRequest := hb_ATokens( hb_BLeft( cRequest, nI - 1 ), CR_LF )
-+   cRequest := hb_BSubStr( cRequest, nI + 4 )
++STATIC FUNCTION ParseRequestHeader( cRequest, cHeaderEnd )
 
-    aLine := hb_ATokens( aRequest[ 1 ], " " )
+-   aLine := hb_ATokens( aRequest[ 1 ], " " )
+-
+-   server[ "REQUEST_ALL" ] := aRequest[ 1 ]
+-   IF Len( aLine ) == 3 .AND. Left( aLine[ 3 ], 5 ) == "HTTP/"
+-      server[ "REQUEST_METHOD" ] := aLine[ 1 ]
+-      server[ "REQUEST_URI" ] := aLine[ 2 ]
+-      server[ "SERVER_PROTOCOL" ] := aLine[ 3 ]
+-   ELSE
+-      server[ "REQUEST_METHOD" ] := aLine[ 1 ]
+-      server[ "REQUEST_URI" ] := iif( Len( aLine ) >= 2, aLine[ 2 ], "" )
+-      server[ "SERVER_PROTOCOL" ] := iif( Len( aLine ) >= 3, aLine[ 3 ], "" )
+-      RETURN NIL
+-   ENDIF
+-
+-   // Fix invalid queries: bind to root
+-   IF !( Left( server[ "REQUEST_URI" ], 1 ) == "/" )
+-      server[ "REQUEST_URI" ] := "/" + server[ "REQUEST_URI" ]
+-   ENDIF
+-
+-   IF ( nI := At( "?", server[ "REQUEST_URI" ] ) ) > 0
+-      server[ "SCRIPT_NAME" ] := Left( server[ "REQUEST_URI" ], nI - 1 )
+-      server[ "QUERY_STRING" ] := SubStr( server[ "REQUEST_URI" ], nI + 1 )
+-   ELSE
+-      server[ "SCRIPT_NAME" ] := server[ "REQUEST_URI" ]
+-      server[ "QUERY_STRING" ] := ""
+-   ENDIF
+-
+-   server[ "HTTP_ACCEPT" ] := ""
+-   server[ "HTTP_ACCEPT_CHARSET" ] := ""
+-   server[ "HTTP_ACCEPT_ENCODING" ] := ""
+-   server[ "HTTP_ACCEPT_LANGUAGE" ] := ""
+-   server[ "HTTP_CONNECTION" ] := ""
+-   server[ "HTTP_HOST" ] := ""
+-   server[ "HTTP_KEEP_ALIVE" ] := ""
+-   server[ "HTTP_REFERER" ] := ""
+-   server[ "HTTP_USER_AGENT" ] := ""
+-
+-   FOR nI := 2 TO Len( aRequest )
+-      IF aRequest[ nI ] == ""
+-         EXIT
+-      ELSEIF ( nJ := At( ":", aRequest[ nI ] ) ) > 0
+-         cI := AllTrim( SubStr( aRequest[ nI ], nJ + 1 ) )
+-         SWITCH Upper( Left( aRequest[ nI ], nJ - 1 ) )
+-         CASE "COOKIE"
+-            server[ "HTTP_COOKIE" ] := cI
+-            IF ( nK := At( ";", cI ) ) == 0
+-               nK := Len( RTrim( cI ) )
+-            ENDIF
+-            cI := Left( cI, nK )
+-            IF ( nK := At( "=", cI ) ) > 0
+-               /* cookie names are case insensitive, uppercase it */
+-               cookie[ Upper( Left( cI, nK - 1 ) ) ] := SubStr( cI, nK + 1 )
+-            ENDIF
+-            EXIT
+-         CASE "CONTENT-LENGTH"
+-            nContentLength := Val( cI )
+-            EXIT
+-         CASE "CONTENT-TYPE"
+-            server[ "CONTENT_TYPE" ] := cI
+-            EXIT
+-         OTHERWISE
+-            server[ "HTTP_" + StrTran( Upper( Left( aRequest[ nI ], nJ - 1 ) ), "-", "_" ) ] := cI
+-            EXIT
+-         ENDSWITCH
+-      ENDIF
+-   NEXT
+-   IF ! server[ "QUERY_STRING" ] == ""
+-      FOR EACH cI IN hb_ATokens( server[ "QUERY_STRING" ], "&" )
+-         IF ( nI := At( "=", cI ) ) > 0
+-            get[ UUrlDecode( Left( cI, nI - 1 ) ) ] := UUrlDecode( SubStr( cI, nI + 1 ) )
+-         ELSE
+-            get[ UUrlDecode( cI ) ] := NIL
+-         ENDIF
+-      NEXT
+-   ENDIF
+-
+-   RETURN nContentLength
++   RETURN ParseRequestHeaderC( @cRequest, cHeaderEnd, server, cookie, get )
 
-@@ -789,7 +872,19 @@ STATIC FUNCTION ParseRequestHeader( cRequest )
-                cookie[ Upper( Left( cI, nK - 1 ) ) ] := SubStr( cI, nK + 1 )
-             ENDIF
-             EXIT
-+         CASE "ACCEPT-ENCODING"
-+            /* Repeated field lines form one comma-separated coding list. */
-+            server[ "HTTP_ACCEPT_ENCODING" ] += ;
-+               iif( Empty( server[ "HTTP_ACCEPT_ENCODING" ] ), "", "," ) + cI
-+            EXIT
-+         CASE "TRANSFER-ENCODING"
-+            /* This server reads Content-Length bodies, not transfer codings. */
-+            RETURN NIL
-          CASE "CONTENT-LENGTH"
-+            IF lHasContentLength .OR. ! hb_regexLike( "^[0-9]+$", cI )
-+               RETURN NIL
-+            ENDIF
-+            lHasContentLength := .T.
-             nContentLength := Val( cI )
-             EXIT
-          CASE "CONTENT-TYPE"
-@@ -817,6 +912,8 @@ STATIC PROCEDURE ParseRequestBody( cRequest )
+ STATIC PROCEDURE ParseRequestBody( cRequest )
 
-    LOCAL nI, cPart, cEncoding
-
-+   server[ "REQUEST_BODY" ] := cRequest
+-   LOCAL nI, cPart, cEncoding
++   LOCAL nI, cEncoding
 +
++   server[ "REQUEST_BODY" ] := cRequest
+
     IF hb_HHasKey( server, "CONTENT_TYPE" ) .AND. ;
           Left( server[ "CONTENT_TYPE" ], 33 ) == "application/x-www-form-urlencoded"
-       IF ( nI := At( "CHARSET=", Upper( server[ "CONTENT_TYPE" ] ) ) ) > 0
-@@ -900,10 +997,10 @@ STATIC FUNCTION MakeResponse( hConfig )
+@@ -823,23 +814,7 @@ STATIC PROCEDURE ParseRequestBody( cRequest )
+          cEncoding := Upper( SubStr( server[ "CONTENT_TYPE" ], nI + 8 ) )
+       ENDIF
+       IF ! cRequest == ""
+-         IF cEncoding == "UTF-8"
+-            FOR EACH cPart IN hb_ATokens( cRequest, "&" )
+-               IF ( nI := At( "=", cPart ) ) > 0
+-                  post[ hb_UTF8ToStr( UUrlDecode( Left( cPart, nI - 1 ) ) ) ] := hb_UTF8ToStr( UUrlDecode( SubStr( cPart, nI + 1 ) ) )
+-               ELSE
+-                  post[ hb_UTF8ToStr( UUrlDecode( cPart ) ) ] := NIL
+-               ENDIF
+-            NEXT
+-         ELSE
+-            FOR EACH cPart IN hb_ATokens( cRequest, "&" )
+-               IF ( nI := At( "=", cPart ) ) > 0
+-                  post[ UUrlDecode( Left( cPart, nI - 1 ) ) ] := UUrlDecode( SubStr( cPart, nI + 1 ) )
+-               ELSE
+-                  post[ UUrlDecode( cPart ) ] := NIL
+-               ENDIF
+-            NEXT
+-         ENDIF
++         ParseFormUrlEncoded( cRequest, post, cEncoding == "UTF-8" )
+       ENDIF
+    ENDIF
+
+@@ -900,12 +875,11 @@ STATIC FUNCTION MakeResponse( hConfig )
     ENDSWITCH
 
     cRet += cStatus + CR_LF
@@ -307,11 +431,87 @@ diff --git a/hbhttpd/core.prg b/hbhttpd/core.prg
        t_cResult := "<html><body><h1>" + cStatus + "</h1></body></html>"
     ENDIF
 -   UAddHeader( "Content-Length", hb_ntos( Len( t_cResult ) ) )
+-   AEval( t_aHeader, {| x | cRet += x[ 1 ] + ": " + x[ 2 ] + CR_LF } )
+-   cRet += CR_LF
 +   UAddHeader( "Content-Length", hb_ntos( hb_BLen( t_cResult ) ) )
-    AEval( t_aHeader, {| x | cRet += x[ 1 ] + ": " + x[ 2 ] + CR_LF } )
-    cRet += CR_LF
++   cRet := BuildResponseHeaders( cRet, t_aHeader )
     Eval( hConfig[ "Trace" ], cRet )
-@@ -1735,3 +1832,16 @@ STATIC FUNCTION SubStrCount( cSub, cString, nStart, nEnd )
+    cRet += t_cResult
+
+@@ -1266,72 +1240,6 @@ PROCEDURE USessionDestroy()
+
+    RETURN
+
+-FUNCTION UOsFileName( cFileName )
+-
+-   IF ! hb_ps() == "/"
+-      RETURN StrTran( cFileName, "/", hb_ps() )
+-   ENDIF
+-
+-   RETURN cFileName
+-
+-FUNCTION UHtmlEncode( cString )
+-
+-   LOCAL nI, cI, cRet := ""
+-
+-   FOR nI := 1 TO Len( cString )
+-      cI := SubStr( cString, nI, 1 )
+-      IF cI == "<"
+-         cRet += "&lt;"
+-      ELSEIF cI == ">"
+-         cRet += "&gt;"
+-      ELSEIF cI == "&"
+-         cRet += "&amp;"
+-      ELSEIF cI == '"'
+-         cRet += "&quot;"
+-      ELSE
+-         cRet += cI
+-      ENDIF
+-   NEXT
+-
+-   RETURN cRet
+-
+-FUNCTION UUrlEncode( cString )
+-
+-   LOCAL nI, cI, cRet := ""
+-
+-   FOR nI := 1 TO Len( cString )
+-      cI := SubStr( cString, nI, 1 )
+-      IF cI == " "
+-         cRet += "+"
+-      ELSEIF Asc( cI ) >= 127 .OR. Asc( cI ) <= 31 .OR. cI $ '=&%+'
+-         cRet += "%" + hb_StrToHex( cI )
+-      ELSE
+-         cRet += cI
+-      ENDIF
+-   NEXT
+-
+-   RETURN cRet
+-
+-FUNCTION UUrlDecode( cString )
+-
+-   LOCAL nI
+-
+-   cString := StrTran( cString, "+", " " )
+-   nI := 1
+-   DO WHILE nI <= Len( cString )
+-      nI := hb_At( "%", cString, nI )
+-      IF nI == 0
+-         EXIT
+-      ENDIF
+-      IF Upper( SubStr( cString, nI + 1, 1 ) ) $ "0123456789ABCDEF" .AND. ;
+-            Upper( SubStr( cString, nI + 2, 1 ) ) $ "0123456789ABCDEF"
+-         cString := Stuff( cString, nI, 3, hb_HexToStr( SubStr( cString, nI + 1, 2 ) ) )
+-      ENDIF
+-      nI++
+-   ENDDO
+-
+-   RETURN cString
+-
+ FUNCTION ULink( cText, cUrl )
+
+    RETURN '<a href="' + cUrl + '">' + UHtmlEncode( cText ) + '</a>'
+@@ -1735,3 +1643,773 @@ STATIC FUNCTION SubStrCount( cSub, cString, nStart, nEnd )
     ENDDO
 
     RETURN nCount
@@ -319,12 +519,769 @@ diff --git a/hbhttpd/core.prg b/hbhttpd/core.prg
 +#pragma BEGINDUMP
 +
 +#include "hbapi.h"
++#include "hbapiitm.h"
++#include "hbapistr.h"
 +#include "hbdate.h"
++#include <string.h>
++
++static int s_hex_val( unsigned char ch )
++{
++   if( ch >= '0' && ch <= '9' )
++      return ch - '0';
++   if( ch >= 'A' && ch <= 'F' )
++      return ch - 'A' + 10;
++   if( ch >= 'a' && ch <= 'f' )
++      return ch - 'a' + 10;
++   return -1;
++}
 +
 +HB_FUNC( UHTTPDSENDCLOCK )
 +{
 +   /* Use Harbour's elapsed-time clock, independently of civil clock changes. */
 +   hb_retnint( ( HB_MAXINT ) hb_timerGet() );
++}
++
++HB_FUNC( HBBRIDGEHTTPDIPADDR2NUM )
++{
++   const char * szIP = hb_parc( 1 );
++   HB_SIZE nLen = hb_parclen( 1 );
++   HB_MAXUINT nAddr = 0;
++   int iPart;
++
++   if( szIP == NULL || nLen == 0 )
++   {
++      hb_ret();
++      return;
++   }
++
++   for( iPart = 0; iPart < 4; iPart++ )
++   {
++      unsigned int nVal = 0;
++      int nDigits = 0;
++
++      while( nLen > 0 && *szIP >= '0' && *szIP <= '9' )
++      {
++         nVal = nVal * 10 + ( unsigned int ) ( *szIP - '0' );
++         szIP++;
++         nLen--;
++         nDigits++;
++         if( nDigits > 3 || nVal > 255 )
++         {
++            hb_ret();
++            return;
++         }
++      }
++      if( nDigits == 0 )
++      {
++         hb_ret();
++         return;
++      }
++      if( iPart < 3 )
++      {
++         if( nLen == 0 || *szIP != '.' )
++         {
++            hb_ret();
++            return;
++         }
++         szIP++;
++         nLen--;
++      }
++      nAddr = ( nAddr << 8 ) | nVal;
++   }
++
++   if( nLen != 0 )
++   {
++      hb_ret();
++      return;
++   }
++
++   hb_retnint( ( HB_MAXINT ) nAddr );
++}
++
++HB_FUNC( UOSFILENAME )
++{
++#if HB_OS_PATH_DELIM_CHR != '/'
++   const char * szSrc = hb_parc( 1 );
++   HB_SIZE nLen = hb_parclen( 1 );
++
++   if( szSrc != NULL && nLen > 0 && memchr( szSrc, '/', nLen ) != NULL )
++   {
++      char * szDst = ( char * ) hb_xgrab( nLen + 1 );
++      HB_SIZE i;
++
++      for( i = 0; i < nLen; i++ )
++         szDst[ i ] = ( szSrc[ i ] == '/' ) ? HB_OS_PATH_DELIM_CHR : szSrc[ i ];
++      szDst[ nLen ] = '\0';
++      hb_retclen_buffer( szDst, nLen );
++      return;
++   }
++#endif
++   hb_itemReturn( hb_param( 1, HB_IT_ANY ) );
++}
++
++HB_FUNC( UHTMLENCODE )
++{
++   const char * szSrc = hb_parc( 1 );
++   HB_SIZE nLen = hb_parclen( 1 );
++   HB_SIZE nOutLen = 0, i;
++   char * szDst, * p;
++
++   if( szSrc == NULL || nLen == 0 )
++   {
++      hb_retc_null();
++      return;
++   }
++
++   for( i = 0; i < nLen; i++ )
++   {
++      switch( szSrc[ i ] )
++      {
++         case '<':
++         case '>':
++            nOutLen += 4;
++            break;
++         case '&':
++            nOutLen += 5;
++            break;
++         case '"':
++            nOutLen += 6;
++            break;
++         default:
++            nOutLen++;
++            break;
++      }
++   }
++
++   if( nOutLen == nLen )
++   {
++      hb_retclen( szSrc, nLen );
++      return;
++   }
++
++   szDst = ( char * ) hb_xgrab( nOutLen + 1 );
++   p = szDst;
++   for( i = 0; i < nLen; i++ )
++   {
++      switch( szSrc[ i ] )
++      {
++         case '<':
++            memcpy( p, "&lt;", 4 );
++            p += 4;
++            break;
++         case '>':
++            memcpy( p, "&gt;", 4 );
++            p += 4;
++            break;
++         case '&':
++            memcpy( p, "&amp;", 5 );
++            p += 5;
++            break;
++         case '"':
++            memcpy( p, "&quot;", 6 );
++            p += 6;
++            break;
++         default:
++            *p++ = szSrc[ i ];
++            break;
++      }
++   }
++   *p = '\0';
++   hb_retclen_buffer( szDst, nOutLen );
++}
++
++HB_FUNC( UURLENCODE )
++{
++   static const char s_hex[] = "0123456789ABCDEF";
++   const char * szSrc = hb_parc( 1 );
++   HB_SIZE nLen = hb_parclen( 1 );
++   HB_SIZE nOutLen = 0, i;
++   char * szDst, * p;
++
++   if( szSrc == NULL || nLen == 0 )
++   {
++      hb_retc_null();
++      return;
++   }
++
++   for( i = 0; i < nLen; i++ )
++   {
++      unsigned char ch = ( unsigned char ) szSrc[ i ];
++      if( ch == ' ' )
++         nOutLen++;
++      else if( ch >= 127 || ch <= 31 || ch == '=' || ch == '&' || ch == '%' || ch == '+' )
++         nOutLen += 3;
++      else
++         nOutLen++;
++   }
++
++   szDst = ( char * ) hb_xgrab( nOutLen + 1 );
++   p = szDst;
++   for( i = 0; i < nLen; i++ )
++   {
++      unsigned char ch = ( unsigned char ) szSrc[ i ];
++      if( ch == ' ' )
++         *p++ = '+';
++      else if( ch >= 127 || ch <= 31 || ch == '=' || ch == '&' || ch == '%' || ch == '+' )
++      {
++         *p++ = '%';
++         *p++ = s_hex[ ch >> 4 ];
++         *p++ = s_hex[ ch & 0x0F ];
++      }
++      else
++         *p++ = ( char ) ch;
++   }
++   *p = '\0';
++   hb_retclen_buffer( szDst, nOutLen );
++}
++
++HB_FUNC( UURLDECODE )
++{
++   const char * szSrc = hb_parc( 1 );
++   HB_SIZE nLen = hb_parclen( 1 );
++   HB_SIZE i, j = 0;
++   char * szDst;
++
++   if( szSrc == NULL || nLen == 0 )
++   {
++      hb_retc_null();
++      return;
++   }
++
++   szDst = ( char * ) hb_xgrab( nLen + 1 );
++   for( i = 0; i < nLen; i++ )
++   {
++      if( szSrc[ i ] == '+' )
++         szDst[ j++ ] = ' ';
++      else if( szSrc[ i ] == '%' && i + 2 < nLen )
++      {
++         int iHi = s_hex_val( ( unsigned char ) szSrc[ i + 1 ] );
++         int iLo = s_hex_val( ( unsigned char ) szSrc[ i + 2 ] );
++         if( iHi >= 0 && iLo >= 0 )
++         {
++            szDst[ j++ ] = ( char ) ( ( iHi << 4 ) | iLo );
++            i += 2;
++         }
++         else
++            szDst[ j++ ] = '%';
++      }
++      else
++         szDst[ j++ ] = szSrc[ i ];
++   }
++   szDst[ j ] = '\0';
++   hb_retclen_buffer( szDst, j );
++}
++
++static HB_SIZE s_url_decode_to_buf( const char * szSrc, HB_SIZE nLen, char * szDst )
++{
++   HB_SIZE i, j = 0;
++
++   for( i = 0; i < nLen; i++ )
++   {
++      if( szSrc[ i ] == '+' )
++         szDst[ j++ ] = ' ';
++      else if( szSrc[ i ] == '%' && i + 2 < nLen )
++      {
++         int iHi = s_hex_val( ( unsigned char ) szSrc[ i + 1 ] );
++         int iLo = s_hex_val( ( unsigned char ) szSrc[ i + 2 ] );
++         if( iHi >= 0 && iLo >= 0 )
++         {
++            szDst[ j++ ] = ( char ) ( ( iHi << 4 ) | iLo );
++            i += 2;
++         }
++         else
++            szDst[ j++ ] = '%';
++      }
++      else
++         szDst[ j++ ] = szSrc[ i ];
++   }
++   szDst[ j ] = '\0';
++   return j;
++}
++
++static void s_hash_set_cl( PHB_ITEM pHash, const char * szKey, HB_SIZE nKeyLen, const char * szVal, HB_SIZE nValLen )
++{
++   PHB_ITEM pKey = hb_itemPutCL( NULL, szKey, nKeyLen );
++   PHB_ITEM pVal = hb_itemPutCL( NULL, szVal, nValLen );
++   hb_hashAdd( pHash, pKey, pVal );
++   hb_itemRelease( pKey );
++   hb_itemRelease( pVal );
++}
++
++static void s_hash_set_upper_cl( PHB_ITEM pHash, const char * szKey, HB_SIZE nKeyLen, const char * szVal, HB_SIZE nValLen )
++{
++   char * szUpper = ( char * ) hb_xgrab( nKeyLen + 1 );
++   HB_SIZE i;
++   PHB_ITEM pKey, pVal;
++
++   for( i = 0; i < nKeyLen; i++ )
++   {
++      unsigned char ch = ( unsigned char ) szKey[ i ];
++      szUpper[ i ] = ( ch >= 'a' && ch <= 'z' ) ? ( char ) ( ch - 'a' + 'A' ) : ( char ) ch;
++   }
++   szUpper[ nKeyLen ] = '\0';
++
++   pKey = hb_itemPutCLPtr( NULL, szUpper, nKeyLen );
++   pVal = hb_itemPutCL( NULL, szVal, nValLen );
++   hb_hashAdd( pHash, pKey, pVal );
++   hb_itemRelease( pKey );
++   hb_itemRelease( pVal );
++}
++
++static HB_BOOL s_ascii_ieq( const char * a, HB_SIZE nLen, const char * b )
++{
++   HB_SIZE i;
++   for( i = 0; i < nLen; i++ )
++   {
++      unsigned char ca = ( unsigned char ) a[ i ];
++      unsigned char cb = ( unsigned char ) b[ i ];
++      if( cb == '\0' )
++         return HB_FALSE;
++      if( ca >= 'a' && ca <= 'z' )
++         ca = ( unsigned char ) ( ca - 'a' + 'A' );
++      if( ca != cb )
++         return HB_FALSE;
++   }
++   return b[ nLen ] == '\0';
++}
++
++static const char * s_memmem_crlf( const char * pHay, HB_SIZE nHayLen, const char * pNeedle, HB_SIZE nNeedleLen )
++{
++   const char * p = pHay;
++   const char * pLimit;
++
++   if( nNeedleLen == 0 )
++      return pHay;
++   if( nHayLen < nNeedleLen )
++      return NULL;
++
++   pLimit = pHay + nHayLen - nNeedleLen + 1;
++   while( p < pLimit )
++   {
++      const char * pMatch = ( const char * ) memchr( p, ( unsigned char ) pNeedle[ 0 ], ( size_t ) ( pLimit - p ) );
++      if( pMatch == NULL )
++         return NULL;
++      if( nNeedleLen == 1 || memcmp( pMatch + 1, pNeedle + 1, nNeedleLen - 1 ) == 0 )
++         return pMatch;
++      p = pMatch + 1;
++   }
++   return NULL;
++}
++
++static void s_parse_query_pairs( const char * szData, HB_SIZE nLen, PHB_ITEM pHash, HB_BOOL lUtf8 )
++{
++   const char * p = szData;
++   const char * pEnd = szData + nLen;
++
++   while( p < pEnd )
++   {
++      const char * pAmp = ( const char * ) memchr( p, '&', ( size_t ) ( pEnd - p ) );
++      const char * pPartEnd = ( pAmp != NULL ) ? pAmp : pEnd;
++      HB_SIZE nPartLen = ( HB_SIZE ) ( pPartEnd - p );
++      const char * pEq = ( nPartLen > 0 ) ? ( const char * ) memchr( p, '=', nPartLen ) : NULL;
++
++      if( pEq != NULL )
++      {
++         HB_SIZE nKeyRaw = ( HB_SIZE ) ( pEq - p );
++         HB_SIZE nValRaw = ( HB_SIZE ) ( pPartEnd - ( pEq + 1 ) );
++         char * szKeyDec = ( char * ) hb_xgrab( nKeyRaw + 1 );
++         char * szValDec = ( char * ) hb_xgrab( nValRaw + 1 );
++         HB_SIZE nKeyDec = s_url_decode_to_buf( p, nKeyRaw, szKeyDec );
++         HB_SIZE nValDec = s_url_decode_to_buf( pEq + 1, nValRaw, szValDec );
++         PHB_ITEM pKey = hb_itemNew( NULL );
++         PHB_ITEM pVal = hb_itemNew( NULL );
++
++         if( lUtf8 )
++         {
++            hb_itemPutStrLenUTF8( pKey, szKeyDec, nKeyDec );
++            hb_itemPutStrLenUTF8( pVal, szValDec, nValDec );
++            hb_xfree( szKeyDec );
++            hb_xfree( szValDec );
++         }
++         else
++         {
++            hb_itemPutCLPtr( pKey, szKeyDec, nKeyDec );
++            hb_itemPutCLPtr( pVal, szValDec, nValDec );
++         }
++         hb_hashAdd( pHash, pKey, pVal );
++         hb_itemRelease( pKey );
++         hb_itemRelease( pVal );
++      }
++      else if( nPartLen > 0 )
++      {
++         char * szKeyDec = ( char * ) hb_xgrab( nPartLen + 1 );
++         HB_SIZE nKeyDec = s_url_decode_to_buf( p, nPartLen, szKeyDec );
++         PHB_ITEM pKey = hb_itemNew( NULL );
++         PHB_ITEM pNil = hb_itemNew( NULL );
++
++         if( lUtf8 )
++         {
++            hb_itemPutStrLenUTF8( pKey, szKeyDec, nKeyDec );
++            hb_xfree( szKeyDec );
++         }
++         else
++            hb_itemPutCLPtr( pKey, szKeyDec, nKeyDec );
++
++         hb_hashAdd( pHash, pKey, pNil );
++         hb_itemRelease( pKey );
++         hb_itemRelease( pNil );
++      }
++
++      if( pAmp == NULL )
++         break;
++      p = pAmp + 1;
++   }
++}
++
++HB_FUNC( PARSEREQUESTHEADERC )
++{
++   const char * szReq = hb_parc( 1 );
++   HB_SIZE nReqLen = hb_parclen( 1 );
++   const char * szEnd = hb_parc( 2 );
++   HB_SIZE nEndLen = hb_parclen( 2 );
++   PHB_ITEM pServer = hb_param( 3, HB_IT_HASH );
++   PHB_ITEM pCookie = hb_param( 4, HB_IT_HASH );
++   PHB_ITEM pGet = hb_param( 5, HB_IT_HASH );
++
++   const char * pHeaderEnd, * pAfter, * pLine, * pHeaderLimit;
++   HB_SIZE nAfterLen, nLineLen;
++   const char * pSp1, * pSp2, * pSp3;
++   const char * szMethod, * szUri, * szProto;
++   HB_SIZE nMethodLen, nUriLen, nProtoLen;
++   HB_BOOL lHasContentLength = HB_FALSE;
++   HB_MAXINT nContentLength = 0;
++
++   if( szReq == NULL || szEnd == NULL || nEndLen == 0 || pServer == NULL || pCookie == NULL || pGet == NULL )
++   {
++      hb_ret();
++      return;
++   }
++
++   pHeaderEnd = s_memmem_crlf( szReq, nReqLen, szEnd, nEndLen );
++   if( pHeaderEnd == NULL )
++   {
++      hb_ret();
++      return;
++   }
++
++   pAfter = pHeaderEnd + nEndLen;
++   nAfterLen = nReqLen - ( HB_SIZE ) ( pAfter - szReq );
++   pHeaderLimit = pHeaderEnd;
++
++   /* Parse request line */
++   {
++      const char * pCrLf = s_memmem_crlf( szReq, ( HB_SIZE ) ( pHeaderLimit - szReq ), "\r\n", 2 );
++      const char * pLineEnd = ( pCrLf != NULL ) ? pCrLf : pHeaderLimit;
++      nLineLen = ( HB_SIZE ) ( pLineEnd - szReq );
++
++      s_hash_set_cl( pServer, "REQUEST_ALL", 11, szReq, nLineLen );
++
++      pSp1 = ( const char * ) memchr( szReq, ' ', nLineLen );
++      if( pSp1 == NULL )
++      {
++         s_hash_set_cl( pServer, "REQUEST_METHOD", 14, szReq, nLineLen );
++         s_hash_set_cl( pServer, "REQUEST_URI", 11, "", 0 );
++         s_hash_set_cl( pServer, "SERVER_PROTOCOL", 15, "", 0 );
++         hb_storclen( pAfter, nAfterLen, 1 );
++         hb_ret();
++         return;
++      }
++
++      szMethod = szReq;
++      nMethodLen = ( HB_SIZE ) ( pSp1 - szReq );
++      pSp2 = ( const char * ) memchr( pSp1 + 1, ' ', ( size_t ) ( pLineEnd - ( pSp1 + 1 ) ) );
++      if( pSp2 == NULL )
++      {
++         szUri = pSp1 + 1;
++         nUriLen = ( HB_SIZE ) ( pLineEnd - szUri );
++         s_hash_set_cl( pServer, "REQUEST_METHOD", 14, szMethod, nMethodLen );
++         s_hash_set_cl( pServer, "REQUEST_URI", 11, szUri, nUriLen );
++         s_hash_set_cl( pServer, "SERVER_PROTOCOL", 15, "", 0 );
++         hb_storclen( pAfter, nAfterLen, 1 );
++         hb_ret();
++         return;
++      }
++
++      szUri = pSp1 + 1;
++      nUriLen = ( HB_SIZE ) ( pSp2 - szUri );
++      pSp3 = ( const char * ) memchr( pSp2 + 1, ' ', ( size_t ) ( pLineEnd - ( pSp2 + 1 ) ) );
++      szProto = pSp2 + 1;
++      nProtoLen = ( pSp3 != NULL ) ? ( HB_SIZE ) ( pSp3 - szProto ) : ( HB_SIZE ) ( pLineEnd - szProto );
++
++      s_hash_set_cl( pServer, "REQUEST_METHOD", 14, szMethod, nMethodLen );
++      s_hash_set_cl( pServer, "REQUEST_URI", 11, szUri, nUriLen );
++      s_hash_set_cl( pServer, "SERVER_PROTOCOL", 15, szProto, nProtoLen );
++
++      if( pSp3 != NULL || nProtoLen < 5 || memcmp( szProto, "HTTP/", 5 ) != 0 )
++      {
++         hb_storclen( pAfter, nAfterLen, 1 );
++         hb_ret();
++         return;
++      }
++
++      pLine = ( pCrLf != NULL ) ? pCrLf + 2 : pHeaderLimit;
++   }
++
++   /* Fix invalid queries: bind to root and split SCRIPT_NAME / QUERY_STRING */
++   {
++      const char * szFullUri = szUri;
++      HB_SIZE nFullUriLen = nUriLen;
++      char * szPrefixed = NULL;
++      const char * pQ;
++
++      if( nUriLen == 0 || szUri[ 0 ] != '/' )
++      {
++         szPrefixed = ( char * ) hb_xgrab( nUriLen + 2 );
++         szPrefixed[ 0 ] = '/';
++         if( nUriLen > 0 )
++            memcpy( szPrefixed + 1, szUri, nUriLen );
++         szPrefixed[ nUriLen + 1 ] = '\0';
++         szFullUri = szPrefixed;
++         nFullUriLen = nUriLen + 1;
++         s_hash_set_cl( pServer, "REQUEST_URI", 11, szFullUri, nFullUriLen );
++      }
++
++      pQ = ( const char * ) memchr( szFullUri, '?', nFullUriLen );
++      if( pQ != NULL )
++      {
++         HB_SIZE nScriptLen = ( HB_SIZE ) ( pQ - szFullUri );
++         HB_SIZE nQueryLen = nFullUriLen - nScriptLen - 1;
++         s_hash_set_cl( pServer, "SCRIPT_NAME", 11, szFullUri, nScriptLen );
++         s_hash_set_cl( pServer, "QUERY_STRING", 12, pQ + 1, nQueryLen );
++      }
++      else
++      {
++         s_hash_set_cl( pServer, "SCRIPT_NAME", 11, szFullUri, nFullUriLen );
++         s_hash_set_cl( pServer, "QUERY_STRING", 12, "", 0 );
++      }
++
++      if( szPrefixed != NULL )
++         hb_xfree( szPrefixed );
++   }
++
++   /* Initialize standard HTTP_* keys */
++   s_hash_set_cl( pServer, "HTTP_ACCEPT", 11, "", 0 );
++   s_hash_set_cl( pServer, "HTTP_ACCEPT_CHARSET", 19, "", 0 );
++   s_hash_set_cl( pServer, "HTTP_ACCEPT_ENCODING", 20, "", 0 );
++   s_hash_set_cl( pServer, "HTTP_ACCEPT_LANGUAGE", 20, "", 0 );
++   s_hash_set_cl( pServer, "HTTP_CONNECTION", 15, "", 0 );
++   s_hash_set_cl( pServer, "HTTP_HOST", 9, "", 0 );
++   s_hash_set_cl( pServer, "HTTP_KEEP_ALIVE", 15, "", 0 );
++   s_hash_set_cl( pServer, "HTTP_REFERER", 12, "", 0 );
++   s_hash_set_cl( pServer, "HTTP_USER_AGENT", 15, "", 0 );
++
++   /* Parse header lines */
++   while( pLine < pHeaderLimit )
++   {
++      const char * pCrLf = s_memmem_crlf( pLine, ( HB_SIZE ) ( pHeaderLimit - pLine ), "\r\n", 2 );
++      const char * pLineEnd = ( pCrLf != NULL ) ? pCrLf : pHeaderLimit;
++      const char * pColon;
++
++      if( pLine == pLineEnd )
++         break;
++
++      pColon = ( const char * ) memchr( pLine, ':', ( size_t ) ( pLineEnd - pLine ) );
++      if( pColon != NULL )
++      {
++         const char * szName = pLine;
++         HB_SIZE nNameLen = ( HB_SIZE ) ( pColon - pLine );
++         const char * szVal = pColon + 1;
++         const char * szValEnd = pLineEnd;
++         HB_SIZE nValLen;
++
++         while( szVal < szValEnd && *szVal == ' ' )
++            szVal++;
++         while( szValEnd > szVal && szValEnd[ -1 ] == ' ' )
++            szValEnd--;
++         nValLen = ( HB_SIZE ) ( szValEnd - szVal );
++
++         if( s_ascii_ieq( szName, nNameLen, "COOKIE" ) )
++         {
++            const char * pSemi;
++            HB_SIZE nSubLen;
++            const char * pEq;
++
++            s_hash_set_cl( pServer, "HTTP_COOKIE", 11, szVal, nValLen );
++            pSemi = ( const char * ) memchr( szVal, ';', nValLen );
++            nSubLen = ( pSemi != NULL ) ? ( HB_SIZE ) ( pSemi - szVal ) : nValLen;
++            pEq = ( const char * ) memchr( szVal, '=', nSubLen );
++            if( pEq != NULL )
++               s_hash_set_upper_cl( pCookie, szVal, ( HB_SIZE ) ( pEq - szVal ), pEq + 1, nSubLen - ( HB_SIZE ) ( pEq - szVal ) - 1 );
++         }
++         else if( s_ascii_ieq( szName, nNameLen, "ACCEPT-ENCODING" ) )
++         {
++            PHB_ITEM pKey = hb_itemPutCL( NULL, "HTTP_ACCEPT_ENCODING", 20 );
++            PHB_ITEM pCur = hb_hashGetItemPtr( pServer, pKey, HB_HASH_AUTOADD_NEVER );
++            if( pCur != NULL && hb_itemGetCLen( pCur ) > 0 )
++            {
++               HB_SIZE nCurLen = hb_itemGetCLen( pCur );
++               const char * szCur = hb_itemGetCPtr( pCur );
++               char * szNew = ( char * ) hb_xgrab( nCurLen + 1 + nValLen + 1 );
++               PHB_ITEM pNew;
++               memcpy( szNew, szCur, nCurLen );
++               szNew[ nCurLen ] = ',';
++               memcpy( szNew + nCurLen + 1, szVal, nValLen );
++               szNew[ nCurLen + 1 + nValLen ] = '\0';
++               pNew = hb_itemPutCLPtr( NULL, szNew, nCurLen + 1 + nValLen );
++               hb_hashAdd( pServer, pKey, pNew );
++               hb_itemRelease( pNew );
++            }
++            else
++            {
++               PHB_ITEM pNew = hb_itemPutCL( NULL, szVal, nValLen );
++               hb_hashAdd( pServer, pKey, pNew );
++               hb_itemRelease( pNew );
++            }
++            hb_itemRelease( pKey );
++         }
++         else if( s_ascii_ieq( szName, nNameLen, "TRANSFER-ENCODING" ) )
++         {
++            hb_storclen( pAfter, nAfterLen, 1 );
++            hb_ret();
++            return;
++         }
++         else if( s_ascii_ieq( szName, nNameLen, "CONTENT-LENGTH" ) )
++         {
++            HB_SIZE k;
++            if( lHasContentLength || nValLen == 0 )
++            {
++               hb_storclen( pAfter, nAfterLen, 1 );
++               hb_ret();
++               return;
++            }
++            nContentLength = 0;
++            for( k = 0; k < nValLen; k++ )
++            {
++               if( szVal[ k ] < '0' || szVal[ k ] > '9' )
++               {
++                  hb_storclen( pAfter, nAfterLen, 1 );
++                  hb_ret();
++                  return;
++               }
++               if( ( HB_MAXUINT ) nContentLength >
++                   ( ( ( ~( HB_MAXUINT ) 0 ) >> 1 ) - ( HB_MAXUINT ) ( szVal[ k ] - '0' ) ) / 10 )
++               {
++                  hb_storclen( pAfter, nAfterLen, 1 );
++                  hb_ret();
++                  return;
++               }
++               nContentLength = nContentLength * 10 + ( szVal[ k ] - '0' );
++            }
++            lHasContentLength = HB_TRUE;
++         }
++         else if( s_ascii_ieq( szName, nNameLen, "CONTENT-TYPE" ) )
++         {
++            s_hash_set_cl( pServer, "CONTENT_TYPE", 12, szVal, nValLen );
++         }
++         else
++         {
++            char * szKey = ( char * ) hb_xgrab( 5 + nNameLen + 1 );
++            HB_SIZE k;
++            PHB_ITEM pKey, pVal;
++
++            memcpy( szKey, "HTTP_", 5 );
++            for( k = 0; k < nNameLen; k++ )
++            {
++               unsigned char ch = ( unsigned char ) szName[ k ];
++               if( ch == '-' )
++                  szKey[ 5 + k ] = '_';
++               else if( ch >= 'a' && ch <= 'z' )
++                  szKey[ 5 + k ] = ( char ) ( ch - 'a' + 'A' );
++               else
++                  szKey[ 5 + k ] = ( char ) ch;
++            }
++            szKey[ 5 + nNameLen ] = '\0';
++
++            pKey = hb_itemPutCLPtr( NULL, szKey, 5 + nNameLen );
++            pVal = hb_itemPutCL( NULL, szVal, nValLen );
++            hb_hashAdd( pServer, pKey, pVal );
++            hb_itemRelease( pKey );
++            hb_itemRelease( pVal );
++         }
++      }
++
++      if( pCrLf == NULL )
++         break;
++      pLine = pCrLf + 2;
++   }
++
++   /* Parse QUERY_STRING into get hash */
++   {
++      PHB_ITEM pQsKey = hb_itemPutCL( NULL, "QUERY_STRING", 12 );
++      PHB_ITEM pQsVal = hb_hashGetItemPtr( pServer, pQsKey, HB_HASH_AUTOADD_NEVER );
++      if( pQsVal != NULL && hb_itemGetCLen( pQsVal ) > 0 )
++         s_parse_query_pairs( hb_itemGetCPtr( pQsVal ), hb_itemGetCLen( pQsVal ), pGet, HB_FALSE );
++      hb_itemRelease( pQsKey );
++   }
++
++   hb_storclen( pAfter, nAfterLen, 1 );
++   hb_retnint( nContentLength );
++}
++
++HB_FUNC( PARSEFORMURLENCODED )
++{
++   const char * szBody = hb_parc( 1 );
++   HB_SIZE nLen = hb_parclen( 1 );
++   PHB_ITEM pPost = hb_param( 2, HB_IT_HASH );
++   HB_BOOL lUtf8 = hb_parl( 3 );
++
++   if( szBody != NULL && nLen > 0 && pPost != NULL )
++      s_parse_query_pairs( szBody, nLen, pPost, lUtf8 );
++}
++
++HB_FUNC( BUILDRESPONSEHEADERS )
++{
++   const char * szHead = hb_parc( 1 );
++   HB_SIZE nHeadLen = hb_parclen( 1 );
++   PHB_ITEM pHeaders = hb_param( 2, HB_IT_ARRAY );
++   HB_SIZE nCount, i, nTotalLen = nHeadLen + 2;
++   char * szOut, * p;
++
++   if( szHead == NULL )
++      nHeadLen = 0;
++
++   nCount = ( pHeaders != NULL ) ? hb_arrayLen( pHeaders ) : 0;
++   for( i = 1; i <= nCount; i++ )
++   {
++      PHB_ITEM pPair = hb_arrayGetItemPtr( pHeaders, i );
++      if( pPair != NULL && HB_IS_ARRAY( pPair ) && hb_arrayLen( pPair ) >= 2 )
++         nTotalLen += hb_arrayGetCLen( pPair, 1 ) + 2 + hb_arrayGetCLen( pPair, 2 ) + 2;
++   }
++
++   szOut = ( char * ) hb_xgrab( nTotalLen + 1 );
++   p = szOut;
++   if( nHeadLen > 0 )
++   {
++      memcpy( p, szHead, nHeadLen );
++      p += nHeadLen;
++   }
++   for( i = 1; i <= nCount; i++ )
++   {
++      PHB_ITEM pPair = hb_arrayGetItemPtr( pHeaders, i );
++      if( pPair != NULL && HB_IS_ARRAY( pPair ) && hb_arrayLen( pPair ) >= 2 )
++      {
++         HB_SIZE nK = hb_arrayGetCLen( pPair, 1 );
++         HB_SIZE nV = hb_arrayGetCLen( pPair, 2 );
++         if( nK > 0 )
++         {
++            memcpy( p, hb_arrayGetCPtr( pPair, 1 ), nK );
++            p += nK;
++         }
++         *p++ = ':';
++         *p++ = ' ';
++         if( nV > 0 )
++         {
++            memcpy( p, hb_arrayGetCPtr( pPair, 2 ), nV );
++            p += nV;
++         }
++         *p++ = '\r';
++         *p++ = '\n';
++      }
++   }
++   *p++ = '\r';
++   *p++ = '\n';
++   *p = '\0';
++
++   hb_retclen_buffer( szOut, ( HB_SIZE ) ( p - szOut ) );
 +}
 +
 +#pragma ENDDUMP

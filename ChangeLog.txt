@@ -5,6 +5,14 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Organize bilingual documentation and prepare the Wiki portal)"
  */
 
+2026-11-18 21:35 UTC naldodj (Continue portable credential protection)
+  + Implement the preliminary authenticated credential provider and SQL profile
+    resolution with Windows and Linux synthetic probes and local MSSQL evidence.
+  ; Keep production identity, management and remaining acceptance work open.
+  * Use a dedicated branch for each WIP package and enable Harbour -gc3 for
+    project executable sources without overriding caller compiler flags.
+  ! Bound HTTP Content-Length parsing and retain character-aware template logic.
+
 2026-11-06 18:19 UTC naldodj (Plan portable SQL credential protection)
   + Prepare package 004 for a portable server credential provider and local
     utility, with explicit Windows/Linux and security acceptance criteria.

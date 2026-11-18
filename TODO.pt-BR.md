@@ -778,12 +778,12 @@ locais/remotos em blocos, com integridade binária, erros e liberação verifica
   TCP/HTTP, com origem em temporária preenchida e pertencente ao Protheus. O
   dashboard de origem cadastrada foi aceito separadamente; a conciliação das
   regras históricas e indicadores segue futura. Veja o [pacote 003](docs/validation/package-003.pt-BR.md).
-- [ ] Quando houver movimentos adequados, validar visualmente as evidências de
-  transferência da SRE no exemplo opcional de turnover por TCP e HTTP; conciliar
-  regras históricas e cobertura separadamente. A fixture controlada passou, mas
-  a SRE de desenvolvimento estava vazia. Essa validação específica da aplicação
-  não é requisito de serviço genérico do hbBridge. Veja a
-  [reconciliação](docs/turnover-reconciliation.pt-BR.md).
+- [x] Validar visualmente as evidências de transferência da SRE no exemplo
+  opcional de turnover por TCP e HTTP para o movimento observado. Veja o
+  [pacote 003](docs/validation/package-003.pt-BR.md).
+- [ ] Conciliar regras históricas de transferência e cobertura das evidências
+  para outros movimentos. Esse trabalho específico da aplicação não é requisito
+  de serviço genérico do hbBridge. Veja a [reconciliação](docs/turnover-reconciliation.pt-BR.md).
 - [ ] Estender os exemplos nativos baseados no dicionário com campos específicos
   e JOINs por TCP/HTTP gzip. Definir esquema/mapa de origem por alias de saída
   único, origem SX3 correta e campos calculados explícitos; testar ordenação/
@@ -941,6 +941,9 @@ homologação operacional do conjunto.
   confiáveis e rotação; validar interoperabilidade com `tJWT` (17.3.0.19+ documentado).
 - [ ] Definir emissão/renovação de credenciais, autorização por serviço/tenant e
   revalidação em conexões persistentes; proibir tokens e segredos nos logs.
+  Avaliar identidade por cliente, mTLS ou tokens curtos com escopo e TOTP
+  interativo opcional sem exportar segredos de destino; NETIO exige desenho
+  próprio de gateway/protocolo. Veja [autenticação de clientes](docs/credentials.pt-BR.md#autenticação-futura-de-clientes-e-credenciais-no-servidor).
 - [ ] Testar assinatura/chave inválida, audiência errada, expiração, tenant não
   autorizado e certificado inválido. JWT assinado exige transporte protegido;
   decodificar claims não equivale a autenticar a chamada.
