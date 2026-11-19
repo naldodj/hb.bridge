@@ -386,6 +386,19 @@ pré-requisito da entrega atual do provedor local de credenciais SQL.
 
 ## Utilitário de administração
 
+Para criar localmente uma chave aleatória do provedor de arquivos:
+
+```text
+hbbridge --credential-create-key --key=<caminho-do-arquivo-de-chave>
+```
+
+O diretório pai deve existir. O provedor restringe o acesso e publica a chave
+com exclusividade, sem substituir arquivo existente. O comando não inicia
+listeners e retorna somente PASS/FAIL. Após falha, verifique o destino e os
+eventuais arquivos temporários privados antes de tentar novamente: um erro de
+limpeza pode ocorrer depois da publicação. Siga as orientações de recuperação
+abaixo. O comando cria apenas a chave; não cria nem altera credenciais.
+
 O primeiro teste local de conexão aceita um perfil MSSQL protegido existente:
 
 ```text

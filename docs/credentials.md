@@ -382,6 +382,19 @@ not a prerequisite for the current local SQL credential-provider slice.
 
 ## Management utility
 
+Create a new random file-provider key locally:
+
+```text
+hbbridge --credential-create-key --key=<key-file-path>
+```
+
+The parent directory must already exist. The provider restricts access and
+publishes the key exclusively, so it never replaces an existing file. The
+command starts no listeners and returns only PASS/FAIL. After failure, inspect
+the destination and any private staged files before retrying: a cleanup error
+can occur after the key was published. Follow the recovery guidance below.
+The command creates a key only; it does not create or modify a credential.
+
 The initial local connection test accepts an existing protected MSSQL profile:
 
 ```text

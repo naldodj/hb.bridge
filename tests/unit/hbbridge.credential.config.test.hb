@@ -2,24 +2,38 @@
 
 PROCEDURE HBBridgeCredentialConfigTests( nFailures, nChecks )
 
-    LOCAL cError, cEnvelope, cINI, cKeyPath, cConfigPath, cJSONPath, cConnection, cInfo
+    LOCAL cError, cEnvelope, cINI, cKeyPath, cCommandKeyPath, cKeyBytes, cConfigPath, cJSONPath, cConnection, cInfo
     LOCAL cProfile := "MSSQL/pData", cId := "example", cKeyId := "primary"
     LOCAL cUser := "fixture}user", cPassword := " synthetic;} "
 
     LOCAL hConfig, hNormalized, hProfile, hJSON, hBound, hBad, hCredentials, hKeys, hRegistry, hResult
 
-    LOCAL lKeyCreated := .F., lINICreated := .F., lJSONCreated := .F.
+    LOCAL lCommandFixture := .F., lKeyCreated := .F., lINICreated := .F., lJSONCreated := .F.
 
     LOCAL oPool
 
     cKeyPath := HBBridgeAbsolutePath( "credential-config-fixture.key", hb_cwd() )
+    cCommandKeyPath := HBBridgeAbsolutePath( "credential-command-fixture.key", hb_cwd() )
     cConfigPath := HBBridgeAbsolutePath( "credential-config-fixture.ini", hb_cwd() )
     cJSONPath := HBBridgeAbsolutePath( "credential-config-fixture.json", hb_cwd() )
     BEGIN SEQUENCE WITH __BreakBlock()
-        IF hb_FileExists( cConfigPath ) .OR. hb_FileExists( cJSONPath ) .OR. hb_FileExists( cKeyPath )
+        IF hb_FileExists( cConfigPath ) .OR. hb_FileExists( cJSONPath ) .OR. ;
+            hb_FileExists( cKeyPath ) .OR. hb_FileExists( cCommandKeyPath )
             M1Assert( .F., "SQL credential synthetic fixture paths are unused", @nFailures, @nChecks )
             Break( NIL )
         ENDIF
+        lCommandFixture := .T.
+        M1Assert( ! HBBridgeCredentialKeyCommand( { "--credential-create-key", "--key=" + cCommandKeyPath, ;
+            "--password=synthetic-secret" } ) .AND. ! hb_FileExists( cCommandKeyPath ), ;
+            "key command rejects extra secret arguments before file creation", @nFailures, @nChecks )
+        M1Assert( HBBridgeCredentialKeyCommand( { "--credential-create-key", "--key=" + cCommandKeyPath } ), ;
+            "key command creates a private key", @nFailures, @nChecks )
+        cKeyBytes := hb_MemoRead( cCommandKeyPath )
+        M1Assert( hb_BLen( cKeyBytes ) == 32 .AND. ;
+            ! HBBridgeCredentialKeyCommand( { "--credential-create-key", "--key=" + cCommandKeyPath } ) .AND. ;
+            hb_MemoRead( cCommandKeyPath ) == cKeyBytes, ;
+            "key command never replaces an existing key", @nFailures, @nChecks )
+        cKeyBytes := NIL
         lKeyCreated := HBBridgeCredentialCreateKey( cKeyPath, @cError )
         IF ! lKeyCreated
             M1Assert( .F., "SQL credential synthetic key is created", @nFailures, @nChecks )
@@ -155,6 +169,9 @@ PROCEDURE HBBridgeCredentialConfigTests( nFailures, nChecks )
         M1Assert( hBound == NIL .AND. cError == "Invalid credential configuration.", ;
             "unsupported key provider fails closed", @nFailures, @nChecks )
     ALWAYS
+        IF lCommandFixture .AND. hb_FileExists( cCommandKeyPath )
+            FErase( cCommandKeyPath )
+        ENDIF
         IF lKeyCreated
             FErase( cKeyPath )
         ENDIF

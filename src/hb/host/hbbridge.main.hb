@@ -23,6 +23,15 @@ PROCEDURE Main( ... )
     LOCAL nKey
     LOCAL nInkeyOption:=hb_bitOr( INKEY_ALL, HB_INKEY_GTEVENT )
 
+    IF AScan( aArgs, {| cArg | cArg == "--credential-create-key" } ) > 0
+        IF HBBridgeCredentialKeyCommand( aArgs )
+            OutStd( "Credential key creation: PASS" + cHBEOL )
+        ELSE
+            OutErr( "Credential key creation: FAIL" + cHBEOL )
+            ErrorLevel( 1 )
+        ENDIF
+        RETURN
+    ENDIF
     IF AScan( aArgs, {| cArg | cArg == "--credential-test" } ) > 0
         IF HBBridgeCredentialTestCommand( aArgs )
             OutStd( "Credential connection test: PASS" + cHBEOL )

@@ -2,15 +2,16 @@
 
 PROCEDURE HBBridgeMSSQLCredentialTest( cConfigPath, cProfile, cExecutable )
 
-    LOCAL cCommand, cError, cKeyPath, cEnvelope, cUser, cPassword, cFixturePath, cOutput, cStderr
+    LOCAL cCommand, cError, cKeyPath, cCLIKeyPath, cKeyBytes, cEnvelope, cUser, cPassword, cFixturePath, cOutput, cStderr
 
     LOCAL hDefaults, hInput, hRaw, hProtected, hFixture, hConfig, hProfiles, hRegistry, hResult
 
-    LOCAL lSuccess := .F., lKeyCreated := .F., lConfigCreated := .F.
+    LOCAL lSuccess := .F., lKeyCreated := .F., lCLIKeyFixture := .F., lConfigCreated := .F.
 
     LOCAL nExit
 
     cKeyPath := HBBridgeAbsolutePath( "protected-mssql-fixture.key", hb_cwd() )
+    cCLIKeyPath := HBBridgeAbsolutePath( "protected-mssql-cli-fixture.key", hb_cwd() )
     cFixturePath := HBBridgeAbsolutePath( "protected-mssql-fixture.json", hb_cwd() )
     BEGIN SEQUENCE WITH __BreakBlock()
         IF ! HB_ISSTRING( cConfigPath ) .OR. ! HB_ISSTRING( cProfile ) .OR. ! hb_FileExists( cConfigPath )
@@ -76,10 +77,26 @@ PROCEDURE HBBridgeMSSQLCredentialTest( cConfigPath, cProfile, cExecutable )
             Break( NIL )
         ENDIF
         IF HB_ISSTRING( cExecutable ) .AND. ! Empty( cExecutable )
-            IF ! hb_FileExists( cExecutable ) .OR. '"' $ cExecutable .OR. '"' $ cFixturePath .OR. '"' $ cProfile
+            IF ! hb_FileExists( cExecutable ) .OR. hb_FileExists( cCLIKeyPath ) .OR. '"' $ cExecutable .OR. ;
+                '"' $ cFixturePath .OR. '"' $ cCLIKeyPath .OR. '"' $ cProfile
                 OutErr( "MSSQL protected credential prerequisite: CLI_PATH_INVALID" + hb_eol() )
                 Break( NIL )
             ENDIF
+            lCLIKeyFixture := .T.
+            cCommand := '"' + cExecutable + '" --credential-create-key "--key=' + cCLIKeyPath + '"'
+            nExit := hb_processRun( cCommand, NIL, @cOutput, @cStderr )
+            IF nExit != 0 .OR. ! ( "Credential key creation: PASS" $ cOutput ) .OR. ! hb_FileExists( cCLIKeyPath )
+                OutErr( "MSSQL protected credential prerequisite: CLI_KEY_CREATE_FAILED" + hb_eol() )
+                Break( NIL )
+            ENDIF
+            cKeyBytes := hb_MemoRead( cCLIKeyPath )
+            nExit := hb_processRun( cCommand, NIL, @cOutput, @cStderr )
+            IF nExit != 1 .OR. ! ( "Credential key creation: FAIL" $ cStderr ) .OR. ;
+                hb_BLen( cKeyBytes ) != 32 .OR. hb_MemoRead( cCLIKeyPath ) != cKeyBytes
+                OutErr( "MSSQL protected credential prerequisite: CLI_KEY_REPLACE_FAILED" + hb_eol() )
+                Break( NIL )
+            ENDIF
+            cKeyBytes := NIL
             cCommand := '"' + cExecutable + '" --credential-test "--config=' + cFixturePath + ;
                 '" "--profile=' + cProfile + '"'
             nExit := hb_processRun( cCommand, NIL, @cOutput, @cStderr )
@@ -99,6 +116,7 @@ PROCEDURE HBBridgeMSSQLCredentialTest( cConfigPath, cProfile, cExecutable )
         OutErr( "MSSQL protected credential test did not complete." + hb_eol() )
     ALWAYS
         cPassword := NIL
+        cKeyBytes := NIL
         cEnvelope := NIL
         hRaw := NIL
         hInput := NIL
@@ -109,6 +127,11 @@ PROCEDURE HBBridgeMSSQLCredentialTest( cConfigPath, cProfile, cExecutable )
         ENDIF
         IF lConfigCreated .AND. hb_FileExists( cFixturePath )
             IF FErase( cFixturePath ) != 0
+                lSuccess := .F.
+            ENDIF
+        ENDIF
+        IF lCLIKeyFixture .AND. hb_FileExists( cCLIKeyPath )
+            IF FErase( cCLIKeyPath ) != 0
                 lSuccess := .F.
             ENDIF
         ENDIF

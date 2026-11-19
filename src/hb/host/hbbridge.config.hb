@@ -519,6 +519,7 @@ Admin web uses the separate [Admin] Password; user name is admin.
 SQL profiles in INI/JSON enable RPCRDD.Query with SQLite or MSSQL through ODBC.
 Without -config, look for hbbridge.ini beside the executable.
 --config-info validates and prints JSON metadata without credentials or starting listeners.
+--credential-create-key --key=<path> creates a private key without replacing an existing file.
 --credential-test --config=<file> --profile=<alias> checks one saved protected MSSQL profile without listeners.
 Precedence: defaults < INI/JSON file < CLI. CTRL+Q stops the console.
 #pragma __endtext

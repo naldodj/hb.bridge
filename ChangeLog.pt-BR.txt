@@ -6,6 +6,11 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Adicionar cobertura de integridade para JSON UTF-8 e MSSQL)"
  */
 
+2026-11-19 09:48 UTC naldodj (Adicionar criação local de chave)
+  + Criar chaves privadas pelo provedor de arquivos local sem substituir chaves
+    existentes ou iniciar listeners. A edição de credenciais continua no WIP.
+  * Separar os comandos locais de administração do provedor independente.
+
 2026-11-18 21:58 UTC naldodj (Adicionar teste local de conexão protegida)
   + Testar perfil MSSQL protegido salvo com consulta fixa somente de leitura,
     sem iniciar listeners ou receber segredos como argumentos de linha de comando.

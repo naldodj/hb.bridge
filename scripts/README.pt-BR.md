@@ -44,7 +44,8 @@ executa `SELECT 1` pelo caminho normal e remove os dois arquivos. A senha não �
 gravada na fixture nem exibida. A configuração original permanece inalterada.
 Informe `-TestExecutable <executável-hbbridge>` para testar também o comando
 local `--credential-test` com o perfil protegido temporário e conferir que a
-saída capturada não contém a senha nem o envelope.
+saída capturada não contém a senha nem o envelope, além de testar a criação de
+chave e a recusa em substituir uma chave sintética.
 
 ## Portal Wiki
 

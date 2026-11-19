@@ -71,8 +71,10 @@ aceites separados. Veja a [análise de credenciais](docs/credentials.pt-BR.md).
   Um primeiro modo local `--credential-test` testa um perfil MSSQL protegido
   existente com `SELECT 1` fixo e retorna apenas PASS/FAIL. A validação Windows
   usou perfil protegido temporário em MSSQL e executou o produto sem exibir a
-  senha ou o envelope. Entrada interativa, atualização atômica, implantação e
-  aceite completo permanecem pendentes.
+  senha ou o envelope. Um comando local de criação de chave usa o provedor de
+  arquivos existente, com criação exclusiva e permissões restritas. Entrada
+  interativa, atualização atômica, implantação e aceite completo permanecem
+  pendentes.
 - [ ] C05: testar adulteração, chave errada/ausente, provedor indisponível,
   Unicode, concorrência, limpeza e sanitização; homologar SQL real com segredos
   sintéticos quando possível no Windows, além de build, execução e identidade
