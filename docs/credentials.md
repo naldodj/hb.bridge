@@ -395,6 +395,14 @@ the destination and any private staged files before retrying: a cleanup error
 can occur after the key was published. Follow the recovery guidance below.
 The command creates a key only; it does not create or modify a credential.
 
+An internal INI planner can prepare the replacement of an existing encrypted
+password while retaining unrelated bytes, comments, BOM and line endings. It
+validates the INI and the new envelope's canonical structure but does not
+authenticate the envelope, read or write the configuration file, or detect
+concurrent edits. The future editor must create and authenticate the envelope
+against the intended context, then separately protect against conflicting edits
+and publish the update atomically. This planner is not a management command.
+
 The initial local connection test accepts an existing protected MSSQL profile:
 
 ```text

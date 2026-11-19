@@ -5,6 +5,11 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Organize bilingual documentation and prepare the Wiki portal)"
  */
 
+2026-11-19 09:56 UTC naldodj (Prepare safe INI credential updates)
+  + Prepare an existing encrypted credential replacement in memory while
+    preserving unrelated INI bytes; file publication remains unimplemented.
+  * Require pull requests for updates to the protected main branch.
+
 2026-11-19 09:48 UTC naldodj (Add local key creation)
   + Create private file-provider keys locally without overwriting existing keys
     or starting listeners. Keep credential editing as unfinished WIP.

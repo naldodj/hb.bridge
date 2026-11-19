@@ -10,6 +10,8 @@
 - Create a dedicated `codex/wip-<package>-<topic>` branch for each renewed
   WIP package. Commit coherent progress incrementally on that branch; do not
   reset the WIP or merge it merely because an intermediate commit is made.
+  The protected `main` branch is updated only through a pull request; direct
+  commits and pushes are permitted on the working branch.
   After the completed package is integrated and published to the main branch,
   verify its inclusion and delete its temporary local and remote WIP branches.
 - Use four spaces per indentation level in project-owned sources. Preserve

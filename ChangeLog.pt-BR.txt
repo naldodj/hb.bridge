@@ -6,6 +6,11 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Adicionar cobertura de integridade para JSON UTF-8 e MSSQL)"
  */
 
+2026-11-19 09:56 UTC naldodj (Preparar atualização segura de credencial no INI)
+  + Preparar em memória a substituição de credencial cifrada existente,
+    preservando os demais bytes do INI; a publicação em arquivo permanece aberta.
+  * Exigir pull request para alterações na branch principal protegida.
+
 2026-11-19 09:48 UTC naldodj (Adicionar criação local de chave)
   + Criar chaves privadas pelo provedor de arquivos local sem substituir chaves
     existentes ou iniciar listeners. A edição de credenciais continua no WIP.

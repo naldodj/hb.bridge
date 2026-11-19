@@ -399,6 +399,14 @@ eventuais arquivos temporários privados antes de tentar novamente: um erro de
 limpeza pode ocorrer depois da publicação. Siga as orientações de recuperação
 abaixo. O comando cria apenas a chave; não cria nem altera credenciais.
 
+Um preparador interno de INI pode montar a substituição de uma senha cifrada
+existente preservando os demais bytes, comentários, BOM e finais de linha. Ele
+valida o INI e a estrutura canônica do novo envelope, mas não o autentica, não
+lê nem grava o arquivo de configuração e não detecta edições concorrentes. O
+futuro editor deverá criar e autenticar o envelope no contexto pretendido,
+detectar conflitos e publicar a alteração atomicamente. Esse preparador não é
+um comando de administração.
+
 O primeiro teste local de conexão aceita um perfil MSSQL protegido existente:
 
 ```text

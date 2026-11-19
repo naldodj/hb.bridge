@@ -29,6 +29,11 @@ funcionar após restaurar a proteção. No Windows também verifica herança de 
 leitura INI/JSON, vínculo de contexto, falhas e sanitização com valores
 sintéticos e um DSN inexistente. A prova não conecta a um banco real.
 
+O teste independente `tests/probes/hbbridge.credential.ini.probe.hbp` pode ser
+compilado com `hbmk2` do Harbour em Windows ou Linux, sem dependências SQL ou
+Zig. Ele verifica o preparador de atualização de INI em memória com valores
+sintéticos; não grava configurações nem autentica um envelope cifrado.
+
 Para a prova de portabilidade do provedor, crie um diretório vazio e execute
 `pwsh ./scripts/test-credentials-portability.ps1 -Mode Create -FixtureDirectory <caminho>`
 na origem. Transfira somente os dois arquivos **sintéticos** a um diretório

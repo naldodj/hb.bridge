@@ -72,9 +72,12 @@ aceites separados. Veja a [análise de credenciais](docs/credentials.pt-BR.md).
   existente com `SELECT 1` fixo e retorna apenas PASS/FAIL. A validação Windows
   usou perfil protegido temporário em MSSQL e executou o produto sem exibir a
   senha ou o envelope. Um comando local de criação de chave usa o provedor de
-  arquivos existente, com criação exclusiva e permissões restritas. Entrada
-  interativa, atualização atômica, implantação e aceite completo permanecem
-  pendentes.
+  arquivos existente, com criação exclusiva e permissões restritas. Um
+  preparador interno altera apenas a senha cifrada existente em memória e
+  preserva os demais bytes; ele não autentica o novo envelope nem grava arquivos.
+  Testes sintéticos passaram em Windows e Ubuntu WSL com o parser Harbour
+  independente. Entrada interativa, autenticação do contexto, detecção de conflito, publicação
+  atômica, implantação e aceite completo permanecem pendentes.
 - [ ] C05: testar adulteração, chave errada/ausente, provedor indisponível,
   Unicode, concorrência, limpeza e sanitização; homologar SQL real com segredos
   sintéticos quando possível no Windows, além de build, execução e identidade

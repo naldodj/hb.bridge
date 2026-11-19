@@ -70,8 +70,11 @@ its own acceptance. See [credential review](docs/credentials.md).
   used a temporary protected profile against MSSQL and exercised the product
   executable without printing the password or envelope. A local key-creation
   command uses the existing exclusive, permission-restricted file provider.
-  Interactive input, atomic credential updates, deployment and full acceptance
-  remain open.
+  An internal INI update planner prepares only an existing encrypted password
+  in memory and preserves unrelated bytes; it does not authenticate the new
+  envelope or write files. Synthetic checks passed on Windows and Ubuntu WSL
+  using the standalone Harbour parser. Interactive input, context authentication, conflict
+  detection, atomic publication, deployment and full acceptance remain open.
 - [ ] C05: validate tampering, wrong/missing key, unavailable provider, Unicode,
   concurrent calls, cleanup and redaction; run real SQL acceptance with synthetic
   secrets where possible on Windows, plus Linux build/runtime and service identity

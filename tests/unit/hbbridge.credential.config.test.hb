@@ -2,7 +2,8 @@
 
 PROCEDURE HBBridgeCredentialConfigTests( nFailures, nChecks )
 
-    LOCAL cError, cEnvelope, cINI, cKeyPath, cCommandKeyPath, cKeyBytes, cConfigPath, cJSONPath, cConnection, cInfo
+    LOCAL cError, cEnvelope, cNewEnvelope, cINI, cFancyINI, cPlan, cExpected, cKeyPath, cCommandKeyPath
+    LOCAL cKeyBytes, cConfigPath, cJSONPath, cConnection, cInfo
     LOCAL cProfile := "MSSQL/pData", cId := "example", cKeyId := "primary"
     LOCAL cUser := "fixture}user", cPassword := " synthetic;} "
 
@@ -61,6 +62,36 @@ PROCEDURE HBBridgeCredentialConfigTests( nFailures, nChecks )
             Break( NIL )
         ENDIF
         hProfile := hConfig[ "sqlProfiles" ][ cProfile ]
+        cNewEnvelope := HBBridgeCredentialEncrypt( cKeyPath, cProfile, cId, cKeyId, cUser, "replacement", @cError )
+        cPlan := HBBridgeCredentialPlanINI( cINI, cId, cNewEnvelope, hConfig, @cError )
+        cExpected := StrTran( cINI, "Password=" + cEnvelope, "Password=" + cNewEnvelope )
+        M1Assert( HB_ISSTRING( cPlan ) .AND. cPlan == cExpected .AND. cError == "", ;
+            "INI credential plan changes only the selected encrypted value", @nFailures, @nChecks )
+        cFancyINI := cINI + "# Retain ciphertext: " + cEnvelope + hb_eol() + ;
+            "[Credential/" + cId + "2]" + hb_eol() + "User=other" + hb_eol() + ;
+            "KeyId=" + cKeyId + hb_eol() + "Password=" + cEnvelope + hb_eol()
+        cExpected := StrTran( cINI, "Password=" + cEnvelope, "Password=" + cNewEnvelope ) + ;
+            "# Retain ciphertext: " + cEnvelope + hb_eol() + "[Credential/" + cId + "2]" + hb_eol() + ;
+            "User=other" + hb_eol() + "KeyId=" + cKeyId + hb_eol() + "Password=" + cEnvelope + hb_eol()
+        cPlan := HBBridgeCredentialPlanINI( cFancyINI, cId, cNewEnvelope, hConfig, @cError )
+        M1Assert( HB_ISSTRING( cPlan ) .AND. cPlan == cExpected .AND. cError == "", ;
+            "INI credential plan preserves other credentials and comments", @nFailures, @nChecks )
+        cFancyINI := Chr( 239 ) + Chr( 187 ) + Chr( 191 ) + ;
+            StrTran( cINI, "[Credential/" + cId + "]", "[  credential/" + cId + "  ]" )
+        cFancyINI := StrTran( cFancyINI, "Password=" + cEnvelope, Chr( 9 ) + "pAssword = " + ;
+            cEnvelope + Chr( 9 ) )
+        cExpected := StrTran( cFancyINI, cEnvelope, cNewEnvelope )
+        cPlan := HBBridgeCredentialPlanINI( cFancyINI, cId, cNewEnvelope, hConfig, @cError )
+        M1Assert( HB_ISSTRING( cPlan ) .AND. cPlan == cExpected .AND. cError == "", ;
+            "INI credential plan preserves BOM, line endings and key whitespace", @nFailures, @nChecks )
+        M1Assert( HBBridgeCredentialPlanINI( cINI, "missing", cNewEnvelope, hConfig, @cError ) == NIL .AND. ;
+            cError == "INVALID_CREDENTIAL_UPDATE" .AND. ;
+            HBBridgeCredentialPlanINI( cINI, cId, "enc:v1:bad", hConfig, @cError ) == NIL .AND. ;
+            cError == "INVALID_CREDENTIAL_UPDATE", ;
+            "INI credential plan rejects unknown targets and invalid envelopes", @nFailures, @nChecks )
+        M1Assert( HBBridgeCredentialPlanINI( cINI + "[Credential/" + cId + "]" + hb_eol(), ;
+            cId, cNewEnvelope, hConfig, @cError ) == NIL .AND. cError == "INVALID_CREDENTIAL_UPDATE", ;
+            "INI credential plan rejects duplicate sections before editing", @nFailures, @nChecks )
         M1Assert( ! HBBridgeCredentialTestCommand( { "--credential-test", "--config=", "--config=x", ;
             "--profile=x" } ) .AND. ! HBBridgeCredentialTestCommand( { "--credential-test", ;
             "--config=x", "--profile=x", "--password=synthetic-secret" } ), ;

@@ -29,6 +29,11 @@ restoring restricted permissions. On Windows it also checks DACL inheritance.
 INI/JSON parsing, context binding, failure handling and redaction with synthetic
 values and a nonexistent DSN. It does not connect to an actual database.
 
+The standalone `tests/probes/hbbridge.credential.ini.probe.hbp` can be built
+with Harbour's `hbmk2` on Windows or Linux without SQL or Zig dependencies. It
+checks the in-memory INI update planner with synthetic values; it neither writes
+configuration files nor authenticates an encrypted envelope.
+
 For the cross-platform provider fixture, create an empty directory and run
 `pwsh ./scripts/test-credentials-portability.ps1 -Mode Create -FixtureDirectory <path>`
 on the source platform. Transfer only the two **synthetic** files into a private
