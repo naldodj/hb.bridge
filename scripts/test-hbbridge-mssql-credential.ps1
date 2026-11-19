@@ -3,6 +3,7 @@
 param(
     [Parameter(Mandatory)][string] $Config,
     [Parameter(Mandatory)][string] $Profile,
+    [string] $TestExecutable,
     [string] $HbCompileRoot,
     [string] $ZigPath
 )
@@ -28,7 +29,7 @@ try {
         "-o$target" "-workdir=$buildRoot"
     if ($LASTEXITCODE -ne 0) { throw 'The protected MSSQL test build failed.' }
     Set-Location -LiteralPath $runRoot
-    & ($target + $toolchain.ExecutableExtension) $configPath $Profile
+    & ($target + $toolchain.ExecutableExtension) $configPath $Profile $TestExecutable
     if ($LASTEXITCODE -ne 0) { throw 'The protected MSSQL credential test failed.' }
 } finally {
     Pop-Location

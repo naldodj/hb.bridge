@@ -382,6 +382,22 @@ not a prerequisite for the current local SQL credential-provider slice.
 
 ## Management utility
 
+The initial local connection test accepts an existing protected MSSQL profile:
+
+```text
+hbbridge --credential-test --config=<file.ini-or-json> --profile=<profile-alias>
+```
+
+It reads the named configuration, resolves its protected credential through
+the normal SQL path and executes the fixed, read-only `SELECT 1 AS ID`. It
+does not start listeners or accept a password or SQL on the command line. The
+result is `Credential connection test: PASS` with exit code 0, or a sanitized
+`FAIL` with exit code 1. This is an initial connection test, not a credential
+editor; it requires a configured protected MSSQL profile and an accessible key.
+The regular SQL connection lifecycle releases its lease after the query. Driver
+pooling, if configured, follows the SQL driver's process-wide policy until the
+command exits. Live service-identity and Linux/MSSQL acceptance remain open.
+
 Start with a local CLI using the same credential/configuration services as
 the host: create/import key, set/update/delete credential, test connection and
 optionally replace the encryption master key. A credential update records a

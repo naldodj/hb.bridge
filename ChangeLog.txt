@@ -5,6 +5,13 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Organize bilingual documentation and prepare the Wiki portal)"
  */
 
+2026-11-18 21:58 UTC naldodj (Add local protected connection test)
+  + Test a saved protected MSSQL profile with a fixed read-only query, without
+    starting listeners or accepting secrets in command-line arguments.
+  ; Validate the command with a temporary protected profile and real MSSQL on
+    Windows; credential editing and deployment acceptance remain open.
+  * Delete WIP branches after completed packages are integrated and published.
+
 2026-11-18 21:35 UTC naldodj (Continue portable credential protection)
   + Implement the preliminary authenticated credential provider and SQL profile
     resolution with Windows and Linux synthetic probes and local MSSQL evidence.

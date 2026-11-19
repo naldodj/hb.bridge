@@ -42,6 +42,9 @@ tests a structured plaintext SQL-authentication profile against MSSQL. It create
 an encrypted temporary JSON profile and a private key, runs `SELECT 1` through
 the normal query path, and removes both files. It never writes the plaintext
 password to the fixture or prints it. The original configuration is unchanged.
+Pass `-TestExecutable <hbbridge-executable>` to also exercise the local
+`--credential-test` command with the temporary protected profile and verify
+that its captured output does not contain the password or envelope.
 
 ## Wiki portal
 

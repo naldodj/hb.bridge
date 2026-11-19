@@ -6,6 +6,13 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Adicionar cobertura de integridade para JSON UTF-8 e MSSQL)"
  */
 
+2026-11-18 21:58 UTC naldodj (Adicionar teste local de conexão protegida)
+  + Testar perfil MSSQL protegido salvo com consulta fixa somente de leitura,
+    sem iniciar listeners ou receber segredos como argumentos de linha de comando.
+  ; Validar o comando em Windows com perfil protegido temporário e MSSQL real;
+    a edição de credenciais e o aceite de implantação permanecem pendentes.
+  * Excluir branches WIP após integração e publicação dos pacotes concluídos.
+
 2026-11-18 21:35 UTC naldodj (Continuar proteção portátil de credenciais)
   + Implementar o provedor preliminar autenticado e a resolução de perfis SQL,
     com testes sintéticos Windows/Linux e evidência local com MSSQL.

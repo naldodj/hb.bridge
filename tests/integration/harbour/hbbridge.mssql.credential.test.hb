@@ -1,12 +1,14 @@
 /* Released to Public Domain. Read-only protected SQL credential acceptance. */
 
-PROCEDURE HBBridgeMSSQLCredentialTest( cConfigPath, cProfile )
+PROCEDURE HBBridgeMSSQLCredentialTest( cConfigPath, cProfile, cExecutable )
 
-    LOCAL cError, cKeyPath, cEnvelope, cUser, cPassword, cFixturePath
+    LOCAL cCommand, cError, cKeyPath, cEnvelope, cUser, cPassword, cFixturePath, cOutput, cStderr
 
     LOCAL hDefaults, hInput, hRaw, hProtected, hFixture, hConfig, hProfiles, hRegistry, hResult
 
     LOCAL lSuccess := .F., lKeyCreated := .F., lConfigCreated := .F.
+
+    LOCAL nExit
 
     cKeyPath := HBBridgeAbsolutePath( "protected-mssql-fixture.key", hb_cwd() )
     cFixturePath := HBBridgeAbsolutePath( "protected-mssql-fixture.json", hb_cwd() )
@@ -67,6 +69,25 @@ PROCEDURE HBBridgeMSSQLCredentialTest( cConfigPath, cProfile )
         IF ! HB_ISHASH( hProfiles )
             OutErr( "MSSQL protected credential prerequisite: PROFILE_INVALID" + hb_eol() )
             Break( NIL )
+        ENDIF
+        IF ! HBBridgeCredentialTestCommand( { "--credential-test", "--config=" + cFixturePath, ;
+            "--profile=" + cProfile } )
+            OutErr( "MSSQL protected credential prerequisite: CONNECTION_TEST_FAILED" + hb_eol() )
+            Break( NIL )
+        ENDIF
+        IF HB_ISSTRING( cExecutable ) .AND. ! Empty( cExecutable )
+            IF ! hb_FileExists( cExecutable ) .OR. '"' $ cExecutable .OR. '"' $ cFixturePath .OR. '"' $ cProfile
+                OutErr( "MSSQL protected credential prerequisite: CLI_PATH_INVALID" + hb_eol() )
+                Break( NIL )
+            ENDIF
+            cCommand := '"' + cExecutable + '" --credential-test "--config=' + cFixturePath + ;
+                '" "--profile=' + cProfile + '"'
+            nExit := hb_processRun( cCommand, NIL, @cOutput, @cStderr )
+            IF nExit != 0 .OR. ! ( "Credential connection test: PASS" $ cOutput ) .OR. ;
+                cPassword $ cOutput .OR. cPassword $ cStderr .OR. cEnvelope $ cOutput .OR. cEnvelope $ cStderr
+                OutErr( "MSSQL protected credential prerequisite: CLI_TEST_FAILED" + hb_eol() )
+                Break( NIL )
+            ENDIF
         ENDIF
         hRegistry := HBBridgeBuiltinRegistry( hProfiles )
         hResult := HBBridgeDispatch( hRegistry, "RPCRDD.Query", ;

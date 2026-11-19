@@ -65,6 +65,11 @@ its own acceptance. See [credential review](docs/credentials.md).
   Provide an explicit connection test using the saved profile and credential,
   a harmless query, sanitized diagnostics and connection cleanup; do not start
   listeners, print secrets or change database data.
+  A first local `--credential-test` mode tests an existing protected MSSQL
+  profile with a fixed `SELECT 1`, returning only PASS/FAIL. Windows validation
+  used a temporary protected profile against MSSQL and exercised the product
+  executable without printing the password or envelope. Interactive input,
+  atomic credential updates, deployment and full acceptance remain open.
 - [ ] C05: validate tampering, wrong/missing key, unavailable provider, Unicode,
   concurrent calls, cleanup and redaction; run real SQL acceptance with synthetic
   secrets where possible on Windows, plus Linux build/runtime and service identity

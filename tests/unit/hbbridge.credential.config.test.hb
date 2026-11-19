@@ -47,6 +47,20 @@ PROCEDURE HBBridgeCredentialConfigTests( nFailures, nChecks )
             Break( NIL )
         ENDIF
         hProfile := hConfig[ "sqlProfiles" ][ cProfile ]
+        M1Assert( ! HBBridgeCredentialTestCommand( { "--credential-test", "--config=", "--config=x", ;
+            "--profile=x" } ) .AND. ! HBBridgeCredentialTestCommand( { "--credential-test", ;
+            "--config=x", "--profile=x", "--password=synthetic-secret" } ), ;
+            "local credential test rejects duplicate options and password arguments", @nFailures, @nChecks )
+        M1Assert( ! HBBridgeCredentialTestProfile( hConfig, "missing" ) .AND. ;
+            ! HBBridgeCredentialTestProfile( NIL, cProfile ), ;
+            "local credential test rejects missing profile and invalid configuration", @nFailures, @nChecks )
+        M1Assert( ! HBBridgeCredentialTestProfile( { "sqlProfiles" => { cProfile => ;
+            { "driver" => "mssql", "username" => "fixture", "password" => "fixture" } } }, cProfile ) .AND. ;
+            ! HBBridgeCredentialTestProfile( { "sqlProfiles" => { cProfile => ;
+            { "driver" => "sqlite", "database" => ":memory:" } } }, cProfile ), ;
+            "local credential test rejects plaintext and non-MSSQL profiles", @nFailures, @nChecks )
+        M1Assert( ! HBBridgeCredentialTestProfile( hConfig, cProfile ), ;
+            "local credential test fails closed when the MSSQL DSN is unavailable", @nFailures, @nChecks )
         M1Assert( HB_ISHASH( hProfile[ "credential" ] ) .AND. ! hb_HHasKey( hProfile, "connectionString" ) .AND. ;
             hProfile[ "credential" ][ "keyPath" ] == cKeyPath, ;
             "SQL profile keeps the encrypted reference and resolves the key path", @nFailures, @nChecks )

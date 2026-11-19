@@ -10,6 +10,8 @@
 - Crie uma branch `codex/wip-<pacote>-<assunto>` para cada renovação do WIP.
   Registre avanços coesos em commits incrementais nessa branch; commits
   intermediários não reiniciam o WIP nem implicam sua integração.
+  Após a integração e publicação do pacote concluído na branch principal,
+  confirme sua inclusão e exclua as branches temporárias local e remota do WIP.
 - Use quatro espaços por nível de indentação nos fontes próprios. Preserve a
   formatação, os avisos de copyright e as licenças dos arquivos de terceiros.
 - Trate `tmp/` como área inteiramente descartável. Comandos não podem exigir

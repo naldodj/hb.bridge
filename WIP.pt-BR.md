@@ -68,6 +68,11 @@ aceites separados. Veja a [análise de credenciais](docs/credentials.pt-BR.md).
   Disponibilizar teste explícito de conexão com perfil e credencial salvos,
   consulta inofensiva, diagnóstico sanitizado e liberação da conexão; não
   iniciar listeners, exibir segredos ou alterar dados no banco.
+  Um primeiro modo local `--credential-test` testa um perfil MSSQL protegido
+  existente com `SELECT 1` fixo e retorna apenas PASS/FAIL. A validação Windows
+  usou perfil protegido temporário em MSSQL e executou o produto sem exibir a
+  senha ou o envelope. Entrada interativa, atualização atômica, implantação e
+  aceite completo permanecem pendentes.
 - [ ] C05: testar adulteração, chave errada/ausente, provedor indisponível,
   Unicode, concorrência, limpeza e sanitização; homologar SQL real com segredos
   sintéticos quando possível no Windows, além de build, execução e identidade

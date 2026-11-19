@@ -42,6 +42,9 @@ testa no MSSQL um perfil estruturado existente com autenticação SQL em texto
 aberto. A prova cria perfil JSON temporário com envelope cifrado e chave privada,
 executa `SELECT 1` pelo caminho normal e remove os dois arquivos. A senha não é
 gravada na fixture nem exibida. A configuração original permanece inalterada.
+Informe `-TestExecutable <executável-hbbridge>` para testar também o comando
+local `--credential-test` com o perfil protegido temporário e conferir que a
+saída capturada não contém a senha nem o envelope.
 
 ## Portal Wiki
 

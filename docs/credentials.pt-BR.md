@@ -386,6 +386,22 @@ pré-requisito da entrega atual do provedor local de credenciais SQL.
 
 ## Utilitário de administração
 
+O primeiro teste local de conexão aceita um perfil MSSQL protegido existente:
+
+```text
+hbbridge --credential-test --config=<arquivo.ini-ou-json> --profile=<alias-do-perfil>
+```
+
+O comando lê a configuração indicada, resolve a credencial protegida pelo
+caminho SQL normal e executa o `SELECT 1 AS ID` fixo e somente de leitura.
+Não inicia listeners nem aceita senha ou SQL na linha de comando. O resultado
+é `Credential connection test: PASS` com código 0 ou `FAIL` sanitizado com
+código 1. É um primeiro teste de conexão, não um editor de credenciais; exige
+perfil MSSQL protegido configurado e chave acessível. O ciclo SQL normal libera
+a concessão da conexão após a consulta. O pooling configurado segue a política
+do driver no processo até o encerramento do comando. O aceite com identidade
+de serviço e MSSQL no Linux permanece pendente.
+
 Começar por uma CLI local que use os mesmos serviços de configuração e
 credenciais do host: criar/importar chave, definir/atualizar/excluir credencial,
 testar conexão e trocar opcionalmente a chave mestra de criptografia. Atualizar
