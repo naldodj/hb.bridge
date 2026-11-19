@@ -87,6 +87,10 @@ aceites separados. Veja a [análise de credenciais](docs/credentials.pt-BR.md).
   a comparação e a publicação. Provas sintéticas de substituição local passaram
   em Windows/NTFS e WSL; no Windows, `ReplaceFileW` alterou metadados de herança
   da DACL nos dois cenários, mantendo iguais os titulares e direitos observados.
+  Uma implementação candidata isolada para Linux passou em testes sintéticos no
+  WSL de bloqueio cooperativo, snapshots, metadados, arquivos inseguros e falhas.
+  Não está vinculada ao produto; no Windows retorna não suportado. Em NTFS,
+  `MoveFileExW` preservou o descritor testado sem leitor aberto, mas falhou com um.
   Publicação atômica segura em produção, preservação de metadados, integração
   Linux, comando interativo, implantação e aceite completo permanecem pendentes.
 - [ ] C05: testar adulteração, chave errada/ausente, provedor indisponível,

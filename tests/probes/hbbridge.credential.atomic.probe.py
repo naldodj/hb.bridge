@@ -141,11 +141,18 @@ def read_and_close_reader(handle, size):
         kernel.CloseHandle(handle)
 
 
-def replace_file(target, staged):
+def replace_file(target, staged, use_move=False):
     if os.name != "nt":
         os.replace(staged, target)
         return
     kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    if use_move:
+        move = kernel.MoveFileExW
+        move.argtypes = [wintypes.LPCWSTR, wintypes.LPCWSTR, wintypes.DWORD]
+        move.restype = wintypes.BOOL
+        if not move(str(staged), str(target), 0x1 | 0x8):
+            raise ctypes.WinError(ctypes.get_last_error())
+        return
     replace = kernel.ReplaceFileW
     replace.argtypes = [wintypes.LPCWSTR, wintypes.LPCWSTR, wintypes.LPCWSTR,
                         wintypes.DWORD, wintypes.LPVOID, wintypes.LPVOID]
@@ -154,7 +161,7 @@ def replace_file(target, staged):
         raise ctypes.WinError(ctypes.get_last_error())
 
 
-def main(root, protected=False):
+def main(root, protected=False, use_move=False, no_reader=False):
     root = Path(root).resolve(strict=True)
     if not root.is_dir():
         raise ValueError("probe root must be an existing directory")
@@ -208,12 +215,17 @@ def main(root, protected=False):
                     os.fchmod(writer.fileno(), original.st_mode & 0o7777)
                     os.fsync(writer.fileno())
             reader = open_reader(target)
+            if no_reader:
+                if read_and_close_reader(reader, len(before)) != before:
+                    raise AssertionError("synthetic pre-replacement reader was inconsistent")
+                reader = None
             try:
-                replace_file(target, staged)
+                replace_file(target, staged, use_move)
             except BaseException:
-                read_and_close_reader(reader, len(before))
+                if reader is not None:
+                    read_and_close_reader(reader, len(before))
                 raise
-            if read_and_close_reader(reader, len(before)) != before or target.read_bytes() != after:
+            if (reader is not None and read_and_close_reader(reader, len(before)) != before) or target.read_bytes() != after:
                 raise AssertionError("open reader or replacement contents were inconsistent")
             current = target.stat()
             if os.name == "nt":
@@ -253,7 +265,7 @@ def main(root, protected=False):
                 raise AssertionError("synthetic preflight snapshot was unexpected")
             target.write_bytes(after.replace(b"new", b"xxx"))
             staged.write_bytes(before)
-            replace_file(target, staged)
+            replace_file(target, staged, use_move)
             if target.read_bytes() != before:
                 raise AssertionError("non-cooperating writer scenario was not reproduced")
             print("OBSERVED: a non-cooperating edit after preflight can be overwritten")
@@ -271,6 +283,6 @@ def main(root, protected=False):
 if __name__ == "__main__":
     if len(sys.argv) == 3 and sys.argv[1] == "--try-lock":
         raise SystemExit(try_lock(sys.argv[2]))
-    if len(sys.argv) not in (2, 3) or (len(sys.argv) == 3 and sys.argv[2] != "--protected"):
-        raise SystemExit("Usage: atomic.probe.py <existing-synthetic-test-directory> [--protected]")
-    main(sys.argv[1], len(sys.argv) == 3)
+    if len(sys.argv) < 2 or any(option not in ("--protected", "--move", "--no-reader") for option in sys.argv[2:]):
+        raise SystemExit("Usage: atomic.probe.py <existing-directory> [--protected] [--move] [--no-reader]")
+    main(sys.argv[1], "--protected" in sys.argv[2:], "--move" in sys.argv[2:], "--no-reader" in sys.argv[2:])

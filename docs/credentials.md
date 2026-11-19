@@ -435,6 +435,24 @@ overwritten by replacement. Neither result proves crash durability,
 extended-ACL preservation or safety against editors that ignore the lock.
 Production file publication remains unimplemented.
 
+An isolated Linux publication candidate is exercised only by
+`tests/probes/hbbridge.credential.publish.probe.hbp`; it is not linked to the
+product or the interactive workflow. It locks a persistent sidecar, checks the
+expected bytes again, creates a same-directory exclusive stage, copies the file
+owner and mode, syncs the stage and renames it. It rejects symbolic and hard
+links, group/other-writable files or parent directories, files owned by another
+identity and visible extended attributes.
+Its Linux status 8 means publication occurred but directory sync failed: callers
+must inspect the destination, not assume a retry is harmless. Test-only failure
+injection is compiled solely into the probe. A crash may leave a staging file.
+The lock covers cooperating writers only, not arbitrary editors. Extended-attribute
+visibility depends on the caller's privileges; absence from the listing is not
+proof that no inaccessible attribute exists. Ancestor-directory trust, filesystem
+semantics and deployment identities remain to be validated. Windows currently
+returns unsupported without writing. On the synthetic NTFS fixture, `MoveFileExW`
+preserved the observed descriptor without an open reader, but failed with a reader
+open; this is not sufficient to accept a Windows publisher.
+
 A standalone experimental terminal reader accepts an interactive terminal only,
 disables echo while reading and restores the prior mode. It is not linked to the
 product or connected to the update workflow. Its test-only implementation accepts

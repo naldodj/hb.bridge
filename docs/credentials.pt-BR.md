@@ -441,6 +441,25 @@ comprova durabilidade após falha, preservação de ACLs
 estendidas ou segurança contra editores que ignoram o bloqueio. A publicação de
 arquivo para produção permanece não implementada.
 
+Uma implementação candidata isolada para Linux é exercitada somente por
+`tests/probes/hbbridge.credential.publish.probe.hbp`; não está vinculada ao produto
+nem ao fluxo interativo. Ela bloqueia um arquivo auxiliar persistente, confere os
+bytes esperados novamente, cria um arquivo temporário exclusivo no mesmo diretório,
+reproduz proprietário e modo, sincroniza o arquivo e o renomeia. Rejeita links
+simbólicos e físicos, arquivos ou diretórios graváveis por grupo/outros, arquivos
+de outra identidade e atributos estendidos visíveis. O status 8 no Linux indica
+que a publicação ocorreu, mas a sincronização
+do diretório falhou: é preciso examinar o destino antes de tentar novamente.
+A injeção de falhas é compilada somente na prova. Um encerramento inesperado pode
+deixar o arquivo temporário. O bloqueio cobre apenas processos que respeitam o
+protocolo, não editores arbitrários. A visibilidade de atributos estendidos depende
+dos privilégios do processo; uma listagem vazia não comprova a ausência de atributos
+inacessíveis. Permanecem pendentes a confiança nos diretórios ancestrais, a semântica
+do sistema de arquivos e as identidades de implantação. No Windows o código retorna
+não suportado sem gravar. Na fixture sintética em NTFS, `MoveFileExW` preservou o
+descritor observado sem leitor aberto, mas falhou com leitor aberto; isso não basta
+para aceitar um publicador Windows.
+
 Um leitor experimental independente aceita somente terminal interativo, desativa
 o eco durante a leitura e restaura o modo anterior. Ele não está ligado ao produto
 nem ao fluxo de atualização. A implementação de teste aceita UTF-8 não vazio de

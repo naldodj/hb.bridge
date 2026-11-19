@@ -84,6 +84,10 @@ its own acceptance. See [credential review](docs/credentials.md).
   changes between comparison and publication. Synthetic local replacement probes
   passed on Windows/NTFS and WSL; Windows `ReplaceFileW` changed DACL inheritance
   metadata in both tested scenarios, even when trustees and rights stayed equal.
+  An isolated Linux publication candidate passed synthetic WSL checks for
+  cooperative locking, snapshots, metadata, unsafe files and failure outcomes.
+  It is not linked to the product; Windows returns unsupported. NTFS `MoveFileExW`
+  preserved the tested descriptor without an open reader but failed with one.
   Production-safe atomic publication, metadata preservation, Linux integration,
   interactive command, deployment and full acceptance remain open.
 - [ ] C05: validate tampering, wrong/missing key, unavailable provider, Unicode,
