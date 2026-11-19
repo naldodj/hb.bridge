@@ -73,8 +73,12 @@ its own acceptance. See [credential review](docs/credentials.md).
   An internal INI update planner prepares only an existing encrypted password
   in memory and preserves unrelated bytes; it does not authenticate the new
   envelope or write files. Synthetic checks passed on Windows and Ubuntu WSL
-  using the standalone Harbour parser. Interactive input, context authentication, conflict
-  detection, atomic publication, deployment and full acceptance remain open.
+  using the standalone Harbour parser. A separate update preparer authenticates
+  the old envelope against the profile context, seals and verifies a replacement,
+  and rejects credentials referenced by multiple profiles. Synthetic Windows
+  checks cover the preparation and failure cases; it still writes no files.
+  Linux integration, interactive input, conflict detection, atomic publication,
+  deployment and full acceptance remain open.
 - [ ] C05: validate tampering, wrong/missing key, unavailable provider, Unicode,
   concurrent calls, cleanup and redaction; run real SQL acceptance with synthetic
   secrets where possible on Windows, plus Linux build/runtime and service identity

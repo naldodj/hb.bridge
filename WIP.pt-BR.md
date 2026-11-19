@@ -76,8 +76,12 @@ aceites separados. Veja a [análise de credenciais](docs/credentials.pt-BR.md).
   preparador interno altera apenas a senha cifrada existente em memória e
   preserva os demais bytes; ele não autentica o novo envelope nem grava arquivos.
   Testes sintéticos passaram em Windows e Ubuntu WSL com o parser Harbour
-  independente. Entrada interativa, autenticação do contexto, detecção de conflito, publicação
-  atômica, implantação e aceite completo permanecem pendentes.
+  independente. Um segundo preparador autentica o envelope anterior no contexto
+  do perfil, cifra e verifica a substituição e rejeita credenciais referenciadas
+  por múltiplos perfis. Testes sintéticos no Windows cobrem a preparação e os
+  casos de falha; ele também não grava arquivos. Integração Linux, entrada
+  interativa, detecção de conflito, publicação atômica, implantação e aceite
+  completo permanecem pendentes.
 - [ ] C05: testar adulteração, chave errada/ausente, provedor indisponível,
   Unicode, concorrência, limpeza e sanitização; homologar SQL real com segredos
   sintéticos quando possível no Windows, além de build, execução e identidade

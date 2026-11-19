@@ -2,12 +2,13 @@
 
 PROCEDURE HBBridgeCredentialConfigTests( nFailures, nChecks )
 
-    LOCAL cError, cEnvelope, cNewEnvelope, cINI, cFancyINI, cPlan, cExpected, cKeyPath, cCommandKeyPath
+    LOCAL cError, cEnvelope, cNewEnvelope, cINI, cFancyINI, cPlan, cExpected, cUpdated, cTampered, cKeyPath, cCommandKeyPath
+    LOCAL cUpdatePassword := "  synthetic replacement;" + hb_UTF8Chr( 233 ) + "  "
     LOCAL cKeyBytes, cConfigPath, cJSONPath, cConnection, cInfo
     LOCAL cProfile := "MSSQL/pData", cId := "example", cKeyId := "primary"
     LOCAL cUser := "fixture}user", cPassword := " synthetic;} "
 
-    LOCAL hConfig, hNormalized, hProfile, hJSON, hBound, hBad, hCredentials, hKeys, hRegistry, hResult
+    LOCAL hConfig, hNormalized, hProfile, hJSON, hBound, hBad, hCredentials, hKeys, hRegistry, hResult, hUpdated
 
     LOCAL lCommandFixture := .F., lKeyCreated := .F., lINICreated := .F., lJSONCreated := .F.
 
@@ -62,6 +63,44 @@ PROCEDURE HBBridgeCredentialConfigTests( nFailures, nChecks )
             Break( NIL )
         ENDIF
         hProfile := hConfig[ "sqlProfiles" ][ cProfile ]
+        cUpdated := HBBridgeCredentialPrepareUpdate( cINI, hb_cwd(), cProfile, cUpdatePassword, hConfig, @cError )
+        IF HB_ISSTRING( cUpdated )
+            hUpdated := HBBridgeConfigINI( cUpdated, hConfig, @cError )
+        ENDIF
+        M1Assert( HB_ISHASH( hUpdated ) .AND. ;
+            HBBridgeCredentialDecrypt( cKeyPath, cProfile, cId, cKeyId, cUser, ;
+                hUpdated[ "credentials" ][ cId ][ "password" ], @cError ) == cUpdatePassword, ;
+            "credential update authenticates the old context and seals the replacement", @nFailures, @nChecks )
+        M1Assert( HBBridgeCredentialPrepareUpdate( StrTran( cINI, cEnvelope, "enc:v1:bad" ), ;
+            hb_cwd(), cProfile, cUpdatePassword, hConfig, @cError ) == NIL .AND. ;
+            cError == "INVALID_CREDENTIAL_UPDATE", ;
+            "credential update rejects a damaged existing envelope without disclosing it", @nFailures, @nChecks )
+        cTampered := hb_base64Decode( hb_BSubStr( cEnvelope, 8 ) )
+        hb_BPoke( @cTampered, hb_BLen( cTampered ), hb_bitXor( hb_BCode( hb_BRight( cTampered, 1 ) ), 1 ) )
+        cTampered := "enc:v1:" + hb_base64Encode( cTampered )
+        M1Assert( HBBridgeCredentialPrepareUpdate( StrTran( cINI, cEnvelope, cTampered ), ;
+            hb_cwd(), cProfile, cUpdatePassword, hConfig, @cError ) == NIL .AND. ;
+            cError == "INVALID_CREDENTIAL_UPDATE", ;
+            "credential update rejects a structurally valid altered authentication tag", @nFailures, @nChecks )
+        M1Assert( HBBridgeCredentialPrepareUpdate( StrTran( cINI, "User=" + cUser, "User=other" ), ;
+            hb_cwd(), cProfile, cUpdatePassword, hConfig, @cError ) == NIL .AND. ;
+            cError == "INVALID_CREDENTIAL_UPDATE", ;
+            "credential update rejects a changed authenticated username", @nFailures, @nChecks )
+        M1Assert( HBBridgeCredentialPrepareUpdate( cINI, hb_cwd(), cProfile, "bad" + Chr( 10 ), ;
+            hConfig, @cError ) == NIL .AND. cError == "INVALID_CREDENTIAL_UPDATE", ;
+            "credential update rejects an invalid replacement password", @nFailures, @nChecks )
+        M1Assert( HBBridgeCredentialPrepareUpdate( cINI, hb_cwd(), "missing", cUpdatePassword, hConfig, @cError ) == NIL .AND. ;
+            cError == "INVALID_CREDENTIAL_UPDATE" .AND. ;
+            HBBridgeCredentialPrepareUpdate( cINI, hb_cwd() + hb_ps() + "absent-key-dir", cProfile, ;
+                cUpdatePassword, hConfig, @cError ) == NIL .AND. cError == "INVALID_CREDENTIAL_UPDATE", ;
+            "credential update rejects missing profile and inaccessible key", @nFailures, @nChecks )
+        cFancyINI := cINI + "[SQL/other]" + hb_eol() + "Driver=mssql" + hb_eol() + ;
+            "Authentication=sql" + hb_eol() + "DSN=other" + hb_eol() + "Credential=" + cId + hb_eol()
+        M1Assert( HBBridgeCredentialPrepareUpdate( cFancyINI, hb_cwd(), cProfile, cUpdatePassword, ;
+            hConfig, @cError ) == NIL .AND. cError == "INVALID_CREDENTIAL_UPDATE", ;
+            "credential update rejects a credential shared across profiles", @nFailures, @nChecks )
+        cUpdated := NIL
+        hUpdated := NIL
         cNewEnvelope := HBBridgeCredentialEncrypt( cKeyPath, cProfile, cId, cKeyId, cUser, "replacement", @cError )
         cPlan := HBBridgeCredentialPlanINI( cINI, cId, cNewEnvelope, hConfig, @cError )
         cExpected := StrTran( cINI, "Password=" + cEnvelope, "Password=" + cNewEnvelope )

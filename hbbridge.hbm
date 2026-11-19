@@ -24,6 +24,7 @@ src/hb/transports/http/hbbridge.http.encoding.hb
 src/hb/host/hbbridge.config.hb
 src/hb/host/hbbridge.credential.command.hb
 src/hb/host/hbbridge.credential.ini.hb
+src/hb/host/hbbridge.credential.update.hb
 src/hb/host/hbbridge.ini.hb
 src/hb/host/hbbridge.life.cycle.hb
 src/hb/core/hbbridge.dispatcher.hb

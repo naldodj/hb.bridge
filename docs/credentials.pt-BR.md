@@ -407,6 +407,15 @@ futuro editor deverá criar e autenticar o envelope no contexto pretendido,
 detectar conflitos e publicar a alteração atomicamente. Esse preparador não é
 um comando de administração.
 
+Um segundo preparador interno usa o conteúdo do INI e seu diretório para resolver
+o perfil MSSQL protegido. Ele autentica o envelope atual no contexto de perfil,
+credencial, chave e usuário, cifra e verifica a substituição e chama o primeiro
+preparador. Uma credencial referenciada por múltiplos perfis é rejeitada, pois
+o envelope é vinculado a um perfil. Esse processo não conecta ao SQL, não lê
+o arquivo de configuração, não detecta edições concorrentes e não publica o
+resultado. Texto em memória gerenciada pelo Harbour pode permanecer após a
+liberação das variáveis; o provedor limpa apenas os próprios buffers.
+
 O primeiro teste local de conexão aceita um perfil MSSQL protegido existente:
 
 ```text

@@ -403,6 +403,15 @@ concurrent edits. The future editor must create and authenticate the envelope
 against the intended context, then separately protect against conflicting edits
 and publish the update atomically. This planner is not a management command.
 
+A separate internal update preparer uses the supplied INI snapshot and its
+configuration directory to resolve the protected MSSQL profile. It authenticates
+the current envelope against the profile, credential, key and user, seals and
+verifies the replacement, then invokes the planner. A credential referenced by
+multiple profiles is rejected because its envelope is bound to one profile.
+The preparer does not connect to SQL, read the configuration from disk, detect
+concurrent edits or publish the result. Harbour-managed plaintext may remain in
+memory beyond the lifetime of variables; the provider wipes only its own buffers.
+
 The initial local connection test accepts an existing protected MSSQL profile:
 
 ```text
