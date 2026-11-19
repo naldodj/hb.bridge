@@ -82,9 +82,13 @@ aceites separados. Veja a [análise de credenciais](docs/credentials.pt-BR.md).
   casos de falha; ele também não grava arquivos. Um protótipo isolado de leitura
   no terminal recusa entrada redirecionada e restaura o estado nos cancelamentos
   testados; verificações sintéticas passaram em Windows e WSL com PTY. Ele não
-  está ligado ao produto nem ao fluxo de atualização. Integração Linux, comando
-  interativo, detecção de conflito, publicação atômica, implantação e aceite
-  completo permanecem pendentes.
+  está ligado ao produto nem ao fluxo de atualização. Uma verificação prévia
+  por bytes rejeita alterações de INI já observadas, sem impedir mudanças entre
+  a comparação e a publicação. Provas sintéticas de substituição local passaram
+  em Windows/NTFS e WSL; no Windows, `ReplaceFileW` alterou metadados de herança
+  da DACL nos dois cenários, mantendo iguais os titulares e direitos observados.
+  Publicação atômica segura em produção, preservação de metadados, integração
+  Linux, comando interativo, implantação e aceite completo permanecem pendentes.
 - [ ] C05: testar adulteração, chave errada/ausente, provedor indisponível,
   Unicode, concorrência, limpeza e sanitização; homologar SQL real com segredos
   sintéticos quando possível no Windows, além de build, execução e identidade

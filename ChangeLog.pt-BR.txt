@@ -6,6 +6,12 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Adicionar cobertura de integridade para JSON UTF-8 e MSSQL)"
  */
 
+2026-11-19 21:16 UTC naldodj (Verificar snapshots de atualização de credencial)
+  + Rejeitar alterações de configuração já observadas antes de preparar a senha,
+    usando comparação exata por bytes e resultado de conflito sanitizado.
+  ; Testar substituição e metadados em arquivos sintéticos; a publicação atômica
+    para produção e a preservação da DACL Windows permanecem pendentes.
+
 2026-11-19 15:35 UTC naldodj (Testar entrada interativa privada de credencial)
   + Adicionar leitor isolado de terminal e testes sintéticos Windows e Linux com PTY.
   ; Integração ao produto, edição interativa e atualizações atômicas seguem abertas.

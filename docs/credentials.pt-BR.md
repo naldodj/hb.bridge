@@ -416,6 +416,31 @@ o arquivo de configuração, não detecta edições concorrentes e não publica 
 resultado. Texto em memória gerenciada pelo Harbour pode permanecer após a
 liberação das variáveis; o provedor limpa apenas os próprios buffers.
 
+Uma verificação prévia por bytes retorna `CONFIG_CHANGED` quando o conteúdo
+observado difere do original, inclusive em mudanças de mesmo tamanho e após NUL.
+Ela não impede alteração após a comparação; o futuro publicador deverá conferir
+novamente sob um mecanismo de coordenação documentado e não poderá presumir que
+editores externos respeitam um bloqueio consultivo.
+Se for adotado um arquivo auxiliar de bloqueio, sua identidade deverá permanecer
+estável enquanto algum processo puder mantê-lo ou aguardá-lo; excluir e recriar
+esse arquivo pode dividir participantes entre bloqueios distintos. A comparação
+deve ser repetida imediatamente antes da publicação, deixando explícito que
+editores externos que ignoram o protocolo ainda podem disputar a alteração.
+
+A prova sintética de substituição local verifica bloqueio auxiliar entre
+processos, staging, alteração conflitante, leitor aberto e metadados. No volume
+Windows NTFS testado, [`ReplaceFileW`](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-replacefilew)
+alterou metadados de herança da DACL tanto com DACL herdada quanto protegida;
+titulares e direitos observados permaneceram iguais. Reaplicar explicitamente
+o descritor anterior o restaurou nesses testes, mas essa etapa adicional não
+garante segurança atômica. A prova em sistema de arquivos local no WSL passou
+nos limites testados de modo/proprietário, leitor, renomeação e sync do diretório.
+Nos dois ambientes, uma alteração sintética feita após a comparação por um editor
+que ignorava o bloqueio foi sobrescrita pela substituição. Nenhum dos resultados
+comprova durabilidade após falha, preservação de ACLs
+estendidas ou segurança contra editores que ignoram o bloqueio. A publicação de
+arquivo para produção permanece não implementada.
+
 Um leitor experimental independente aceita somente terminal interativo, desativa
 o eco durante a leitura e restaura o modo anterior. Ele não está ligado ao produto
 nem ao fluxo de atualização. A implementação de teste aceita UTF-8 não vazio de

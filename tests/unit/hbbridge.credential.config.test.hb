@@ -63,6 +63,22 @@ PROCEDURE HBBridgeCredentialConfigTests( nFailures, nChecks )
             Break( NIL )
         ENDIF
         hProfile := hConfig[ "sqlProfiles" ][ cProfile ]
+        cUpdated := HBBridgeCredentialPrepareCheckedUpdate( cINI, cINI, hb_cwd(), cProfile, ;
+            cUpdatePassword, hConfig, @cError )
+        M1Assert( HB_ISSTRING( cUpdated ) .AND. cError == "", ;
+            "checked credential update accepts identical byte snapshots", @nFailures, @nChecks )
+        M1Assert( HBBridgeCredentialPrepareCheckedUpdate( cINI, cINI + "# external edit" + hb_eol(), ;
+            hb_cwd(), cProfile, cUpdatePassword, hConfig, @cError ) == NIL .AND. cError == "CONFIG_CHANGED", ;
+            "checked credential update rejects an external edit", @nFailures, @nChecks )
+        M1Assert( HBBridgeCredentialPrepareCheckedUpdate( cINI, StrTran( cINI, "Driver=mssql", "Driver=MSSQL" ), ;
+            hb_cwd(), cProfile, cUpdatePassword, hConfig, @cError ) == NIL .AND. cError == "CONFIG_CHANGED", ;
+            "checked credential update rejects same-length byte changes", @nFailures, @nChecks )
+        M1Assert( HBBridgeCredentialPrepareCheckedUpdate( "A" + Chr( 0 ) + "B", "A" + Chr( 0 ) + "C", ;
+            hb_cwd(), cProfile, cUpdatePassword, hConfig, @cError ) == NIL .AND. cError == "CONFIG_CHANGED", ;
+            "checked credential update compares bytes after embedded NUL", @nFailures, @nChecks )
+        M1Assert( HBBridgeCredentialPrepareCheckedUpdate( NIL, cINI, hb_cwd(), cProfile, ;
+            cUpdatePassword, hConfig, @cError ) == NIL .AND. cError == "INVALID_CREDENTIAL_UPDATE", ;
+            "checked credential update rejects invalid snapshots", @nFailures, @nChecks )
         cUpdated := HBBridgeCredentialPrepareUpdate( cINI, hb_cwd(), cProfile, cUpdatePassword, hConfig, @cError )
         IF HB_ISSTRING( cUpdated )
             hUpdated := HBBridgeConfigINI( cUpdated, hConfig, @cError )

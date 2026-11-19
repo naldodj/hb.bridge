@@ -4,6 +4,12 @@
 
 ## Credential feasibility probes
 
+`python tests/probes/hbbridge.credential.atomic.probe.py <existing-directory>`
+probes local replacement and a cooperative cross-process lock using only
+synthetic files. On Windows, add `--protected` for a protected-DACL fixture.
+The test reports observed security-metadata changes; it does not implement or
+certify production file updates, extended ACL preservation or crash durability.
+
 `pwsh ./scripts/test-credentials-terminal.ps1` builds the standalone terminal
 probe and verifies that redirected input is refused without a prompt. On Linux
 it also runs synthetic pseudoterminal tests; `-Interactive` adds a manual test

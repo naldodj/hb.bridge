@@ -1,5 +1,21 @@
 /* Released to Public Domain. Prepare a context-bound credential update. */
 
+/* This preflight compares byte snapshots. Publication must recheck under its
+ * own lock; this check alone cannot make a subsequent write atomic. */
+FUNCTION HBBridgeCredentialPrepareCheckedUpdate( cExpected, cObserved, cBase, cProfile, cPassword, hDefaults, cError )
+    LOCAL nLength
+
+    cError := "INVALID_CREDENTIAL_UPDATE"
+    IF ! HB_ISSTRING( cExpected ) .OR. ! HB_ISSTRING( cObserved )
+        RETURN NIL
+    ENDIF
+    nLength := hb_BLen( cExpected )
+    IF nLength != hb_BLen( cObserved ) .OR. ( nLength > 0 .AND. hb_BAt( cExpected, cObserved ) != 1 )
+        cError := "CONFIG_CHANGED"
+        RETURN NIL
+    ENDIF
+RETURN HBBridgeCredentialPrepareUpdate( cObserved, cBase, cProfile, cPassword, hDefaults, @cError )
+
 FUNCTION HBBridgeCredentialPrepareUpdate( cContents, cBase, cProfile, cPassword, hDefaults, cError )
     LOCAL cBody, cExisting, cEnvelope, cFailure, cPlan, cVerified
     LOCAL cBOM := Chr( 239 ) + Chr( 187 ) + Chr( 191 )

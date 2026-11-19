@@ -80,8 +80,12 @@ its own acceptance. See [credential review](docs/credentials.md).
   An isolated native terminal-input probe rejects redirected input and restores
   terminal state on tested cancellation paths; synthetic Windows and WSL PTY
   checks passed. It is not linked to the product or wired to the update flow.
-  Linux integration, interactive command, conflict detection, atomic publication,
-  deployment and full acceptance remain open.
+  A byte-level preflight rejects already-observed INI changes, but cannot prevent
+  changes between comparison and publication. Synthetic local replacement probes
+  passed on Windows/NTFS and WSL; Windows `ReplaceFileW` changed DACL inheritance
+  metadata in both tested scenarios, even when trustees and rights stayed equal.
+  Production-safe atomic publication, metadata preservation, Linux integration,
+  interactive command, deployment and full acceptance remain open.
 - [ ] C05: validate tampering, wrong/missing key, unavailable provider, Unicode,
   concurrent calls, cleanup and redaction; run real SQL acceptance with synthetic
   secrets where possible on Windows, plus Linux build/runtime and service identity

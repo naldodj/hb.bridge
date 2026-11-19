@@ -412,6 +412,29 @@ The preparer does not connect to SQL, read the configuration from disk, detect
 concurrent edits or publish the result. Harbour-managed plaintext may remain in
 memory beyond the lifetime of variables; the provider wipes only its own buffers.
 
+An additional byte-level preflight returns `CONFIG_CHANGED` if a newly observed
+snapshot differs from the original, including same-length and embedded-NUL
+changes. It cannot prevent an edit after comparison; the eventual publisher must
+recheck under a documented coordination mechanism and cannot assume that
+non-cooperating editors honor an advisory lock.
+If a sidecar lock is adopted, its identity must remain stable while any writer
+can hold or await it; deleting and recreating that file can split participants
+across different locks. Compare again immediately before publication, and
+state explicitly that external editors which ignore the protocol can still race.
+
+The synthetic local replacement probe compares a sidecar lock across processes,
+staging, a conflicting edit, an open reader and file metadata. On the tested
+Windows NTFS volume, [`ReplaceFileW`](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-replacefilew)
+changed DACL inheritance metadata with both inherited and protected test DACLs;
+the observed trustees and rights remained equal. Explicitly reapplying the old
+descriptor restored it in these tests, but that extra step is not an atomic
+security guarantee. A WSL local-filesystem probe passed the limited mode/owner,
+reader, rename and directory-sync checks. In both environments, a synthetic
+editor that ignored the lock and wrote after the preflight had its change
+overwritten by replacement. Neither result proves crash durability,
+extended-ACL preservation or safety against editors that ignore the lock.
+Production file publication remains unimplemented.
+
 A standalone experimental terminal reader accepts an interactive terminal only,
 disables echo while reading and restores the prior mode. It is not linked to the
 product or connected to the update workflow. Its test-only implementation accepts

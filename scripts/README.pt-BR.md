@@ -4,6 +4,13 @@
 
 ## Provas de viabilidade de credenciais
 
+`python tests/probes/hbbridge.credential.atomic.probe.py <diretório-existente>`
+testa substituição local e bloqueio cooperativo entre processos usando apenas
+arquivos sintéticos. No Windows, acrescente `--protected` para testar DACL
+protegida. A prova relata alterações observadas nos metadados de segurança; não
+implementa nem certifica atualização de produção, ACLs estendidas ou durabilidade
+após falhas.
+
 `pwsh ./scripts/test-credentials-terminal.ps1` compila o teste independente de
 terminal e verifica que entrada redirecionada é recusada sem prompt. No Linux,
 também executa testes sintéticos com pseudoterminal; `-Interactive` acrescenta
