@@ -5,6 +5,10 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Organize bilingual documentation and prepare the Wiki portal)"
  */
 
+2026-11-19 15:35 UTC naldodj (Probe private interactive credential input)
+  + Add an isolated terminal reader and synthetic Windows and Linux PTY probes.
+  ; Product integration, interactive credential editing and atomic updates remain open.
+
 2026-11-19 10:02 UTC naldodj (Authenticate prepared credential updates)
   + Authenticate the existing profile-bound envelope, encrypt and verify a
     replacement, and prepare its INI update in memory. Reject shared references.

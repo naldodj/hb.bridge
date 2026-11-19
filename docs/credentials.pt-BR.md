@@ -416,6 +416,21 @@ o arquivo de configuração, não detecta edições concorrentes e não publica 
 resultado. Texto em memória gerenciada pelo Harbour pode permanecer após a
 liberação das variáveis; o provedor limpa apenas os próprios buffers.
 
+Um leitor experimental independente aceita somente terminal interativo, desativa
+o eco durante a leitura e restaura o modo anterior. Ele não está ligado ao produto
+nem ao fluxo de atualização. A implementação de teste aceita UTF-8 não vazio de
+até 4096 bytes, preserva espaços nas extremidades e tabulações e rejeita NUL
+e controles ASCII além de tabulação. Enter encerra a entrada e o conteúdo
+pendente do terminal é descartado antes de restaurar o eco. No Unix, backspace remove um
+caractere UTF-8 e os sinais de término testados cancelam a entrada para permitir
+a limpeza normal do terminal pelo Harbour. Os sinais afetam todo o processo; o
+leitor destina-se apenas à CLI local, antes de listeners ou workers. O futuro
+chamador deverá encerrar a operação em caso de cancelamento ou erro ao restaurar
+o terminal. O retorno normal e os caminhos de Ctrl+C/término testados restauram
+o modo; término forçado do processo ou perda do terminal não permitem garantir a restauração. Buffers
+nativos são limpos, mas a string retornada ao Harbour não pode ser apagada com
+garantia.
+
 O primeiro teste local de conexão aceita um perfil MSSQL protegido existente:
 
 ```text

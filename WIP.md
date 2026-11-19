@@ -77,7 +77,10 @@ its own acceptance. See [credential review](docs/credentials.md).
   the old envelope against the profile context, seals and verifies a replacement,
   and rejects credentials referenced by multiple profiles. Synthetic Windows
   checks cover the preparation and failure cases; it still writes no files.
-  Linux integration, interactive input, conflict detection, atomic publication,
+  An isolated native terminal-input probe rejects redirected input and restores
+  terminal state on tested cancellation paths; synthetic Windows and WSL PTY
+  checks passed. It is not linked to the product or wired to the update flow.
+  Linux integration, interactive command, conflict detection, atomic publication,
   deployment and full acceptance remain open.
 - [ ] C05: validate tampering, wrong/missing key, unavailable provider, Unicode,
   concurrent calls, cleanup and redaction; run real SQL acceptance with synthetic

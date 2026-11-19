@@ -412,6 +412,20 @@ The preparer does not connect to SQL, read the configuration from disk, detect
 concurrent edits or publish the result. Harbour-managed plaintext may remain in
 memory beyond the lifetime of variables; the provider wipes only its own buffers.
 
+A standalone experimental terminal reader accepts an interactive terminal only,
+disables echo while reading and restores the prior mode. It is not linked to the
+product or connected to the update workflow. Its test-only implementation accepts
+nonempty UTF-8 up to 4096 bytes, preserving edge spaces and tabs; it rejects NUL
+and ASCII controls other than tab. Enter ends input; pending terminal input is
+discarded before echo is restored. On Unix, backspace removes
+one UTF-8 character and tested termination signals cancel input so Harbour can
+perform normal terminal cleanup. Signal handling is process-wide and the reader
+is intended only for a local, single-operation CLI before listeners or workers.
+The future caller must abort on cancellation and on terminal-restoration errors.
+Normal return and tested Ctrl+C/termination paths restore the mode; forced process
+termination or terminal loss cannot guarantee restoration. Provider-owned native
+buffers are wiped, but the returned Harbour string cannot be reliably erased.
+
 The initial local connection test accepts an existing protected MSSQL profile:
 
 ```text

@@ -4,6 +4,13 @@
 
 ## Provas de viabilidade de credenciais
 
+`pwsh ./scripts/test-credentials-terminal.ps1` compila o teste independente de
+terminal e verifica que entrada redirecionada é recusada sem prompt. No Linux,
+também executa testes sintéticos com pseudoterminal; `-Interactive` acrescenta
+uma prova manual com o valor sintético informado. No Windows, ausência de eco e
+restauração do terminal ainda exigem teste em console interativo. Não é um
+comando do produto.
+
 Execute `pwsh ./scripts/test-credentials-serialization.ps1` para serialização
 binária Harbour e `pwsh ./scripts/test-credentials-crypto.ps1` para cifragem
 autenticada e entropia segura no Zig 0.16. Ambos usam dados sintéticos; não

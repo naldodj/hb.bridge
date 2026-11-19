@@ -4,6 +4,12 @@
 
 ## Credential feasibility probes
 
+`pwsh ./scripts/test-credentials-terminal.ps1` builds the standalone terminal
+probe and verifies that redirected input is refused without a prompt. On Linux
+it also runs synthetic pseudoterminal tests; `-Interactive` adds a manual test
+using the printed synthetic value. On Windows, no-echo and terminal restoration
+still require an interactive console test. This probe is not a product command.
+
 Run `pwsh ./scripts/test-credentials-serialization.ps1` for Harbour binary
 serialization and `pwsh ./scripts/test-credentials-crypto.ps1` for Zig 0.16
 authenticated encryption and secure entropy. Both use synthetic data; they do

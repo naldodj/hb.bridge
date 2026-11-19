@@ -79,8 +79,11 @@ aceites separados. Veja a [análise de credenciais](docs/credentials.pt-BR.md).
   independente. Um segundo preparador autentica o envelope anterior no contexto
   do perfil, cifra e verifica a substituição e rejeita credenciais referenciadas
   por múltiplos perfis. Testes sintéticos no Windows cobrem a preparação e os
-  casos de falha; ele também não grava arquivos. Integração Linux, entrada
-  interativa, detecção de conflito, publicação atômica, implantação e aceite
+  casos de falha; ele também não grava arquivos. Um protótipo isolado de leitura
+  no terminal recusa entrada redirecionada e restaura o estado nos cancelamentos
+  testados; verificações sintéticas passaram em Windows e WSL com PTY. Ele não
+  está ligado ao produto nem ao fluxo de atualização. Integração Linux, comando
+  interativo, detecção de conflito, publicação atômica, implantação e aceite
   completo permanecem pendentes.
 - [ ] C05: testar adulteração, chave errada/ausente, provedor indisponível,
   Unicode, concorrência, limpeza e sanitização; homologar SQL real com segredos
