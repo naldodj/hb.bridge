@@ -9,7 +9,7 @@ Compile um único módulo Harbour portátil para os exemplos do projeto:
 ```
 
 O artefato padrão é `addons/examples/hbbridgeaddons.hrb`; use `-Output` para
-instalá-lo sob o `AddonRoot` configurado no servidor. O pacote compila quatro
+instalá-lo sob o `AddonRoot` configurado no servidor. O pacote compila cinco
 fontes `.hb` mantidos no projeto. Ele possui um ponto de entrada `Main` e uma
 seleção explícita, sensível a maiúsculas e minúsculas:
 
@@ -17,7 +17,8 @@ seleção explícita, sensível a maiúsculas e minúsculas:
 {"service":"ADDON.Execute","params":{"module":"examples/hbbridgeaddons.hrb","params":{"action":"sample","params":{}}}}
 ```
 
-As ações disponíveis são `sample`, `benchmark`, `temporaryInsert` e `turnover`.
+As ações disponíveis são `sample`, `benchmark`, `temporaryInsert`, `turnover` e
+`turnoverReport`.
 Cada ação recebe seu objeto de parâmetros existente e retorna sua resposta
 original. Um hash local à chamada, sensível a maiúsculas e minúsculas, associa
 ações autorizadas aos símbolos das funções locais do HRB. `hb_ExecFromArray()`
@@ -34,7 +35,7 @@ turnover. O executor genérico continua aceitando módulos `.hb`, `.prg` e `.hrb
 independentes, com seu contrato de entrada original; scripts dedicados anteriores
 permanecem disponíveis por compatibilidade e para fixtures de regressão nativa.
 Um HRB pode conter várias funções Harbour, mas addons independentes não precisam
-compartilhar um único HRB ou ciclo de publicação. O compilador inclui os quatro
+compartilhar um único HRB ou ciclo de publicação. O compilador inclui os cinco
 fontes em uma unidade e atribui nomes distintos às suas funções `Main`. Ao ampliar
 o pacote, evitar também nomes repetidos de auxiliares static.
 

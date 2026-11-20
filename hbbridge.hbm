@@ -14,6 +14,9 @@ hbhttpd.hbc
 hbtcpio.hbc
 {HB_HTTP_TLS='1'}hbssl.hbc
 {HB_HTTP_TLS='1'}-prgflag=-DHBBRIDGE_HTTP_TLS
+# Pass -debug before hbbridge.hbp so the filters see the selected mode.
+{!debug}-debug-
+{!debug}-ldflag=-s
 
 src/hb/transports/protheus/hbbridge.framing.hb
 src/hb/transports/protheus/hbbridge.adapter.hb

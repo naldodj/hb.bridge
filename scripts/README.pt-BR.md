@@ -228,6 +228,16 @@ instalação em execução, use uma saída isolada:
 ./scripts/build-hbbridge.ps1 -OutputDirectory tmp/candidate
 ```
 
+Use `./scripts/build-hbbridge.ps1 -DebugSymbols` para gerar um build separado em
+`out/debug`. O script passa `-debug` antes do arquivo de projeto e habilita as
+informações de depuração Harbour com `-b`; builds normais mantêm a opção de link
+sem debug. Use `-OutputDirectory` para escolher outro local. No Windows, mantenha
+o PDB gerado junto do executável correspondente. Dependências pré-compiladas e a
+biblioteca Zig não são recompiladas automaticamente com as mesmas opções de
+depuração. Na chamada direta do `hbmk2`, coloque `-debug -prgflag=-b` antes de
+`hbbridge.hbp`: os filtros são avaliados na ordem de entrada. Use diretórios
+separados para evitar símbolos de uma compilação anterior.
+
 `-HbCompileRoot` e `-ZigPath` são substituições explícitas para casos
 avançados. O padrão usa dependências do projeto. `toolchain.ps1` resolve
 hbrun/hbmk2/Zig/compilador e verifica a versão Zig; mudanças temporárias

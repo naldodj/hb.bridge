@@ -6,6 +6,11 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Adicionar cobertura de integridade para JSON UTF-8 e MSSQL)"
  */
 
+2026-11-20 15:26 UTC naldodj (Permitir símbolos de depuração opcionais)
+  ! Respeitar a distinção de maiúsculas no filtro de debug do hbmk2 ao remover símbolos.
+  + Adicionar opção de build separado com informações de depuração Harbour e C.
+  ; Corrigir a lista atual de ações do pacote de exemplos de addons.
+
 2026-11-20 10:17 UTC naldodj (Corrigir caminhos UTF-8 de chaves no Windows)
   ! Decodificar caminhos de chave como UTF-8 independentemente da code page Harbour.
   + Testar criação e acesso autenticado a caminhos Unicode entre code pages.

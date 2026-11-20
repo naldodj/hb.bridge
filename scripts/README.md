@@ -220,6 +220,15 @@ isolated output alongside a running installation:
 ./scripts/build-hbbridge.ps1 -OutputDirectory tmp/candidate
 ```
 
+Use `./scripts/build-hbbridge.ps1 -DebugSymbols` for a separate debug build in
+`out/debug`. It passes `-debug` before the project file and enables Harbour debug
+information with `-b`; normal builds retain the non-debug linker setting. Use
+`-OutputDirectory` to select another location. On Windows keep the generated PDB
+with its matching executable. Prebuilt dependencies and the Zig library are not
+automatically rebuilt with the same debugging settings. For direct `hbmk2`
+invocation, put `-debug -prgflag=-b` before `hbbridge.hbp`: project filters are
+evaluated in input order. Use separate directories to avoid stale symbols.
+
 `-HbCompileRoot` and `-ZigPath` are explicit advanced overrides. Managed
 locations are the default. `toolchain.ps1` resolves hbrun/hbmk2/Zig/compiler
 paths and checks the required Zig version; temporary environment changes

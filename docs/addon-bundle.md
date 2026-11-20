@@ -10,14 +10,15 @@ Build one portable Harbour module for the project examples:
 
 The default artifact is `addons/examples/hbbridgeaddons.hrb`; pass `-Output` to
 install it under the running server's configured `AddonRoot`. The bundle compiles
-four maintained `.hb` sources together. It has one `Main` entry point and an
+five maintained `.hb` sources together. It has one `Main` entry point and an
 explicit, case-sensitive action selector:
 
 ```json
 {"service":"ADDON.Execute","params":{"module":"examples/hbbridgeaddons.hrb","params":{"action":"sample","params":{}}}}
 ```
 
-Available actions are `sample`, `benchmark`, `temporaryInsert` and `turnover`.
+Available actions are `sample`, `benchmark`, `temporaryInsert`, `turnover` and
+`turnoverReport`.
 Each action receives its existing parameter object and returns its existing
 response. A case-sensitive request-local hash maps approved action names to
 HRB-local function symbols. `hb_ExecFromArray()` invokes the selected symbol
@@ -34,7 +35,7 @@ examples. The generic executor still accepts independently installed `.hb`,
 `.prg` and `.hrb` modules with their original entry contract; existing dedicated
 build scripts remain for compatibility and native regression fixtures. An HRB
 can contain multiple Harbour functions, but independent addons need not share
-one HRB or release lifecycle. The compiler includes the four source files in one
+one HRB or release lifecycle. The compiler includes the five source files in one
 compilation unit and assigns their separate `Main` functions distinct names in
 that unit. When extending the bundle, also avoid duplicate static helper names.
 

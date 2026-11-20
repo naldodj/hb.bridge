@@ -3,7 +3,8 @@
 param(
     [string] $HbCompileRoot,
     [string] $ZigPath,
-    [string] $OutputDirectory
+    [string] $OutputDirectory,
+    [switch] $DebugSymbols
 )
 
 $ErrorActionPreference = 'Stop'
@@ -12,7 +13,9 @@ $projectRoot = Split-Path -Parent $PSScriptRoot
 $toolchain = Resolve-HBBridgeToolchain -ProjectRoot $projectRoot -HbCompileRoot $HbCompileRoot -ZigPath $ZigPath
 & (Join-Path $PSScriptRoot 'prepare-odbc.ps1') -HbCompileRoot $toolchain.HbCompileRoot -ZigPath $toolchain.Zig
 if (-not $?) { throw 'Managed ODBC dependency preparation failed.' }
-if ([string]::IsNullOrWhiteSpace($OutputDirectory)) { $OutputDirectory = Join-Path $projectRoot 'out' }
+if ([string]::IsNullOrWhiteSpace($OutputDirectory)) {
+    $OutputDirectory = Join-Path $projectRoot $(if ($DebugSymbols) { 'out/debug' } else { 'out' })
+}
 $outputRoot = [System.IO.Path]::GetFullPath($OutputDirectory)
 $executable = Join-Path $outputRoot "hbbridge$($toolchain.ExecutableExtension)"
 if ($IsWindows) {
@@ -31,7 +34,8 @@ try {
     & $toolchain.Zig build
     if ($LASTEXITCODE -ne 0) { throw 'The Zig library build failed.' }
     $target = Join-Path $outputRoot 'hbbridge'
-    & $toolchain.Hbmk2 "-comp=$($toolchain.Compiler)" hbbridge.hbp "-o$target" "-workdir=$buildRoot"
+    $debugOptions = if ($DebugSymbols) { @('-debug', '-prgflag=-b') } else { @() }
+    & $toolchain.Hbmk2 "-comp=$($toolchain.Compiler)" @debugOptions hbbridge.hbp "-o$target" "-workdir=$buildRoot"
     if ($LASTEXITCODE -ne 0) { throw 'The hbBridge executable build failed.' }
     Write-Host "hbBridge executable: $executable"
 }
