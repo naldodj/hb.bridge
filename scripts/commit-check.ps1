@@ -158,8 +158,13 @@ try {
 if ($InstallHook) {
     $hookRelative = Invoke-ValidationGit -Arguments @('rev-parse', '--git-path', 'hooks/pre-commit')
     $hookPath = [IO.Path]::GetFullPath((Join-Path $projectRoot $hookRelative))
-    $hookContent = "#!/bin/sh`n# hbBridge mandatory staged checks`nexec pwsh -NoProfile -File `"`$(git rev-parse --show-toplevel)/scripts/commit-check.ps1`" -Staged`n"
-    if ((Test-Path -LiteralPath $hookPath) -and [IO.File]::ReadAllText($hookPath) -cne $hookContent) {
+    # Git runs working-tree hooks from the repository root. A relative path
+    # also avoids converting Git's POSIX path for a native Windows PowerShell.
+    $hookContent = "#!/bin/sh`n# hbBridge mandatory staged checks`nexec pwsh -NoProfile -File scripts/commit-check.ps1 -Staged`n"
+    $legacyHookContent = "#!/bin/sh`n# hbBridge mandatory staged checks`nexec pwsh -NoProfile -File `"`$(git rev-parse --show-toplevel)/scripts/commit-check.ps1`" -Staged`n"
+    if ((Test-Path -LiteralPath $hookPath) -and
+        [IO.File]::ReadAllText($hookPath) -cne $hookContent -and
+        [IO.File]::ReadAllText($hookPath) -cne $legacyHookContent) {
         throw "An existing pre-commit hook was preserved. Integrate scripts/commit-check.ps1 -Staged into $hookPath."
     }
     New-Item -ItemType Directory -Path (Split-Path $hookPath -Parent) -Force | Out-Null

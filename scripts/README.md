@@ -2,6 +2,68 @@
 
 [Português](README.pt-BR.md)
 
+## Credential feasibility probes
+
+`python tests/probes/hbbridge.credential.atomic.probe.py <existing-directory>`
+probes local replacement and a cooperative cross-process lock using only
+synthetic files. On Windows, add `--protected` for a protected-DACL fixture.
+The test reports observed security-metadata changes; it does not implement or
+certify production file updates, extended ACL preservation or crash durability.
+
+`pwsh ./scripts/test-credentials-terminal.ps1` builds the standalone terminal
+probe and verifies that redirected input is refused without a prompt. On Linux
+it also runs synthetic pseudoterminal tests; `-Interactive` adds a manual test
+using the printed synthetic value. On Windows, no-echo and terminal restoration
+still require an interactive console test. This probe is not a product command.
+
+Run `pwsh ./scripts/test-credentials-serialization.ps1` for Harbour binary
+serialization and `pwsh ./scripts/test-credentials-crypto.ps1` for Zig 0.16
+authenticated encryption and secure entropy. Both use synthetic data; they do
+not implement credential storage. Pass `-CompileOnlyTarget x86_64-linux-gnu`
+to the Zig probe to compile for Linux without executing it.
+Run `pwsh ./scripts/test-credentials-abi.ps1` to compile and execute the
+synthetic Harbour/C/Zig integration probe, including secure OS entropy from
+the linked Zig library. For native checks, run all three scripts after
+`pwsh ./scripts/bootstrap.ps1` on Windows or Linux. The ABI build in `tmp/`
+is disposable.
+
+`pwsh ./scripts/test-credentials-key-publication.ps1` builds a test-only hook,
+interrupts synthetic key creation before publication and checks that the final
+path stays absent and the staged key is private. It tests recovery after the
+interrupted process exits, and simulates cleanup failure on a collision and,
+on Unix, after publication. The synthetic files are removed when it finishes.
+
+`pwsh ./scripts/test-credentials-permissions.ps1` checks that encryption and
+decryption reject a synthetic key with broad permissions, then work again after
+restoring restricted permissions. On Windows it also checks DACL inheritance.
+
+`pwsh ./scripts/test-credentials-sql.ps1` exercises the protected SQL profile,
+INI/JSON parsing, context binding, failure handling and redaction with synthetic
+values and a nonexistent DSN. It does not connect to an actual database.
+
+The standalone `tests/probes/hbbridge.credential.ini.probe.hbp` can be built
+with Harbour's `hbmk2` on Windows or Linux without SQL or Zig dependencies. It
+checks the in-memory INI update planner with synthetic values; it neither writes
+configuration files nor authenticates an encrypted envelope.
+
+For the cross-platform provider fixture, create an empty directory and run
+`pwsh ./scripts/test-credentials-portability.ps1 -Mode Create -FixtureDirectory <path>`
+on the source platform. Transfer only the two **synthetic** files into a private
+directory on the destination, set its key permissions for the destination
+identity, and run the same script with `-Mode Verify`. Repeat in the opposite
+direction. The caller owns and removes the fixture files; this is a test, not a
+credential migration utility. Bootstrap the managed toolchain on each platform.
+
+`pwsh ./scripts/test-hbbridge-mssql-credential.ps1 -Config <private.ini> -Profile <alias>`
+tests a structured plaintext SQL-authentication profile against MSSQL. It creates
+an encrypted temporary JSON profile and a private key, runs `SELECT 1` through
+the normal query path, and removes both files. It never writes the plaintext
+password to the fixture or prints it. The original configuration is unchanged.
+Pass `-TestExecutable <hbbridge-executable>` to also exercise the local
+`--credential-test` command with the temporary protected profile, verify that
+its captured output does not contain the password or envelope, and test key
+creation and refusal to overwrite a synthetic key.
+
 ## Wiki portal
 
 The root READMEs present the project and first run. Technical guides stay in
@@ -136,11 +198,14 @@ cache service or Linux. See [lifetime, scope and future work](../docs/evolution.
 
 Bootstrap verifies the Zig archive checksum and the Git revisions in
 [dependencies.json](../config/dependencies.json). A completed receipt avoids
-unnecessary rebuilds. `-ForceBuild` rebuilds Harbour; `-SkipHarbourBuild` only
-resolves sources/Zig. Windows builds through hb_compile; Linux uses its
-compatibility preparer plus native make/GCC. Linux requires PowerShell 7,
-Git, make/GCC/binutils and unixODBC development headers. SQL Server ODBC
-runtime drivers and licensed TOTVS resources are installed separately.
+unnecessary rebuilds. `-ForceBuild` rebuilds the selected Harbour profile.
+`-SkipHarbourBuild` resolves sources and Zig. Windows uses the hb_compile
+runner. Linux uses its compatibility preparer and GNU make with managed Zig
+by default. The Linux GCC profile is available through `-Compiler gcc` and
+`HBBRIDGE_HARBOUR_COMPILER=gcc` for subsequent scripts. See the
+[Linux compiler selection](../docs/dependencies.md#linux-compiler-selection)
+for prerequisites and commands. SQL Server ODBC runtime drivers and licensed
+TOTVS resources are installed separately.
 
 HTTP preparation is part of bootstrap: native hbhttpd/hbtcpio and the
 checksum-verified project patch are built with `prepare-http.ps1`. Direct

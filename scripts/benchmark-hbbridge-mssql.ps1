@@ -48,7 +48,8 @@ try {
     $dependencies = Get-HBBridgeDependencies -ProjectRoot $projectRoot
     $revision = [string](& git -c "safe.directory=$($projectRoot.Replace('\', '/'))" rev-parse HEAD)
     $dirty = [string](& git -c "safe.directory=$($projectRoot.Replace('\', '/'))" status --porcelain --untracked-files=normal)
-    $receipt = Get-Content -LiteralPath (Join-Path $projectRoot '.deps/odbc/receipt.json') -Raw |
+    $odbcRoot = Get-HBBridgeManagedContribRoot -ProjectRoot $projectRoot -Name 'odbc' -Toolchain $toolchain
+    $receipt = Get-Content -LiteralPath (Join-Path $odbcRoot 'receipt.json') -Raw |
         ConvertFrom-Json -AsHashtable
     $report = [ordered]@{
         schemaVersion = 1

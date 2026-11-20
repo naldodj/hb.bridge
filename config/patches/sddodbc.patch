@@ -344,11 +344,14 @@
  #endif
 
  #if ODBCVER >= 0x0300
-@@ -246,6 +543,19 @@
+@@ -244,32 +541,83 @@
+          const O_HB_CHAR * pchConStr;
+          void *            hConnStr;
           HB_SIZE           nConnLen;
-          SQLTCHAR          cBuffer[ 1024 ];
-          SQLSMALLINT       iLen = HB_SIZEOFARRAY( cBuffer );
-+
+-         SQLTCHAR          cBuffer[ 1024 ];
+-         SQLSMALLINT       iLen = HB_SIZEOFARRAY( cBuffer );
+
+-         cBuffer[ 0 ] = '\0';
 +         if( fLoginTimeout && ! odbcLoginTimeout( hConnect, ulLoginTimeout ) )
 +         {
 +            hb_rddsqlSetError( 0, "HY024 Could not apply the native ODBC login timeout.", NULL, NULL, 0 );
@@ -361,10 +364,19 @@
 +#endif
 +            return HB_FAILURE;
 +         }
-
-          cBuffer[ 0 ] = '\0';
++
           pchConStr = O_HB_ARRAYGETSTR( pItem, 2, &hConnStr, &nConnLen );
-@@ -260,9 +570,37 @@
+
+          if( SQL_SUCCEEDED( SQLDriverConnect( hConnect,
+                                               NULL,
+                                               ( SQLTCHAR * ) HB_UNCONST( pchConStr ),
+                                               ( SQLSMALLINT ) nConnLen,
+-                                              cBuffer,
+-                                              HB_SIZEOFARRAY( cBuffer ),
+-                                              &iLen,
++                                              NULL,
++                                              0,
++                                              NULL,
                                                SQL_DRIVER_NOPROMPT ) ) )
           {
              hb_strfree( hConnStr );
@@ -402,7 +414,46 @@
              return HB_SUCCESS;
           }
           else
-@@ -304,6 +642,53 @@
+          {
++            char szSafeError[] = "HY000 ODBC connection failed.";
++            HB_SIZE nState;
++
+             hb_strfree( hConnStr );
+             szError = odbcGetError( hEnv, hConnect, SQL_NULL_HSTMT, &errCode );
+-            hb_rddsqlSetError( errCode, szError, NULL, NULL, 0 );
++            /* Preserve only a valid SQLSTATE; driver text can contain secrets. */
++            if( strlen( szError ) >= 6 && szError[ 5 ] == ' ' )
++            {
++               for( nState = 0; nState < 5; ++nState )
++                  if( ! ( ( szError[ nState ] >= 'A' && szError[ nState ] <= 'Z' ) ||
++                          ( szError[ nState ] >= '0' && szError[ nState ] <= '9' ) ) )
++                     break;
++               if( nState == 5 )
++                  memcpy( szSafeError, szError, 5 );
++            }
++            hb_rddsqlSetError( errCode, szSafeError, NULL, NULL, 0 );
+             hb_xfree( szError );
+          }
+ #if ODBCVER >= 0x0300
+@@ -281,7 +629,7 @@
+       else
+       {
+          szError = odbcGetError( hEnv, SQL_NULL_HDBC, SQL_NULL_HSTMT, &errCode );
+-         hb_errRT_ODBCDD( EG_OPEN, ESQLDD_CONNALLOC, szError, hb_arrayGetCPtr( pItem, 2 ), errCode );
++         hb_errRT_ODBCDD( EG_OPEN, ESQLDD_CONNALLOC, szError, NULL, errCode );
+          hb_xfree( szError );
+       }
+ #if ODBCVER >= 0x0300
+@@ -293,7 +641,7 @@
+    else
+    {
+       szError = odbcGetError( SQL_NULL_HENV, SQL_NULL_HDBC, SQL_NULL_HSTMT, &errCode );
+-      hb_errRT_ODBCDD( EG_OPEN, ESQLDD_ENVALLOC, szError, hb_arrayGetCPtr( pItem, 2 ), errCode );
++      hb_errRT_ODBCDD( EG_OPEN, ESQLDD_ENVALLOC, szError, NULL, errCode );
+       hb_xfree( szError );
+    }
+    return HB_FAILURE;
+@@ -304,6 +652,53 @@
  {
     SDDCONN * pSDDConn = ( SDDCONN * ) pConnection->pSDDConn;
 
@@ -456,7 +507,7 @@
     SQLDisconnect( pSDDConn->hConn );
  #if ODBCVER >= 0x0300
     SQLFreeHandle( SQL_HANDLE_DBC, pSDDConn->hConn );
-@@ -316,6 +701,43 @@
+@@ -316,6 +711,43 @@
     return HB_SUCCESS;
  }
 
@@ -500,7 +551,7 @@
 
  static HB_ERRCODE odbcExecute( SQLDDCONNECTION * pConnection, PHB_ITEM pItem )
  {
-@@ -329,6 +751,10 @@
+@@ -329,6 +761,10 @@
     HB_ERRCODE        errCode;
     SQLRETURN         result;
 
@@ -511,7 +562,7 @@
  #if ODBCVER >= 0x0300
     if( ! SQL_SUCCEEDED( SQLAllocHandle( SQL_HANDLE_STMT, pSDDConn->hConn, &hStmt ) ) )
  #else
-@@ -341,11 +767,35 @@
+@@ -341,11 +777,35 @@
        return HB_FAILURE;
     }
 
@@ -552,7 +603,7 @@
 
     if( SQL_SUCCEEDED( result ) )
     {
-@@ -404,7 +854,29 @@
+@@ -404,7 +864,29 @@
        return HB_FAILURE;
     }
 
@@ -583,7 +634,7 @@
     result = SQLExecDirect( hStmt,
                             ( SQLTCHAR * ) HB_UNCONST( pchQuery ),
                             ( SQLINTEGER ) O_HB_STRLEN( pchQuery ) );
-@@ -688,6 +1160,171 @@
+@@ -688,6 +1170,171 @@
  }
 
 
@@ -755,7 +806,7 @@
  static HB_ERRCODE odbcGoTo( SQLBASEAREAP pArea, HB_ULONG ulRecNo )
  {
     SQLHSTMT  hStmt;
-@@ -704,10 +1341,16 @@
+@@ -704,10 +1351,16 @@
 
     while( ulRecNo > pArea->ulRecCount && ! pArea->fFetched )
     {
@@ -773,7 +824,7 @@
        }
 
        pArray = hb_itemArrayNew( pArea->area.uiFieldCount );
-@@ -720,49 +1363,7 @@
+@@ -720,49 +1373,7 @@
           switch( pField->uiType )
           {
              case HB_FT_STRING:
@@ -824,7 +875,7 @@
                 break;
 
              case HB_FT_INTEGER:
-@@ -840,9 +1441,14 @@
+@@ -840,9 +1451,14 @@
              }
           }
 

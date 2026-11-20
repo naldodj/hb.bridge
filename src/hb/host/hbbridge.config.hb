@@ -56,6 +56,8 @@ FUNCTION HBBridgeConfig( aArgs, cError )
             ,"netioTimeout" => 0;
             ,"sqlODBCPooling" => "off";
             ,"sqlProfiles" => {=>};
+            ,"credentials" => {=>};
+            ,"credentialKeys" => {=>};
         }
     hOptions := {;
             "host" => "protheusHost";
@@ -169,6 +171,12 @@ FUNCTION HBBridgeConfig( aArgs, cError )
                 hConfig[ cKey ] := HBBridgeAbsolutePath( hConfig[ cKey ], hb_FNameDir( cFile ) )
             ENDIF
         NEXT
+    ENDIF
+    hConfig[ "sqlProfiles" ] := HBBridgeCredentialBindProfiles( hConfig[ "sqlProfiles" ], ;
+        hConfig[ "credentials" ], hConfig[ "credentialKeys" ], ;
+        iif( Empty( cFile ), cCDW, hb_FNameDir( cFile ) ), @cError )
+    IF hConfig[ "sqlProfiles" ] == NIL
+        RETURN NIL
     ENDIF
     hConfig[ "sqlProfiles" ] := HBBridgeSQLProfiles( hConfig[ "sqlProfiles" ], ;
         iif( Empty( cFile ), cCDW, hb_FNameDir( cFile ) ), @cError )
@@ -511,6 +519,8 @@ Admin web uses the separate [Admin] Password; user name is admin.
 SQL profiles in INI/JSON enable RPCRDD.Query with SQLite or MSSQL through ODBC.
 Without -config, look for hbbridge.ini beside the executable.
 --config-info validates and prints JSON metadata without credentials or starting listeners.
+--credential-create-key --key=<path> creates a private key without replacing an existing file.
+--credential-test --config=<file> --profile=<alias> checks one saved protected MSSQL profile without listeners.
 Precedence: defaults < INI/JSON file < CLI. CTRL+Q stops the console.
 #pragma __endtext
 RETURN cConfigHelp

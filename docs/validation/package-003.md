@@ -1,6 +1,6 @@
 # hbBridge package 003: delivered scope and deferred work
 
-This package is archived in its delivered scope. The standalone monthly-report visual validation and historical reconciliation remain open and are deferred in the roadmap. Real SRE transfers were not available. See the [active work package](../../WIP.md).
+This package is archived in its delivered scope. The standalone monthly-report visual validation and historical reconciliation remain open. At package acceptance real SRE transfers were unavailable; a later visual observation is recorded below. See the [active work package](../../WIP.md).
 
 [Português](package-003.pt-BR.md) · [Roadmap](../../TODO.md) · [Acceptance](../../docs/acceptance.md)
 
@@ -111,6 +111,15 @@ development SRE990 table was empty, so real-event presentation has not been
 validated. The query preserves source P/D fields and may omit historical events;
 counts remain the registered model's values. Historical rule reconciliation
 and event completeness remain future work.
+
+**Later visual evidence, 2026-11-13:** screenshots supplied for the registered-
+source turnover example show period 202105 and navigation through company,
+branch, cost center, job and employee. At the selected employee, the page shows
+one transfer in and one out and displays a matching SRE record with source P/D
+fields. Subsequent confirmation established visual validation over both TCP and
+HTTP. This observation does not independently reconcile the registered model's
+counts or establish complete SRE coverage and the historical meaning of all
+transfer types.
 
 ## Package 002 completed on 2026-11-03
 

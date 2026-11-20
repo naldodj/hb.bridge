@@ -214,6 +214,10 @@ PROCEDURE M3SQLTests( nFailures, nChecks )
         { "alias" => "odbc_missing", "sql" => "SELECT 1" }, hContext )
     M1Assert( ! hResult[ "success" ] .AND. hResult[ "code" ] == "CONNECTION_FAILED" .AND. ;
         ! ( "DSN=" $ hb_jsonEncode( hResult ) ), "ODBC connection error does not expose its server connection string", @nFailures, @nChecks )
+    cError := rddInfo( RDDI_ERROR, NIL, "SQLMIX" )
+    M1Assert( HB_ISSTRING( cError ) .AND. "ODBC connection failed." $ cError .AND. ;
+        ! ( "m06-test-secret" $ cError ) .AND. ! ( "m06-test-user" $ cError ) .AND. ! ( "DSN=" $ cError ), ;
+        "native ODBC connection diagnostic excludes synthetic credentials", @nFailures, @nChecks )
     hResult := HBBridgeDispatch( hRegistry, "RPCRDD.Query", ;
         { "alias" => "sample", "sql" => "SELECT 7 AS id" }, hContext )
     M1Assert( hResult[ "success" ] .AND. hResult[ "rows" ][ "1" ][ "ID" ] == 7 .AND. ;

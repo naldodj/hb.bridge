@@ -6,6 +6,51 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Adicionar cobertura de integridade para JSON UTF-8 e MSSQL)"
  */
 
+2026-11-20 10:17 UTC naldodj (Corrigir caminhos UTF-8 de chaves no Windows)
+  ! Decodificar caminhos de chave como UTF-8 independentemente da code page Harbour.
+  + Testar criação e acesso autenticado a caminhos Unicode entre code pages.
+
+2026-11-19 21:16 UTC naldodj (Verificar snapshots de atualização de credencial)
+  + Rejeitar alterações de configuração já observadas antes de preparar a senha,
+    usando comparação exata por bytes e resultado de conflito sanitizado.
+  ; Testar substituição e metadados em arquivos sintéticos; a publicação atômica
+    para produção e a preservação da DACL Windows permanecem pendentes.
+
+2026-11-19 15:35 UTC naldodj (Testar entrada interativa privada de credencial)
+  + Adicionar leitor isolado de terminal e testes sintéticos Windows e Linux com PTY.
+  ; Integração ao produto, edição interativa e atualizações atômicas seguem abertas.
+
+2026-11-19 10:02 UTC naldodj (Autenticar preparação de atualização de credencial)
+  + Autenticar o envelope existente vinculado ao perfil, cifrar e verificar a
+    substituição e preparar o INI em memória. Rejeitar referências compartilhadas.
+  ; Entrada interativa e publicação atômica com detecção de conflito seguem abertas.
+
+2026-11-19 09:56 UTC naldodj (Preparar atualização segura de credencial no INI)
+  + Preparar em memória a substituição de credencial cifrada existente,
+    preservando os demais bytes do INI; a publicação em arquivo permanece aberta.
+  * Exigir pull request para alterações na branch principal protegida.
+
+2026-11-19 09:48 UTC naldodj (Adicionar criação local de chave)
+  + Criar chaves privadas pelo provedor de arquivos local sem substituir chaves
+    existentes ou iniciar listeners. A edição de credenciais continua no WIP.
+  * Separar os comandos locais de administração do provedor independente.
+
+2026-11-18 21:58 UTC naldodj (Adicionar teste local de conexão protegida)
+  + Testar perfil MSSQL protegido salvo com consulta fixa somente de leitura,
+    sem iniciar listeners ou receber segredos como argumentos de linha de comando.
+  ; Validar o comando em Windows com perfil protegido temporário e MSSQL real;
+    a edição de credenciais e o aceite de implantação permanecem pendentes.
+  * Excluir branches WIP após integração e publicação dos pacotes concluídos.
+
+2026-11-18 21:35 UTC naldodj (Continuar proteção portátil de credenciais)
+  + Implementar o provedor preliminar autenticado e a resolução de perfis SQL,
+    com testes sintéticos Windows/Linux e evidência local com MSSQL.
+  ; Manter pendentes o aceite com identidade de produção, a administração e
+    os demais critérios do pacote.
+  * Usar uma branch por pacote WIP e habilitar -gc3 nos fontes do executável,
+    sem sobrescrever opções de compilação informadas pelo ambiente.
+  ! Limitar a leitura de Content-Length e preservar a lógica textual do template.
+
 2026-11-06 18:19 UTC naldodj (Planejar proteção portátil da credencial SQL)
   + Preparar o pacote 004 para provedor portátil no servidor e utilitário local,
     com critérios explícitos de segurança e aceite Windows/Linux.

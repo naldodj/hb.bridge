@@ -2,15 +2,38 @@
 
 [Português](credentials.pt-BR.md)
 
-Current configuration supports structured MSSQL fields or an ODBC
-`connectionString`. SQL authentication uses plain `Username`/`Password` in
-the private server file; integrated authentication omits those fields.
-Encrypted credential storage remains an architecture proposal: an encrypted
-password format, credential editor and key provider have **not** been
-implemented. Do not put
-an `encrypted_secret` placeholder in a runtime configuration and expect it
-to be decrypted. Protheus sends the profile alias and query, not database
+Configuration supports structured MSSQL fields or an ODBC `connectionString`.
+Structured SQL authentication can use a protected credential reference with a
+separate file key, or the existing plaintext `Username`/`Password` form.
+Integrated authentication omits SQL credentials. The local credential editor
+and its connection-test command are not implemented yet; placeholders are not
+valid encrypted values. Protheus sends the profile alias and query, not database
 credentials. These credentials belong to the hbBridge server installation.
+
+The Harbour/C/Zig local provider is connected to the structured SQL path. The first
+45 checks passed on Windows with a protected DACL; 45 also passed as root on
+Ubuntu WSL with mode 600 using both the global Harbour and the project-pinned
+managed Harbour/Zig toolchain in an isolated Linux filesystem. Actual
+service-account permissions still require acceptance. Key creation writes and flushes a private staging file before
+exclusive publication; a controlled process interruption left the destination
+absent on Windows and WSL Linux. A crash can still leave a restricted staging
+file requiring explicit inspection and removal; use a trusted directory and do
+not assume crash durability. `KEY_CLEANUP_FAILED` means staging cleanup failed:
+the final key may already exist, so inspect both paths before retrying.
+Before writing a key, the Windows bridge verifies the protected DACL it created;
+the Unix bridge rejects a staging file whose mode grants group or other access.
+Before reading an existing key, the Unix bridge rejects group or other mode
+permissions. On Windows, the reader requires a protected DACL containing only
+explicit allow entries for the file owner, the current identity or LocalSystem;
+other entries, including deny or inherited entries, are rejected conservatively.
+The owner is considered trusted: the directory and its administration must be
+trusted too. The service identity needs read and READ_CONTROL access, and can
+differ from the owner. A dedicated group or additional administrator entry is
+not accepted by this initial policy; provision the ACL accordingly. Inadequate
+or unverifiable permissions return `KEY_PERMISSIONS_UNSAFE`; an inaccessible
+file can instead return `KEY_UNAVAILABLE`. The checks do not prevent privileged
+administrators or root from accessing files, and filesystem behavior and actual
+service identities need their own acceptance.
 
 ## All credential consumers: current state and intended protection
 
@@ -83,7 +106,8 @@ Exercise SQL, NETIO service/admin and HTTP service/admin, including the TLPP
 client, and verify that diagnostics, discovery, logs and exceptions expose no
 secrets. Missing decryption support must fail explicitly rather than pass the
 ciphertext as a password or silently fall back to a plaintext copy. These are
-future acceptance criteria; this review introduces no runtime cryptography.
+acceptance criteria for the broader credential plan; only the initial SQL
+provider and its recorded tests have been implemented.
 
 For the referenced Protheus deployment, database passwords rarely
 change, and a change requires manual coordination of database access, ODBC
@@ -116,15 +140,20 @@ Configuration should record the provider and key identifier, not a hardcoded
 key or master password. Integrated authentication remains available whenever
 the installation can configure it.
 
-## Proposed contract, not accepted by the current parser
+## Structured SQL credential contract
 
-The exact names below are a reviewable design; the current strict parser
-will reject these additional sections/fields until the feature is implemented:
+The strict INI parser accepts the following sections and fields. The envelope
+shown is a placeholder, not a usable credential; the local editor is pending.
 
 ```ini
 [SQL/protheus]
 Driver=mssql
-ConnectionString=Driver={ODBC Driver 18 for SQL Server};Server=tcp:sql.example,1433;Database=protheus;Encrypt=Yes;TrustServerCertificate=No;
+Authentication=sql
+ODBCDriver=ODBC Driver 18 for SQL Server
+Server=tcp:sql.example,1433
+Database=protheus
+Encrypt=mandatory
+TrustServerCertificate=false
 Credential=protheus
 
 [Credential/protheus]
@@ -137,25 +166,119 @@ Provider=file
 Location=/etc/hbbridge/keys/primary.key
 ```
 
-The Windows key path is installation-specific. Public ODBC settings must not
-also supply `UID/PWD` when `Credential` is used. Validation must reject
-ambiguous credentials and duplicate ODBC fields. Encode user/password values
-using ODBC quoting rules, including semicolons and closing braces. Resolve a
-secret only on the server, immediately before connecting; never return it
-through `--config-info`, RPC discovery, SQL errors or the AppServer INI.
+The protected profile uses structured SQL authentication. A profile with
+`Credential` rejects `Username`, `Password`, a raw `ConnectionString` or integrated
+authentication. Existing unprotected profiles keep their current validation.
+The server applies the existing ODBC quoting rules and resolves the credential
+immediately before connecting. The plaintext structured `Password` field reserves
+the `enc:v` prefix to prevent an encrypted envelope being sent as a password.
+Relative key locations are resolved against the configuration file directory.
+JSON uses top-level `credentials` and `credentialKeys` objects with `user`,
+`keyId`, `password` and `provider`, `location` fields respectively; the SQL
+profile references its credential through `credential`.
+Configuration validation checks the references and envelope prefix without
+opening the key or connecting; missing keys, malformed envelopes and wrong
+keys fail closed when a connection is attempted. `--config-info` is therefore
+not a credential or database connection test.
 
-Use a standard authenticated cipher available in the pinned Zig toolchain,
-for example XChaCha20-Poly1305, with random key/nonce, an envelope version,
-algorithm and key ID. Bind the profile/credential identity as authenticated
-data so moving ciphertext to another credential fails validation. Base64 is
-only an encoding. Do not invent a cipher or reuse a fixed nonce. Test tampering,
-wrong key, truncated data, non-ASCII passwords and support for optional
-encryption master-key replacement before marking this feature complete.
-Random-number and zeroization APIs must be verified against the pinned Zig
-release, not assumed from another version.
-When this master key is explicitly replaced, the same SQL password is
-re-encrypted; this does not change the database password or require
-SQL-password rotation.
+Version 1 uses XChaCha20-Poly1305. The file provider reads a 32-byte binary key
+from the configured path outside the INI. The value after `enc:v1:` is padded
+standard Base64 of the 24-byte nonce, ciphertext and 16-byte tag, in that order.
+The plaintext is the UTF-8 SQL password. Each encryption uses a new nonce
+from the OS CSPRNG. Entropy, format and authentication failures stop the
+operation with a sanitized error.
+
+On Windows the provider decodes key paths explicitly as UTF-8, independently of
+the active Harbour codepage. Earlier builds could create or seek an unintended
+name if a non-UTF-8 codepage was active. Existing deployments with such paths
+should verify the actual key filename before changing configuration; the provider
+does not move or replace existing keys automatically.
+
+The current provider accepts nonempty UTF-8 passwords up to 4096 bytes, without
+NUL, CR or LF. Each authenticated context field is limited to 1024 UTF-8 bytes.
+These are current credential-provider implementation limits, separate from RPC
+payload policies; oversized or invalid inputs fail rather than being truncated.
+
+The authenticated data starts with the literal bytes `hbbridge/credential/v1`.
+It then contains the purpose `sql`, canonical SQL profile identifier,
+credential identifier, key identifier and SQL username, in that order. Each
+field uses UTF-8 bytes preceded by its unsigned 32-bit big-endian byte length.
+Use the identifiers resolved by the configuration parser so equivalent
+lookups produce the same bytes. Each envelope is bound to one profile.
+Moving it to another profile, changing a bound field or replacing the key
+requires re-encryption. The database password stays the same.
+
+## C01: native building blocks and local administration
+
+The intended administrator interface is a local command mode of the same
+`hbbridge` executable, using the same provider as the host. Local management
+runs without listeners. Command names remain to be specified.
+
+The first SQL slice stores the envelope in the INI and the key in a separate
+binary file. The Harbour serialization probe establishes interoperability
+for possible future structured secrets. Bound the envelope size and check
+version and encoding before decoding. Authenticate before passing plaintext
+to the caller. The configuration and key directory require administrator-
+controlled write access. The envelope protects a copied INI without its key
+and detects changes to the authenticated credential data. An attacker who
+controls the host, its process or the SQL destination configuration is
+outside this boundary.
+
+Use the existing `hbbridge_zig` static library and a C/Harbour adapter. Pass
+binary inputs as pointers with explicit byte lengths. Give the caller
+ownership of output buffers and return a status code. Validate lengths and
+capacities before accessing memory. Clear key and plaintext buffers owned
+by the provider on every exit. Failed output is unavailable to the Harbour
+caller.
+
+Preserve the credential reference through both SQL profile normalization
+passes and resolve it just before `RDDI_CONNECT` in the SQL pool. Audit native
+ODBC diagnostics and allocation errors alongside RPC errors. The managed
+driver no longer requests a completed connection-string buffer or passes the
+input connection string to allocation errors. Connection failures retain a
+validated SQLSTATE and a fixed message instead of driver-supplied text. A
+synthetic missing-DSN test checks the native diagnostic and RPC response;
+read-only MSSQL acceptance passed on Windows. Harbour and the ODBC driver may
+still hold temporary plaintext outside the buffers the provider controls.
+
+The initial WSL2 x86_64 checks on 2026-11-06 used the older system Harbour
+3.2.0dev r2307062207 and Zig 0.16.0 cross-compiled from Windows. On 2026-11-11
+the Windows x64 checks used managed Harbour 3.2.1dev r2609292008 and Zig 0.16.0.
+Serialization preserved binary NUL and EOF bytes. The Zig tests rejected
+altered ciphertext, tag, key, nonce and context. The Harbour/C/Zig ABI
+probe passed with the pinned toolchain and exercised OS entropy through an
+explicit `std.Io.Threaded` instance inside the linked Zig library. The probe
+uses `Io.randomSecure` and fails on entropy errors.
+
+The same three probes passed on 2026-11-11 with native Linux Zig 0.16.0,
+pinned Harbour 3.2.1dev r2609292008 and GCC 16.2.0 in x86_64 WSL2
+(Kali Linux userland). The Linux GCC bootstrap installs Harbour libraries to
+`lib/linux/gcc`, the directory used by hbBridge's managed toolchain.
+Run the [credential feasibility probes](../scripts/README.md#credential-feasibility-probes)
+after bootstrapping on the target OS. The Linux executable also linked with
+the GCC profile after enabling PIC in the Zig module and installing the
+SQLite link metadata. A separate Harbour program compiled, linked and ran
+via `hbmk2 -plat=linux -comp=zig` against the existing GCC-built Harbour
+libraries in WSL2. On 2026-11-12 the clean Linux Zig bootstrap, managed contrib preparation,
+product build and credential ABI probe passed on x86_64 WSL2. The GCC
+profile also passed its bootstrap, product build and ABI probe. The
+[dependency guide](dependencies.md#linux-compiler-selection) records how
+to select either profile.
+
+Windows Authz checks used an in-memory DACL and SID contexts without groups.
+`LocalService` could read and could not write, `NetworkService` could not read,
+and `LocalSystem` could write. In WSL2, transient systemd units exercised a
+synthetic 32-byte file on the native Linux filesystem. With owner/group
+`root:nogroup` and mode `0640`, the unit running as `nobody:nogroup` read it
+but could not open it for writing. A unit running as `daemon:daemon` could
+not read it. The units and synthetic file were temporary.
+[Windows Authz API](https://learn.microsoft.com/en-us/windows/win32/api/authz/nf-authz-authzaccesscheck)
+· [systemd service identity](https://www.freedesktop.org/software/systemd/man/256/systemd.exec.html#User=).
+
+These checks establish feasibility. The production provider and its ABI
+require C02 validation. C05 covers the deployed service tokens, filesystem
+permissions after atomic replacement and real SQL connection acceptance.
+The TLPP consumer has its own acceptance scope.
 
 ## Optional OpenBao provider: RFC review on 2026-10-07
 
@@ -230,7 +353,174 @@ behavior. Minimize lifetime and copies without promising total erasure after
 the handshake. Server providers should resolve/connect internally and return
 only execution results or authorized sanitized diagnostics.
 
+## Future client authentication and server-side credentials
+
+The common server credential provider may eventually protect the SQL, NETIO,
+HTTP and administration secrets used by hbBridge. This does not require a
+remote service that returns those secrets: an authenticated client should
+receive only permission to invoke authorized operations. The server retains
+and uses the backend credentials. An external secret-export API would require
+a separately justified contract and security review; it is not proposed here.
+
+For unattended integrations, evaluate a distinct identity per client and
+authenticated TLS, such as a client certificate, or a trusted identity provider
+issuing scoped, short-lived access tokens. Certificates and token handling must
+be supported and validated in each actual Protheus/Harbour client and transport;
+the client still needs a protected private key or other bootstrap identity.
+Limit authorization by service/profile and explicitly supplied application
+context, audit access and support revocation. Protheus continues to resolve ERP
+company, branch and permissions; client-provided values do not grant authority.
+Certificate-bound OAuth access tokens are standardized in
+[RFC 8705](https://www.rfc-editor.org/rfc/rfc8705).
+
+[TOTP](https://www.rfc-editor.org/rfc/rfc6238) requires a shared secret and
+clock coordination. It may be useful as an additional factor for interactive
+administration; automatically generating it in an unattended client still
+requires protecting that client's TOTP secret. Evaluate throttling, replay
+prevention, recovery and trusted time before using it. No TOTP, mTLS or token
+issuer is implemented by this proposal.
+
+The current native NETIO protocol uses its configured password for the
+connection. An unmodified NETIO client still needs that password; keeping it
+server-only would require an independently designed gateway or protocol change.
+HTTP, TCP and NETIO protections require separate validation. This is later work,
+not a prerequisite for the current local SQL credential-provider slice.
+
 ## Management utility
+
+Create a new random file-provider key locally:
+
+```text
+hbbridge --credential-create-key --key=<key-file-path>
+```
+
+The parent directory must already exist. The provider restricts access and
+publishes the key exclusively, so it never replaces an existing file. The
+command starts no listeners and returns only PASS/FAIL. After failure, inspect
+the destination and any private staged files before retrying: a cleanup error
+can occur after the key was published. Follow the recovery guidance below.
+The command creates a key only; it does not create or modify a credential.
+
+An internal INI planner can prepare the replacement of an existing encrypted
+password while retaining unrelated bytes, comments, BOM and line endings. It
+validates the INI and the new envelope's canonical structure but does not
+authenticate the envelope, read or write the configuration file, or detect
+concurrent edits. The future editor must create and authenticate the envelope
+against the intended context, then separately protect against conflicting edits
+and publish the update atomically. This planner is not a management command.
+
+A separate internal update preparer uses the supplied INI snapshot and its
+configuration directory to resolve the protected MSSQL profile. It authenticates
+the current envelope against the profile, credential, key and user, seals and
+verifies the replacement, then invokes the planner. A credential referenced by
+multiple profiles is rejected because its envelope is bound to one profile.
+The preparer does not connect to SQL, read the configuration from disk, detect
+concurrent edits or publish the result. Harbour-managed plaintext may remain in
+memory beyond the lifetime of variables; the provider wipes only its own buffers.
+
+An additional byte-level preflight returns `CONFIG_CHANGED` if a newly observed
+snapshot differs from the original, including same-length and embedded-NUL
+changes. It cannot prevent an edit after comparison; the eventual publisher must
+recheck under a documented coordination mechanism and cannot assume that
+non-cooperating editors honor an advisory lock.
+If a sidecar lock is adopted, its identity must remain stable while any writer
+can hold or await it; deleting and recreating that file can split participants
+across different locks. Compare again immediately before publication, and
+state explicitly that external editors which ignore the protocol can still race.
+
+The synthetic local replacement probe compares a sidecar lock across processes,
+staging, a conflicting edit, an open reader and file metadata. On the tested
+Windows NTFS volume, [`ReplaceFileW`](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-replacefilew)
+changed DACL inheritance metadata with both inherited and protected test DACLs;
+the observed trustees and rights remained equal. Explicitly reapplying the old
+descriptor restored it in these tests, but that extra step is not an atomic
+security guarantee. A WSL local-filesystem probe passed the limited mode/owner,
+reader, rename and directory-sync checks. In both environments, a synthetic
+editor that ignored the lock and wrote after the preflight had its change
+overwritten by replacement. Neither result proves crash durability,
+extended-ACL preservation or safety against editors that ignore the lock.
+Production file publication remains unimplemented.
+
+An isolated Linux publication candidate is exercised only by
+`tests/probes/hbbridge.credential.publish.probe.hbp`; it is not linked to the
+product or the interactive workflow. It locks a persistent sidecar, checks the
+expected bytes again, creates a same-directory exclusive stage, copies the file
+owner and mode, syncs the stage and renames it. It rejects symbolic and hard
+links, group/other-writable files or parent directories, files owned by another
+identity and visible extended attributes.
+Its Linux status 8 means publication occurred but directory sync failed: callers
+must inspect the destination, not assume a retry is harmless. Test-only failure
+injection is compiled solely into the probe. A crash may leave a staging file.
+The lock covers cooperating writers only, not arbitrary editors. Extended-attribute
+visibility depends on the caller's privileges; absence from the listing is not
+proof that no inaccessible attribute exists. Ancestor-directory trust, filesystem
+semantics and deployment identities remain to be validated. Windows currently
+returns unsupported without writing. On the synthetic NTFS fixture, `MoveFileExW`
+preserved the observed descriptor without an open reader, but failed with a reader
+open; this is not sufficient to accept a Windows publisher. A further synthetic
+NTFS probe using [`FileRenameInfoEx` with POSIX semantics](https://learn.microsoft.com/en-us/windows/win32/api/winbase/ns-winbase-file_rename_info)
+preserved the observed owner, group and DACL with an open reader, for the tested
+inherited and protected DACLs. The replacement discarded a synthetic alternate
+data stream. SACL inspection failed with error 1314 for the test identity. Thus,
+comparison of owner, group and DACL alone does not establish metadata preservation;
+the Windows publisher must explicitly handle or refuse unsupported metadata before
+it can be connected to the utility. These probes do not establish behavior for
+other filesystems, ACLs, privileges, or readers that deny delete sharing.
+An isolated native stream-enumeration probe now rejects a named stream and a
+hard-linked file and accepts the tested unnamed stream and UTF-8 filename. It
+does not inspect every kind of Windows metadata or authorize replacement; it is
+compiled only into its synthetic probe and is not linked to the utility.
+The probe can also attempt to read the SACL without changing the caller's token.
+It reports missing `SeSecurityPrivilege` rather than assuming an inaccessible
+SACL is empty. Microsoft documents that SACL access requires the enabled
+[`SeSecurityPrivilege`](https://learn.microsoft.com/en-us/windows/win32/secauthz/sacl-access-right).
+The unprivileged Windows fixture exercises the refusal; successful SACL access,
+preservation and privilege lifecycle remain unvalidated. Reading this descriptor
+alone does not authorize replacement.
+
+On the tested NTFS volume, an open guard that denies write sharing blocked
+another process from opening the file for writing and allowed compatible readers.
+If the guard permits delete sharing, another process can still replace the path.
+If it denies delete sharing, the staged replacement also fails until the guard
+is closed. A reader that denies delete sharing similarly prevents replacement;
+the tested failure preserved both files. These observations do not establish a
+complete conflict-free publication protocol or cover other filesystems.
+
+The Linux candidate also has test-only pause points for a concurrent edit and
+forced termination after staging. The edit is rejected during the last comparison;
+the interrupted process leaves an orphan stage with the tested original mode and
+the destination unchanged. This does not eliminate the remaining race after the
+last comparison, nor prove crash durability.
+
+A standalone experimental terminal reader accepts an interactive terminal only,
+disables echo while reading and restores the prior mode. It is not linked to the
+product or connected to the update workflow. Its test-only implementation accepts
+nonempty UTF-8 up to 4096 bytes, preserving edge spaces and tabs; it rejects NUL
+and ASCII controls other than tab. Enter ends input; pending terminal input is
+discarded before echo is restored. On Unix, backspace removes
+one UTF-8 character and tested termination signals cancel input so Harbour can
+perform normal terminal cleanup. Signal handling is process-wide and the reader
+is intended only for a local, single-operation CLI before listeners or workers.
+The future caller must abort on cancellation and on terminal-restoration errors.
+Normal return and tested Ctrl+C/termination paths restore the mode; forced process
+termination or terminal loss cannot guarantee restoration. Provider-owned native
+buffers are wiped, but the returned Harbour string cannot be reliably erased.
+
+The initial local connection test accepts an existing protected MSSQL profile:
+
+```text
+hbbridge --credential-test --config=<file.ini-or-json> --profile=<profile-alias>
+```
+
+It reads the named configuration, resolves its protected credential through
+the normal SQL path and executes the fixed, read-only `SELECT 1 AS ID`. It
+does not start listeners or accept a password or SQL on the command line. The
+result is `Credential connection test: PASS` with exit code 0, or a sanitized
+`FAIL` with exit code 1. This is an initial connection test, not a credential
+editor; it requires a configured protected MSSQL profile and an accessible key.
+The regular SQL connection lifecycle releases its lease after the query. Driver
+pooling, if configured, follows the SQL driver's process-wide policy until the
+command exits. Live service-identity and Linux/MSSQL acceptance remain open.
 
 Start with a local CLI using the same credential/configuration services as
 the host: create/import key, set/update/delete credential, test connection and
@@ -245,11 +535,50 @@ the DBMonitor workflow without depending on DBAccess storage or decrypting
 its passwords. Authentication, authorization and audit of remote management
 belong to a later stage; the first editor is local.
 
+The connection test will resolve the saved profile and credential, run a
+harmless query and release the connection. It will report sanitized success or
+failure without starting listeners, exposing secrets or modifying database
+data. Implementation and acceptance belong to the SQL integration.
+
 Back up ciphertext and keys under separate access controls. Moving the INI
 alone must not transfer usable passwords; migration needs an explicit key
 import/export procedure. A key file available to the same compromised process
 cannot prevent that process from decrypting credentials. Encryption at rest,
 file permissions and ODBC TLS solve different parts of the problem.
+
+The version 1 envelope and its 32-byte key are designed to be portable across
+Windows and Linux. The envelope is authenticated against the SQL profile,
+credential identifier, key identifier and SQL username; changing any of them
+requires resealing with the original key and context. Key paths and operating
+system identities are not part of that context. Migration must separately
+protect the key, provision destination permissions and adjust local ODBC
+settings. An external synthetic-fixture test passed in both directions between
+Windows with managed Harbour r2609292008 and Ubuntu WSL with global Harbour
+r2610242111. It verifies the provider format and context binding, not an INI
+migration utility or a live SQL connection.
+
+### Recovery after interrupted key creation
+
+The following applies to the experimental local provider; there is no integrated
+credential editor yet. A staged `key-name.tmp.*` file contains key material.
+Do not display its contents, move it to an unprotected directory or remove it
+while another process may still be creating the key.
+
+1. Stop or otherwise coordinate all key-creation processes for that destination.
+   Inspect the exact destination and staging paths in the trusted directory.
+2. If the destination exists, preserve it. `KEY_CLEANUP_FAILED` can occur after
+   publication on Unix. A creation retry must not replace that destination.
+3. If the destination is absent and the key was previously in use, restore the
+   matching key from a protected backup. Creating a different key cannot recover
+   ciphertext encrypted with the missing key. Do not promote a staged file based
+   only on its name or size.
+4. Only after establishing that a staging file is no longer in use and is not
+   needed for recovery, remove that specific file with authorized filesystem
+   tools. If this was a confirmed first creation with no dependent ciphertext,
+   creation can then be retried; otherwise preserve the original key.
+5. Verify the key permissions and, once the SQL integration is available, test
+   the configured connection. The protocol does not yet guarantee directory
+   metadata durability after power loss; validate the actual filesystem.
 
 ## Current MSSQL acceptance path
 

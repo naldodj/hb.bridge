@@ -1,6 +1,6 @@
 # Pacote 003 do hbBridge: escopo entregue e pendências adiadas
 
-Este pacote está arquivado no escopo entregue. A validação visual do relatório mensal isolado e a reconciliação histórica permanecem abertas e foram adiadas no roadmap. Transferências reais da SRE não estavam disponíveis. Veja o [pacote ativo](../../WIP.pt-BR.md).
+Este pacote está arquivado no escopo entregue. A validação visual do relatório mensal isolado e a reconciliação histórica permanecem abertas. No aceite do pacote, transferências reais da SRE não estavam disponíveis; uma observação visual posterior está registrada abaixo. Veja o [pacote ativo](../../WIP.pt-BR.md).
 
 [English](package-003.md) · [Roadmap](../../TODO.pt-BR.md) · [Homologação](../../docs/acceptance.pt-BR.md)
 
@@ -112,6 +112,15 @@ de desenvolvimento estava vazia; a apresentação de eventos reais não foi
 validada. A consulta preserva campos P/D e pode omitir eventos históricos; as
 contagens seguem o modelo cadastrado. A conciliação das regras e a completude
 das evidências seguem futuras.
+
+**Evidência visual posterior, 2026-11-13:** as imagens fornecidas para o exemplo
+de turnover de origem cadastrada mostram o período 202105 e a navegação por
+empresa, filial, centro de custo, função e funcionário. No funcionário
+selecionado, a página apresenta uma transferência de entrada e uma de saída e
+exibe um registro SRE correspondente com os campos P/D de origem. Confirmação
+posterior estabeleceu a validação visual por TCP e HTTP. A observação não concilia
+independentemente as contagens do modelo cadastrado nem comprova cobertura
+completa da SRE e o significado histórico de todos os tipos de transferência.
 
 ## Pacote 002 concluído em 2026-11-03
 

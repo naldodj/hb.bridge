@@ -3,7 +3,8 @@
 param(
     [int] $Jobs = 0,
     [switch] $SkipHarbourBuild,
-    [switch] $ForceBuild
+    [switch] $ForceBuild,
+    [ValidateSet('zig', 'gcc')][string] $Compiler
 )
 
 $ErrorActionPreference = 'Stop'
@@ -11,6 +12,7 @@ $projectRoot = Split-Path -Parent $PSScriptRoot
 . (Join-Path $PSScriptRoot 'toolchain.ps1')
 $dependencies = Get-HBBridgeDependencies -ProjectRoot $projectRoot
 $platform = Get-HBBridgePlatform
+$profile = Get-HBBridgeHarbourProfile -Compiler $Compiler
 $managedRoot = Join-Path $projectRoot '.deps'
 New-Item -ItemType Directory -Force -Path $managedRoot | Out-Null
 
@@ -95,28 +97,29 @@ if ($SkipHarbourBuild) {
     return
 }
 
-$profile = if ($IsWindows) { 'zig' } else { 'linux' }
-$installRoot = Join-Path $hbCompileRoot "out/$profile"
+$installRoot = Join-Path $hbCompileRoot "out/$($profile.Name)"
 $receiptFile = Join-Path $installRoot 'hbbridge-toolchain.json'
 $manifestHash = (Get-FileHash -LiteralPath (Join-Path $projectRoot 'config/dependencies.json') -Algorithm SHA256).Hash
-if (-not $ForceBuild -and (Test-Path -LiteralPath $receiptFile)) {
-    $receipt = Get-Content -LiteralPath $receiptFile -Raw | ConvertFrom-Json -AsHashtable
-    if ($receipt.manifestSha256 -eq $manifestHash -and $receipt.platform -eq $platform) {
-        $null = Resolve-HBBridgeToolchain -ProjectRoot $projectRoot
-        & (Join-Path $PSScriptRoot 'prepare-http.ps1')
-        if (-not $?) { throw 'Managed HTTP dependency preparation failed.' }
-        & (Join-Path $PSScriptRoot 'prepare-odbc.ps1') -HbCompileRoot $hbCompileRoot -ZigPath $zigPath
-        if (-not $?) { throw 'Managed ODBC dependency preparation failed.' }
-        Write-Host "Managed Harbour is ready: $installRoot"
-        return
-    }
-}
-
 if ($Jobs -le 0) { $Jobs = [System.Environment]::ProcessorCount }
 $previousPath = $env:PATH
+$previousCompiler = $env:HBBRIDGE_HARBOUR_COMPILER
+$env:HBBRIDGE_HARBOUR_COMPILER = $profile.Compiler
 $env:PATH = [System.IO.Path]::GetDirectoryName($zigPath) + [System.IO.Path]::PathSeparator +
     [System.IO.Path]::GetDirectoryName($gitPath) + [System.IO.Path]::PathSeparator + $previousPath
 try {
+    if (-not $ForceBuild -and (Test-Path -LiteralPath $receiptFile)) {
+        $receipt = Get-Content -LiteralPath $receiptFile -Raw | ConvertFrom-Json -AsHashtable
+        if ($receipt.manifestSha256 -eq $manifestHash -and $receipt.platform -eq $platform -and
+            (!$receipt.compiler -or $receipt.compiler -eq $profile.Compiler)) {
+            $null = Resolve-HBBridgeToolchain -ProjectRoot $projectRoot
+            & (Join-Path $PSScriptRoot 'prepare-http.ps1') -HbCompileRoot $hbCompileRoot -ZigPath $zigPath
+            if (-not $?) { throw 'Managed HTTP dependency preparation failed.' }
+            & (Join-Path $PSScriptRoot 'prepare-odbc.ps1') -HbCompileRoot $hbCompileRoot -ZigPath $zigPath
+            if (-not $?) { throw 'Managed ODBC dependency preparation failed.' }
+            Write-Host "Managed Harbour is ready ($($profile.Compiler)): $installRoot"
+            return
+        }
+    }
     $buildEnvironment = @{
         HB_BUILD_CONTRIBS = $dependencies.harbour.contribs
         HB_BUILD_DYN = 'no'
@@ -132,11 +135,13 @@ try {
         if (-not $? -or $LASTEXITCODE -ne 0) { throw 'Managed Harbour build failed; inspect .deps/hb_compile/logs.' }
     }
     else {
-        # hb_compile's published native runner targets Windows. Reuse its compatibility
-        # preparation and pinned source, then build natively with the OS GNU toolchain.
-        foreach ($commandName in @('make', 'gcc', 'ar', 'ld')) {
+        # hb_compile's runner targets Windows. Reuse its compatibility preparation
+        # and let Harbour's makefiles select the native Linux compiler.
+        $requiredCommands = @('make')
+        if ($profile.Compiler -eq 'gcc') { $requiredCommands += @('gcc', 'ar', 'ld') }
+        foreach ($commandName in $requiredCommands) {
             if (-not (Get-Command $commandName -ErrorAction SilentlyContinue)) {
-                throw "Linux prerequisite missing: $commandName. Install your distribution's build toolchain and unixODBC development headers."
+                throw "Linux prerequisite missing for $($profile.Compiler): $commandName."
             }
         }
         if (-not (Test-Path -LiteralPath '/usr/include/sql.h') -and -not (Test-Path -LiteralPath '/usr/local/include/sql.h')) {
@@ -145,8 +150,9 @@ try {
         & (Join-Path $hbCompileRoot 'scripts/Prepare-HarbourCompatibility.ps1') -HarbourRoot $harbourRoot
         if (-not $?) { throw 'hb_compile compatibility preparation failed.' }
         $buildEnvironment.HB_INSTALL_PREFIX = $installRoot
-        $buildEnvironment.HB_PLATFORM = 'linux'
-        $buildEnvironment.HB_COMPILER = 'gcc'
+        $buildEnvironment.HB_INSTALL_LIB = Join-Path $installRoot $profile.LibraryDirectory
+        $buildEnvironment.HB_PLATFORM = $profile.Platform
+        $buildEnvironment.HB_COMPILER = $profile.Compiler
         $buildEnvironment.HB_BUILD_JOBS = [string] $Jobs
         $oldEnvironment = @{}
         foreach ($key in $buildEnvironment.Keys) {
@@ -155,7 +161,7 @@ try {
         }
         $logRoot = Join-Path $hbCompileRoot 'logs'
         New-Item -ItemType Directory -Force -Path $logRoot | Out-Null
-        $logFile = Join-Path $logRoot ('hbbridge-linux-' + [DateTime]::UtcNow.ToString('yyyyMMddHHmmss') + '.log')
+        $logFile = Join-Path $logRoot ("hbbridge-$($profile.Name)-" + [DateTime]::UtcNow.ToString('yyyyMMddHHmmss') + '.log')
         Push-Location -LiteralPath $harbourRoot
         try {
             & make "-j$Jobs" install 2>&1 | Tee-Object -FilePath $logFile
@@ -170,13 +176,12 @@ try {
     }
 
     $null = Resolve-HBBridgeToolchain -ProjectRoot $projectRoot
-    & (Join-Path $PSScriptRoot 'prepare-http.ps1') -ForceBuild:$ForceBuild
+    & (Join-Path $PSScriptRoot 'prepare-http.ps1') -HbCompileRoot $hbCompileRoot -ZigPath $zigPath -ForceBuild:$ForceBuild
     if (-not $?) { throw 'Managed HTTP dependency preparation failed.' }
     & (Join-Path $PSScriptRoot 'prepare-odbc.ps1') -HbCompileRoot $hbCompileRoot -ZigPath $zigPath -ForceBuild:$ForceBuild
     if (-not $?) { throw 'Managed ODBC dependency preparation failed.' }
-    $libraryDirectory = if ($IsWindows) { 'lib/win/zig' } else { 'lib/linux/gcc' }
     foreach ($library in @('hbnetio', 'rddsql', 'sddsqlt3', 'sddodbc')) {
-        $expectedLibrary = Join-Path $installRoot "$libraryDirectory/lib$library.a"
+        $expectedLibrary = Join-Path $installRoot "$($profile.LibraryDirectory)/lib$library.a"
         if (-not (Test-Path -LiteralPath $expectedLibrary -PathType Leaf)) {
             throw "Required Harbour library was not built: $expectedLibrary. Check the bootstrap log and OS dependencies."
         }
@@ -184,12 +189,14 @@ try {
     @{
         manifestSha256 = $manifestHash
         platform = $platform
+        compiler = $profile.Compiler
         hbCompileRevision = $dependencies.hbCompile.revision
         harbourRevision = $dependencies.harbour.revision
         zigVersion = $dependencies.zig.version
     } | ConvertTo-Json | Set-Content -LiteralPath $receiptFile -Encoding utf8
-    Write-Host "Managed Harbour tools and required libraries are ready: $installRoot"
+    Write-Host "Managed Harbour tools and required libraries are ready ($($profile.Compiler)): $installRoot"
 }
 finally {
     $env:PATH = $previousPath
+    $env:HBBRIDGE_HARBOUR_COMPILER = $previousCompiler
 }

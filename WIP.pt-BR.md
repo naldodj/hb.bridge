@@ -11,21 +11,100 @@ administração e HTTP posteriormente; a proteção do cliente TLPP exige proved
 próprio comprovado. Armazenamento de segredos e segurança em trânsito exigem
 aceites separados. Veja a [análise de credenciais](docs/credentials.pt-BR.md).
 
-- [ ] C01: inventariar configuração, consumidores, vazamentos, toolchain e testes;
-  confirmar envelope autenticado versionado, provedor com chave externa,
-  compatibilidade, recuperação e limites de segurança. Verificar entropia,
-  criptografia e ABI do Zig 0.16 e identidade de serviço em cada plataforma.
+- [x] C01: inventariadas configuração atual, consumidores, exposição em
+  diagnósticos e toolchain. Definidos envelope autenticado versionado para a
+  senha SQL, provedor com chave em arquivo separado, compatibilidade e limites
+  de recuperação. As provas Windows x64 e Linux x86_64 no WSL2 passaram em
+  serialização binária, cifragem autenticada, entropia segura do SO e ABI
+  sintética Harbour/C/Zig com Harbour e Zig 0.16.0 fixados. O Windows Authz e
+  unidades transitórias no Linux verificaram o modelo de acesso com dados
+  sintéticos. O C02 valida o provedor de produção e o C05 homologa as
+  identidades da instalação.
+  Veja o [desenho e as evidências C01](docs/credentials.pt-BR.md#c01-recursos-nativos-e-administração-local).
 - [ ] C02: implementar e testar o provedor local portátil e ciclo da chave;
   cifragem autenticada, nonce único, vínculo ao contexto, erros explícitos,
   sem chave mestra embutida e com vida útil reduzida do segredo. Impedir fallback
   silencioso e uso do texto cifrado como senha quando a resolução falhar.
+  Ponte Harbour/C/Zig e teste sintético inicial passaram 45 verificações no
+  Windows, com DACL restrita ao usuário atual e LocalSystem. No WSL Ubuntu,
+  passaram 45 verificações como root, com modo 600, tanto usando Harbour global
+  r2610242111 quanto a toolchain isolada gerenciada, com Harbour r2609292008 e
+  Zig 0.16. Preparação privada e publicação exclusiva passaram
+  em cenários normais, concorrentes e de interrupção controlada nos dois sistemas.
+  Uma interrupção pode deixar chave temporária restrita. No Windows e no WSL, a
+  prova sintética remove o temporário após a saída do processo interrompido, cria uma
+  chave completa e confirma que novas tentativas não a substituem. Durabilidade
+  do filesystem e identidades de serviço permanecem abertas. Falhas de limpeza
+  simuladas preservaram uma chave existente no Windows e no WSL e, após a
+  publicação no WSL, preservaram a chave final e a cópia temporária. O leitor
+  agora rejeita permissões inseguras de chaves existentes: testes sintéticos
+  Windows cobriram acesso Everyone e DACL herdada; no WSL foram testados modo
+  0644 e criação e uso de chave sintética pela identidade sem privilégios
+  `nobody`. Envelope e chave sintéticos foram transferidos e decifrados nos dois
+  sentidos entre Windows e WSL; alterações em cada campo de contexto vinculado
+  foram rejeitadas. No Windows, caminhos de chave UTF-8 agora são decodificados
+  independentemente da code page do Harbour; a suíte sintética do provedor passou
+  48 verificações no Windows e no WSL como root com Harbour global e Zig 0.16,
+  incluindo acesso entre code pages. A prova valida o formato do provedor, não a migração do INI
+  nem a autenticação SQL. Identidades reais de serviço e filesystems de
+  instalação ainda exigem aceite. O provedor está integrado ao SQL estruturado;
+  a edição interativa de credenciais ainda não foi implementada.
 - [ ] C03: integrar o provedor a um perfil MSSQL com autenticação SQL e escape
   ODBC correto. Preservar autenticação integrada e configurações existentes;
   rejeitar combinações ambíguas e não expor segredos em diagnósticos, erros,
   config-info, descoberta ou logs.
+  O patch ODBC gerenciado deixou de solicitar a string de conexão de saída e de
+  incluir a entrada em erros de alocação; falha de conexão informa SQLSTATE e
+  mensagem fixa. A prova com DSN sintético ausente e a suíte MSSQL real somente
+  de leitura passaram no Windows. Referências estruturadas em INI/JSON agora
+  sobrevivem às normalizações e são resolvidas apenas na conexão; testes
+  sintéticos cobrem escape, conflitos, chave ausente, envelope alterado e
+  sanitização. A suíte focada passou 24 verificações no Windows e no Ubuntu WSL
+  como root, com toolchain Harbour/Zig gerenciada e isolada; não houve teste
+  de servidor MSSQL no Linux. Uma prova Windows/MSSQL somente de leitura cifra em memória a
+  senha configurada, cria um perfil JSON protegido temporário e usa a consulta
+  normal. Aceites ampliados de transporte, identidade de serviço e SQL no Linux
+  seguem pendentes.
 - [ ] C04: oferecer utilitário local com entrada sem eco, segredos fora de
   argumentos, gravação atômica e orientações para permissões de chave, backup,
   atualização manual e migração. Sem rotação automática de senha do banco.
+  Disponibilizar teste explícito de conexão com perfil e credencial salvos,
+  consulta inofensiva, diagnóstico sanitizado e liberação da conexão; não
+  iniciar listeners, exibir segredos ou alterar dados no banco.
+  Um primeiro modo local `--credential-test` testa um perfil MSSQL protegido
+  existente com `SELECT 1` fixo e retorna apenas PASS/FAIL. A validação Windows
+  usou perfil protegido temporário em MSSQL e executou o produto sem exibir a
+  senha ou o envelope. Um comando local de criação de chave usa o provedor de
+  arquivos existente, com criação exclusiva e permissões restritas. Um
+  preparador interno altera apenas a senha cifrada existente em memória e
+  preserva os demais bytes; ele não autentica o novo envelope nem grava arquivos.
+  Testes sintéticos passaram em Windows e Ubuntu WSL com o parser Harbour
+  independente. Um segundo preparador autentica o envelope anterior no contexto
+  do perfil, cifra e verifica a substituição e rejeita credenciais referenciadas
+  por múltiplos perfis. Testes sintéticos no Windows cobrem a preparação e os
+  casos de falha; ele também não grava arquivos. Um protótipo isolado de leitura
+  no terminal recusa entrada redirecionada e restaura o estado nos cancelamentos
+  testados; verificações sintéticas passaram em Windows e WSL com PTY. Ele não
+  está ligado ao produto nem ao fluxo de atualização. Uma verificação prévia
+  por bytes rejeita alterações de INI já observadas, sem impedir mudanças entre
+  a comparação e a publicação. Provas sintéticas de substituição local passaram
+  em Windows/NTFS e WSL; no Windows, `ReplaceFileW` alterou metadados de herança
+  da DACL nos dois cenários, mantendo iguais os titulares e direitos observados.
+  Uma implementação candidata isolada para Linux passou em testes sintéticos no
+  WSL de bloqueio cooperativo, snapshots, metadados, arquivos inseguros e falhas.
+  Não está vinculada ao produto; no Windows retorna não suportado. Em NTFS,
+  `MoveFileExW` preservou o descritor testado sem leitor aberto, mas falhou com um.
+  Uma prova sintética em NTFS com `FileRenameInfoEx` preservou proprietário, grupo
+  e DACL com leitor aberto, mas perdeu um fluxo alternativo; a identidade de teste
+  não teve acesso à SACL. Uma prova nativa isolada detecta o fluxo alternativo e
+  link físico testados e informa a ausência de privilégio para ler a SACL sem
+  modificar o arquivo; acesso privilegiado e preservação seguem sem teste. Ela não
+  autoriza publicação. Testes de compartilhamento Windows bloqueiam gravações,
+  mas mostram que compartilhar exclusão permite a substituição por outro processo.
+  No Linux, testes também cobrem alteração após o staging e interrupção que deixa
+  um órfão restrito; editores externos ainda podem disputar.
+  Publicação atômica segura em produção, preservação de metadados, integração
+  Linux, comando interativo, implantação e aceite completo permanecem pendentes.
 - [ ] C05: testar adulteração, chave errada/ausente, provedor indisponível,
   Unicode, concorrência, limpeza e sanitização; homologar SQL real com segredos
   sintéticos quando possível no Windows, além de build, execução e identidade
@@ -46,6 +125,6 @@ permanece genérico.
 
 O pacote 003 entregou os exemplos de turnover controlado e de consultas
 cadastradas e o drill-down Protheus real por TCP/HTTP no escopo registrado.
-A validação visual do relatório mensal isolado, os movimentos reais da SRE e a
-reconciliação histórica foram adiados, sem serem dados como aprovados. Veja o
+A evidência visual posterior confirmou uma transferência da SRE por TCP e HTTP;
+a reconciliação histórica e o relatório mensal isolado seguem pendentes. Veja o
 [histórico do pacote 003](docs/validation/package-003.pt-BR.md).

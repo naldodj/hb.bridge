@@ -11,6 +11,7 @@ pub fn build(b: *std.Build) void {
             .root_source_file = b.path("src/zig/runtime/hbbridge.runtime.zig"),
             .target = target,
             .optimize = optimize,
+            .pic = if (target.result.os.tag == .linux) true else null,
         }),
     });
 

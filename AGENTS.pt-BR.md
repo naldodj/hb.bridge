@@ -7,6 +7,13 @@
   decisões somente por novas evidências, falhas reproduzíveis, mudanças de
   requisito/dependência ou instruções do usuário. Renove WIP com os critérios
   atendidos; commits/publicações intermediários não o reiniciam. TODO mantém o roadmap.
+- Crie uma branch `codex/wip-<pacote>-<assunto>` para cada renovação do WIP.
+  Registre avanços coesos em commits incrementais nessa branch; commits
+  intermediários não reiniciam o WIP nem implicam sua integração.
+  A branch `main` protegida é atualizada somente por pull request; commits e
+  pushes diretos são permitidos na branch de trabalho.
+  Após a integração e publicação do pacote concluído na branch principal,
+  confirme sua inclusão e exclua as branches temporárias local e remota do WIP.
 - Use quatro espaços por nível de indentação nos fontes próprios. Preserve a
   formatação, os avisos de copyright e as licenças dos arquivos de terceiros.
 - Trate `tmp/` como área inteiramente descartável. Comandos não podem exigir

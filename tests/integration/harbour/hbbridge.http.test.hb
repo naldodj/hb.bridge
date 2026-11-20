@@ -35,6 +35,7 @@ PROCEDURE HTTPTests( nFailures, nChecks )
     cUnicodeJSON := '{"text":"' + cUnicode + '"}'
 
     HTTPEncodingTests( @nFailures, @nChecks )
+    HTTPParserBoundaryTests( @nFailures, @nChecks )
 
     HTTPAssert( ! hConfig[ "httpEnabled" ] .AND. hConfig[ "httpHost" ] == "127.0.0.1" .AND. ;
         hConfig[ "httpPort" ] == 8080 .AND. Empty( hConfig[ "httpPassword" ] ), ;
@@ -334,6 +335,40 @@ PROCEDURE HTTPTests( nFailures, nChecks )
         HBBridgeHostStop( hHost )
     ENDIF
     hb_cdpSelect( cPreviousCodepage )
+RETURN
+
+STATIC PROCEDURE HTTPParserBoundaryTests( nFailures, nChecks )
+    LOCAL cEnd := Chr( 13 ) + Chr( 10 ) + Chr( 13 ) + Chr( 10 )
+    LOCAL cRequest
+    LOCAL hServer, hCookie, hGet
+    LOCAL nLength
+
+    hServer := {=>}
+    hCookie := {=>}
+    hGet := {=>}
+    cRequest := "POST /test HTTP/1.1" + Chr( 13 ) + Chr( 10 ) + ;
+        "Content-Length: 00000000000000000001" + cEnd + "x"
+    nLength := ParseRequestHeaderC( @cRequest, cEnd, hServer, hCookie, hGet )
+    HTTPAssert( nLength == 1 .AND. cRequest == "x", ;
+        "HTTP parser accepts leading zeroes and preserves the request body", @nFailures, @nChecks )
+
+    hServer := {=>}
+    hCookie := {=>}
+    hGet := {=>}
+    cRequest := "POST /test HTTP/1.1" + Chr( 13 ) + Chr( 10 ) + ;
+        "Content-Length: 9223372036854775808" + cEnd + "x"
+    nLength := ParseRequestHeaderC( @cRequest, cEnd, hServer, hCookie, hGet )
+    HTTPAssert( nLength == NIL, "HTTP parser rejects a Content-Length above the signed integer limit", ;
+        @nFailures, @nChecks )
+
+    hServer := {=>}
+    hCookie := {=>}
+    hGet := {=>}
+    cRequest := "POST /test HTTP/1.1" + Chr( 13 ) + Chr( 10 ) + ;
+        "Content-Length: " + Replicate( "9", 200 ) + cEnd + "x"
+    nLength := ParseRequestHeaderC( @cRequest, cEnd, hServer, hCookie, hGet )
+    HTTPAssert( nLength == NIL, "HTTP parser rejects oversized Content-Length digit sequences", ;
+        @nFailures, @nChecks )
 RETURN
 
 STATIC PROCEDURE M6HTTPSQLFailures( nPort, cAuthorization, nFailures, nChecks )

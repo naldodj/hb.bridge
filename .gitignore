@@ -2,6 +2,8 @@
 zig-out/
 .vscode/
 .github/instructions/
+*.bak
+*.bkp
 *.obj
 *.o
 *.erx_tlpp

@@ -34,6 +34,7 @@ PROCEDURE MTTests()
 
     M1ConfigTests( @nFailures, @nChecks )
     M1INIConfigTests( @nFailures, @nChecks )
+    HBBridgeCredentialConfigTests( @nFailures, @nChecks )
     M1ServiceTests( @nFailures, @nChecks )
     M1NativeTests( @nFailures, @nChecks )
     M2FramingTests( @nFailures, @nChecks )

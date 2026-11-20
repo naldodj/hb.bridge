@@ -59,6 +59,7 @@ pwsh ./scripts/run-hbbridge.ps1 -Config config/examples/hbbridge.ini
 ```
 
 Bootstrap resolves the pinned `hb_compile`, Harbour and Zig dependencies.
+Windows and Linux use Zig by default, with a GCC profile available on Linux.
 The executable is generated in `out/`. External SQL drivers and the licensed
 TOTVS SDK are separate prerequisites. See [dependencies](docs/dependencies.md)
 and [build/run scripts](scripts/README.md) for Windows/Linux requirements.

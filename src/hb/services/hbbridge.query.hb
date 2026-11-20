@@ -580,7 +580,13 @@ FUNCTION HBBridgeSQLProfiles( hProfiles, cBase, cError )
                 ENDIF
             ENDIF
         ENDIF
-        hNormalized[ cName ] := { "driver" => cDriver, cKey => cValue }
+        IF cDriver == "mssql" .AND. hb_HHasKey( hProfile, "credential" )
+            /* Keep the encrypted reference through every normalization pass. */
+            hNormalized[ cName ] := hb_HClone( hProfile )
+            hNormalized[ cName ][ "credential" ] := hb_HClone( hProfile[ "credential" ] )
+        ELSE
+            hNormalized[ cName ] := { "driver" => cDriver, cKey => cValue }
+        ENDIF
         IF cDriver == "mssql"
             FOR EACH lLogin IN hTimeouts
                 cKey := lLogin:__enumKey()
@@ -606,7 +612,7 @@ STATIC FUNCTION SQLMSSQLConnection( hProfile, cError )
 
     LOCAL hAllowed := { "driver" => .T., "authentication" => .T., "dsn" => .T., ;
         "odbcDriver" => .T., "server" => .T., "database" => .T., "username" => .T., ;
-        "password" => .T., "encrypt" => .T., "trustServerCertificate" => .T., ;
+        "password" => .T., "credential" => .T., "encrypt" => .T., "trustServerCertificate" => .T., ;
         "loginTimeoutSeconds" => .T., "queryTimeoutSeconds" => .T. }
 
     LOCAL xValue
@@ -640,6 +646,11 @@ STATIC FUNCTION SQLMSSQLConnection( hProfile, cError )
         ELSEIF cKey == "trustServerCertificate"
             IF ! HB_ISLOGICAL( xValue )
                 cError := "SQL trustServerCertificate must be logical."
+                RETURN NIL
+            ENDIF
+        ELSEIF cKey == "credential"
+            IF ! HBBridgeCredentialBoundValid( xValue )
+                cError := "Invalid SQL credential reference."
                 RETURN NIL
             ENDIF
         ELSEIF ! SQLProfileTextValid( xValue, cKey == "password" )
@@ -682,16 +693,29 @@ STATIC FUNCTION SQLMSSQLConnection( hProfile, cError )
         cConnection += SQLODBCAttribute( "DATABASE", hProfile[ "database" ] )
     ENDIF
     IF cAuthentication == "sql"
-        IF ! hb_HHasKey( hProfile, "username" ) .OR. ! hb_HHasKey( hProfile, "password" )
-            cError := "SQL authentication requires username and password."
-            RETURN NIL
+        IF hb_HHasKey( hProfile, "credential" )
+            IF hb_HHasKey( hProfile, "username" ) .OR. hb_HHasKey( hProfile, "password" )
+                cError := "A SQL credential reference cannot be combined with username or password."
+                RETURN NIL
+            ENDIF
+            cConnection += "Trusted_Connection=No;" + SQLODBCAttribute( "UID", hProfile[ "credential" ][ "user" ] )
+        ELSE
+            IF ! hb_HHasKey( hProfile, "username" ) .OR. ! hb_HHasKey( hProfile, "password" )
+                cError := "SQL authentication requires username and password."
+                RETURN NIL
+            ENDIF
+            IF hb_BLeft( hProfile[ "password" ], 5 ) == "enc:v"
+                cError := "Encrypted SQL passwords require a credential reference."
+                RETURN NIL
+            ENDIF
+            cConnection += "Trusted_Connection=No;" + ;
+                SQLODBCAttribute( "UID", hProfile[ "username" ] ) + ;
+                SQLODBCAttribute( "PWD", hProfile[ "password" ] )
         ENDIF
-        cConnection += "Trusted_Connection=No;" + ;
-            SQLODBCAttribute( "UID", hProfile[ "username" ] ) + ;
-            SQLODBCAttribute( "PWD", hProfile[ "password" ] )
     ELSE
-        IF hb_HHasKey( hProfile, "username" ) .OR. hb_HHasKey( hProfile, "password" )
-            cError := "Integrated SQL authentication cannot include username or password."
+        IF hb_HHasKey( hProfile, "username" ) .OR. hb_HHasKey( hProfile, "password" ) .OR. ;
+            hb_HHasKey( hProfile, "credential" )
+            cError := "Integrated SQL authentication cannot include SQL credentials."
             RETURN NIL
         ENDIF
         cConnection += "Trusted_Connection=Yes;"
@@ -716,6 +740,36 @@ STATIC FUNCTION SQLMSSQLConnection( hProfile, cError )
             iif( hProfile[ "trustServerCertificate" ], "Yes", "No" ) + ";"
     ENDIF
 
+RETURN cConnection
+
+/* Resolve protected SQL secrets only for a connection attempt. */
+FUNCTION HBBridgeSQLConnection( cProfile, hProfile, cError )
+    LOCAL cConnection, cPassword
+
+    LOCAL hCredential
+
+    cError := ""
+    IF ! HB_ISHASH( hProfile )
+        cError := "SQL connection is unavailable."
+        RETURN NIL
+    ENDIF
+    IF ! hb_HHasKey( hProfile, "credential" )
+        RETURN hb_HGetDef( hProfile, "connectionString", NIL )
+    ENDIF
+    cConnection := SQLMSSQLConnection( hProfile, @cError )
+    IF cConnection == NIL
+        RETURN NIL
+    ENDIF
+    hCredential := hProfile[ "credential" ]
+    cPassword := HBBridgeCredentialDecrypt( hCredential[ "keyPath" ], cProfile, hCredential[ "id" ], ;
+        hCredential[ "keyId" ], hCredential[ "user" ], hCredential[ "envelope" ], @cError )
+    IF ! SQLProfileTextValid( cPassword, .T. )
+        cError := "SQL credential is unavailable."
+        RETURN NIL
+    ENDIF
+    cConnection += SQLODBCAttribute( "PWD", cPassword )
+    cPassword := NIL
+    cError := ""
 RETURN cConnection
 
 STATIC FUNCTION SQLProfileTextValid( xValue, lAllowWhitespace )
