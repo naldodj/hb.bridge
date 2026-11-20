@@ -6,6 +6,10 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Adicionar cobertura de integridade para JSON UTF-8 e MSSQL)"
  */
 
+2026-11-20 22:19 UTC naldodj (Analisar publicação e execução nativa de addons)
+  ; Documentar o ciclo atual dos addons, um catálogo futuro e os limites de
+    plataforma, ABI e medição do loader nativo proposto.
+
 2026-11-20 15:26 UTC naldodj (Testar publicação de credencial preparada)
   + Exercitar a preparação autenticada do INI com o publicador isolado no WSL
     e verificar que a operação não suportada no Windows preserva o original.

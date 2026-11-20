@@ -1,6 +1,6 @@
 # Pacote de addons de exemplo
 
-[English](addon-bundle.md) · [Exemplo de turnover](turnover-addon.pt-BR.md)
+[English](addon-bundle.md) · [Exemplo de turnover](turnover-addon.pt-BR.md) · [Análise de publicação](addon-publication.pt-BR.md)
 
 Compile um único módulo Harbour portátil para os exemplos do projeto:
 

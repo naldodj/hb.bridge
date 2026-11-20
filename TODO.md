@@ -597,7 +597,8 @@ and Oracle require their own evidence.
 
 - [x] ADDON.Execute shared module/params contract for both clients.
 - [ ] Registered module name/version rather than path; native PRG/HB/HRB reuse
-  and HBNETIOSRV_RPCMAIN review for upstream -rpc=file modules.
+  and HBNETIOSRV_RPCMAIN review for upstream -rpc=file modules. See the
+  [publication and native-execution review](docs/addon-publication.md).
 - [ ] Module metadata/dependencies/types/permissions/errors, canonical allowed
   directories, publication/trust and isolation of symbols/statics between
   simultaneously active HRBs. Native reload may retain STATIC values.

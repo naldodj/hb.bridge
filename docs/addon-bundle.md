@@ -1,6 +1,6 @@
 # Example addon bundle
 
-[Português](addon-bundle.pt-BR.md) · [Turnover example](turnover-addon.md)
+[Português](addon-bundle.pt-BR.md) · [Turnover example](turnover-addon.md) · [Publication review](addon-publication.md)
 
 Build one portable Harbour module for the project examples:
 

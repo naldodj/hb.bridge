@@ -832,7 +832,8 @@ novas extensões entram conforme a necessidade e os resultados medidos.
 - [x] Integrar `ADDON.Execute` ao registro comum para Protheus e Harbour,
   com parâmetros `module` e `params`.
 - [ ] Evoluir a identificação de módulos de caminho de arquivo para nome/versão
-  registrado, com contrato e testes próprios.
+  registrado, com contrato e testes próprios. Veja a [análise de publicação e
+  execução nativa](docs/addon-publication.pt-BR.md).
 - [ ] Reutilizar compilação `.prg`/`.hb` e execução `.hrb`; validar
   `HBNETIOSRV_RPCMAIN` nos módulos usados no modo `-rpc=<arquivo>` do hbnetio.
 - [ ] Definir metadados de módulos, dependências, tipos, permissões e erros;

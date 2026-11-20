@@ -5,6 +5,10 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Organize bilingual documentation and prepare the Wiki portal)"
  */
 
+2026-11-20 22:19 UTC naldodj (Review addon publication and native execution)
+  ; Document the current addon lifecycle, a future publication catalog and
+    platform, ABI and measurement limits of the proposed native loader.
+
 2026-11-20 15:26 UTC naldodj (Test prepared credential publication)
   + Exercise authenticated INI preparation with the isolated publisher on WSL
     and verify that the unsupported Windows publisher leaves the original intact.

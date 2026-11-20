@@ -39,6 +39,7 @@ sem manter outra cópia de cada guia.
 | [Arquitetura](architecture.pt-BR.md) | Entender executor genérico, addons de aplicação, host único e adaptadores separados. |
 | [Núcleo de serviços e NETIO incorporado](milestone1.pt-BR.md) | Acompanhar registro, ciclo do host, administração e gateway Harbour nativo. |
 | [Pacote de addons de exemplo](addon-bundle.pt-BR.md) | Compilar um HRB e selecionar ações registradas, preservando addons independentes. |
+| [Publicação e execução nativa de addons](addon-publication.pt-BR.md) | Analisar catálogo futuro e restrições da carga nativa. |
 | [Enquadramento TCP Protheus](milestone2-framing.pt-BR.md) | Entender HBBRIDGE/1, JSON/gzip, capacidades do runtime e evolução da transferência. |
 | [HTTP/REST e administração web](http.pt-BR.md) | Configurar hbhttpd, rotas, gzip, orçamento de envio e TLS opcional. |
 | [Transporte NETIO nativo](../src/hb/transports/netio/README.pt-BR.md) | Utilizar RPC/arquivos Harbour nativos e conferir limites do upstream. |

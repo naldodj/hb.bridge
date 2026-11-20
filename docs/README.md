@@ -39,6 +39,7 @@ it does not maintain another copy of each guide.
 | [Architecture](architecture.md) | Understand the generic executor, application addons, one host and separate adapters. |
 | [Service core and embedded NETIO](milestone1.md) | Follow the registry, host lifecycle, administration and native Harbour gateway. |
 | [Example addon bundle](addon-bundle.md) | Build one HRB and select registered actions while preserving independent addons. |
+| [Addon publication and native execution](addon-publication.md) | Review a future addon catalog and the constraints of native loading. |
 | [Protheus TCP framing](milestone2-framing.md) | Understand HBBRIDGE/1, JSON/gzip, runtime capacities and planned transfer evolution. |
 | [HTTP/REST and web administration](http.md) | Configure hbhttpd, routes, gzip, send budgets and optional TLS. |
 | [Native NETIO transport](../src/hb/transports/netio/README.md) | Use native Harbour RPC/files and inspect upstream limits. |
