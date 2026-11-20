@@ -501,6 +501,13 @@ rejeitada na última comparação; o processo interrompido deixa um arquivo temp
 órfão com o modo original testado e preserva o destino. Isso não elimina a janela
 após a última comparação nem comprova durabilidade diante de falha.
 
+Uma fixture sintética integrada prepara uma substituição autenticada com uma
+chave de teste privada e a encaminha ao publicador isolado. No Windows, a prova
+confirma que a operação não suportada preserva o INI original. No WSL, o candidato
+publica o INI preparado, o perfil relido decifra a nova senha e uma repetição com
+o snapshot anterior é rejeitada. O teste não se conecta a um SGBD real nem
+transforma o candidato em comando do produto.
+
 Um leitor experimental independente aceita somente terminal interativo, desativa
 o eco durante a leitura e restaura o modo anterior. Ele não está ligado ao produto
 nem ao fluxo de atualização. A implementação de teste aceita UTF-8 não vazio de

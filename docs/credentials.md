@@ -492,6 +492,13 @@ the interrupted process leaves an orphan stage with the tested original mode and
 the destination unchanged. This does not eliminate the remaining race after the
 last comparison, nor prove crash durability.
 
+A synthetic integration fixture prepares an authenticated replacement using a
+private test key and passes it to the isolated publisher. The Windows probe
+confirms the unsupported publisher leaves the original INI intact. On WSL the
+candidate publishes the prepared INI, the reloaded profile decrypts the new
+password, and a retry using the previous snapshot is rejected. The test neither
+connects to a real SQL server nor makes this candidate a product command.
+
 A standalone experimental terminal reader accepts an interactive terminal only,
 disables echo while reading and restores the prior mode. It is not linked to the
 product or connected to the update workflow. Its test-only implementation accepts

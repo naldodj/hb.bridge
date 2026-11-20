@@ -5,6 +5,11 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Organize bilingual documentation and prepare the Wiki portal)"
  */
 
+2026-11-20 15:26 UTC naldodj (Test prepared credential publication)
+  + Exercise authenticated INI preparation with the isolated publisher on WSL
+    and verify that the unsupported Windows publisher leaves the original intact.
+  ; Production integration and safe Windows publication remain unfinished.
+
 2026-11-20 15:26 UTC naldodj (Support optional debug symbols)
   ! Respect hbmk2's case-sensitive debug filter when deciding whether to strip.
   + Add a separate debug build option with Harbour and C debugging information.

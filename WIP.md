@@ -100,6 +100,11 @@ its own acceptance. See [credential review](docs/credentials.md).
   reveal that delete sharing still permits replacement by another process. Linux
   tests also cover concurrent changes after staging and interruption leaving a
   restricted orphan; uncooperative writers can race.
+  A synthetic integration test connects authenticated preparation to the
+  isolated publisher: Windows refuses publication without modifying the INI;
+  WSL publishes the fixture, decrypts the replacement and rejects a stale retry.
+  The focused suite passed 51 checks on Windows and 53 on WSL with global
+  Harbour, Zig and the project-patched ODBC core. No real SQL server was used.
   Production-safe atomic publication, metadata preservation, Linux integration,
   interactive command, deployment and full acceptance remain open.
 - [ ] C05: validate tampering, wrong/missing key, unavailable provider, Unicode,

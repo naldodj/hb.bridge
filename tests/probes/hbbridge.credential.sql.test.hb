@@ -8,6 +8,7 @@ PROCEDURE HBBridgeCredentialSQLTest()
 
     hb_cdpSelect( "UTF8EX" )
     HBBridgeCredentialConfigTests( @nFailures, @nChecks )
+    HBBridgeCredentialPublishIntegrationTests( @nFailures, @nChecks )
     OutStd( "Protected SQL credential checks=" + hb_ntos( nChecks ) + "; failures=" + hb_ntos( nFailures ) + hb_eol() )
     ErrorLevel( iif( nFailures == 0, 0, 1 ) )
 RETURN

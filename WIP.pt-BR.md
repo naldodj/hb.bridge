@@ -103,6 +103,11 @@ aceites separados. Veja a [análise de credenciais](docs/credentials.pt-BR.md).
   mas mostram que compartilhar exclusão permite a substituição por outro processo.
   No Linux, testes também cobrem alteração após o staging e interrupção que deixa
   um órfão restrito; editores externos ainda podem disputar.
+  Um teste sintético integrado liga a preparação autenticada ao publicador isolado:
+  no Windows a publicação é recusada sem alterar o INI; no WSL a fixture é
+  publicada, a substituição é decifrada e uma repetição com snapshot antigo é
+  rejeitada. A suíte focal passou 51 verificações no Windows e 53 no WSL com
+  Harbour global, Zig e o core ODBC com patch do projeto. Não houve conexão SQL real.
   Publicação atômica segura em produção, preservação de metadados, integração
   Linux, comando interativo, implantação e aceite completo permanecem pendentes.
 - [ ] C05: testar adulteração, chave errada/ausente, provedor indisponível,

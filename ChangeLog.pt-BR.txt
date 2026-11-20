@@ -6,6 +6,11 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Adicionar cobertura de integridade para JSON UTF-8 e MSSQL)"
  */
 
+2026-11-20 15:26 UTC naldodj (Testar publicação de credencial preparada)
+  + Exercitar a preparação autenticada do INI com o publicador isolado no WSL
+    e verificar que a operação não suportada no Windows preserva o original.
+  ; A integração ao produto e a publicação segura no Windows seguem pendentes.
+
 2026-11-20 15:26 UTC naldodj (Permitir símbolos de depuração opcionais)
   ! Respeitar a distinção de maiúsculas no filtro de debug do hbmk2 ao remover símbolos.
   + Adicionar opção de build separado com informações de depuração Harbour e C.
