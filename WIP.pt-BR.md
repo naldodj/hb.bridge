@@ -42,10 +42,13 @@ aceites separados. Veja a [análise de credenciais](docs/credentials.pt-BR.md).
   0644 e criação e uso de chave sintética pela identidade sem privilégios
   `nobody`. Envelope e chave sintéticos foram transferidos e decifrados nos dois
   sentidos entre Windows e WSL; alterações em cada campo de contexto vinculado
-  foram rejeitadas. A prova valida o formato do provedor, não a migração do INI
+  foram rejeitadas. No Windows, caminhos de chave UTF-8 agora são decodificados
+  independentemente da code page do Harbour; a suíte sintética do provedor passou
+  48 verificações no Windows e no WSL como root com Harbour global e Zig 0.16,
+  incluindo acesso entre code pages. A prova valida o formato do provedor, não a migração do INI
   nem a autenticação SQL. Identidades reais de serviço e filesystems de
   instalação ainda exigem aceite. O provedor está integrado ao SQL estruturado;
-  o utilitário local ainda não foi implementado.
+  a edição interativa de credenciais ainda não foi implementada.
 - [ ] C03: integrar o provedor a um perfil MSSQL com autenticação SQL e escape
   ODBC correto. Preservar autenticação integrada e configurações existentes;
   rejeitar combinações ambíguas e não expor segredos em diagnósticos, erros,

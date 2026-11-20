@@ -76,6 +76,22 @@ static HB_BOOL HBBridgeCredentialTestFailCleanup( void )
 #endif
 
 #if defined( HB_OS_WIN )
+/* Credential paths are UTF-8 independently of the worker's active codepage. */
+static WCHAR * HBBridgeCredentialWindowsPath( const char * path )
+{
+    int length = MultiByteToWideChar( CP_UTF8, MB_ERR_INVALID_CHARS, path, -1, NULL, 0 );
+    WCHAR * wide;
+
+    if( length <= 0 ) return NULL;
+    wide = ( WCHAR * ) hb_xgrab( ( size_t ) length * sizeof( WCHAR ) );
+    if( MultiByteToWideChar( CP_UTF8, MB_ERR_INVALID_CHARS, path, -1, wide, length ) != length )
+    {
+        hb_xfree( wide );
+        return NULL;
+    }
+    return wide;
+}
+
 static PSECURITY_DESCRIPTOR HBBridgeCredentialSecurity( void )
 {
     HANDLE token = NULL;
@@ -197,14 +213,14 @@ cleanup:
 
 static int HBBridgeCredentialReadKey( const char * path, unsigned char * key )
 {
-    HB_WCHAR * wide = hb_osStrU16Encode( path );
+    WCHAR * wide = HBBridgeCredentialWindowsPath( path );
     HANDLE file;
     BY_HANDLE_FILE_INFORMATION info;
     DWORD count = 0;
     int status = 6;
 
     if( ! wide ) return status;
-    file = CreateFileW( ( LPCWSTR ) wide, GENERIC_READ | READ_CONTROL, FILE_SHARE_READ, NULL,
+    file = CreateFileW( wide, GENERIC_READ | READ_CONTROL, FILE_SHARE_READ, NULL,
         OPEN_EXISTING, FILE_FLAG_OPEN_REPARSE_POINT, NULL );
     hb_xfree( wide );
     if( file == INVALID_HANDLE_VALUE ) return status;
@@ -229,7 +245,7 @@ static int HBBridgeCredentialReadKey( const char * path, unsigned char * key )
 
 static int HBBridgeCredentialCreateFile( const char * path, const unsigned char * key )
 {
-    HB_WCHAR * wide = hb_osStrU16Encode( path );
+    WCHAR * wide = HBBridgeCredentialWindowsPath( path );
     PSECURITY_DESCRIPTOR descriptor = HBBridgeCredentialSecurity();
     SECURITY_ATTRIBUTES attributes;
     HANDLE file;
@@ -251,7 +267,7 @@ static int HBBridgeCredentialCreateFile( const char * path, const unsigned char 
         status = 5;
         goto cleanup;
     }
-    length = wcslen( ( LPCWSTR ) wide );
+    length = wcslen( wide );
     temporary = ( WCHAR * ) hb_xgrab( ( length + 39 ) * sizeof( WCHAR ) );
     memcpy( temporary, wide, length * sizeof( WCHAR ) );
     memcpy( temporary + length, L".tmp.", 5 * sizeof( WCHAR ) );
@@ -276,7 +292,7 @@ static int HBBridgeCredentialCreateFile( const char * path, const unsigned char 
 #if defined( HBBRIDGE_CREDENTIAL_TEST_PAUSE )
             HBBridgeCredentialTestPause();
 #endif
-            if( MoveFileExW( temporary, ( LPCWSTR ) wide, MOVEFILE_WRITE_THROUGH ) )
+            if( MoveFileExW( temporary, wide, MOVEFILE_WRITE_THROUGH ) )
                 status = 0;
             else
             {

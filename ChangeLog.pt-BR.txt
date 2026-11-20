@@ -6,6 +6,10 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Adicionar cobertura de integridade para JSON UTF-8 e MSSQL)"
  */
 
+2026-11-20 10:17 UTC naldodj (Corrigir caminhos UTF-8 de chaves no Windows)
+  ! Decodificar caminhos de chave como UTF-8 independentemente da code page Harbour.
+  + Testar criação e acesso autenticado a caminhos Unicode entre code pages.
+
 2026-11-19 21:16 UTC naldodj (Verificar snapshots de atualização de credencial)
   + Rejeitar alterações de configuração já observadas antes de preparar a senha,
     usando comparação exata por bytes e resultado de conflito sanitizado.

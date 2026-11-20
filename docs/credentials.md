@@ -188,6 +188,12 @@ The plaintext is the UTF-8 SQL password. Each encryption uses a new nonce
 from the OS CSPRNG. Entropy, format and authentication failures stop the
 operation with a sanitized error.
 
+On Windows the provider decodes key paths explicitly as UTF-8, independently of
+the active Harbour codepage. Earlier builds could create or seek an unintended
+name if a non-UTF-8 codepage was active. Existing deployments with such paths
+should verify the actual key filename before changing configuration; the provider
+does not move or replace existing keys automatically.
+
 The current provider accepts nonempty UTF-8 passwords up to 4096 bytes, without
 NUL, CR or LF. Each authenticated context field is limited to 1024 UTF-8 bytes.
 These are current credential-provider implementation limits, separate from RPC

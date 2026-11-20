@@ -5,6 +5,10 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Organize bilingual documentation and prepare the Wiki portal)"
  */
 
+2026-11-20 10:17 UTC naldodj (Fix Windows UTF-8 key paths)
+  ! Decode Windows key paths as UTF-8 regardless of the active Harbour codepage.
+  + Test creation and authenticated access to Unicode paths across codepages.
+
 2026-11-19 21:16 UTC naldodj (Check credential update snapshots)
   + Reject already-observed configuration changes before preparing a password
     update, using exact byte comparison and a sanitized conflict result.

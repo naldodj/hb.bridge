@@ -40,10 +40,13 @@ its own acceptance. See [credential review](docs/credentials.md).
   and a synthetic key created and used by the unprivileged `nobody` identity.
   A synthetic envelope and its key were transferred and decrypted successfully
   Windows to WSL and WSL to Windows; changing each bound context field failed.
+  Windows key paths now decode UTF-8 independently of the active Harbour codepage;
+  the synthetic provider suite passed 48 checks on Windows and on WSL as root
+  with global Harbour and Zig 0.16, including cross-codepage access.
   This checks the provider format, not INI migration or SQL authentication.
   Actual separate service identities and deployment filesystems still need
-  acceptance. The provider is integrated with structured SQL; the local CLI
-  is not implemented.
+  acceptance. The provider is integrated with structured SQL; interactive local
+  credential editing remains unfinished.
 - [ ] C03: integrate the provider into one MSSQL SQL-authentication profile with
   ODBC-safe escaping. Keep integrated authentication and existing configurations
   compatible; reject ambiguous plaintext/reference combinations and do not expose

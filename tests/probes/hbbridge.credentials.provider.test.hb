@@ -43,8 +43,30 @@ PROCEDURE Main( cDirectory )
     ProbeEnvelope( cKeyPath, hContext )
     ProbeKeyFailures( cDirectory, cKeyPath, hContext )
     ProbeConcurrency( cDirectory + hb_ps() + "concurrent.key", cKeyPath, hContext )
+    ProbePathCodepage( cDirectory, cKeyPath, hContext )
     ProbeFinish()
 
+RETURN
+
+STATIC PROCEDURE ProbePathCodepage( cDirectory, cExistingPath, hContext )
+
+    LOCAL cCipher, cError, cKeyPath, cPrevious
+    LOCAL lCreated, lCrossRead, lFound, lRoundTrip, lExistingRead
+
+    cKeyPath := cDirectory + hb_ps() + "codepage " + hb_UTF8Chr( 233 ) + ".key"
+    cPrevious := hb_cdpSelect( "EN" )
+    lCreated := HBBridgeCredentialCreateKey( cKeyPath, @cError )
+    cCipher := ProbeEncrypt( cKeyPath, hContext, "synthetic-codepage", @cError )
+    lRoundTrip := HB_ISSTRING( cCipher ) .AND. ;
+        ProbeDecrypt( cKeyPath, hContext, cCipher, @cError ) == "synthetic-codepage"
+    lExistingRead := HB_ISSTRING( ProbeEncrypt( cExistingPath, hContext, "synthetic-codepage", @cError ) )
+    hb_cdpSelect( cPrevious )
+    lFound := hb_FileExists( cKeyPath )
+    lCrossRead := HB_ISSTRING( cCipher ) .AND. ;
+        ProbeDecrypt( cKeyPath, hContext, cCipher, @cError ) == "synthetic-codepage"
+    ProbeAssert( lCreated .AND. lFound, "UTF-8 key path is independent of the active codepage" )
+    ProbeAssert( lRoundTrip, "UTF-8 key path encrypts and decrypts with another codepage active" )
+    ProbeAssert( lExistingRead .AND. lCrossRead, "same Unicode key is accessible across codepages" )
 RETURN
 
 STATIC PROCEDURE ProbeEnvelope( cKeyPath, hContext )

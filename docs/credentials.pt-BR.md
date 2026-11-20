@@ -186,6 +186,12 @@ nessa ordem. O conteúdo cifrado é a senha SQL em UTF-8. Cada cifragem usa
 um novo nonce do gerador criptográfico do SO. Falhas de entropia, formato e
 autenticação interrompem a operação com erro sanitizado.
 
+No Windows, o provedor decodifica caminhos de chave explicitamente como UTF-8,
+independentemente da code page ativa do Harbour. Versões anteriores podiam criar
+ou procurar um nome diferente com uma code page que não fosse UTF-8. Em instalações
+existentes com esses caminhos, verificar o nome efetivo da chave antes de alterar
+a configuração; o provedor não move nem substitui chaves automaticamente.
+
 O provedor atual aceita senhas UTF-8 não vazias de até 4096 bytes, sem NUL, CR
 ou LF. Cada campo do contexto autenticado é limitado a 1024 bytes UTF-8. Esses
 limites pertencem à implementação atual do provedor de credenciais, separados
