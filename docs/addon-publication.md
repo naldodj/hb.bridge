@@ -43,6 +43,9 @@ action. Independent HRBs can retain a direct entry contract. Mapping an action
 does not automatically register arbitrary functions inside an HRB: the chosen
 entry contract and its supported actions still need to be defined and validated.
 The current example bundle would still need to recognize its own actions.
+For a native addon, the same logical identity and version could resolve to an
+administrator-installed `.dll` on Windows or `.so` on Linux; the server would
+select its platform artifact rather than accepting a binary path from the client.
 
 The proposed catalog would validate identifiers, duplicate entries, versions,
 enabled state and allowed artifact paths, including traversal and filesystem
@@ -65,6 +68,12 @@ responsibility of the application and the eventual server authorization model.
 
 ## Review of the native addon idea
 
+**Target scope:** if native addons are adopted, they must support Windows and
+Linux under the same logical publication and invocation contracts. The host may
+use platform-specific loading and build mechanisms behind that contract. A
+Windows-only prototype would be an intermediate experiment, not completion of
+the native-addon feature. This does not change the current HRB execution model.
+
 Compiling Harbour functions through `-gc3` to C can be worth benchmarking for
 CPU-heavy work. It still uses Harbour VM/runtime operations; it is not a promise
 that every expression becomes independent native arithmetic. In the pinned
@@ -77,8 +86,11 @@ The reviewed DLL idea is plausible as a proof of concept, but its assumptions
 do not establish a portable implementation:
 
 - The pinned [`hbmaindllp` bridge](https://github.com/harbour/core/blob/6deac9cf3ad977ae829e5bca543d553b92dd4b6d/src/vm/maindllp/dllpcode.c)
-  is Windows-specific. Linux and macOS need their own tested VM linkage and
-  symbol-export strategy; the sample does not prove it works there.
+  is Windows-specific; this observation concerns that bridge, not a platform
+  restriction on hbBridge. The pinned Harbour [`hb_LibLoad` implementation](https://github.com/harbour/core/blob/6deac9cf3ad977ae829e5bca543d553b92dd4b6d/src/vm/dynlibhb.c)
+  also has a `dlopen` path where supported. That path alone does not prove that
+  a native addon shares the intended VM safely. Linux needs a tested linkage and
+  symbol-export strategy; macOS is a separate future evaluation.
 - The project and proposed sample have different entry contracts: the current
   HRB receives JSON and native context, whereas the proposed example receives a
   hash. An adapter must preserve error, ownership and permission semantics.
@@ -103,3 +115,12 @@ replacement, failure recovery, shutdown, ownership and platform compatibility.
 The existing [benchmark evolution](benchmark-evolution.md) already tracks native
 C/Zig comparisons. A native addon should be adopted only if measurements and
 its lifecycle justify the additional complexity.
+
+The platform feasibility test should build and run the same small addon on
+Windows (`.dll`) and Linux (`.so`, including WSL as an initial Linux environment),
+using the same public addon identity, input and result. Evaluate Windows VM
+bridging and, on Linux, a shared Harbour runtime or host-exported VM symbols;
+the choice is not yet made. Verify that each process uses the intended compatible
+VM, without a second incompatible runtime, and test concurrent calls, error
+handling, load lifetime and version changes on both systems. Neither a successful
+build nor the presence of `dlopen` alone establishes these guarantees.

@@ -846,9 +846,10 @@ novas extensões entram conforme a necessidade e os resultados medidos.
 - [ ] Documentar separadamente Zig como toolchain e como linguagem das extensões.
 - [ ] Formalizar ABI C versionada: ponteiro + tamanho, propriedade/liberação,
   erros, alinhamento, concorrência e ciclo de vida dos resultados.
-- [ ] Manter bibliotecas vinculadas no build inicial. Avaliar DLL apenas quando
-  atualização independente justificar ABI e ciclo de carga próprios, evitando
+- [ ] Manter bibliotecas vinculadas no build inicial. Avaliar bibliotecas dinâmicas
+  quando atualização independente justificar ABI e ciclo de carga próprios, evitando
   duplicação incompatível do runtime Harbour; processo separado exige caso de isolamento.
+  Qualquer execução adotada de addon nativo deve ser validada no Windows e no Linux.
 - [ ] Evoluir o adaptador demonstrativo de string terminada em zero para suportar
   binários e buffers grandes, integrando resultados ao contrato de streams.
 - [ ] Definir acesso à VM Harbour a partir de código nativo e evitar compartilhar

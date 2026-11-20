@@ -6,6 +6,10 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Adicionar cobertura de integridade para JSON UTF-8 e MSSQL)"
  */
 
+2026-11-20 22:23 UTC naldodj (Esclarecer plataformas dos addons)
+  ; Exigir validação Windows e Linux para qualquer loader nativo adotado;
+    distinguir a ponte específica do Windows do contrato público compartilhado.
+
 2026-11-20 22:19 UTC naldodj (Analisar publicação e execução nativa de addons)
   ; Documentar o ciclo atual dos addons, um catálogo futuro e os limites de
     plataforma, ABI e medição do loader nativo proposto.

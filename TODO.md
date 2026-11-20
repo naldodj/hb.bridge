@@ -606,8 +606,9 @@ and Oracle require their own evidence.
   only where justified. Business inputs remain explicit caller parameters.
 - [ ] Distinguish Zig toolchain from extension language; versioned C ABI
   pointer+length/ownership/free/errors/alignment/threading/result lifetime.
-- [ ] Static libraries first; DLLs only for justified independent update/ABI
-  lifecycle, avoiding duplicate incompatible Harbour runtimes.
+- [ ] Static libraries first; dynamic libraries only for justified independent
+  update/ABI lifecycle, avoiding duplicate incompatible Harbour runtimes. Any
+  adopted native-addon execution must be validated on both Windows and Linux.
 - [ ] Replace demonstration NUL-string ABI with binary/large buffers/streams,
   VM entry rules and synchronized resource ownership; integrate hb_vf/hb_file
   buffers where needed.
