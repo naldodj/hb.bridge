@@ -470,6 +470,21 @@ An isolated native stream-enumeration probe now rejects a named stream and a
 hard-linked file and accepts the tested unnamed stream and UTF-8 filename. It
 does not inspect every kind of Windows metadata or authorize replacement; it is
 compiled only into its synthetic probe and is not linked to the utility.
+The probe can also attempt to read the SACL without changing the caller's token.
+It reports missing `SeSecurityPrivilege` rather than assuming an inaccessible
+SACL is empty. Microsoft documents that SACL access requires the enabled
+[`SeSecurityPrivilege`](https://learn.microsoft.com/en-us/windows/win32/secauthz/sacl-access-right).
+The unprivileged Windows fixture exercises the refusal; successful SACL access,
+preservation and privilege lifecycle remain unvalidated. Reading this descriptor
+alone does not authorize replacement.
+
+On the tested NTFS volume, an open guard that denies write sharing blocked
+another process from opening the file for writing and allowed compatible readers.
+If the guard permits delete sharing, another process can still replace the path.
+If it denies delete sharing, the staged replacement also fails until the guard
+is closed. A reader that denies delete sharing similarly prevents replacement;
+the tested failure preserved both files. These observations do not establish a
+complete conflict-free publication protocol or cover other filesystems.
 
 The Linux candidate also has test-only pause points for a concurrent edit and
 forced termination after staging. The edit is rejected during the last comparison;

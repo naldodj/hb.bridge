@@ -94,8 +94,12 @@ its own acceptance. See [credential review](docs/credentials.md).
   A synthetic NTFS `FileRenameInfoEx` probe preserved owner, group and DACL with
   an open reader but lost an alternate data stream; SACL inspection was unavailable
   to the test identity. An isolated native probe detects the tested alternate
-  stream and hard link; it does not authorize publication. Linux tests also cover concurrent changes after staging
-  and interruption leaving a restricted orphan; uncooperative writers can race.
+  stream and hard link and reports a missing SACL privilege without altering the
+  file; successful privileged access and preservation remain untested. It does
+  not authorize publication. Windows sharing tests block ordinary writers but
+  reveal that delete sharing still permits replacement by another process. Linux
+  tests also cover concurrent changes after staging and interruption leaving a
+  restricted orphan; uncooperative writers can race.
   Production-safe atomic publication, metadata preservation, Linux integration,
   interactive command, deployment and full acceptance remain open.
 - [ ] C05: validate tampering, wrong/missing key, unavailable provider, Unicode,

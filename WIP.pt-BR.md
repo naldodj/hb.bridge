@@ -97,8 +97,12 @@ aceites separados. Veja a [análise de credenciais](docs/credentials.pt-BR.md).
   Uma prova sintética em NTFS com `FileRenameInfoEx` preservou proprietário, grupo
   e DACL com leitor aberto, mas perdeu um fluxo alternativo; a identidade de teste
   não teve acesso à SACL. Uma prova nativa isolada detecta o fluxo alternativo e
-  link físico testados; ela não autoriza publicação. No Linux, testes também cobrem alteração após o staging
-  e interrupção que deixa um órfão restrito; editores externos ainda podem disputar.
+  link físico testados e informa a ausência de privilégio para ler a SACL sem
+  modificar o arquivo; acesso privilegiado e preservação seguem sem teste. Ela não
+  autoriza publicação. Testes de compartilhamento Windows bloqueiam gravações,
+  mas mostram que compartilhar exclusão permite a substituição por outro processo.
+  No Linux, testes também cobrem alteração após o staging e interrupção que deixa
+  um órfão restrito; editores externos ainda podem disputar.
   Publicação atômica segura em produção, preservação de metadados, integração
   Linux, comando interativo, implantação e aceite completo permanecem pendentes.
 - [ ] C05: testar adulteração, chave errada/ausente, provedor indisponível,

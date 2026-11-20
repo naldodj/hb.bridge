@@ -478,6 +478,22 @@ Uma prova nativa isolada de enumeração de fluxos agora rejeita um fluxo nomead
 e arquivo com link físico, e aceita o fluxo sem nome e o nome UTF-8 testados. Ela
 não examina todos os tipos de metadados Windows nem autoriza a substituição; é
 compilada somente na prova sintética e não está ligada ao utilitário.
+A prova também tenta ler a SACL sem alterar o token do processo. Ela informa a
+ausência de `SeSecurityPrivilege` em vez de presumir que uma SACL inacessível está
+vazia. A Microsoft documenta que o acesso à SACL exige o
+[`SeSecurityPrivilege` habilitado](https://learn.microsoft.com/en-us/windows/win32/secauthz/sacl-access-right).
+A fixture Windows sem privilégio exercita a recusa; acesso bem-sucedido à SACL,
+preservação e ciclo do privilégio ainda não foram validados. Ler esse descritor,
+por si só, não autoriza a substituição.
+
+No volume NTFS testado, um identificador que impede compartilhamento de escrita
+bloqueou a abertura para gravação por outro processo e permitiu leitores compatíveis.
+Quando permite compartilhamento de exclusão, outro processo ainda consegue
+substituir o caminho. Quando o impede, a própria substituição preparada também
+falha até o identificador ser fechado. Um leitor que não compartilha exclusão
+também impede a substituição; na falha testada os dois arquivos foram preservados.
+Essas observações não estabelecem um protocolo completo sem conflitos nem cobrem
+outros sistemas de arquivos.
 
 O candidato Linux também possui pontos de pausa exclusivos dos testes para uma
 alteração concorrente e uma interrupção forçada após o staging. A alteração é

@@ -9,6 +9,7 @@
 
 #if defined( HB_OS_WIN ) && defined( HBBRIDGE_PUBLISH_TEST )
     #include <windows.h>
+    #include <aclapi.h>
     #include <wchar.h>
 #endif
 
@@ -40,7 +41,8 @@ enum
     HB_PUBLISH_BUSY = 5,
     HB_PUBLISH_IO = 6,
     HB_PUBLISH_CLEANUP = 7,
-    HB_PUBLISH_NOT_DURABLE = 8
+    HB_PUBLISH_NOT_DURABLE = 8,
+    HB_PUBLISH_PRIVILEGE_REQUIRED = 9
 };
 
 #if defined( HB_OS_LINUX )
@@ -226,24 +228,78 @@ cleanup:
 
 /* Stream enumeration is a test-only building block, not a safety decision. */
 #if defined( HB_OS_WIN ) && defined( HBBRIDGE_PUBLISH_TEST )
+static WCHAR * HBBridgePublishWindowsPath( const char * path, size_t size )
+{
+    WCHAR * wide;
+    int wideSize;
+
+    if( ! path || size == 0 || strlen( path ) != size || ! hb_cdpUTF8Validate( path, size ) )
+        return NULL;
+    wideSize = MultiByteToWideChar( CP_UTF8, MB_ERR_INVALID_CHARS, path, -1, NULL, 0 );
+    if( wideSize == 0 ) return NULL;
+    wide = ( WCHAR * ) hb_xgrab( ( size_t ) wideSize * sizeof( WCHAR ) );
+    if( MultiByteToWideChar( CP_UTF8, MB_ERR_INVALID_CHARS, path, -1, wide, wideSize ) != wideSize )
+    {
+        hb_xfree( wide );
+        return NULL;
+    }
+    return wide;
+}
+
+/* Reading the SACL is necessary but not sufficient for safe publication. */
+HB_FUNC( HBBRIDGECREDENTIALSACLPROBE )
+{
+    WCHAR * wide = HBBridgePublishWindowsPath( hb_parc( 1 ), hb_parclen( 1 ) );
+    HANDLE file = INVALID_HANDLE_VALUE;
+    PSECURITY_DESCRIPTOR descriptor = NULL;
+    PACL dacl = NULL, sacl = NULL;
+    PSID owner = NULL, group = NULL;
+    BOOL present = FALSE, defaulted = FALSE;
+    DWORD result;
+    int status = HB_PUBLISH_INVALID;
+
+    if( ! wide ) goto cleanup;
+    file = CreateFileW( wide, READ_CONTROL | ACCESS_SYSTEM_SECURITY | FILE_READ_ATTRIBUTES,
+        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING,
+        FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS, NULL );
+    if( file == INVALID_HANDLE_VALUE )
+    {
+        result = GetLastError();
+        status = result == ERROR_PRIVILEGE_NOT_HELD ? HB_PUBLISH_PRIVILEGE_REQUIRED : HB_PUBLISH_IO;
+        goto cleanup;
+    }
+    result = GetSecurityInfo( file, SE_FILE_OBJECT,
+        OWNER_SECURITY_INFORMATION | GROUP_SECURITY_INFORMATION | DACL_SECURITY_INFORMATION | SACL_SECURITY_INFORMATION,
+        &owner, &group, &dacl, &sacl, &descriptor );
+    if( result != ERROR_SUCCESS || ! descriptor || ! IsValidSecurityDescriptor( descriptor ) ||
+        ! owner || ! IsValidSid( owner ) || ! group || ! IsValidSid( group ) ||
+        ( dacl && ! IsValidAcl( dacl ) ) ||
+        ! GetSecurityDescriptorSacl( descriptor, &present, &sacl, &defaulted ) ||
+        ( present && sacl && ! IsValidAcl( sacl ) ) )
+    {
+        status = HB_PUBLISH_IO;
+        goto cleanup;
+    }
+    status = HB_PUBLISH_OK;
+cleanup:
+    if( descriptor ) LocalFree( descriptor );
+    if( file != INVALID_HANDLE_VALUE ) CloseHandle( file );
+    if( wide ) hb_xfree( wide );
+    hb_retni( status );
+}
+
 HB_FUNC( HBBRIDGECREDENTIALSTREAMPROBE )
 {
     const char * path = hb_parc( 1 );
     size_t pathSize = hb_parclen( 1 );
-    WCHAR * wide = NULL;
+    WCHAR * wide = HBBridgePublishWindowsPath( path, pathSize );
     HANDLE file = INVALID_HANDLE_VALUE;
     BY_HANDLE_FILE_INFORMATION info;
     unsigned char * data = NULL;
     DWORD capacity = 4096, offset = 0, streams = 0;
-    int wideSize;
     int status = HB_PUBLISH_INVALID;
 
-    if( ! path || pathSize == 0 || strlen( path ) != pathSize ||
-        ! hb_cdpUTF8Validate( path, pathSize ) ) goto cleanup;
-    wideSize = MultiByteToWideChar( CP_UTF8, MB_ERR_INVALID_CHARS, path, -1, NULL, 0 );
-    if( wideSize == 0 ) goto cleanup;
-    wide = ( WCHAR * ) hb_xgrab( ( size_t ) wideSize * sizeof( WCHAR ) );
-    if( MultiByteToWideChar( CP_UTF8, MB_ERR_INVALID_CHARS, path, -1, wide, wideSize ) != wideSize ) goto cleanup;
+    if( ! wide ) goto cleanup;
     file = CreateFileW( wide, FILE_READ_ATTRIBUTES,
         FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING,
         FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS, NULL );
