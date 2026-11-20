@@ -91,6 +91,11 @@ aceites separados. Veja a [análise de credenciais](docs/credentials.pt-BR.md).
   WSL de bloqueio cooperativo, snapshots, metadados, arquivos inseguros e falhas.
   Não está vinculada ao produto; no Windows retorna não suportado. Em NTFS,
   `MoveFileExW` preservou o descritor testado sem leitor aberto, mas falhou com um.
+  Uma prova sintética em NTFS com `FileRenameInfoEx` preservou proprietário, grupo
+  e DACL com leitor aberto, mas perdeu um fluxo alternativo; a identidade de teste
+  não teve acesso à SACL. Uma prova nativa isolada detecta o fluxo alternativo e
+  link físico testados; ela não autoriza publicação. No Linux, testes também cobrem alteração após o staging
+  e interrupção que deixa um órfão restrito; editores externos ainda podem disputar.
   Publicação atômica segura em produção, preservação de metadados, integração
   Linux, comando interativo, implantação e aceite completo permanecem pendentes.
 - [ ] C05: testar adulteração, chave errada/ausente, provedor indisponível,

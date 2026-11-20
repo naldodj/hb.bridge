@@ -88,6 +88,11 @@ its own acceptance. See [credential review](docs/credentials.md).
   cooperative locking, snapshots, metadata, unsafe files and failure outcomes.
   It is not linked to the product; Windows returns unsupported. NTFS `MoveFileExW`
   preserved the tested descriptor without an open reader but failed with one.
+  A synthetic NTFS `FileRenameInfoEx` probe preserved owner, group and DACL with
+  an open reader but lost an alternate data stream; SACL inspection was unavailable
+  to the test identity. An isolated native probe detects the tested alternate
+  stream and hard link; it does not authorize publication. Linux tests also cover concurrent changes after staging
+  and interruption leaving a restricted orphan; uncooperative writers can race.
   Production-safe atomic publication, metadata preservation, Linux integration,
   interactive command, deployment and full acceptance remain open.
 - [ ] C05: validate tampering, wrong/missing key, unavailable provider, Unicode,

@@ -7,11 +7,19 @@
 #include <stddef.h>
 #include <string.h>
 
+#if defined( HB_OS_WIN ) && defined( HBBRIDGE_PUBLISH_TEST )
+    #include <windows.h>
+    #include <wchar.h>
+#endif
+
 #if defined( HB_OS_LINUX )
     #include <errno.h>
     #include <fcntl.h>
     #include <stdio.h>
     #include <stdlib.h>
+    #if defined( HBBRIDGE_PUBLISH_TEST )
+        #include <signal.h>
+    #endif
     #include <sys/file.h>
     #include <sys/random.h>
     #include <sys/stat.h>
@@ -180,6 +188,9 @@ static int HBBridgePublishLinux( const char * path, const unsigned char * expect
     if( fchmod( stage, original.st_mode & 0777 ) != 0 || fsync( stage ) != 0 ||
         fstat( stage, &staging ) != 0 || staging.st_uid != original.st_uid || staging.st_gid != original.st_gid ||
         ( staging.st_mode & 07777 ) != ( original.st_mode & 07777 ) || flistxattr( stage, NULL, 0 ) != 0 ) goto cleanup;
+#if defined( HBBRIDGE_PUBLISH_TEST )
+    if( getenv( "HBBRIDGE_TEST_PUBLISH_PAUSE_BEFORE_RECHECK" ) ) raise( SIGSTOP );
+#endif
     if( fstat( file, &current ) != 0 || fstatat( dirfd, base, &byName, AT_SYMLINK_NOFOLLOW ) != 0 ||
         ! HBBridgePublishSameFile( &original, &current ) || ! HBBridgePublishSameFile( &original, &byName ) ||
         ! HBBridgePublishCompare( file, expected, expectedSize ) )
@@ -210,6 +221,94 @@ cleanup:
     if( parent ) hb_xfree( parent );
     HBBridgePublishWipe( random, sizeof( random ) );
     return status;
+}
+#endif
+
+/* Stream enumeration is a test-only building block, not a safety decision. */
+#if defined( HB_OS_WIN ) && defined( HBBRIDGE_PUBLISH_TEST )
+HB_FUNC( HBBRIDGECREDENTIALSTREAMPROBE )
+{
+    const char * path = hb_parc( 1 );
+    size_t pathSize = hb_parclen( 1 );
+    WCHAR * wide = NULL;
+    HANDLE file = INVALID_HANDLE_VALUE;
+    BY_HANDLE_FILE_INFORMATION info;
+    unsigned char * data = NULL;
+    DWORD capacity = 4096, offset = 0, streams = 0;
+    int wideSize;
+    int status = HB_PUBLISH_INVALID;
+
+    if( ! path || pathSize == 0 || strlen( path ) != pathSize ||
+        ! hb_cdpUTF8Validate( path, pathSize ) ) goto cleanup;
+    wideSize = MultiByteToWideChar( CP_UTF8, MB_ERR_INVALID_CHARS, path, -1, NULL, 0 );
+    if( wideSize == 0 ) goto cleanup;
+    wide = ( WCHAR * ) hb_xgrab( ( size_t ) wideSize * sizeof( WCHAR ) );
+    if( MultiByteToWideChar( CP_UTF8, MB_ERR_INVALID_CHARS, path, -1, wide, wideSize ) != wideSize ) goto cleanup;
+    file = CreateFileW( wide, FILE_READ_ATTRIBUTES,
+        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING,
+        FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS, NULL );
+    if( file == INVALID_HANDLE_VALUE || ! GetFileInformationByHandle( file, &info ) )
+    {
+        status = HB_PUBLISH_IO;
+        goto cleanup;
+    }
+    if( info.nNumberOfLinks != 1 ||
+        ( info.dwFileAttributes & ( FILE_ATTRIBUTE_REPARSE_POINT | FILE_ATTRIBUTE_DIRECTORY ) ) != 0 )
+    {
+        status = HB_PUBLISH_UNSAFE;
+        goto cleanup;
+    }
+    for( ;; )
+    {
+        DWORD error;
+        data = ( unsigned char * ) hb_xgrab( capacity );
+        memset( data, 0, capacity );
+        if( GetFileInformationByHandleEx( file, FileStreamInfo, data, capacity ) ) break;
+        error = GetLastError();
+        hb_xfree( data );
+        data = NULL;
+        if( ( error != ERROR_MORE_DATA && error != ERROR_INSUFFICIENT_BUFFER ) || capacity >= 4194304 )
+        {
+            status = HB_PUBLISH_IO;
+            goto cleanup;
+        }
+        capacity *= 2;
+    }
+    for( ;; )
+    {
+        FILE_STREAM_INFO * entry;
+        size_t header = offsetof( FILE_STREAM_INFO, StreamName );
+        DWORD next;
+        if( offset > capacity || capacity - offset < header )
+        {
+            status = HB_PUBLISH_IO;
+            goto cleanup;
+        }
+        entry = ( FILE_STREAM_INFO * ) ( data + offset );
+        next = entry->NextEntryOffset;
+        if( entry->StreamNameLength > capacity - offset - header ||
+            ( next && ( next < header || next > capacity - offset ||
+                entry->StreamNameLength > next - header ) ) )
+        {
+            status = HB_PUBLISH_IO;
+            goto cleanup;
+        }
+        streams++;
+        if( streams != 1 || entry->StreamNameLength != sizeof( L"::$DATA" ) - sizeof( wchar_t ) ||
+            wmemcmp( entry->StreamName, L"::$DATA", 7 ) != 0 )
+        {
+            status = HB_PUBLISH_UNSAFE;
+            goto cleanup;
+        }
+        if( next == 0 ) break;
+        offset += next;
+    }
+    status = streams == 1 ? HB_PUBLISH_OK : HB_PUBLISH_UNSAFE;
+cleanup:
+    if( data ) hb_xfree( data );
+    if( file != INVALID_HANDLE_VALUE ) CloseHandle( file );
+    if( wide ) hb_xfree( wide );
+    hb_retni( status );
 }
 #endif
 

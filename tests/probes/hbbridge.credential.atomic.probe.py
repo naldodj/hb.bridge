@@ -63,7 +63,7 @@ def windows_security(path):
     convert.restype = wintypes.BOOL
     kernel.LocalFree.argtypes = [wintypes.HLOCAL]
     kernel.LocalFree.restype = wintypes.HLOCAL
-    information = 0x00000001 | 0x00000004
+    information = 0x00000001 | 0x00000002 | 0x00000004
     size = wintypes.DWORD()
     get_security(str(path), information, None, 0, ctypes.byref(size))
     if not size.value:
@@ -96,13 +96,32 @@ def windows_apply_security(path, sddl, protect=False):
     if not convert(sddl, 1, ctypes.byref(descriptor), None):
         raise ctypes.WinError(ctypes.get_last_error())
     try:
-        information = 0x00000001 | 0x00000004
+        information = 0x00000001 | 0x00000002 | 0x00000004
         if protect:
             information |= 0x80000000
         if not set_security(str(path), information, descriptor):
             raise ctypes.WinError(ctypes.get_last_error())
     finally:
         kernel.LocalFree(descriptor)
+
+
+def windows_check_sacl_access(path):
+    advapi = ctypes.WinDLL("advapi32", use_last_error=True)
+    get_security = advapi.GetFileSecurityW
+    get_security.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, wintypes.LPVOID,
+                             wintypes.DWORD, ctypes.POINTER(wintypes.DWORD)]
+    get_security.restype = wintypes.BOOL
+    size = wintypes.DWORD()
+    if not get_security(str(path), 0x00000008, None, 0, ctypes.byref(size)):
+        error = ctypes.get_last_error()
+        if error != 122 or not size.value:
+            print("OBSERVED: SACL unavailable; Windows error", error)
+            return
+    descriptor = ctypes.create_string_buffer(size.value)
+    if not get_security(str(path), 0x00000008, descriptor, size, ctypes.byref(size)):
+        print("OBSERVED: SACL unavailable; Windows error", ctypes.get_last_error())
+        return
+    print("OBSERVED: SACL could be read on this synthetic fixture")
 
 
 def open_reader(path):
@@ -141,11 +160,41 @@ def read_and_close_reader(handle, size):
         kernel.CloseHandle(handle)
 
 
-def replace_file(target, staged, use_move=False):
+def replace_file(target, staged, use_move=False, use_posix=False):
     if os.name != "nt":
         os.replace(staged, target)
         return
     kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    if use_posix:
+        class RenameInfo(ctypes.Structure):
+            _fields_ = [("flags", wintypes.DWORD), ("root", wintypes.HANDLE),
+                        ("name_length", wintypes.DWORD), ("name", wintypes.WCHAR * 1)]
+
+        create = kernel.CreateFileW
+        create.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD, wintypes.LPVOID,
+                           wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE]
+        create.restype = wintypes.HANDLE
+        rename = kernel.SetFileInformationByHandle
+        rename.argtypes = [wintypes.HANDLE, ctypes.c_int, wintypes.LPVOID, wintypes.DWORD]
+        rename.restype = wintypes.BOOL
+        kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+        kernel.CloseHandle.restype = wintypes.BOOL
+        name = str(target).encode("utf-16-le")
+        buffer = ctypes.create_string_buffer(RenameInfo.name.offset + len(name))
+        info = RenameInfo.from_buffer(buffer)
+        info.flags = 0x1 | 0x2
+        info.root = None
+        info.name_length = len(name)
+        ctypes.memmove(ctypes.addressof(buffer) + RenameInfo.name.offset, name, len(name))
+        handle = create(str(staged), 0x10000, 0x1 | 0x2 | 0x4, None, 3, 0x80, None)
+        if handle == wintypes.HANDLE(-1).value:
+            raise ctypes.WinError(ctypes.get_last_error())
+        try:
+            if not rename(handle, 22, buffer, len(buffer)):
+                raise ctypes.WinError(ctypes.get_last_error())
+        finally:
+            kernel.CloseHandle(handle)
+        return
     if use_move:
         move = kernel.MoveFileExW
         move.argtypes = [wintypes.LPCWSTR, wintypes.LPCWSTR, wintypes.DWORD]
@@ -161,7 +210,7 @@ def replace_file(target, staged, use_move=False):
         raise ctypes.WinError(ctypes.get_last_error())
 
 
-def main(root, protected=False, use_move=False, no_reader=False):
+def main(root, protected=False, use_move=False, no_reader=False, use_posix=False, use_stream=False, check_sacl=False):
     root = Path(root).resolve(strict=True)
     if not root.is_dir():
         raise ValueError("probe root must be an existing directory")
@@ -174,6 +223,16 @@ def main(root, protected=False, use_move=False, no_reader=False):
     after = b"[Credential/example]\nPassword=synthetic-new\nOther=keep\n"
     try:
         target.write_bytes(before)
+        if check_sacl:
+            if os.name != "nt":
+                raise ValueError("the SACL fixture requires Windows")
+            windows_check_sacl_access(target)
+        if use_stream:
+            if os.name != "nt":
+                raise ValueError("the alternate-stream fixture requires Windows")
+            Path(str(target) + ":hbbridge-test").write_bytes(b"synthetic-stream")
+            if Path(str(target) + ":hbbridge-test").read_bytes() != b"synthetic-stream":
+                raise AssertionError("synthetic alternate stream was not written")
         if os.name != "nt":
             target.chmod(0o640)
         original = target.stat()
@@ -220,7 +279,7 @@ def main(root, protected=False, use_move=False, no_reader=False):
                     raise AssertionError("synthetic pre-replacement reader was inconsistent")
                 reader = None
             try:
-                replace_file(target, staged, use_move)
+                replace_file(target, staged, use_move, use_posix)
             except BaseException:
                 if reader is not None:
                     read_and_close_reader(reader, len(before))
@@ -229,6 +288,13 @@ def main(root, protected=False, use_move=False, no_reader=False):
                 raise AssertionError("open reader or replacement contents were inconsistent")
             current = target.stat()
             if os.name == "nt":
+                if use_stream:
+                    try:
+                        stream_contents = Path(str(target) + ":hbbridge-test").read_bytes()
+                    except FileNotFoundError:
+                        stream_contents = None
+                    print("OBSERVED: alternate data stream after replacement:",
+                          "PRESENT" if stream_contents == b"synthetic-stream" else "MISSING OR CHANGED")
                 replacement_security = windows_security(target)
                 if replacement_security != security:
                     before_owner, _, before_dacl = security.partition("D:")
@@ -265,7 +331,7 @@ def main(root, protected=False, use_move=False, no_reader=False):
                 raise AssertionError("synthetic preflight snapshot was unexpected")
             target.write_bytes(after.replace(b"new", b"xxx"))
             staged.write_bytes(before)
-            replace_file(target, staged, use_move)
+            replace_file(target, staged, use_move, use_posix)
             if target.read_bytes() != before:
                 raise AssertionError("non-cooperating writer scenario was not reproduced")
             print("OBSERVED: a non-cooperating edit after preflight can be overwritten")
@@ -274,6 +340,10 @@ def main(root, protected=False, use_move=False, no_reader=False):
     finally:
         if work.resolve(strict=True).parent != root:
             raise RuntimeError("probe cleanup refused an unexpected directory")
+        if use_stream:
+            stream = Path(str(target) + ":hbbridge-test")
+            if stream.exists():
+                stream.unlink()
         for path in (staged, target, lock):
             if path.exists():
                 path.unlink()
@@ -283,6 +353,8 @@ def main(root, protected=False, use_move=False, no_reader=False):
 if __name__ == "__main__":
     if len(sys.argv) == 3 and sys.argv[1] == "--try-lock":
         raise SystemExit(try_lock(sys.argv[2]))
-    if len(sys.argv) < 2 or any(option not in ("--protected", "--move", "--no-reader") for option in sys.argv[2:]):
-        raise SystemExit("Usage: atomic.probe.py <existing-directory> [--protected] [--move] [--no-reader]")
-    main(sys.argv[1], "--protected" in sys.argv[2:], "--move" in sys.argv[2:], "--no-reader" in sys.argv[2:])
+    if (len(sys.argv) < 2 or any(option not in ("--protected", "--move", "--no-reader", "--posix", "--stream", "--sacl") for option in sys.argv[2:])
+            or ("--move" in sys.argv[2:] and "--posix" in sys.argv[2:])):
+        raise SystemExit("Usage: atomic.probe.py <existing-directory> [--protected] [--move|--posix] [--no-reader] [--stream] [--sacl]")
+    main(sys.argv[1], "--protected" in sys.argv[2:], "--move" in sys.argv[2:], "--no-reader" in sys.argv[2:],
+         "--posix" in sys.argv[2:], "--stream" in sys.argv[2:], "--sacl" in sys.argv[2:])

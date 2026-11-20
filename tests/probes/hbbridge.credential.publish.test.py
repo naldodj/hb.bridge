@@ -3,9 +3,11 @@
 import fcntl
 import os
 from pathlib import Path
+import signal
 import subprocess
 import sys
 import tempfile
+import time
 
 
 def main():
@@ -46,6 +48,23 @@ def main():
         def no_stages():
             return not list(work.glob(".hbbridge-stage-*"))
 
+        def start_paused():
+            env = os.environ.copy()
+            env["HBBRIDGE_TEST_PUBLISH_PAUSE_BEFORE_RECHECK"] = "1"
+            process = subprocess.Popen([executable, str(target), str(expected), str(replacement)],
+                                       stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env)
+            deadline = time.monotonic() + 10
+            while time.monotonic() < deadline:
+                if process.poll() is not None:
+                    raise AssertionError("Publisher exited before the staged-file check")
+                state = Path(f"/proc/{process.pid}/status").read_text()
+                if "State:\tT" in state:
+                    return process
+                time.sleep(0.02)
+            process.kill()
+            process.communicate(timeout=5)
+            raise AssertionError("Publisher did not reach the staged-file check")
+
         target.write_bytes(old)
         target.chmod(0o640)
         before = target.stat()
@@ -69,6 +88,33 @@ def main():
         check(run(extra={"HBBRIDGE_TEST_PUBLISH_DIRSYNC_FAIL": "1"}) == 8 and
               target.read_bytes() == new and no_stages(), "published but not durable")
         target.write_bytes(old)
+
+        paused = start_paused()
+        try:
+            target.write_bytes(b"[fixture]\nvalue=ext\n")
+            os.kill(paused.pid, signal.SIGCONT)
+            out, _ = paused.communicate(timeout=10)
+            check(paused.returncode == 0 and out.strip() == "PUBLISH_STATUS=4" and
+                  target.read_bytes() != new and no_stages(), "change after staging is rejected")
+        finally:
+            if paused.poll() is None:
+                paused.kill()
+                paused.communicate(timeout=5)
+        target.write_bytes(old)
+
+        paused = start_paused()
+        try:
+            paused.kill()
+            paused.communicate(timeout=10)
+            stages = list(work.glob(".hbbridge-stage-*"))
+            check(target.read_bytes() == old and len(stages) == 1 and
+                  (stages[0].stat().st_mode & 0o7777) == (target.stat().st_mode & 0o7777),
+                  "interrupted staging leaves original and restricted orphan")
+            stages[0].unlink()
+        finally:
+            if paused.poll() is None:
+                paused.kill()
+                paused.communicate(timeout=5)
 
         linked = work / "hardlink"
         os.link(target, linked)

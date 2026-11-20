@@ -458,7 +458,26 @@ inacessíveis. Permanecem pendentes a confiança nos diretórios ancestrais, a s
 do sistema de arquivos e as identidades de implantação. No Windows o código retorna
 não suportado sem gravar. Na fixture sintética em NTFS, `MoveFileExW` preservou o
 descritor observado sem leitor aberto, mas falhou com leitor aberto; isso não basta
-para aceitar um publicador Windows.
+para aceitar um publicador Windows. Outra prova sintética em NTFS com
+[`FileRenameInfoEx` e semântica POSIX](https://learn.microsoft.com/en-us/windows/win32/api/winbase/ns-winbase-file_rename_info)
+preservou proprietário, grupo e DACL observados com leitor aberto, nos casos de DACL
+herdada e protegida testados. A substituição descartou um fluxo de dados alternativo
+sintético. A leitura da SACL falhou com erro 1314 para a identidade usada no teste.
+Portanto, comparar apenas proprietário, grupo e DACL não comprova a preservação dos
+metadados; o publicador Windows precisa tratar ou rejeitar explicitamente metadados
+não suportados antes de ser integrado ao utilitário. Essas provas não estabelecem
+o comportamento para outros sistemas de arquivos, ACLs, privilégios ou leitores
+que não permitam compartilhamento de exclusão.
+Uma prova nativa isolada de enumeração de fluxos agora rejeita um fluxo nomeado
+e arquivo com link físico, e aceita o fluxo sem nome e o nome UTF-8 testados. Ela
+não examina todos os tipos de metadados Windows nem autoriza a substituição; é
+compilada somente na prova sintética e não está ligada ao utilitário.
+
+O candidato Linux também possui pontos de pausa exclusivos dos testes para uma
+alteração concorrente e uma interrupção forçada após o staging. A alteração é
+rejeitada na última comparação; o processo interrompido deixa um arquivo temporário
+órfão com o modo original testado e preserva o destino. Isso não elimina a janela
+após a última comparação nem comprova durabilidade diante de falha.
 
 Um leitor experimental independente aceita somente terminal interativo, desativa
 o eco durante a leitura e restaura o modo anterior. Ele não está ligado ao produto

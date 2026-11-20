@@ -451,7 +451,25 @@ proof that no inaccessible attribute exists. Ancestor-directory trust, filesyste
 semantics and deployment identities remain to be validated. Windows currently
 returns unsupported without writing. On the synthetic NTFS fixture, `MoveFileExW`
 preserved the observed descriptor without an open reader, but failed with a reader
-open; this is not sufficient to accept a Windows publisher.
+open; this is not sufficient to accept a Windows publisher. A further synthetic
+NTFS probe using [`FileRenameInfoEx` with POSIX semantics](https://learn.microsoft.com/en-us/windows/win32/api/winbase/ns-winbase-file_rename_info)
+preserved the observed owner, group and DACL with an open reader, for the tested
+inherited and protected DACLs. The replacement discarded a synthetic alternate
+data stream. SACL inspection failed with error 1314 for the test identity. Thus,
+comparison of owner, group and DACL alone does not establish metadata preservation;
+the Windows publisher must explicitly handle or refuse unsupported metadata before
+it can be connected to the utility. These probes do not establish behavior for
+other filesystems, ACLs, privileges, or readers that deny delete sharing.
+An isolated native stream-enumeration probe now rejects a named stream and a
+hard-linked file and accepts the tested unnamed stream and UTF-8 filename. It
+does not inspect every kind of Windows metadata or authorize replacement; it is
+compiled only into its synthetic probe and is not linked to the utility.
+
+The Linux candidate also has test-only pause points for a concurrent edit and
+forced termination after staging. The edit is rejected during the last comparison;
+the interrupted process leaves an orphan stage with the tested original mode and
+the destination unchanged. This does not eliminate the remaining race after the
+last comparison, nor prove crash durability.
 
 A standalone experimental terminal reader accepts an interactive terminal only,
 disables echo while reading and restores the prior mode. It is not linked to the
