@@ -41,6 +41,7 @@ sem manter outra cópia de cada guia.
 | [Pacote de addons de exemplo](addon-bundle.pt-BR.md) | Compilar um HRB e selecionar ações registradas, preservando addons independentes. |
 | [Publicação e execução nativa de addons](addon-publication.pt-BR.md) | Analisar catálogo futuro e restrições da carga nativa. |
 | [Enquadramento TCP Protheus](milestone2-framing.pt-BR.md) | Entender HBBRIDGE/1, JSON/gzip, capacidades do runtime e evolução da transferência. |
+| [Tamanho do buffer TCP](tcp-buffer-sizing.pt-BR.md) | Consultar a proposta de teste de reaproveitamento do buffer, tamanhos fixos e ajuste opcional por memória. |
 | [HTTP/REST e administração web](http.pt-BR.md) | Configurar hbhttpd, rotas, gzip, orçamento de envio e TLS opcional. |
 | [Transporte NETIO nativo](../src/hb/transports/netio/README.pt-BR.md) | Utilizar RPC/arquivos Harbour nativos e conferir limites do upstream. |
 | [Harbour VF IO e reutilização seletiva de TRPC](harbour-vfio-trpc.pt-BR.md) | Distinguir recursos nativos de arquivos das fachadas TLPP planejadas. |

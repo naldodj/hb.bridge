@@ -321,6 +321,8 @@ leaks; resume/multiplexing require their own tests.
   evolve HBBRIDGE/1 without confusing JSON and transmitted lengths.
 - [x] Read whole compressed response rather than decompress each Receive;
   normal varied Echo accepted, failure scenarios still pending.
+- [ ] Compare TCP receive-buffer reuse and fixed `ReadChunkBytes` sizes before
+  evaluating an opt-in memory-based policy. [Test proposal](docs/tcp-buffer-sizing.md).
 - [ ] Inventory runtime/architecture/protocol/API capacities, logical volume,
   per-value/message limits, copies/expansion and installation memory policy.
 - [x] Document NETIO64byte credential,8192open files/connection and certain

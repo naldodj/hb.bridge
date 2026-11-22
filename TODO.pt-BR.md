@@ -499,6 +499,9 @@ Multiplexação e retomada permanecem indisponíveis até seus testes específic
   mantendo as capacidades técnicas do runtime e das APIs.
 - [ ] Negociar limites por bloco/conexão e capacidades nos dois sentidos,
   respeitando `MAXSTRINGSIZE`, campos de protocolo e orçamento de memória.
+- [ ] Comparar o reaproveitamento do buffer de recepção TCP e tamanhos fixos de
+  `ReadChunkBytes` antes de avaliar um modo opcional baseado em memória.
+  [Proposta de teste](docs/tcp-buffer-sizing.pt-BR.md).
 - [ ] Inventariar limites de runtime, arquitetura, campos dos protocolos e APIs
   Harbour/NETIO/TLPP/conectores; evitar promessas de tamanhos infinitos.
 - [x] Documentar limites NETIO presentes nos fontes examinados: senha de 64 bytes,

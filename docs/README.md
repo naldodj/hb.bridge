@@ -41,6 +41,7 @@ it does not maintain another copy of each guide.
 | [Example addon bundle](addon-bundle.md) | Build one HRB and select registered actions while preserving independent addons. |
 | [Addon publication and native execution](addon-publication.md) | Review a future addon catalog and the constraints of native loading. |
 | [Protheus TCP framing](milestone2-framing.md) | Understand HBBRIDGE/1, JSON/gzip, runtime capacities and planned transfer evolution. |
+| [TCP buffer sizing](tcp-buffer-sizing.md) | Review the proposed tests for buffer reuse, fixed sizes and an optional memory-based policy. |
 | [HTTP/REST and web administration](http.md) | Configure hbhttpd, routes, gzip, send budgets and optional TLS. |
 | [Native NETIO transport](../src/hb/transports/netio/README.md) | Use native Harbour RPC/files and inspect upstream limits. |
 | [Harbour VF IO and selective TRPC reuse](harbour-vfio-trpc.md) | Distinguish native file capabilities from planned TLPP facades. |
