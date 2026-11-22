@@ -441,21 +441,34 @@ overwritten by replacement. Neither result proves crash durability,
 extended-ACL preservation or safety against editors that ignore the lock.
 Production file publication remains unimplemented.
 
-An isolated Linux publication candidate is exercised only by
-`tests/probes/hbbridge.credential.publish.probe.hbp`; it is not linked to the
-product or the interactive workflow. It locks a persistent sidecar, checks the
+An isolated Linux publication candidate is exercised by the
+[standalone probe](../tests/probes/hbbridge.credential.publish.probe.hbp) and
+the synthetic integration fixture. It is not linked to the product or the
+interactive workflow. It locks a persistent sidecar, checks the
 expected bytes again, creates a same-directory exclusive stage, copies the file
 owner and mode, syncs the stage and renames it. It rejects symbolic and hard
-links, group/other-writable files or parent directories, files owned by another
-identity and visible extended attributes.
+links to the target, group/other-writable targets or publication directories,
+targets owned by another identity and visible extended attributes.
+
+The absolute path is opened component by component from the root. Each
+directory must be owned by root or by the effective user. Symbolic links and
+`..` are rejected. A group/other-writable ancestor is permitted only with the
+sticky bit, as in a private directory under `/tmp`. The publication directory
+itself must exclude group/other write access. The Ubuntu WSL probe passed 25
+checks as root and 24 as `nobody`, including refusal of unsafe paths before
+creating a lock. A trusted search-only ancestor also passed. The root run
+tested a directory owned by `nobody`.
+[Linux `openat()` and `O_NOFOLLOW`](https://man7.org/linux/man-pages/man2/open.2.html),
+[Linux directory sticky bit](https://man7.org/linux/man-pages/man7/inode.7.html).
+
 Its Linux status 8 means publication occurred but directory sync failed: callers
 must inspect the destination, not assume a retry is harmless. Test-only failure
 injection is compiled solely into the probe. A crash may leave a staging file.
 The lock covers cooperating writers only, not arbitrary editors. Extended-attribute
 visibility depends on the caller's privileges; absence from the listing is not
-proof that no inaccessible attribute exists. Ancestor-directory trust, filesystem
-semantics and deployment identities remain to be validated. Windows currently
-returns unsupported without writing. On the synthetic NTFS fixture, `MoveFileExW`
+proof that no inaccessible attribute exists. Deployment filesystem semantics
+and service identities remain to be validated. Windows returns unsupported
+without writing. On the synthetic NTFS fixture, `MoveFileExW`
 preserved the observed descriptor without an open reader, but failed with a reader
 open; this is not sufficient to accept a Windows publisher. A further synthetic
 NTFS probe using [`FileRenameInfoEx` with POSIX semantics](https://learn.microsoft.com/en-us/windows/win32/api/winbase/ns-winbase-file_rename_info)

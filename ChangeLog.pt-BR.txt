@@ -6,6 +6,11 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Adicionar cobertura de integridade para JSON UTF-8 e MSSQL)"
  */
 
+2026-11-22 12:45 UTC naldodj (Verificar caminhos da publicação de credenciais no Linux)
+  ! Verificar cada ancestral no publicador Linux isolado antes de obter o lock.
+  + Testar links, ancestrais graváveis ou de outro usuário e diretórios privativos
+    sob um ancestral confiável com sticky bit em provas sintéticas no WSL.
+
 2026-11-20 22:23 UTC naldodj (Esclarecer plataformas dos addons)
   ; Exigir validação Windows e Linux para qualquer loader nativo adotado;
     distinguir a ponte específica do Windows do contrato público compartilhado.

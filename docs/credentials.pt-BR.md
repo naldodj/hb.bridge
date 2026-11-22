@@ -447,21 +447,37 @@ comprova durabilidade após falha, preservação de ACLs
 estendidas ou segurança contra editores que ignoram o bloqueio. A publicação de
 arquivo para produção permanece não implementada.
 
-Uma implementação candidata isolada para Linux é exercitada somente por
-`tests/probes/hbbridge.credential.publish.probe.hbp`; não está vinculada ao produto
-nem ao fluxo interativo. Ela bloqueia um arquivo auxiliar persistente, confere os
+Uma implementação candidata isolada para Linux é exercitada pela
+[prova independente](../tests/probes/hbbridge.credential.publish.probe.hbp) e
+pela fixture de integração sintética. Ela não está vinculada ao produto nem ao
+fluxo interativo. Ela bloqueia um arquivo auxiliar persistente, confere os
 bytes esperados novamente, cria um arquivo temporário exclusivo no mesmo diretório,
 reproduz proprietário e modo, sincroniza o arquivo e o renomeia. Rejeita links
-simbólicos e físicos, arquivos ou diretórios graváveis por grupo/outros, arquivos
-de outra identidade e atributos estendidos visíveis. O status 8 no Linux indica
+simbólicos e físicos para o destino, destinos ou diretórios de publicação com
+escrita para grupo ou outros, destinos de outra identidade e atributos estendidos
+visíveis.
+
+O caminho absoluto é aberto componente a componente a partir da raiz. Cada
+diretório deve pertencer ao root ou ao usuário efetivo. Links simbólicos e
+`..` são recusados. Um ancestral com escrita para grupo ou outros é aceito
+somente com o sticky bit, como no caso de um diretório privativo sob `/tmp`.
+O diretório de publicação deve impedir escrita por grupo ou outros. No Ubuntu
+WSL, a prova passou em 25 verificações como root e 24 como `nobody`, incluindo
+a recusa de caminhos inseguros antes de criar o lock. Um ancestral confiável com
+permissão apenas de travessia também passou. A execução como root testou um
+diretório de propriedade de `nobody`.
+[Linux `openat()` e `O_NOFOLLOW`](https://man7.org/linux/man-pages/man2/open.2.html),
+[Sticky bit em diretórios Linux](https://man7.org/linux/man-pages/man7/inode.7.html).
+
+O status 8 no Linux indica
 que a publicação ocorreu, mas a sincronização
 do diretório falhou: é preciso examinar o destino antes de tentar novamente.
 A injeção de falhas é compilada somente na prova. Um encerramento inesperado pode
 deixar o arquivo temporário. O bloqueio cobre apenas processos que respeitam o
 protocolo, não editores arbitrários. A visibilidade de atributos estendidos depende
 dos privilégios do processo; uma listagem vazia não comprova a ausência de atributos
-inacessíveis. Permanecem pendentes a confiança nos diretórios ancestrais, a semântica
-do sistema de arquivos e as identidades de implantação. No Windows o código retorna
+inacessíveis. Permanecem pendentes a semântica do sistema de arquivos e a validação
+com as identidades de serviço da implantação. No Windows, o código retorna
 não suportado sem gravar. Na fixture sintética em NTFS, `MoveFileExW` preservou o
 descritor observado sem leitor aberto, mas falhou com leitor aberto; isso não basta
 para aceitar um publicador Windows. Outra prova sintética em NTFS com

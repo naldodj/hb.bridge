@@ -5,6 +5,11 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Organize bilingual documentation and prepare the Wiki portal)"
  */
 
+2026-11-22 12:45 UTC naldodj (Check Linux credential publication paths)
+  ! Check every ancestor of the isolated Linux publisher before taking its lock.
+  + Exercise links, writable and foreign-owned ancestors, and private directories
+    under a trusted sticky ancestor in synthetic WSL tests.
+
 2026-11-20 22:23 UTC naldodj (Clarify addon platform scope)
   ; Require Windows and Linux validation for any adopted native addon loader;
     distinguish the Windows-specific bridge from the shared public contract.

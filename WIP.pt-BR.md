@@ -108,6 +108,12 @@ aceites separados. Veja a [análise de credenciais](docs/credentials.pt-BR.md).
   publicada, a substituição é decifrada e uma repetição com snapshot antigo é
   rejeitada. A suíte focal passou 51 verificações no Windows e 53 no WSL com
   Harbour global, Zig e o core ODBC com patch do projeto. Não houve conexão SQL real.
+  O publicador Linux isolado agora verifica cada diretório a partir da raiz.
+  No sistema de arquivos Linux do Ubuntu WSL, passaram 25 verificações como
+  root e 24 como `nobody`. Ancestrais inseguros foram recusados antes de abrir
+  o lock. Um diretório privativo sob um ancestral confiável com sticky bit
+  continuou utilizável. A suíte focal de credenciais passou em 51
+  verificações no Windows, incluindo a recusa sem alterar o INI.
   Publicação atômica segura em produção, preservação de metadados, integração
   Linux, comando interativo, implantação e aceite completo permanecem pendentes.
 - [ ] C05: testar adulteração, chave errada/ausente, provedor indisponível,

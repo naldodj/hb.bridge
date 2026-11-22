@@ -105,6 +105,12 @@ its own acceptance. See [credential review](docs/credentials.md).
   WSL publishes the fixture, decrypts the replacement and rejects a stale retry.
   The focused suite passed 51 checks on Windows and 53 on WSL with global
   Harbour, Zig and the project-patched ODBC core. No real SQL server was used.
+  The isolated Linux publisher now verifies every directory from the root.
+  Ubuntu WSL passed 25 checks as root and 24 as `nobody` on the Linux
+  filesystem. Unsafe ancestors were refused before opening the lock and a
+  private directory under a trusted sticky ancestor remained usable. The
+  focused Windows credential suite passed all 51 checks, including refusal
+  without modifying the INI.
   Production-safe atomic publication, metadata preservation, Linux integration,
   interactive command, deployment and full acceptance remain open.
 - [ ] C05: validate tampering, wrong/missing key, unavailable provider, Unicode,

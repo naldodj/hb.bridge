@@ -143,6 +143,42 @@ def main():
         bad_target.write_bytes(old)
         check(run(bad_target) == 3 and bad_target.read_bytes() == old, "writable directory rejected")
 
+        nested = bad_dir / "private"
+        nested.mkdir(mode=0o700)
+        nested_target = nested / target.name
+        nested_lock = nested / lock.name
+        nested_target.write_bytes(old)
+        check(run(nested_target) == 3 and nested_target.read_bytes() == old and
+              not nested_lock.exists(), "writable ancestor rejected before locking")
+        bad_dir.chmod(0o1777)
+        check(run(bad_target) == 3 and bad_target.read_bytes() == old,
+              "sticky writable publication directory rejected")
+        check(run(nested_target) == 0 and nested_target.read_bytes() == new,
+              "private directory within a trusted sticky ancestor")
+
+        linked_dir = work / "linked-directory"
+        linked_dir.symlink_to(bad_dir, target_is_directory=True)
+        nested_target.write_bytes(old)
+        nested_lock.unlink()
+        check(run(linked_dir / nested.name / target.name) == 3 and
+              nested_target.read_bytes() == old and not nested_lock.exists(),
+              "symbolic ancestor rejected before locking")
+        check(run(nested / ".." / nested.name / target.name) == 3 and
+              nested_target.read_bytes() == old and not nested_lock.exists(),
+              "parent traversal rejected before locking")
+        bad_dir.chmod(0o111)
+        check(run(nested_target) == 0 and nested_target.read_bytes() == new,
+              "trusted search-only ancestor permits publication")
+        bad_dir.chmod(0o755)
+
+        if os.geteuid() == 0:
+            import pwd
+            nested_target.write_bytes(old)
+            nested_lock.unlink()
+            os.chown(bad_dir, pwd.getpwnam("nobody").pw_uid, -1)
+            check(run(nested_target) == 3 and nested_target.read_bytes() == old and
+                  not nested_lock.exists(), "foreign-owned ancestor rejected before locking")
+
         lock.unlink()
         lock.symlink_to(expected)
         check(run() == 3 and expected.read_bytes() == old and target.read_bytes() == old,

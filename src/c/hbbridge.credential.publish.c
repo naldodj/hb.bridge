@@ -97,6 +97,46 @@ static HB_BOOL HBBridgePublishSameFile( const struct stat * first, const struct 
         first->st_ctim.tv_sec == second->st_ctim.tv_sec && first->st_ctim.tv_nsec == second->st_ctim.tv_nsec;
 }
 
+/* Pin each directory before opening its child. A trusted sticky ancestor
+ * permits private subdirectories of /tmp; the publication directory itself
+ * must never be group- or other-writable. */
+static int HBBridgePublishOpenParent( char * parent )
+{
+    char * component = parent;
+    const int flags = O_PATH | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW;
+    int dirfd = open( "/", flags );
+    uid_t owner = geteuid();
+
+    while( dirfd >= 0 )
+    {
+        char * end;
+        struct stat info;
+        int next;
+
+        while( *component == '/' ) component++;
+        if( fstat( dirfd, &info ) != 0 || ( info.st_uid != owner && info.st_uid != 0 ) ||
+            ( ( info.st_mode & ( S_IWGRP | S_IWOTH ) ) != 0 &&
+                ( ! *component || ( info.st_mode & S_ISVTX ) == 0 ) ) )
+            break;
+        if( ! *component )
+        {
+            /* fsync needs a readable handle only for this final directory. */
+            next = openat( dirfd, ".", O_RDONLY | O_DIRECTORY | O_CLOEXEC );
+            close( dirfd );
+            return next;
+        }
+        end = strchrnul( component, '/' );
+        if( *end ) *end++ = '\0';
+        if( ! strcmp( component, ".." ) ) break;
+        next = openat( dirfd, component, flags );
+        close( dirfd );
+        dirfd = next;
+        component = end;
+    }
+    if( dirfd >= 0 ) close( dirfd );
+    return -1;
+}
+
 static int HBBridgePublishLinux( const char * path, const unsigned char * expected, size_t expectedSize,
     const unsigned char * replacement, size_t replacementSize )
 {
@@ -109,7 +149,7 @@ static int HBBridgePublishLinux( const char * path, const unsigned char * expect
     char stageName[ sizeof( stagePrefix ) + 32 ] = { 0 };
     char * parent = NULL, * lockName = NULL;
     size_t parentLength, baseLength, index, offset = 0;
-    struct stat directory, original, current, byName, staging, lockInfo;
+    struct stat original, current, byName, staging, lockInfo;
     int dirfd = -1, file = -1, lock = -1, stage = -1, status = HB_PUBLISH_IO;
     HB_BOOL stageExists = HB_FALSE;
 
@@ -126,10 +166,8 @@ static int HBBridgePublishLinux( const char * path, const unsigned char * expect
     memcpy( lockName, base, baseLength );
     memcpy( lockName + baseLength, lockSuffix, sizeof( lockSuffix ) );
 
-    dirfd = open( parent, O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW );
-    if( dirfd < 0 || fstat( dirfd, &directory ) != 0 || ! S_ISDIR( directory.st_mode ) ||
-        ( directory.st_mode & ( S_IWGRP | S_IWOTH ) ) != 0 ||
-        ( directory.st_uid != geteuid() && directory.st_uid != 0 ) )
+    dirfd = HBBridgePublishOpenParent( parent );
+    if( dirfd < 0 )
     {
         status = HB_PUBLISH_UNSAFE;
         goto cleanup;
