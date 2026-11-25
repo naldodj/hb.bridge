@@ -443,8 +443,8 @@ Production file publication remains unimplemented.
 
 An isolated Linux publication candidate is exercised by the
 [standalone probe](../tests/probes/hbbridge.credential.publish.probe.hbp) and
-the synthetic integration fixture. It is not linked to the product or the
-interactive workflow. It locks a persistent sidecar, checks the
+the synthetic integration fixtures. It is only linked into test targets.
+It locks a persistent sidecar, checks the
 expected bytes again, creates a same-directory exclusive stage, copies the file
 owner and mode, syncs the stage and renames it. It rejects symbolic and hard
 links to the target, group/other-writable targets or publication directories,
@@ -513,8 +513,8 @@ password, and a retry using the previous snapshot is rejected. The test neither
 connects to a real SQL server nor makes this candidate a product command.
 
 A standalone experimental terminal reader accepts an interactive terminal only,
-disables echo while reading and restores the prior mode. It is not linked to the
-product or connected to the update workflow. Its test-only implementation accepts
+disables echo while reading and restores the prior mode. The reader is linked
+only into test targets. Its test-only implementation accepts
 nonempty UTF-8 up to 4096 bytes, preserving edge spaces and tabs; it rejects NUL
 and ASCII controls other than tab. Enter ends input; pending terminal input is
 discarded before echo is restored. On Unix, backspace removes
@@ -525,6 +525,17 @@ The future caller must abort on cancellation and on terminal-restoration errors.
 Normal return and tested Ctrl+C/termination paths restore the mode; forced process
 termination or terminal loss cannot guarantee restoration. Provider-owned native
 buffers are wiped, but the returned Harbour string cannot be reliably erased.
+
+The protected SQL test target also composes terminal input, authenticated edit
+preparation and the isolated publisher against a disposable INI. Run it with
+`pwsh ./scripts/test-credentials-sql.ps1 -TerminalUpdate`. Linux uses a
+pseudoterminal to cover successful publication and reload, cancellation,
+redirected input and a concurrent INI edit during the password prompt.
+The test checks that the terminal mode is restored, no credential data
+appears in the transcript and the key is preserved. Windows refuses the test
+mode before prompting or writing. All four interactive cases passed on
+Ubuntu WSL as root and as `nobody`. This fixture is confined to the test target.
+[Validation scripts](../scripts/README.md#credential-feasibility-probes).
 
 The initial local connection test accepts an existing protected MSSQL profile:
 

@@ -40,6 +40,9 @@ restoring restricted permissions. On Windows it also checks DACL inheritance.
 `pwsh ./scripts/test-credentials-sql.ps1` exercises the protected SQL profile,
 INI/JSON parsing, context binding, failure handling and redaction with synthetic
 values and a nonexistent DSN. It does not connect to an actual database.
+Add `-TerminalUpdate` to exercise the isolated interactive update fixture.
+On Linux it uses Python 3 and a pseudoterminal with private fixtures under
+`/tmp`. On Windows it verifies refusal before a prompt or file creation.
 
 The standalone `tests/probes/hbbridge.credential.ini.probe.hbp` can be built
 with Harbour's `hbmk2` on Windows or Linux without SQL or Zig dependencies. It

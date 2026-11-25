@@ -449,8 +449,8 @@ arquivo para produção permanece não implementada.
 
 Uma implementação candidata isolada para Linux é exercitada pela
 [prova independente](../tests/probes/hbbridge.credential.publish.probe.hbp) e
-pela fixture de integração sintética. Ela não está vinculada ao produto nem ao
-fluxo interativo. Ela bloqueia um arquivo auxiliar persistente, confere os
+pelas fixtures de integração sintética. Está vinculada somente aos alvos de
+teste. Ela bloqueia um arquivo auxiliar persistente, confere os
 bytes esperados novamente, cria um arquivo temporário exclusivo no mesmo diretório,
 reproduz proprietário e modo, sincroniza o arquivo e o renomeia. Rejeita links
 simbólicos e físicos para o destino, destinos ou diretórios de publicação com
@@ -525,8 +525,8 @@ o snapshot anterior é rejeitada. O teste não se conecta a um SGBD real nem
 transforma o candidato em comando do produto.
 
 Um leitor experimental independente aceita somente terminal interativo, desativa
-o eco durante a leitura e restaura o modo anterior. Ele não está ligado ao produto
-nem ao fluxo de atualização. A implementação de teste aceita UTF-8 não vazio de
+o eco durante a leitura e restaura o modo anterior. O leitor está vinculado
+somente aos alvos de teste. A implementação de teste aceita UTF-8 não vazio de
 até 4096 bytes, preserva espaços nas extremidades e tabulações e rejeita NUL
 e controles ASCII além de tabulação. Enter encerra a entrada e o conteúdo
 pendente do terminal é descartado antes de restaurar o eco. No Unix, backspace remove um
@@ -538,6 +538,17 @@ o terminal. O retorno normal e os caminhos de Ctrl+C/término testados restauram
 o modo; término forçado do processo ou perda do terminal não permitem garantir a restauração. Buffers
 nativos são limpos, mas a string retornada ao Harbour não pode ser apagada com
 garantia.
+
+O alvo de testes SQL protegidos também reúne a leitura no terminal, a
+preparação autenticada e o publicador isolado com um INI descartável.
+Execute `pwsh ./scripts/test-credentials-sql.ps1 -TerminalUpdate`. No Linux,
+um pseudoterminal permite verificar gravação e releitura, cancelamento,
+entrada redirecionada e edição concorrente do INI durante o prompt. O teste
+confere a restauração do modo do terminal, a ausência de credenciais na
+saída e a preservação da chave. No Windows, a prova recusa a operação antes
+de pedir a senha ou gravar. Os quatro cenários interativos passaram no
+Ubuntu WSL como root e como `nobody`. A fixture é exclusiva do alvo de testes.
+[Scripts de validação](../scripts/README.pt-BR.md).
 
 O primeiro teste local de conexão aceita um perfil MSSQL protegido existente:
 

@@ -82,7 +82,7 @@ its own acceptance. See [credential review](docs/credentials.md).
   checks cover the preparation and failure cases; it still writes no files.
   An isolated native terminal-input probe rejects redirected input and restores
   terminal state on tested cancellation paths; synthetic Windows and WSL PTY
-  checks passed. It is not linked to the product or wired to the update flow.
+  checks passed. The reader remains outside the product executable.
   A byte-level preflight rejects already-observed INI changes, but cannot prevent
   changes between comparison and publication. Synthetic local replacement probes
   passed on Windows/NTFS and WSL; Windows `ReplaceFileW` changed DACL inheritance
@@ -111,6 +111,12 @@ its own acceptance. See [credential review](docs/credentials.md).
   private directory under a trusted sticky ancestor remained usable. The
   focused Windows credential suite passed all 51 checks, including refusal
   without modifying the INI.
+  A test-only mode now connects the terminal reader, authenticated preparation
+  and publisher against an isolated synthetic INI. Ubuntu WSL passed 53
+  standard checks. All four interactive cases passed as root and as `nobody`:
+  publication and reload, redirected input, cancellation and a concurrent
+  INI edit. The focused Windows suite passed 51 checks and the update mode
+  refused before prompting or writing. No live database was used.
   Production-safe atomic publication, metadata preservation, Linux integration,
   interactive command, deployment and full acceptance remain open.
 - [ ] C05: validate tampering, wrong/missing key, unavailable provider, Unicode,

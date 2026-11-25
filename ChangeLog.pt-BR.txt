@@ -6,6 +6,12 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Adicionar cobertura de integridade para JSON UTF-8 e MSSQL)"
  */
 
+2026-11-25 21:39 UTC naldodj (Exercitar a atualização interativa de credenciais)
+  + Integrar a leitura no terminal, a preparação autenticada do INI e a
+    publicação Linux em uma fixture descartável. Cobrir gravação e releitura,
+    cancelamento, entrada redirecionada e edição concorrente. Verificar a
+    recusa antecipada no Windows.
+
 2026-11-22 12:45 UTC naldodj (Verificar caminhos da publicação de credenciais no Linux)
   ! Verificar cada ancestral no publicador Linux isolado antes de obter o lock.
   + Testar links, ancestrais graváveis ou de outro usuário e diretórios privativos

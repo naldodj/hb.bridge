@@ -84,8 +84,8 @@ aceites separados. Veja a [análise de credenciais](docs/credentials.pt-BR.md).
   por múltiplos perfis. Testes sintéticos no Windows cobrem a preparação e os
   casos de falha; ele também não grava arquivos. Um protótipo isolado de leitura
   no terminal recusa entrada redirecionada e restaura o estado nos cancelamentos
-  testados; verificações sintéticas passaram em Windows e WSL com PTY. Ele não
-  está ligado ao produto nem ao fluxo de atualização. Uma verificação prévia
+  testados; verificações sintéticas passaram em Windows e WSL com PTY. O
+  leitor permanece fora do executável do produto. Uma verificação prévia
   por bytes rejeita alterações de INI já observadas, sem impedir mudanças entre
   a comparação e a publicação. Provas sintéticas de substituição local passaram
   em Windows/NTFS e WSL; no Windows, `ReplaceFileW` alterou metadados de herança
@@ -114,6 +114,14 @@ aceites separados. Veja a [análise de credenciais](docs/credentials.pt-BR.md).
   o lock. Um diretório privativo sob um ancestral confiável com sticky bit
   continuou utilizável. A suíte focal de credenciais passou em 51
   verificações no Windows, incluindo a recusa sem alterar o INI.
+  Um modo exclusivo de teste liga a leitura no terminal, a preparação
+  autenticada e o publicador sobre um INI sintético isolado. No Ubuntu WSL,
+  passaram 53 verificações da suíte padrão. Os quatro cenários interativos
+  passaram tanto como root quanto como `nobody`. Foram
+  verificados gravação e releitura, entrada redirecionada, cancelamento e
+  edição concorrente do INI. No Windows, passaram 51 verificações e o modo
+  de atualização recusou a operação antes do prompt ou da gravação. Os
+  testes usaram dados sintéticos e nenhum SGBD real.
   Publicação atômica segura em produção, preservação de metadados, integração
   Linux, comando interativo, implantação e aceite completo permanecem pendentes.
 - [ ] C05: testar adulteração, chave errada/ausente, provedor indisponível,

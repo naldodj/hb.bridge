@@ -12,7 +12,7 @@ import termios
 import time
 
 
-def run_terminal(executable, payload=None, interrupt=None):
+def run_terminal(executable, payload=None, interrupt=None, args=(), cwd=None, on_prompt=None):
     master, slave = pty.openpty()
     original = termios.tcgetattr(slave)
 
@@ -21,7 +21,7 @@ def run_terminal(executable, payload=None, interrupt=None):
         fcntl.ioctl(slave, termios.TIOCSCTTY, 0)
 
     process = subprocess.Popen(
-        [executable], stdin=slave, stdout=slave, stderr=slave,
+        [executable, *args], stdin=slave, stdout=slave, stderr=slave, cwd=cwd,
         preexec_fn=attach_terminal, close_fds=True,
     )
     transcript = bytearray()
@@ -33,6 +33,8 @@ def run_terminal(executable, payload=None, interrupt=None):
             ready, _, _ = select.select([master], [], [], 0.1)
             if ready:
                 transcript.extend(os.read(master, 4096))
+        if on_prompt is not None:
+            on_prompt()
         if interrupt is not None:
             os.kill(process.pid, interrupt)
         else:

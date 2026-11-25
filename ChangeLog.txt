@@ -5,6 +5,11 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Organize bilingual documentation and prepare the Wiki portal)"
  */
 
+2026-11-25 21:39 UTC naldodj (Exercise the interactive credential update flow)
+  + Compose terminal input, authenticated INI preparation and Linux publication
+    against a disposable fixture. Cover publication and reload, cancellation,
+    redirected input and a concurrent edit. Verify early refusal on Windows.
+
 2026-11-22 12:45 UTC naldodj (Check Linux credential publication paths)
   ! Check every ancestor of the isolated Linux publisher before taking its lock.
   + Exercise links, writable and foreign-owned ancestors, and private directories

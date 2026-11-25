@@ -43,6 +43,11 @@ funcionar após restaurar a proteção. No Windows também verifica herança de 
 leitura INI/JSON, vínculo de contexto, falhas e sanitização com valores
 sintéticos e um DSN inexistente. A prova não conecta a um banco real.
 
+Acrescente `-TerminalUpdate` para executar a fixture isolada de atualização
+interativa. No Linux, ela usa Python 3 e um pseudoterminal, com arquivos de
+teste em diretório privativo sob `/tmp`. No Windows, verifica a recusa antes
+do prompt ou da criação de arquivos.
+
 O teste independente `tests/probes/hbbridge.credential.ini.probe.hbp` pode ser
 compilado com `hbmk2` do Harbour em Windows ou Linux, sem dependências SQL ou
 Zig. Ele verifica o preparador de atualização de INI em memória com valores
