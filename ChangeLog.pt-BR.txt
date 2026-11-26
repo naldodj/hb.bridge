@@ -6,6 +6,11 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Adicionar cobertura de integridade para JSON UTF-8 e MSSQL)"
  */
 
+2026-11-26 09:13 UTC naldodj (Limitar a leitura do INI e recusar flags de inode não suportadas)
+  + Ler o INI da fixture de atualização por um snapshot nativo limitado,
+    com as mesmas verificações de caminho e metadados do publicador.
+  ! Recusar a publicação quando uma flag de inode como nodump seria perdida.
+
 2026-11-25 21:39 UTC naldodj (Exercitar a atualização interativa de credenciais)
   + Integrar a leitura no terminal, a preparação autenticada do INI e a
     publicação Linux em uma fixture descartável. Cobrir gravação e releitura,

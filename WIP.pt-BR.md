@@ -122,6 +122,17 @@ aceites separados. Veja a [análise de credenciais](docs/credentials.pt-BR.md).
   edição concorrente do INI. No Windows, passaram 51 verificações e o modo
   de atualização recusou a operação antes do prompt ou da gravação. Os
   testes usaram dados sintéticos e nenhum SGBD real.
+  A fixture interativa agora usa a leitura nativa limitada do INI antes e
+  depois da entrada. O leitor e o publicador compartilham a validação do
+  caminho, do arquivo regular e dos metadados. A publicação anterior descartava
+  a flag de inode `nodump` mesmo com a lista de atributos estendidos vazia.
+  As duas operações agora recusam esse arquivo, preservando o original e
+  a flag. O leitor e o publicador compartilham o limite de 1 MiB para que
+  um INI aceito após a troca possa ser lido novamente. No Ubuntu WSL,
+  passaram 41 verificações em tmpfs e 41 em ext4 como root, além de 40 em
+  tmpfs como `nobody`. No Windows, a leitura foi recusada sem criar arquivos.
+  A suíte integrada passou 53 verificações no WSL e os quatro cenários de
+  terminal passaram como root e como `nobody`. A mudança segue restrita às provas.
   Publicação atômica segura em produção, preservação de metadados, integração
   Linux, comando interativo, implantação e aceite completo permanecem pendentes.
 - [ ] C05: testar adulteração, chave errada/ausente, provedor indisponível,

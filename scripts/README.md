@@ -44,6 +44,16 @@ Add `-TerminalUpdate` to exercise the isolated interactive update fixture.
 On Linux it uses Python 3 and a pseudoterminal with private fixtures under
 `/tmp`. On Windows it verifies refusal before a prompt or file creation.
 
+On Linux, the standalone publication and snapshot probe uses synthetic
+files on the selected local filesystem. It needs Harbour, Python 3 and
+the ability to set `nodump` on the fixture. From the repository root:
+
+```sh
+probe_dir=$(mktemp -d /tmp/hbbridge-publish-XXXXXXXX)
+hbmk2 tests/probes/hbbridge.credential.publish.probe.hbp -cflag=-DHBBRIDGE_PUBLISH_TEST "-o$probe_dir/publish-probe" "-workdir=$probe_dir"
+python3 tests/probes/hbbridge.credential.publish.test.py "$probe_dir/publish-probe" "$probe_dir"
+```
+
 The standalone `tests/probes/hbbridge.credential.ini.probe.hbp` can be built
 with Harbour's `hbmk2` on Windows or Linux without SQL or Zig dependencies. It
 checks the in-memory INI update planner with synthetic values; it neither writes

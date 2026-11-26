@@ -122,9 +122,13 @@ RETURN HBBridgeCredentialDecrypt( hProfile[ "keyPath" ], cProfile, hProfile[ "id
     hProfile[ "user" ], hProfile[ "envelope" ], @cError ) == cExpected
 
 STATIC FUNCTION TerminalFixtureUpdate( cConfigPath, cBase, cProfile, hConfig )
-    LOCAL cError, cExpected := hb_MemoRead( cConfigPath ), cPassword, cPlan
+    LOCAL cError, cExpected, cObserved, cPassword, cPlan
     LOCAL nStatus := -1
 
+    cExpected := HBBridgeCredentialSnapshot( cConfigPath, @nStatus )
+    IF ! HB_ISSTRING( cExpected ) .OR. nStatus != 0
+        RETURN "snapshot-failed"
+    ENDIF
     cPassword := HBBridgeCredentialReadSecret( @nStatus )
     IF ! HB_ISSTRING( cPassword )
         IF nStatus == 1
@@ -134,8 +138,12 @@ STATIC FUNCTION TerminalFixtureUpdate( cConfigPath, cBase, cProfile, hConfig )
         ENDIF
         RETURN "input-failed"
     ENDIF
-    cPlan := HBBridgeCredentialPrepareCheckedUpdate( cExpected, hb_MemoRead( cConfigPath ), cBase, ;
-        cProfile, cPassword, hConfig, @cError )
+    cObserved := HBBridgeCredentialSnapshot( cConfigPath, @nStatus )
+    IF ! HB_ISSTRING( cObserved ) .OR. nStatus != 0
+        cPassword := NIL
+        RETURN "snapshot-failed"
+    ENDIF
+    cPlan := HBBridgeCredentialPrepareCheckedUpdate( cExpected, cObserved, cBase, cProfile, cPassword, hConfig, @cError )
     cPassword := NIL
     IF ! HB_ISSTRING( cPlan )
         RETURN iif( cError == "CONFIG_CHANGED", "conflict", "prepare-failed" )

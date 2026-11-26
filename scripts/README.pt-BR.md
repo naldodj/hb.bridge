@@ -48,6 +48,16 @@ interativa. No Linux, ela usa Python 3 e um pseudoterminal, com arquivos de
 teste em diretório privativo sob `/tmp`. No Windows, verifica a recusa antes
 do prompt ou da criação de arquivos.
 
+No Linux, a prova independente de publicação e leitura usa arquivos
+sintéticos no sistema de arquivos local selecionado. Requer Harbour, Python 3
+e suporte para marcar a fixture com `nodump`. A partir da raiz do repositório:
+
+```sh
+probe_dir=$(mktemp -d /tmp/hbbridge-publish-XXXXXXXX)
+hbmk2 tests/probes/hbbridge.credential.publish.probe.hbp -cflag=-DHBBRIDGE_PUBLISH_TEST "-o$probe_dir/publish-probe" "-workdir=$probe_dir"
+python3 tests/probes/hbbridge.credential.publish.test.py "$probe_dir/publish-probe" "$probe_dir"
+```
+
 O teste independente `tests/probes/hbbridge.credential.ini.probe.hbp` pode ser
 compilado com `hbmk2` do Harbour em Windows ou Linux, sem dependências SQL ou
 Zig. Ele verifica o preparador de atualização de INI em memória com valores

@@ -3,6 +3,7 @@
 import fcntl
 import os
 from pathlib import Path
+import shutil
 import signal
 import subprocess
 import sys
@@ -45,13 +46,23 @@ def main():
                 raise AssertionError(label)
             print("PASS " + label)
 
+        def snapshot(path, status, size=-1):
+            result = subprocess.run([executable, "--snapshot", str(path)], check=True, capture_output=True,
+                                    text=True, timeout=5)
+            return result.stdout.strip() == f"SNAPSHOT_STATUS={status};BYTES={size}"
+
         def no_stages():
             return not list(work.glob(".hbbridge-stage-*"))
 
-        def start_paused():
+        def start_paused(read_snapshot=False):
             env = os.environ.copy()
-            env["HBBRIDGE_TEST_PUBLISH_PAUSE_BEFORE_RECHECK"] = "1"
-            process = subprocess.Popen([executable, str(target), str(expected), str(replacement)],
+            if read_snapshot:
+                env["HBBRIDGE_TEST_SNAPSHOT_PAUSE_BEFORE_RECHECK"] = "1"
+                args = [executable, "--snapshot", str(target)]
+            else:
+                env["HBBRIDGE_TEST_PUBLISH_PAUSE_BEFORE_RECHECK"] = "1"
+                args = [executable, str(target), str(expected), str(replacement)]
+            process = subprocess.Popen(args,
                                        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env)
             deadline = time.monotonic() + 10
             while time.monotonic() < deadline:
@@ -67,6 +78,56 @@ def main():
 
         target.write_bytes(old)
         target.chmod(0o640)
+        check(snapshot(target, 0, len(old)) and not lock.exists() and no_stages(),
+              "snapshot reads without a lock or stage")
+        check(snapshot(target.name, 1), "snapshot rejects relative paths")
+        boundary = work / "boundary.ini"
+        boundary.touch()
+        check(snapshot(boundary, 1), "empty snapshot rejected")
+        with boundary.open("wb") as stream:
+            stream.truncate(1024 * 1024)
+        check(snapshot(boundary, 0, 1024 * 1024), "maximum binary snapshot accepted")
+        with boundary.open("ab") as stream:
+            stream.write(b"x")
+        check(snapshot(boundary, 1), "oversize snapshot refused")
+        fifo = work / "fifo"
+        os.mkfifo(fifo)
+        check(snapshot(fifo, 3), "snapshot rejects FIFO without waiting for a writer")
+        paused = start_paused(read_snapshot=True)
+        try:
+            os.replace(boundary, target)
+            os.kill(paused.pid, signal.SIGCONT)
+            out, _ = paused.communicate(timeout=10)
+            check(paused.returncode == 0 and out.strip() == "SNAPSHOT_STATUS=4;BYTES=-1" and
+                  not lock.exists(), "replaced snapshot returns no bytes")
+        finally:
+            if paused.poll() is None:
+                paused.kill()
+                paused.communicate(timeout=5)
+        target.write_bytes(old)
+        target.chmod(0o640)
+        boundary.write_bytes(old)
+        maximum = b"x" * (1024 * 1024)
+        replacement.write_bytes(maximum + b"x")
+        check(run(boundary) == 1 and boundary.read_bytes() == old and
+              not (work / "boundary.ini.hbbridge.lock").exists(),
+              "oversize replacement rejected before locking")
+        replacement.write_bytes(maximum)
+        check(run(boundary) == 0 and boundary.read_bytes() == maximum and
+              snapshot(boundary, 0, len(maximum)), "maximum replacement remains readable")
+        replacement.write_bytes(new)
+        if shutil.which("chattr"):
+            flags = subprocess.run(["chattr", "+d", str(target)], capture_output=True)
+            if flags.returncode == 0:
+                check(snapshot(target, 3) and not lock.exists(), "snapshot refuses nodump inode flag")
+                before = target.stat()
+                check(run() == 3 and target.stat().st_ino == before.st_ino and target.read_bytes() == old,
+                      "publication retains the nodump inode")
+                subprocess.run(["chattr", "-d", str(target)], check=True)
+            else:
+                print("SKIP filesystem does not accept nodump")
+        else:
+            print("SKIP chattr unavailable")
         before = target.stat()
         with target.open("rb") as reader:
             check(run() == 0, "publish")
@@ -118,14 +179,17 @@ def main():
 
         linked = work / "hardlink"
         os.link(target, linked)
+        check(snapshot(target, 3), "snapshot rejects a hard-linked file")
         check(run() == 3 and target.read_bytes() == old, "hard link rejected")
         linked.unlink()
         target.unlink()
         target.symlink_to(expected)
+        check(snapshot(target, 3), "snapshot rejects a symbolic file")
         check(run() == 3 and target.is_symlink() and expected.read_bytes() == old, "symbolic link rejected")
         target.unlink()
         target.write_bytes(old)
         target.chmod(0o660)
+        check(snapshot(target, 3), "snapshot rejects a writable file")
         check(run() == 3 and target.read_bytes() == old, "writable target rejected")
         target.chmod(0o640)
         try:
@@ -133,6 +197,7 @@ def main():
         except OSError:
             print("SKIP extended attributes unsupported")
         else:
+            check(snapshot(target, 3), "snapshot rejects visible extended attributes")
             check(run() == 3 and target.read_bytes() == old, "extended attributes rejected")
             os.removexattr(target, "user.hbbridge.test")
 
@@ -158,6 +223,7 @@ def main():
 
         linked_dir = work / "linked-directory"
         linked_dir.symlink_to(bad_dir, target_is_directory=True)
+        check(snapshot(linked_dir / nested.name / target.name, 3), "snapshot rejects a symbolic ancestor")
         nested_target.write_bytes(old)
         nested_lock.unlink()
         check(run(linked_dir / nested.name / target.name) == 3 and

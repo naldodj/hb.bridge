@@ -469,8 +469,22 @@ diretório de propriedade de `nobody`.
 [Linux `openat()` e `O_NOFOLLOW`](https://man7.org/linux/man-pages/man2/open.2.html),
 [Sticky bit em diretórios Linux](https://man7.org/linux/man-pages/man7/inode.7.html).
 
-O status 8 no Linux indica
-que a publicação ocorreu, mas a sincronização
+A fixture de atualização pelo terminal passou a usar uma leitura nativa
+limitada. Ela abre o mesmo tipo de arquivo regular validado pelo publicador,
+confere identidade e metadados antes e depois da leitura sem criar um lock
+ou arquivo de estágio. A fixture compara uma segunda leitura após o prompt.
+O leitor e o publicador aceitam até 1 MiB para o snapshot e o INI substituto.
+O publicador confere o original sob o lock. O limite pertence à fixture e
+independe da leitura de configuração do servidor.
+
+A versão anterior aceitava um arquivo com `nodump` e descartava essa flag
+mesmo com a lista de atributos estendidos vazia. O candidato passou a
+inspecionar flags do inode e recusar metadados não suportados antes de
+prosseguir. O sistema de arquivos da implantação e atributos invisíveis ao
+usuário efetivo ainda exigem aceite. [Flags de inode no Linux](https://man7.org/linux/man-pages/man2/ioctl_iflags.2.html),
+[visibilidade dos atributos estendidos](https://man7.org/linux/man-pages/man7/xattr.7.html).
+
+O status 8 no Linux indica que a publicação ocorreu, mas a sincronização
 do diretório falhou: é preciso examinar o destino antes de tentar novamente.
 A injeção de falhas é compilada somente na prova. Um encerramento inesperado pode
 deixar o arquivo temporário. O bloqueio cobre apenas processos que respeitam o

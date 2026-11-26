@@ -16,12 +16,14 @@
 #if defined( HB_OS_LINUX )
     #include <errno.h>
     #include <fcntl.h>
+    #include <linux/fs.h>
     #include <stdio.h>
     #include <stdlib.h>
     #if defined( HBBRIDGE_PUBLISH_TEST )
         #include <signal.h>
     #endif
     #include <sys/file.h>
+    #include <sys/ioctl.h>
     #include <sys/random.h>
     #include <sys/stat.h>
     #include <sys/types.h>
@@ -46,6 +48,8 @@ enum
 };
 
 #if defined( HB_OS_LINUX )
+#define HB_CREDENTIAL_SNAPSHOT_MAX ( 1024 * 1024 )
+
 static void HBBridgePublishWipe( void * buffer, size_t size )
 {
     volatile unsigned char * data = ( volatile unsigned char * ) buffer;
@@ -137,41 +141,126 @@ static int HBBridgePublishOpenParent( char * parent )
     return -1;
 }
 
+static int HBBridgeCredentialDirectory( const char * path, const char ** base, int * dirfd )
+{
+    const char * slash = strrchr( path, '/' );
+    size_t length;
+    char * parent;
+
+    if( path[ 0 ] != '/' || ! slash || ! slash[ 1 ] ) return HB_PUBLISH_INVALID;
+    *base = slash + 1;
+    if( ! strcmp( *base, "." ) || ! strcmp( *base, ".." ) ) return HB_PUBLISH_INVALID;
+    length = slash == path ? 1 : ( size_t ) ( slash - path );
+    parent = hb_strndup( path, length );
+    *dirfd = HBBridgePublishOpenParent( parent );
+    hb_xfree( parent );
+    return *dirfd >= 0 ? HB_PUBLISH_OK : HB_PUBLISH_UNSAFE;
+}
+
+/* Inode flags such as nodump do not appear in the extended attribute list.
+ * Only the filesystem's extent marker is supported on the test filesystems. */
+static HB_BOOL HBBridgeCredentialMetadata( int file, int * flags )
+{
+    return flistxattr( file, NULL, 0 ) == 0 && ioctl( file, FS_IOC_GETFLAGS, flags ) == 0 &&
+        ( *flags & ~FS_EXTENT_FL ) == 0;
+}
+
+static int HBBridgeCredentialOpenOriginal( int dirfd, const char * base, struct stat * info, int * flags )
+{
+    struct stat byName;
+    int file;
+
+    if( fstatat( dirfd, base, &byName, AT_SYMLINK_NOFOLLOW ) != 0 || ! S_ISREG( byName.st_mode ) )
+        return -1;
+    file = openat( dirfd, base, O_RDONLY | O_CLOEXEC | O_NOFOLLOW | O_NONBLOCK );
+    if( file >= 0 && ( fstat( file, info ) != 0 || ! HBBridgePublishSameFile( info, &byName ) ||
+        info->st_nlink != 1 || info->st_uid != geteuid() || ( info->st_mode & ( 07000 | S_IWGRP | S_IWOTH ) ) != 0 ||
+        ! HBBridgeCredentialMetadata( file, flags ) ) )
+    {
+        close( file );
+        return -1;
+    }
+    return file;
+}
+
+/* Return the bytes only after checking that both the descriptor and its
+ * directory entry still identify the same snapshot. No lock or stage is created. */
+static int HBBridgeCredentialReadSnapshot( const char * path )
+{
+    const char * base;
+    char * contents = NULL;
+    struct stat before, after, byName;
+    size_t offset = 0, size = 0;
+    int dirfd = -1, file = -1, flags;
+    int status = HBBridgeCredentialDirectory( path, &base, &dirfd );
+
+    if( status != HB_PUBLISH_OK ) return status;
+    file = HBBridgeCredentialOpenOriginal( dirfd, base, &before, &flags );
+    if( file < 0 ) { status = HB_PUBLISH_UNSAFE; goto cleanup; }
+    if( before.st_size <= 0 || before.st_size > HB_CREDENTIAL_SNAPSHOT_MAX )
+    {
+        status = HB_PUBLISH_INVALID;
+        goto cleanup;
+    }
+    size = ( size_t ) before.st_size;
+    contents = ( char * ) hb_xgrab( size + 1 );
+    while( offset < size )
+    {
+        ssize_t count = read( file, contents + offset, size - offset );
+        if( count < 0 && errno == EINTR ) continue;
+        if( count <= 0 )
+        {
+            status = count == 0 ? HB_PUBLISH_CONFLICT : HB_PUBLISH_IO;
+            goto cleanup;
+        }
+        offset += ( size_t ) count;
+    }
+#if defined( HBBRIDGE_PUBLISH_TEST )
+    if( getenv( "HBBRIDGE_TEST_SNAPSHOT_PAUSE_BEFORE_RECHECK" ) ) raise( SIGSTOP );
+#endif
+    if( fstat( file, &after ) != 0 || fstatat( dirfd, base, &byName, AT_SYMLINK_NOFOLLOW ) != 0 ||
+        ! HBBridgePublishSameFile( &before, &after ) || ! HBBridgePublishSameFile( &before, &byName ) )
+    {
+        status = HB_PUBLISH_CONFLICT;
+        goto cleanup;
+    }
+    contents[ size ] = '\0';
+    hb_retclen_buffer( contents, size );
+    contents = NULL;
+cleanup:
+    if( contents ) { HBBridgePublishWipe( contents, offset ); hb_xfree( contents ); }
+    if( file >= 0 ) close( file );
+    close( dirfd );
+    return status;
+}
+
 static int HBBridgePublishLinux( const char * path, const unsigned char * expected, size_t expectedSize,
     const unsigned char * replacement, size_t replacementSize )
 {
-    const char * slash = strrchr( path, '/' );
     const char * base;
     const char hex[] = "0123456789abcdef";
     const char lockSuffix[] = ".hbbridge.lock";
     const char stagePrefix[] = ".hbbridge-stage-";
     unsigned char random[ 16 ] = { 0 };
     char stageName[ sizeof( stagePrefix ) + 32 ] = { 0 };
-    char * parent = NULL, * lockName = NULL;
-    size_t parentLength, baseLength, index, offset = 0;
+    char * lockName = NULL;
+    size_t baseLength, index, offset = 0;
     struct stat original, current, byName, staging, lockInfo;
-    int dirfd = -1, file = -1, lock = -1, stage = -1, status = HB_PUBLISH_IO;
+    int dirfd = -1, file = -1, lock = -1, stage = -1, originalFlags, stageFlags, status;
     HB_BOOL stageExists = HB_FALSE;
 
-    if( path[ 0 ] != '/' || ! slash || ! slash[ 1 ] ) return HB_PUBLISH_INVALID;
-    base = slash + 1;
+    /* A successfully written INI must remain readable for the next update. */
+    if( expectedSize > HB_CREDENTIAL_SNAPSHOT_MAX || replacementSize > HB_CREDENTIAL_SNAPSHOT_MAX )
+        return HB_PUBLISH_INVALID;
+    status = HBBridgeCredentialDirectory( path, &base, &dirfd );
+    if( status != HB_PUBLISH_OK ) return status;
+    status = HB_PUBLISH_IO;
     baseLength = strlen( base );
-    if( ! strcmp( base, "." ) || ! strcmp( base, ".." ) ||
-        baseLength > ( size_t ) -1 - sizeof( lockSuffix ) ) return HB_PUBLISH_INVALID;
-    parentLength = slash == path ? 1 : ( size_t ) ( slash - path );
-    parent = ( char * ) hb_xgrab( parentLength + 1 );
-    memcpy( parent, path, parentLength );
-    parent[ parentLength ] = '\0';
+    if( baseLength > ( size_t ) -1 - sizeof( lockSuffix ) ) { status = HB_PUBLISH_INVALID; goto cleanup; }
     lockName = ( char * ) hb_xgrab( baseLength + sizeof( lockSuffix ) );
     memcpy( lockName, base, baseLength );
     memcpy( lockName + baseLength, lockSuffix, sizeof( lockSuffix ) );
 
-    dirfd = HBBridgePublishOpenParent( parent );
-    if( dirfd < 0 )
-    {
-        status = HB_PUBLISH_UNSAFE;
-        goto cleanup;
-    }
     lock = openat( dirfd, lockName, O_RDWR | O_CREAT | O_CLOEXEC | O_NOFOLLOW, 0600 );
     if( lock < 0 || fstat( lock, &lockInfo ) != 0 || ! S_ISREG( lockInfo.st_mode ) ||
         lockInfo.st_nlink != 1 || lockInfo.st_uid != geteuid() ||
@@ -185,11 +274,8 @@ static int HBBridgePublishLinux( const char * path, const unsigned char * expect
         status = errno == EWOULDBLOCK || errno == EAGAIN ? HB_PUBLISH_BUSY : HB_PUBLISH_IO;
         goto cleanup;
     }
-    file = openat( dirfd, base, O_RDONLY | O_CLOEXEC | O_NOFOLLOW | O_NONBLOCK );
-    if( file < 0 || fstat( file, &original ) != 0 || ! S_ISREG( original.st_mode ) ||
-        original.st_nlink != 1 || original.st_uid != geteuid() ||
-        ( original.st_mode & ( 07000 | S_IWGRP | S_IWOTH ) ) != 0 ||
-        flistxattr( file, NULL, 0 ) != 0 )
+    file = HBBridgeCredentialOpenOriginal( dirfd, base, &original, &originalFlags );
+    if( file < 0 )
     {
         status = HB_PUBLISH_UNSAFE;
         goto cleanup;
@@ -211,7 +297,7 @@ static int HBBridgePublishLinux( const char * path, const unsigned char * expect
     if( stage < 0 ) goto cleanup;
     stageExists = HB_TRUE;
     if( fstat( stage, &staging ) != 0 || ! S_ISREG( staging.st_mode ) || staging.st_nlink != 1 ||
-        ( staging.st_mode & ( S_IRWXG | S_IRWXO ) ) != 0 || flistxattr( stage, NULL, 0 ) != 0 )
+        ( staging.st_mode & ( S_IRWXG | S_IRWXO ) ) != 0 || ! HBBridgeCredentialMetadata( stage, &stageFlags ) )
     {
         status = HB_PUBLISH_UNSAFE;
         goto cleanup;
@@ -227,7 +313,12 @@ static int HBBridgePublishLinux( const char * path, const unsigned char * expect
         fchown( stage, original.st_uid, original.st_gid ) != 0 ) goto cleanup;
     if( fchmod( stage, original.st_mode & 0777 ) != 0 || fsync( stage ) != 0 ||
         fstat( stage, &staging ) != 0 || staging.st_uid != original.st_uid || staging.st_gid != original.st_gid ||
-        ( staging.st_mode & 07777 ) != ( original.st_mode & 07777 ) || flistxattr( stage, NULL, 0 ) != 0 ) goto cleanup;
+        ( staging.st_mode & 07777 ) != ( original.st_mode & 07777 ) ) goto cleanup;
+    if( ! HBBridgeCredentialMetadata( stage, &stageFlags ) || stageFlags != originalFlags )
+    {
+        status = HB_PUBLISH_UNSAFE;
+        goto cleanup;
+    }
 #if defined( HBBRIDGE_PUBLISH_TEST )
     if( getenv( "HBBRIDGE_TEST_PUBLISH_PAUSE_BEFORE_RECHECK" ) ) raise( SIGSTOP );
 #endif
@@ -258,7 +349,6 @@ cleanup:
     if( lock >= 0 ) close( lock );
     if( dirfd >= 0 ) close( dirfd );
     if( lockName ) hb_xfree( lockName );
-    if( parent ) hb_xfree( parent );
     HBBridgePublishWipe( random, sizeof( random ) );
     return status;
 }
@@ -406,6 +496,28 @@ cleanup:
 }
 #endif
 
+static HB_BOOL HBBridgeCredentialPathValid( const char * path, size_t size )
+{
+    return path && size > 0 && strlen( path ) == size && hb_cdpUTF8Validate( path, size );
+}
+
+HB_FUNC( HBBRIDGECREDENTIALSNAPSHOT )
+{
+    const char * path = hb_parc( 1 );
+    int status = HB_PUBLISH_INVALID;
+
+    if( HBBridgeCredentialPathValid( path, hb_parclen( 1 ) ) )
+    {
+#if defined( HB_OS_LINUX )
+        status = HBBridgeCredentialReadSnapshot( path );
+#else
+        status = HB_PUBLISH_UNSUPPORTED;
+#endif
+    }
+    if( status != HB_PUBLISH_OK ) hb_ret();
+    hb_storni( status, 2 );
+}
+
 /* This primitive is deliberately not registered as a network service. */
 HB_FUNC( HBBRIDGECREDENTIALPUBLISH )
 {
@@ -417,7 +529,7 @@ HB_FUNC( HBBRIDGECREDENTIALPUBLISH )
     size_t replacementSize = hb_parclen( 3 );
     int status = HB_PUBLISH_INVALID;
 
-    if( path && pathSize > 0 && strlen( path ) == pathSize && hb_cdpUTF8Validate( path, pathSize ) &&
+    if( HBBridgeCredentialPathValid( path, pathSize ) &&
         expected && expectedSize > 0 && replacement && replacementSize > 0 )
     {
 #if defined( HB_OS_LINUX )

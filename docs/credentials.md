@@ -461,6 +461,21 @@ tested a directory owned by `nobody`.
 [Linux `openat()` and `O_NOFOLLOW`](https://man7.org/linux/man-pages/man2/open.2.html),
 [Linux directory sticky bit](https://man7.org/linux/man-pages/man7/inode.7.html).
 
+A bounded native snapshot is now used in the terminal update fixture. It
+opens the same validated regular file as the publisher, verifies identity
+and metadata around the read and leaves the lock and staging paths untouched.
+The fixture compares a second snapshot after the password prompt. The
+reader and publisher accept up to 1 MiB for the snapshot and its replacement.
+Publication rechecks the original under its lock. The fixture limit is
+independent of server configuration loading.
+
+A file marked `nodump` was accepted and lost that flag in the earlier
+candidate even though its extended-attribute list was empty. The candidate
+now inspects inode flags and refuses unsupported metadata before proceeding.
+The deployment filesystem and attributes hidden from the effective user
+remain part of acceptance. [Linux inode flags](https://man7.org/linux/man-pages/man2/ioctl_iflags.2.html),
+[extended attribute visibility](https://man7.org/linux/man-pages/man7/xattr.7.html).
+
 Its Linux status 8 means publication occurred but directory sync failed: callers
 must inspect the destination, not assume a retry is harmless. Test-only failure
 injection is compiled solely into the probe. A crash may leave a staging file.

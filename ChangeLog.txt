@@ -5,6 +5,11 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Organize bilingual documentation and prepare the Wiki portal)"
  */
 
+2026-11-26 09:13 UTC naldodj (Bound credential INI snapshots and reject unsupported inode flags)
+  + Read the local update fixture through a bounded native snapshot using
+    the publisher's path and metadata checks.
+  ! Refuse publication when an inode flag such as nodump would be lost.
+
 2026-11-25 21:39 UTC naldodj (Exercise the interactive credential update flow)
   + Compose terminal input, authenticated INI preparation and Linux publication
     against a disposable fixture. Cover publication and reload, cancellation,

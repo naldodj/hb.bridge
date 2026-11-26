@@ -117,6 +117,17 @@ its own acceptance. See [credential review](docs/credentials.md).
   publication and reload, redirected input, cancellation and a concurrent
   INI edit. The focused Windows suite passed 51 checks and the update mode
   refused before prompting or writing. No live database was used.
+  The terminal fixture now takes a bounded native INI snapshot before and
+  after input. The reader and publisher share checks for regular files,
+  path ownership and unsupported metadata. Earlier publication discarded
+  a `nodump` inode flag despite an empty extended-attribute list. Both
+  operations now refuse that fixture, preserving the file and its flag.
+  The reader and publisher share a 1 MiB cap so an accepted replacement
+  can be read again. On Ubuntu WSL, the standalone suite passed 41 checks
+  each on tmpfs and ext4 as root, and 40 on tmpfs as `nobody`. Windows
+  refused the snapshot without creating files. The integrated WSL suite
+  passed 53 checks, and all four terminal cases passed as root and as `nobody`.
+  These changes are linked into probes only.
   Production-safe atomic publication, metadata preservation, Linux integration,
   interactive command, deployment and full acceptance remain open.
 - [ ] C05: validate tampering, wrong/missing key, unavailable provider, Unicode,
