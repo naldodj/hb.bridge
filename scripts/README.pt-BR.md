@@ -11,6 +11,18 @@ protegida. A prova relata alterações observadas nos metadados de segurança; n
 implementa nem certifica atualização de produção, ACLs estendidas ou durabilidade
 após falhas.
 
+No Windows, compile a prova isolada de metadados com a toolchain Harbour
+preparada e execute as fixtures Python em NTFS:
+
+```powershell
+$probe = Join-Path (Get-Location) 'tmp/hbbridge-credential-stream-probe'
+hbmk2 tests/probes/hbbridge.credential.stream.probe.hbp -cflag=-DHBBRIDGE_PUBLISH_TEST "-o$probe"
+python tests/probes/hbbridge.credential.stream.test.py "$probe.exe"
+```
+
+A prova distingue metadados não suportados, conflito de compartilhamento
+e falta de privilégio para ler a SACL. Ela não solicita nem altera permissões.
+
 `pwsh ./scripts/test-credentials-terminal.ps1` compila o teste independente de
 terminal e verifica que entrada redirecionada é recusada sem prompt. No Linux,
 também executa testes sintéticos com pseudoterminal; `-Interactive` acrescenta

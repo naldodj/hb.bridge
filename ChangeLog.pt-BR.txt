@@ -6,6 +6,11 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Adicionar cobertura de integridade para JSON UTF-8 e MSSQL)"
  */
 
+2026-11-26 19:11 UTC naldodj (Combinar verificações de metadados de credenciais no Windows)
+  + Inspecionar atributos suportados, fluxos e segurança em uma prova
+    somente de leitura. Verificar a recusa em NTFS por falta de privilégio
+    para SACL, metadados não suportados e compartilhamento incompatível.
+
 2026-11-26 09:13 UTC naldodj (Limitar a leitura do INI e recusar flags de inode não suportadas)
   + Ler o INI da fixture de atualização por um snapshot nativo limitado,
     com as mesmas verificações de caminho e metadados do publicador.

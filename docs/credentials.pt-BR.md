@@ -516,6 +516,19 @@ A fixture Windows sem privilégio exercita a recusa; acesso bem-sucedido à SACL
 preservação e ciclo do privilégio ainda não foram validados. Ler esse descritor,
 por si só, não autoriza a substituição.
 
+O modo isolado `metadata` no Windows reúne essas verificações. Ele aceita
+um caminho absoluto com letra de unidade para o fluxo sem nome. Abre um
+handle do arquivo em disco com compartilhamento de leitura, recusa atributos
+extras, links e fluxos nomeados, e examina o descritor de segurança pelo
+mesmo handle quando há acesso à SACL. Se o token não tem
+`SeSecurityPrivilege`, uma abertura básica permite identificar metadados
+não suportados. Um candidato regular ainda retorna que o privilégio é
+necessário. A prova não altera o token, cria arquivos auxiliares ou tenta
+substituir o INI. O handle é fechado antes do retorno. O resultado
+valida a inspeção prévia.
+[Acesso à SACL no Windows](https://learn.microsoft.com/en-us/windows/win32/secauthz/sacl-access-right),
+[pontos de nova análise no Windows](https://learn.microsoft.com/en-us/windows/win32/fileio/reparse-points-and-file-operations).
+
 No volume NTFS testado, um identificador que impede compartilhamento de escrita
 bloqueou a abertura para gravação por outro processo e permitiu leitores compatíveis.
 Quando permite compartilhamento de exclusão, outro processo ainda consegue

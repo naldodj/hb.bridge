@@ -375,27 +375,14 @@ static WCHAR * HBBridgePublishWindowsPath( const char * path, size_t size )
 }
 
 /* Reading the SACL is necessary but not sufficient for safe publication. */
-HB_FUNC( HBBRIDGECREDENTIALSACLPROBE )
+static int HBBridgeInspectSecurity( HANDLE file )
 {
-    WCHAR * wide = HBBridgePublishWindowsPath( hb_parc( 1 ), hb_parclen( 1 ) );
-    HANDLE file = INVALID_HANDLE_VALUE;
     PSECURITY_DESCRIPTOR descriptor = NULL;
     PACL dacl = NULL, sacl = NULL;
     PSID owner = NULL, group = NULL;
     BOOL present = FALSE, defaulted = FALSE;
     DWORD result;
-    int status = HB_PUBLISH_INVALID;
-
-    if( ! wide ) goto cleanup;
-    file = CreateFileW( wide, READ_CONTROL | ACCESS_SYSTEM_SECURITY | FILE_READ_ATTRIBUTES,
-        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING,
-        FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS, NULL );
-    if( file == INVALID_HANDLE_VALUE )
-    {
-        result = GetLastError();
-        status = result == ERROR_PRIVILEGE_NOT_HELD ? HB_PUBLISH_PRIVILEGE_REQUIRED : HB_PUBLISH_IO;
-        goto cleanup;
-    }
+    int status = HB_PUBLISH_IO;
     result = GetSecurityInfo( file, SE_FILE_OBJECT,
         OWNER_SECURITY_INFORMATION | GROUP_SECURITY_INFORMATION | DACL_SECURITY_INFORMATION | SACL_SECURITY_INFORMATION,
         &owner, &group, &dacl, &sacl, &descriptor );
@@ -411,33 +398,22 @@ HB_FUNC( HBBRIDGECREDENTIALSACLPROBE )
     status = HB_PUBLISH_OK;
 cleanup:
     if( descriptor ) LocalFree( descriptor );
-    if( file != INVALID_HANDLE_VALUE ) CloseHandle( file );
-    if( wide ) hb_xfree( wide );
-    hb_retni( status );
+    return status;
 }
 
-HB_FUNC( HBBRIDGECREDENTIALSTREAMPROBE )
+static int HBBridgeInspectStreams( HANDLE file, DWORD unsupportedAttributes )
 {
-    const char * path = hb_parc( 1 );
-    size_t pathSize = hb_parclen( 1 );
-    WCHAR * wide = HBBridgePublishWindowsPath( path, pathSize );
-    HANDLE file = INVALID_HANDLE_VALUE;
     BY_HANDLE_FILE_INFORMATION info;
     unsigned char * data = NULL;
     DWORD capacity = 4096, offset = 0, streams = 0;
     int status = HB_PUBLISH_INVALID;
 
-    if( ! wide ) goto cleanup;
-    file = CreateFileW( wide, FILE_READ_ATTRIBUTES,
-        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING,
-        FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS, NULL );
-    if( file == INVALID_HANDLE_VALUE || ! GetFileInformationByHandle( file, &info ) )
+    if( ! GetFileInformationByHandle( file, &info ) )
     {
         status = HB_PUBLISH_IO;
         goto cleanup;
     }
-    if( info.nNumberOfLinks != 1 ||
-        ( info.dwFileAttributes & ( FILE_ATTRIBUTE_REPARSE_POINT | FILE_ATTRIBUTE_DIRECTORY ) ) != 0 )
+    if( info.nNumberOfLinks != 1 || ( info.dwFileAttributes & unsupportedAttributes ) != 0 )
     {
         status = HB_PUBLISH_UNSAFE;
         goto cleanup;
@@ -490,9 +466,82 @@ HB_FUNC( HBBRIDGECREDENTIALSTREAMPROBE )
     status = streams == 1 ? HB_PUBLISH_OK : HB_PUBLISH_UNSAFE;
 cleanup:
     if( data ) hb_xfree( data );
-    if( file != INVALID_HANDLE_VALUE ) CloseHandle( file );
+    return status;
+}
+
+enum { HB_METADATA_STREAMS, HB_METADATA_SECURITY, HB_METADATA_COMBINED };
+
+static int HBBridgeInspectWindowsFile( WCHAR * path, int mode )
+{
+    const DWORD flags = FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS;
+    DWORD access = FILE_READ_ATTRIBUTES, share = FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE;
+    DWORD error;
+    HANDLE file = INVALID_HANDLE_VALUE;
+    HB_BOOL missingPrivilege = HB_FALSE;
+    int status = HB_PUBLISH_INVALID;
+
+    if( ! path ) return status;
+    if( mode == HB_METADATA_COMBINED )
+    {
+        /* The combined probe accepts an ordinary drive-qualified path to its unnamed stream. */
+        if( !( ( path[ 0 ] >= L'A' && path[ 0 ] <= L'Z' ) || ( path[ 0 ] >= L'a' && path[ 0 ] <= L'z' ) ) ||
+            path[ 1 ] != L':' || ( path[ 2 ] != L'\\' && path[ 2 ] != L'/' ) || wcschr( path + 2, L':' ) )
+            return status;
+        access |= FILE_READ_DATA;
+        share = FILE_SHARE_READ;
+    }
+    if( mode != HB_METADATA_STREAMS ) access |= READ_CONTROL | ACCESS_SYSTEM_SECURITY;
+    file = CreateFileW( path, access, share, NULL, OPEN_EXISTING, flags, NULL );
+    if( file == INVALID_HANDLE_VALUE && mode == HB_METADATA_COMBINED && GetLastError() == ERROR_PRIVILEGE_NOT_HELD )
+    {
+        /* No initial handle was obtained. Gather only refusal evidence on the fallback handle. */
+        missingPrivilege = HB_TRUE;
+        file = CreateFileW( path, FILE_READ_ATTRIBUTES | FILE_READ_DATA, share, NULL, OPEN_EXISTING, flags, NULL );
+    }
+    if( file == INVALID_HANDLE_VALUE )
+    {
+        error = GetLastError();
+        if( error == ERROR_PRIVILEGE_NOT_HELD ) return HB_PUBLISH_PRIVILEGE_REQUIRED;
+        if( error == ERROR_SHARING_VIOLATION ) return HB_PUBLISH_BUSY;
+        return HB_PUBLISH_IO;
+    }
+    if( mode == HB_METADATA_COMBINED )
+    {
+        if( GetFileType( file ) != FILE_TYPE_DISK )
+            status = HB_PUBLISH_UNSAFE;
+        else
+            status = HBBridgeInspectStreams( file, ~( FILE_ATTRIBUTE_NORMAL | FILE_ATTRIBUTE_ARCHIVE ) );
+        if( status == HB_PUBLISH_OK )
+            status = missingPrivilege ? HB_PUBLISH_PRIVILEGE_REQUIRED : HBBridgeInspectSecurity( file );
+    }
+    else
+        status = mode == HB_METADATA_SECURITY ? HBBridgeInspectSecurity( file ) :
+            HBBridgeInspectStreams( file, FILE_ATTRIBUTE_REPARSE_POINT | FILE_ATTRIBUTE_DIRECTORY );
+    CloseHandle( file );
+    return status;
+}
+
+static void HBBridgeWindowsProbeResult( int mode )
+{
+    WCHAR * wide = HBBridgePublishWindowsPath( hb_parc( 1 ), hb_parclen( 1 ) );
+    int status = HBBridgeInspectWindowsFile( wide, mode );
     if( wide ) hb_xfree( wide );
     hb_retni( status );
+}
+
+HB_FUNC( HBBRIDGECREDENTIALSACLPROBE )
+{
+    HBBridgeWindowsProbeResult( HB_METADATA_SECURITY );
+}
+
+HB_FUNC( HBBRIDGECREDENTIALSTREAMPROBE )
+{
+    HBBridgeWindowsProbeResult( HB_METADATA_STREAMS );
+}
+
+HB_FUNC( HBBRIDGECREDENTIALMETADATAPROBE )
+{
+    HBBridgeWindowsProbeResult( HB_METADATA_COMBINED );
 }
 #endif
 

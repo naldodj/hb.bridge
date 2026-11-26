@@ -128,6 +128,13 @@ its own acceptance. See [credential review](docs/credentials.md).
   refused the snapshot without creating files. The integrated WSL suite
   passed 53 checks, and all four terminal cases passed as root and as `nobody`.
   These changes are linked into probes only.
+  On Windows/NTFS, a read-only preflight now combines file attributes,
+  stream enumeration and security inspection in the same handle when
+  SACL access is available. It distinguishes a sharing conflict,
+  unsupported metadata and missing privilege. The suite passed 19 checks,
+  including preserving the original bytes, observed security and directory
+  contents on refusal. The test token lacked `SeSecurityPrivilege`. Reading
+  the SACL with an authorized token and publishing atomically remain open.
   Production-safe atomic publication, metadata preservation, Linux integration,
   interactive command, deployment and full acceptance remain open.
 - [ ] C05: validate tampering, wrong/missing key, unavailable provider, Unicode,

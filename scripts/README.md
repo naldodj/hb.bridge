@@ -10,6 +10,18 @@ synthetic files. On Windows, add `--protected` for a protected-DACL fixture.
 The test reports observed security-metadata changes; it does not implement or
 certify production file updates, extended ACL preservation or crash durability.
 
+On Windows, compile the isolated metadata probe with the prepared Harbour
+toolchain and run its Python fixtures on NTFS:
+
+```powershell
+$probe = Join-Path (Get-Location) 'tmp/hbbridge-credential-stream-probe'
+hbmk2 tests/probes/hbbridge.credential.stream.probe.hbp -cflag=-DHBBRIDGE_PUBLISH_TEST "-o$probe"
+python tests/probes/hbbridge.credential.stream.test.py "$probe.exe"
+```
+
+The test distinguishes unsupported metadata, a sharing conflict and a missing
+SACL privilege. It does not request or change permissions.
+
 `pwsh ./scripts/test-credentials-terminal.ps1` builds the standalone terminal
 probe and verifies that redirected input is refused without a prompt. On Linux
 it also runs synthetic pseudoterminal tests; `-Interactive` adds a manual test

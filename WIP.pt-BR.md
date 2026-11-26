@@ -133,6 +133,13 @@ aceites separados. Veja a [análise de credenciais](docs/credentials.pt-BR.md).
   tmpfs como `nobody`. No Windows, a leitura foi recusada sem criar arquivos.
   A suíte integrada passou 53 verificações no WSL e os quatro cenários de
   terminal passaram como root e como `nobody`. A mudança segue restrita às provas.
+  No Windows/NTFS, a inspeção prévia somente de leitura agora reúne atributos,
+  fluxos e descritor de segurança no mesmo handle quando há acesso à SACL.
+  A prova diferencia conflito de compartilhamento, metadados não suportados
+  e privilégio ausente. Passaram 19 verificações, incluindo a preservação dos
+  bytes, da segurança observada e do conteúdo do diretório após recusa. O
+  token de teste não tinha `SeSecurityPrivilege`. Ainda faltam a leitura da
+  SACL com token autorizado e a substituição atômica.
   Publicação atômica segura em produção, preservação de metadados, integração
   Linux, comando interativo, implantação e aceite completo permanecem pendentes.
 - [ ] C05: testar adulteração, chave errada/ausente, provedor indisponível,

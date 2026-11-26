@@ -506,6 +506,18 @@ The unprivileged Windows fixture exercises the refusal; successful SACL access,
 preservation and privilege lifecycle remain unvalidated. Reading this descriptor
 alone does not authorize replacement.
 
+The isolated Windows `metadata` probe composes these checks. It accepts an
+absolute drive-qualified path to the unnamed stream. It opens its own disk
+file handle with read sharing, rejects extra file attributes, links and
+named streams, and inspects the security descriptor through the same handle
+when SACL access is available. When the token lacks `SeSecurityPrivilege`,
+a basic handle can identify unsupported metadata, but a regular candidate
+still returns privilege required. The probe does not change the token,
+create auxiliary files or attempt replacement. Its handle is released before
+returning, so this verifies a preflight step only.
+[Windows SACL access](https://learn.microsoft.com/en-us/windows/win32/secauthz/sacl-access-right),
+[Windows reparse points](https://learn.microsoft.com/en-us/windows/win32/fileio/reparse-points-and-file-operations).
+
 On the tested NTFS volume, an open guard that denies write sharing blocked
 another process from opening the file for writing and allowed compatible readers.
 If the guard permits delete sharing, another process can still replace the path.
