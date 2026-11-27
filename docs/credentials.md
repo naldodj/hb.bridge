@@ -502,9 +502,9 @@ The probe can also attempt to read the SACL without changing the caller's token.
 It reports missing `SeSecurityPrivilege` rather than assuming an inaccessible
 SACL is empty. Microsoft documents that SACL access requires the enabled
 [`SeSecurityPrivilege`](https://learn.microsoft.com/en-us/windows/win32/secauthz/sacl-access-right).
-The unprivileged Windows fixture exercises the refusal; successful SACL access,
-preservation and privilege lifecycle remain unvalidated. Reading this descriptor
-alone does not authorize replacement.
+The unprivileged Windows fixture exercises the refusal. The optional audit
+fixture also validates SACL access and the scoped privilege lifecycle.
+Preservation during atomic replacement remains open.
 
 The isolated Windows `metadata` probe composes these checks. It accepts an
 absolute drive-qualified path to the unnamed stream. It opens its own disk
@@ -523,9 +523,11 @@ The optional `--require-audit` test requires an identity already assigned
 the synthetic case and restores the previous state. It creates a new
 fixture with a protected SACL and a read-audit ACE, checks the SACL through
 the metadata probe and compares it before and after inspection. Failure
-diagnostics contain only the test stage and Win32 code. The ordinary
-19-case suite passed. The positive audit case on an assigned test identity
-still requires validation.
+diagnostics contain only the test stage and Win32 code. On 2026-11-27 the
+suite passed all 21 checks under a temporary local account on NTFS. It
+confirmed the protected audit ACE was unchanged by inspection and refused
+to overwrite the existing fixture. Cleanup confirmed that the test right,
+account, profile and directory of synthetic inputs were removed.
 [Privilege activation and restoration](https://learn.microsoft.com/en-us/windows/win32/api/securitybaseapi/nf-securitybaseapi-adjusttokenprivileges).
 
 On the tested NTFS volume, an open guard that denies write sharing blocked

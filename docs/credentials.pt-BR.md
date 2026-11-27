@@ -512,9 +512,9 @@ A prova também tenta ler a SACL sem alterar o token do processo. Ela informa a
 ausência de `SeSecurityPrivilege` em vez de presumir que uma SACL inacessível está
 vazia. A Microsoft documenta que o acesso à SACL exige o
 [`SeSecurityPrivilege` habilitado](https://learn.microsoft.com/en-us/windows/win32/secauthz/sacl-access-right).
-A fixture Windows sem privilégio exercita a recusa; acesso bem-sucedido à SACL,
-preservação e ciclo do privilégio ainda não foram validados. Ler esse descritor,
-por si só, não autoriza a substituição.
+A fixture Windows sem privilégio exercita a recusa. A prova opcional de
+auditoria também valida o acesso à SACL e o ciclo do privilégio com escopo
+restrito. A preservação durante a substituição atômica permanece pendente.
 
 O modo isolado `metadata` no Windows reúne essas verificações. Ele aceita
 um caminho absoluto com letra de unidade para o fluxo sem nome. Abre um
@@ -534,9 +534,11 @@ O teste opcional `--require-audit` exige uma identidade que já tenha
 da thread no caso sintético e restaura o estado anterior. Ela cria uma
 fixture com SACL protegida e uma ACE de auditoria de leitura, inspeciona
 a SACL e compara o resultado antes e depois. O diagnóstico de falha
-mostra somente a etapa do teste e o código Win32. As 19 verificações da
-suíte padrão passaram. O caso positivo com uma identidade autorizada
-ainda exige validação.
+mostra somente a etapa do teste e o código Win32. Em 2026-11-27, as 21
+verificações passaram em NTFS com uma conta local temporária. A ACE de
+auditoria permaneceu intacta após a inspeção e a sobrescrita da fixture
+existente foi recusada. Confirmada a remoção do direito, da conta, do
+perfil e do diretório de arquivos sintéticos.
 [Ativação e restauração do privilégio](https://learn.microsoft.com/pt-br/windows/win32/api/securitybaseapi/nf-securitybaseapi-adjusttokenprivileges).
 
 No volume NTFS testado, um identificador que impede compartilhamento de escrita

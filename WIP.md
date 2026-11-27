@@ -133,13 +133,15 @@ its own acceptance. See [credential review](docs/credentials.md).
   SACL access is available. It distinguishes a sharing conflict,
   unsupported metadata and missing privilege. The suite passed 19 checks,
   including preserving the original bytes, observed security and directory
-  contents on refusal. The test token lacked `SeSecurityPrivilege`. Reading
-  the SACL with an authorized token and publishing atomically remain open.
+  contents on refusal. The test token lacked `SeSecurityPrivilege`.
   The dedicated audit probe scopes privilege activation to a private thread
   token and diagnoses failures by stage and Win32 code. Refusal without
-  assignment returned code 1300 and created no file. The initial audit case
-  under a temporary account with the assigned right returned a generic I/O
-  failure. The account and the right were removed.
+  assignment returned code 1300 and created no file. On 2026-11-27 a
+  temporary local test account passed all 21 checks, including reading and
+  comparing a protected SACL with a nonempty audit ACE and refusing to
+  overwrite an existing fixture. The right, account, profile and synthetic
+  file directory were removed. Preservation through an atomic replacement
+  remains open.
   Production-safe atomic publication, metadata preservation, Linux integration,
   interactive command, deployment and full acceptance remain open.
 - [ ] C05: validate tampering, wrong/missing key, unavailable provider, Unicode,

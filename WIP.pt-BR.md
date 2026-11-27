@@ -138,13 +138,14 @@ aceites separados. Veja a [análise de credenciais](docs/credentials.pt-BR.md).
   A prova diferencia conflito de compartilhamento, metadados não suportados
   e privilégio ausente. Passaram 19 verificações, incluindo a preservação dos
   bytes, da segurança observada e do conteúdo do diretório após recusa. O
-  token de teste não tinha `SeSecurityPrivilege`. Ainda faltam a leitura da
-  SACL com token autorizado e a substituição atômica.
+  token de teste não tinha `SeSecurityPrivilege`.
   A prova de auditoria ativa o privilégio em um token privado da thread e
   identifica falhas pela etapa e pelo código Win32. A recusa sem atribuição
-  retornou 1300 e não criou arquivo. O primeiro teste de auditoria com uma
-  conta temporária que recebeu o direito retornou uma falha genérica de I/O.
-  A conta e o direito concedido foram removidos.
+  retornou 1300 e não criou arquivo. Em 2026-11-27, uma conta local temporária
+  passou nas 21 verificações, incluindo leitura e comparação da SACL
+  protegida com uma ACE de auditoria e recusa de sobrescrever uma fixture.
+  O direito, a conta, o perfil e o diretório de arquivos sintéticos foram
+  removidos. Falta validar a preservação durante a substituição atômica.
   Publicação atômica segura em produção, preservação de metadados, integração
   Linux, comando interativo, implantação e aceite completo permanecem pendentes.
 - [ ] C05: testar adulteração, chave errada/ausente, provedor indisponível,

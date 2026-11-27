@@ -6,6 +6,10 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Adicionar cobertura de integridade para JSON UTF-8 e MSSQL)"
  */
 
+2026-11-27 08:36 UTC naldodj (Registrar a validação de leitura da SACL no Windows)
+  ; Confirmar a leitura e a preservação da ACE de auditoria durante a
+    inspeção em NTFS e a limpeza da conta local temporária.
+
 2026-11-27 08:30 UTC naldodj (Exercitar metadados de auditoria com privilégio de escopo restrito)
   + Adicionar uma fixture de auditoria SACL com token privado da thread.
   ; Identificar falhas de privilégio e metadados sem imprimir dados do arquivo.
