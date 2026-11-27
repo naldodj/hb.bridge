@@ -135,6 +135,11 @@ its own acceptance. See [credential review](docs/credentials.md).
   including preserving the original bytes, observed security and directory
   contents on refusal. The test token lacked `SeSecurityPrivilege`. Reading
   the SACL with an authorized token and publishing atomically remain open.
+  The dedicated audit probe scopes privilege activation to a private thread
+  token and diagnoses failures by stage and Win32 code. Refusal without
+  assignment returned code 1300 and created no file. The initial audit case
+  under a temporary account with the assigned right returned a generic I/O
+  failure. The account and the right were removed.
   Production-safe atomic publication, metadata preservation, Linux integration,
   interactive command, deployment and full acceptance remain open.
 - [ ] C05: validate tampering, wrong/missing key, unavailable provider, Unicode,

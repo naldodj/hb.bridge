@@ -10,6 +10,7 @@
 #if defined( HB_OS_WIN ) && defined( HBBRIDGE_PUBLISH_TEST )
     #include <windows.h>
     #include <aclapi.h>
+    #include <sddl.h>
     #include <wchar.h>
 #endif
 
@@ -374,8 +375,15 @@ static WCHAR * HBBridgePublishWindowsPath( const char * path, size_t size )
     return wide;
 }
 
+typedef struct { const char * stage; DWORD code; } HB_AUDIT_DIAGNOSTIC;
+
+static void HBBridgeAuditDiagnostic( HB_AUDIT_DIAGNOSTIC * detail, const char * stage, DWORD code )
+{
+    if( detail ) { detail->stage = stage; detail->code = code; }
+}
+
 /* Reading the SACL is necessary but not sufficient for safe publication. */
-static int HBBridgeInspectSecurity( HANDLE file )
+static int HBBridgeInspectSecurity( HANDLE file, HB_AUDIT_DIAGNOSTIC * detail )
 {
     PSECURITY_DESCRIPTOR descriptor = NULL;
     PACL dacl = NULL, sacl = NULL;
@@ -392,7 +400,7 @@ static int HBBridgeInspectSecurity( HANDLE file )
         ! GetSecurityDescriptorSacl( descriptor, &present, &sacl, &defaulted ) ||
         ( present && sacl && ! IsValidAcl( sacl ) ) )
     {
-        status = HB_PUBLISH_IO;
+        HBBridgeAuditDiagnostic( detail, result ? "inspect.GetSecurityInfo" : "inspect.validateDescriptor", result );
         goto cleanup;
     }
     status = HB_PUBLISH_OK;
@@ -401,7 +409,7 @@ cleanup:
     return status;
 }
 
-static int HBBridgeInspectStreams( HANDLE file, DWORD unsupportedAttributes )
+static int HBBridgeInspectStreams( HANDLE file, DWORD unsupportedAttributes, HB_AUDIT_DIAGNOSTIC * detail )
 {
     BY_HANDLE_FILE_INFORMATION info;
     unsigned char * data = NULL;
@@ -410,6 +418,7 @@ static int HBBridgeInspectStreams( HANDLE file, DWORD unsupportedAttributes )
 
     if( ! GetFileInformationByHandle( file, &info ) )
     {
+        HBBridgeAuditDiagnostic( detail, "inspect.GetFileInformationByHandle", GetLastError() );
         status = HB_PUBLISH_IO;
         goto cleanup;
     }
@@ -429,6 +438,7 @@ static int HBBridgeInspectStreams( HANDLE file, DWORD unsupportedAttributes )
         data = NULL;
         if( ( error != ERROR_MORE_DATA && error != ERROR_INSUFFICIENT_BUFFER ) || capacity >= 4194304 )
         {
+            HBBridgeAuditDiagnostic( detail, "inspect.FileStreamInfo", error );
             status = HB_PUBLISH_IO;
             goto cleanup;
         }
@@ -471,7 +481,13 @@ cleanup:
 
 enum { HB_METADATA_STREAMS, HB_METADATA_SECURITY, HB_METADATA_COMBINED };
 
-static int HBBridgeInspectWindowsFile( WCHAR * path, int mode )
+static HB_BOOL HBBridgeDrivePath( const WCHAR * path )
+{
+    return ( ( path[ 0 ] >= L'A' && path[ 0 ] <= L'Z' ) || ( path[ 0 ] >= L'a' && path[ 0 ] <= L'z' ) ) &&
+        path[ 1 ] == L':' && ( path[ 2 ] == L'\\' || path[ 2 ] == L'/' ) && ! wcschr( path + 2, L':' );
+}
+
+static int HBBridgeInspectWindowsFile( WCHAR * path, int mode, HB_AUDIT_DIAGNOSTIC * detail )
 {
     const DWORD flags = FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS;
     DWORD access = FILE_READ_ATTRIBUTES, share = FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE;
@@ -484,9 +500,7 @@ static int HBBridgeInspectWindowsFile( WCHAR * path, int mode )
     if( mode == HB_METADATA_COMBINED )
     {
         /* The combined probe accepts an ordinary drive-qualified path to its unnamed stream. */
-        if( !( ( path[ 0 ] >= L'A' && path[ 0 ] <= L'Z' ) || ( path[ 0 ] >= L'a' && path[ 0 ] <= L'z' ) ) ||
-            path[ 1 ] != L':' || ( path[ 2 ] != L'\\' && path[ 2 ] != L'/' ) || wcschr( path + 2, L':' ) )
-            return status;
+        if( ! HBBridgeDrivePath( path ) ) return status;
         access |= FILE_READ_DATA;
         share = FILE_SHARE_READ;
     }
@@ -501,6 +515,7 @@ static int HBBridgeInspectWindowsFile( WCHAR * path, int mode )
     if( file == INVALID_HANDLE_VALUE )
     {
         error = GetLastError();
+        HBBridgeAuditDiagnostic( detail, "inspect.CreateFileW", error );
         if( error == ERROR_PRIVILEGE_NOT_HELD ) return HB_PUBLISH_PRIVILEGE_REQUIRED;
         if( error == ERROR_SHARING_VIOLATION ) return HB_PUBLISH_BUSY;
         return HB_PUBLISH_IO;
@@ -510,13 +525,13 @@ static int HBBridgeInspectWindowsFile( WCHAR * path, int mode )
         if( GetFileType( file ) != FILE_TYPE_DISK )
             status = HB_PUBLISH_UNSAFE;
         else
-            status = HBBridgeInspectStreams( file, ~( FILE_ATTRIBUTE_NORMAL | FILE_ATTRIBUTE_ARCHIVE ) );
+            status = HBBridgeInspectStreams( file, ~( FILE_ATTRIBUTE_NORMAL | FILE_ATTRIBUTE_ARCHIVE ), detail );
         if( status == HB_PUBLISH_OK )
-            status = missingPrivilege ? HB_PUBLISH_PRIVILEGE_REQUIRED : HBBridgeInspectSecurity( file );
+            status = missingPrivilege ? HB_PUBLISH_PRIVILEGE_REQUIRED : HBBridgeInspectSecurity( file, detail );
     }
     else
-        status = mode == HB_METADATA_SECURITY ? HBBridgeInspectSecurity( file ) :
-            HBBridgeInspectStreams( file, FILE_ATTRIBUTE_REPARSE_POINT | FILE_ATTRIBUTE_DIRECTORY );
+        status = mode == HB_METADATA_SECURITY ? HBBridgeInspectSecurity( file, detail ) :
+            HBBridgeInspectStreams( file, FILE_ATTRIBUTE_REPARSE_POINT | FILE_ATTRIBUTE_DIRECTORY, detail );
     CloseHandle( file );
     return status;
 }
@@ -524,7 +539,7 @@ static int HBBridgeInspectWindowsFile( WCHAR * path, int mode )
 static void HBBridgeWindowsProbeResult( int mode )
 {
     WCHAR * wide = HBBridgePublishWindowsPath( hb_parc( 1 ), hb_parclen( 1 ) );
-    int status = HBBridgeInspectWindowsFile( wide, mode );
+    int status = HBBridgeInspectWindowsFile( wide, mode, NULL );
     if( wide ) hb_xfree( wide );
     hb_retni( status );
 }
@@ -542,6 +557,136 @@ HB_FUNC( HBBRIDGECREDENTIALSTREAMPROBE )
 HB_FUNC( HBBRIDGECREDENTIALMETADATAPROBE )
 {
     HBBridgeWindowsProbeResult( HB_METADATA_COMBINED );
+}
+
+/* Only the explicit audit fixture creates a file. CREATE_NEW prevents editing
+ * an existing object. The caller owns the new file in its test directory. */
+#define HB_AUDIT_REQUIRE( condition, stageName, errorCode ) \
+    do { if( !( condition ) ) { HBBridgeAuditDiagnostic( detail, stageName, errorCode ); goto cleanup; } } while( 0 )
+
+static int HBBridgeCheckAuditFixture( WCHAR * path, HB_AUDIT_DIAGNOSTIC * detail )
+{
+    const char contents[] = "synthetic audit fixture";
+    const DWORD security = SACL_SECURITY_INFORMATION | PROTECTED_SACL_SECURITY_INFORMATION;
+    PSECURITY_DESCRIPTOR supplied = NULL, first = NULL, last = NULL;
+    PACL source = NULL, before = NULL, after = NULL;
+    SYSTEM_AUDIT_ACE * ace;
+    BOOL present, defaulted;
+    SECURITY_DESCRIPTOR_CONTROL control;
+    DWORD revision, written, result;
+    HANDLE file = INVALID_HANDLE_VALUE;
+    int status = HB_PUBLISH_IO;
+
+    HB_AUDIT_REQUIRE( ConvertStringSecurityDescriptorToSecurityDescriptorW( L"S:P(AU;SA;0x1;;;WD)",
+        SDDL_REVISION_1, &supplied, NULL ), "fixture.parseSDDL", GetLastError() );
+    HB_AUDIT_REQUIRE( GetSecurityDescriptorSacl( supplied, &present, &source, &defaulted ),
+        "fixture.GetSecurityDescriptorSacl", GetLastError() );
+    HB_AUDIT_REQUIRE( present && source, "fixture.sourceSACL", 0 );
+    file = CreateFileW( path, GENERIC_WRITE | READ_CONTROL | ACCESS_SYSTEM_SECURITY, 0, NULL,
+        CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL );
+    HB_AUDIT_REQUIRE( file != INVALID_HANDLE_VALUE, "fixture.CreateFileW", GetLastError() );
+    HB_AUDIT_REQUIRE( WriteFile( file, contents, sizeof( contents ) - 1, &written, NULL ),
+        "fixture.WriteFile", GetLastError() );
+    HB_AUDIT_REQUIRE( written == sizeof( contents ) - 1, "fixture.shortWrite", 0 );
+    result = SetSecurityInfo( file, SE_FILE_OBJECT, security, NULL, NULL, NULL, source );
+    HB_AUDIT_REQUIRE( result == ERROR_SUCCESS, "fixture.SetSecurityInfo", result );
+    result = GetSecurityInfo( file, SE_FILE_OBJECT, SACL_SECURITY_INFORMATION, NULL, NULL, NULL, &before, &first );
+    HB_AUDIT_REQUIRE( result == ERROR_SUCCESS, "before.GetSecurityInfo", result );
+    HB_AUDIT_REQUIRE( before && IsValidAcl( before ), "before.validSACL", 0 );
+    HB_AUDIT_REQUIRE( GetSecurityDescriptorControl( first, &control, &revision ), "before.getControl", GetLastError() );
+    HB_AUDIT_REQUIRE( control & SE_SACL_PROTECTED, "before.protected", 0 );
+    HB_AUDIT_REQUIRE( before->AceCount == 1, "before.aceCount", 0 );
+    HB_AUDIT_REQUIRE( GetAce( before, 0, ( void ** ) &ace ), "before.GetAce", GetLastError() );
+    HB_AUDIT_REQUIRE( ace->Header.AceType == SYSTEM_AUDIT_ACE_TYPE, "before.auditType", 0 );
+    HB_AUDIT_REQUIRE( ace->Header.AceFlags == SUCCESSFUL_ACCESS_ACE_FLAG, "before.auditFlags", 0 );
+    HB_AUDIT_REQUIRE( ace->Mask == FILE_READ_DATA, "before.auditMask", 0 );
+    HB_AUDIT_REQUIRE( IsWellKnownSid( &ace->SidStart, WinWorldSid ), "before.auditTrustee", 0 );
+    CloseHandle( file );
+    file = INVALID_HANDLE_VALUE;
+    HBBridgeAuditDiagnostic( detail, "inspect.metadata", 0 );
+    status = HBBridgeInspectWindowsFile( path, HB_METADATA_COMBINED, detail );
+    if( status != HB_PUBLISH_OK ) goto cleanup;
+    status = HB_PUBLISH_IO;
+    file = CreateFileW( path, READ_CONTROL | ACCESS_SYSTEM_SECURITY, FILE_SHARE_READ, NULL, OPEN_EXISTING,
+        FILE_FLAG_OPEN_REPARSE_POINT, NULL );
+    HB_AUDIT_REQUIRE( file != INVALID_HANDLE_VALUE, "after.CreateFileW", GetLastError() );
+    result = GetSecurityInfo( file, SE_FILE_OBJECT, SACL_SECURITY_INFORMATION, NULL, NULL, NULL, &after, &last );
+    HB_AUDIT_REQUIRE( result == ERROR_SUCCESS, "after.GetSecurityInfo", result );
+    HB_AUDIT_REQUIRE( after && IsValidAcl( after ), "after.validSACL", 0 );
+    HB_AUDIT_REQUIRE( GetSecurityDescriptorControl( last, &control, &revision ), "after.getControl", GetLastError() );
+    HB_AUDIT_REQUIRE( control & SE_SACL_PROTECTED, "after.protected", 0 );
+    HB_AUDIT_REQUIRE( before->AclSize == after->AclSize, "after.aclSize", 0 );
+    HB_AUDIT_REQUIRE( memcmp( before, after, before->AclSize ) == 0, "after.aclBytes", 0 );
+    HBBridgeAuditDiagnostic( detail, "complete", 0 );
+    status = HB_PUBLISH_OK;
+cleanup:
+    if( file != INVALID_HANDLE_VALUE ) CloseHandle( file );
+    if( last ) LocalFree( last );
+    if( first ) LocalFree( first );
+    if( supplied ) LocalFree( supplied );
+    return status;
+}
+
+HB_FUNC( HBBRIDGECREDENTIALAUDITFIXTURE )
+{
+    HB_AUDIT_DIAGNOSTIC diagnostic = { "fixture.path", 0 };
+    HB_AUDIT_DIAGNOSTIC * detail = &diagnostic;
+    WCHAR * path = HBBridgePublishWindowsPath( hb_parc( 1 ), hb_parclen( 1 ) );
+    const WCHAR * base;
+    HANDLE token = NULL;
+    TOKEN_PRIVILEGES requested, previous;
+    DWORD size, error;
+    BOOL adjusted = FALSE, impersonated = FALSE;
+    int status = HB_PUBLISH_INVALID;
+
+    if( ! path || ! HBBridgeDrivePath( path ) ) goto cleanup;
+    base = wcsrchr( path, L'\\' );
+    if( ! base || wcscmp( base + 1, L"hbbridge-audit-fixture.ini" ) != 0 ) goto cleanup;
+    status = HB_PUBLISH_IO;
+    /* Use a private thread token in this standalone probe; preserve a caller
+     * that is already impersonating by refusing to change its token. */
+    if( OpenThreadToken( GetCurrentThread(), TOKEN_QUERY, TRUE, &token ) )
+    {
+        HBBridgeAuditDiagnostic( detail, "token.alreadyImpersonating", 0 );
+        goto cleanup;
+    }
+    error = GetLastError();
+    HB_AUDIT_REQUIRE( error == ERROR_NO_TOKEN, "token.queryOriginal", error );
+    HB_AUDIT_REQUIRE( ImpersonateSelf( SecurityImpersonation ), "token.ImpersonateSelf", GetLastError() );
+    impersonated = TRUE;
+    HB_AUDIT_REQUIRE( OpenThreadToken( GetCurrentThread(), TOKEN_QUERY | TOKEN_ADJUST_PRIVILEGES, TRUE, &token ),
+        "token.OpenThreadToken", GetLastError() );
+    HB_AUDIT_REQUIRE( LookupPrivilegeValueW( NULL, L"SeSecurityPrivilege", &requested.Privileges[ 0 ].Luid ),
+        "token.LookupPrivilegeValueW", GetLastError() );
+    requested.PrivilegeCount = 1;
+    requested.Privileges[ 0 ].Attributes = SE_PRIVILEGE_ENABLED;
+    SetLastError( ERROR_SUCCESS );
+    adjusted = AdjustTokenPrivileges( token, FALSE, &requested, sizeof( previous ), &previous, &size );
+    error = GetLastError();
+    HB_AUDIT_REQUIRE( adjusted, "token.AdjustTokenPrivileges", error );
+    if( error == ERROR_NOT_ALL_ASSIGNED ) status = HB_PUBLISH_PRIVILEGE_REQUIRED;
+    HB_AUDIT_REQUIRE( error == ERROR_SUCCESS, "token.enablePrivilege", error );
+    status = HBBridgeCheckAuditFixture( path, detail );
+cleanup:
+    if( adjusted && previous.PrivilegeCount > 0 )
+    {
+        SetLastError( ERROR_SUCCESS );
+        if( ! AdjustTokenPrivileges( token, FALSE, &previous, 0, NULL, NULL ) || GetLastError() != ERROR_SUCCESS )
+        {
+            HBBridgeAuditDiagnostic( detail, "token.restorePrivilege", GetLastError() );
+            status = HB_PUBLISH_IO;
+        }
+    }
+    if( token ) CloseHandle( token );
+    if( impersonated && ! RevertToSelf() )
+    {
+        HBBridgeAuditDiagnostic( detail, "token.RevertToSelf", GetLastError() );
+        status = HB_PUBLISH_IO;
+    }
+    if( path ) hb_xfree( path );
+    hb_storc( diagnostic.stage, 2 );
+    hb_stornint( ( HB_MAXINT ) diagnostic.code, 3 );
+    hb_retni( status );
 }
 #endif
 

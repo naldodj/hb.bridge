@@ -20,7 +20,9 @@ python tests/probes/hbbridge.credential.stream.test.py "$probe.exe"
 ```
 
 The test distinguishes unsupported metadata, a sharing conflict and a missing
-SACL privilege. It does not request or change permissions.
+SACL privilege. Add `--require-audit` to the Python command when running
+as an identity already assigned `SeSecurityPrivilege`. This test uses a
+disposable audit SACL and limits privilege activation to the probe thread.
 
 `pwsh ./scripts/test-credentials-terminal.ps1` builds the standalone terminal
 probe and verifies that redirected input is refused without a prompt. On Linux

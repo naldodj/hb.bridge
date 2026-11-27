@@ -140,6 +140,11 @@ aceites separados. Veja a [análise de credenciais](docs/credentials.pt-BR.md).
   bytes, da segurança observada e do conteúdo do diretório após recusa. O
   token de teste não tinha `SeSecurityPrivilege`. Ainda faltam a leitura da
   SACL com token autorizado e a substituição atômica.
+  A prova de auditoria ativa o privilégio em um token privado da thread e
+  identifica falhas pela etapa e pelo código Win32. A recusa sem atribuição
+  retornou 1300 e não criou arquivo. O primeiro teste de auditoria com uma
+  conta temporária que recebeu o direito retornou uma falha genérica de I/O.
+  A conta e o direito concedido foram removidos.
   Publicação atômica segura em produção, preservação de metadados, integração
   Linux, comando interativo, implantação e aceite completo permanecem pendentes.
 - [ ] C05: testar adulteração, chave errada/ausente, provedor indisponível,

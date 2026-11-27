@@ -5,6 +5,10 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Organize bilingual documentation and prepare the Wiki portal)"
  */
 
+2026-11-27 08:30 UTC naldodj (Exercise Windows audit metadata with a scoped privilege)
+  + Add a test-only SACL audit fixture using a private thread token.
+  ; Diagnose privilege and metadata failures without printing file data.
+
 2026-11-26 19:11 UTC naldodj (Combine Windows credential metadata checks)
   + Inspect supported file attributes, streams and security through a
     read-only Windows probe. Verify refusal on NTFS for missing SACL

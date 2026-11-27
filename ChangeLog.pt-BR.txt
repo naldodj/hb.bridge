@@ -6,6 +6,10 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Adicionar cobertura de integridade para JSON UTF-8 e MSSQL)"
  */
 
+2026-11-27 08:30 UTC naldodj (Exercitar metadados de auditoria com privilégio de escopo restrito)
+  + Adicionar uma fixture de auditoria SACL com token privado da thread.
+  ; Identificar falhas de privilégio e metadados sem imprimir dados do arquivo.
+
 2026-11-26 19:11 UTC naldodj (Combinar verificações de metadados de credenciais no Windows)
   + Inspecionar atributos suportados, fluxos e segurança em uma prova
     somente de leitura. Verificar a recusa em NTFS por falta de privilégio

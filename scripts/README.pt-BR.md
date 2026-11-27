@@ -21,7 +21,10 @@ python tests/probes/hbbridge.credential.stream.test.py "$probe.exe"
 ```
 
 A prova distingue metadados não suportados, conflito de compartilhamento
-e falta de privilégio para ler a SACL. Ela não solicita nem altera permissões.
+e falta de privilégio para ler a SACL. Acrescente `--require-audit` ao
+comando Python ao executar com uma identidade que já tenha
+`SeSecurityPrivilege`. O teste usa uma SACL descartável e ativa o
+privilégio apenas na thread da prova.
 
 `pwsh ./scripts/test-credentials-terminal.ps1` compila o teste independente de
 terminal e verifica que entrada redirecionada é recusada sem prompt. No Linux,

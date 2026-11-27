@@ -5,14 +5,16 @@ import ctypes
 from ctypes import wintypes
 from pathlib import Path
 import runpy
+import re
 import subprocess
 import sys
 import tempfile
 
 
 def main():
-    if os.name != "nt" or len(sys.argv) != 2:
-        raise SystemExit("Usage: stream.test.py <probe executable> (Windows only)")
+    if os.name != "nt" or (len(sys.argv) != 2 and
+                           not (len(sys.argv) == 3 and sys.argv[2] == "--require-audit")):
+        raise SystemExit("Usage: stream.test.py <probe executable> [--require-audit] (Windows only)")
     executable = str(Path(sys.argv[1]).resolve(strict=True))
     with tempfile.TemporaryDirectory(prefix="hbbridge-stream-test-") as directory:
         root = Path(directory)
@@ -28,9 +30,13 @@ def main():
             args = [executable, path_hex] + ([mode] if mode else [])
             result = subprocess.run(args, capture_output=True, text=True,
                                     check=True, timeout=20)
-            prefix = {"sacl": "SACL_STATUS", "metadata": "METADATA_STATUS", None: "STREAM_STATUS"}[mode]
+            prefix = {"sacl": "SACL_STATUS", "metadata": "METADATA_STATUS", "audit-fixture": "AUDIT_STATUS",
+                      None: "STREAM_STATUS"}[mode]
             if result.stdout.strip() != f"{prefix}={expected}":
-                raise AssertionError(description + ": unexpected status " + repr(result.stdout.strip()))
+                detail = result.stderr.strip()
+                if mode != "audit-fixture" or not re.fullmatch(r"AUDIT_STAGE=[A-Za-z0-9.]+ WIN32=[0-9]+", detail):
+                    detail = ""
+                raise AssertionError(description + ": unexpected status " + repr(result.stdout.strip()) + " " + detail)
             checks += 1
             print("PASS " + description)
 
@@ -102,6 +108,14 @@ def main():
             raise AssertionError("Inspection changed the synthetic file or created an artifact")
         checks += 1
         print("PASS inspection preserves file, observed security and directory contents")
+        if len(sys.argv) == 3:
+            audit = root / "hbbridge-audit-fixture.ini"
+            check(audit, 0, "protected audit ACE round trip", "audit-fixture")
+            if audit.read_bytes() != b"synthetic audit fixture":
+                raise AssertionError("Combined inspection changed the audited fixture")
+            check(audit, 6, "audit fixture refuses to replace an existing file", "audit-fixture")
+            if audit.read_bytes() != b"synthetic audit fixture":
+                raise AssertionError("Existing audited fixture changed")
         print(f"Credential metadata synthetic checks: {checks}; failures: 0")
 
 

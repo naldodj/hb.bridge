@@ -529,6 +529,16 @@ valida a inspeção prévia.
 [Acesso à SACL no Windows](https://learn.microsoft.com/en-us/windows/win32/secauthz/sacl-access-right),
 [pontos de nova análise no Windows](https://learn.microsoft.com/en-us/windows/win32/fileio/reparse-points-and-file-operations).
 
+O teste opcional `--require-audit` exige uma identidade que já tenha
+`SeSecurityPrivilege`. A prova habilita o privilégio em um token privado
+da thread no caso sintético e restaura o estado anterior. Ela cria uma
+fixture com SACL protegida e uma ACE de auditoria de leitura, inspeciona
+a SACL e compara o resultado antes e depois. O diagnóstico de falha
+mostra somente a etapa do teste e o código Win32. As 19 verificações da
+suíte padrão passaram. O caso positivo com uma identidade autorizada
+ainda exige validação.
+[Ativação e restauração do privilégio](https://learn.microsoft.com/pt-br/windows/win32/api/securitybaseapi/nf-securitybaseapi-adjusttokenprivileges).
+
 No volume NTFS testado, um identificador que impede compartilhamento de escrita
 bloqueou a abertura para gravação por outro processo e permitiu leitores compatíveis.
 Quando permite compartilhamento de exclusão, outro processo ainda consegue

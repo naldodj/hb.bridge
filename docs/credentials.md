@@ -518,6 +518,16 @@ returning, so this verifies a preflight step only.
 [Windows SACL access](https://learn.microsoft.com/en-us/windows/win32/secauthz/sacl-access-right),
 [Windows reparse points](https://learn.microsoft.com/en-us/windows/win32/fileio/reparse-points-and-file-operations).
 
+The optional `--require-audit` test requires an identity already assigned
+`SeSecurityPrivilege`. The probe enables it on a private thread token for
+the synthetic case and restores the previous state. It creates a new
+fixture with a protected SACL and a read-audit ACE, checks the SACL through
+the metadata probe and compares it before and after inspection. Failure
+diagnostics contain only the test stage and Win32 code. The ordinary
+19-case suite passed. The positive audit case on an assigned test identity
+still requires validation.
+[Privilege activation and restoration](https://learn.microsoft.com/en-us/windows/win32/api/securitybaseapi/nf-securitybaseapi-adjusttokenprivileges).
+
 On the tested NTFS volume, an open guard that denies write sharing blocked
 another process from opening the file for writing and allowed compatible readers.
 If the guard permits delete sharing, another process can still replace the path.
