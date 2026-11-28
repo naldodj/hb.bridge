@@ -223,6 +223,12 @@ cache service or Linux. See [lifetime, scope and future work](../docs/evolution.
 ./scripts/test-hbbridge.ps1
 ```
 
+Use `./scripts/test-hbbridge.ps1 -CredentialTransport` to exercise protected
+SQL credential failures over the native TCP and HTTP listeners on loopback.
+The focused run uses synthetic data, checks the public error and subsequent
+Echo on both transports, and scans the captured output for credential
+markers. The fixture checks that the ODBC connection path remains unused.
+
 Bootstrap verifies the Zig archive checksum and the Git revisions in
 [dependencies.json](../config/dependencies.json). A completed receipt avoids
 unnecessary rebuilds. `-ForceBuild` rebuilds the selected Harbour profile.

@@ -63,8 +63,14 @@ aceites separados. Veja a [análise de credenciais](docs/credentials.pt-BR.md).
   como root, com toolchain Harbour/Zig gerenciada e isolada; não houve teste
   de servidor MSSQL no Linux. Uma prova Windows/MSSQL somente de leitura cifra em memória a
   senha configurada, cria um perfil JSON protegido temporário e usa a consulta
-  normal. Aceites ampliados de transporte, identidade de serviço e SQL no Linux
-  seguem pendentes.
+  normal. A fixture isolada em loopback passou em 23 verificações por
+  execução no Windows e no Ubuntu WSL, com chave ausente e tag adulterada
+  por TCP e HTTP. As causas permanecem distintas no provedor. Ambos retornaram
+  `CONNECTION_FAILED` sanitizado, com status 500 no HTTP. Respostas e saída
+  capturada não continham marcadores de credencial sintética, Echo respondeu
+  após cada falha e nenhuma conexão ODBC foi iniciada. A suíte completa
+  Harbour passou em 920 verificações no Windows. Seguem pendentes a
+  homologação com identidades de serviço e o MSSQL real no Linux.
 - [ ] C04: oferecer utilitário local com entrada sem eco, segredos fora de
   argumentos, gravação atômica e orientações para permissões de chave, backup,
   atualização manual e migração. Sem rotação automática de senha do banco.

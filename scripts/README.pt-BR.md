@@ -233,6 +233,12 @@ serviço SQL/cache do produto nem Linux. Veja [vida útil, escopo e trabalho fut
 ./scripts/test-hbbridge.ps1
 ```
 
+Use `./scripts/test-hbbridge.ps1 -CredentialTransport` para exercitar falhas
+de credenciais SQL protegidas pelos listeners TCP e HTTP nativos em loopback.
+A execução isolada usa dados sintéticos, confere o erro público e o Echo
+posterior nos dois transportes e procura marcadores de credencial na saída
+capturada. A fixture verifica que o caminho de conexão ODBC não foi usado.
+
 O bootstrap verifica o checksum do arquivo Zig e as revisões Git de
 [dependencies.json](../config/dependencies.json). Uma instalação completa
 registrada evita recompilações desnecessárias. `-ForceBuild` recompila o

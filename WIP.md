@@ -61,7 +61,14 @@ its own acceptance. See [credential review](docs/credentials.md).
   the isolated managed Harbour/Zig toolchain; no Linux MSSQL server was tested.
   A read-only Windows/MSSQL probe encrypts the configured password in memory,
   builds a temporary protected JSON profile and uses the regular query path.
-  Wider transport, service-identity and Linux SQL acceptance remain open.
+  The focused loopback fixture passed 23 checks per run on Windows and
+  Ubuntu WSL, covering missing keys and altered authentication tags over
+  TCP and HTTP. Provider causes remain distinct internally. Both transports
+  returned the sanitized `CONNECTION_FAILED` result, and HTTP used status
+  500. Responses and captured output contained no synthetic credential
+  markers, Echo recovered after each failure and ODBC remained untouched.
+  The full Harbour suite passed 920 checks on Windows. Service-identity
+  and live Linux MSSQL acceptance remain open.
 - [ ] C04: provide a local credential utility with non-echoed input, no secrets in
   command-line arguments, atomic updates and documented key permissions, backup,
   manual update and migration. No automatic database password rotation.

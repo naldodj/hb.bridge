@@ -179,6 +179,13 @@ abrir a chave nem conectar ao banco; chave ausente ou incorreta e envelope
 inválido impedem a conexão. Portanto, `--config-info` não testa a credencial nem
 a conexão com o banco.
 
+A fixture isolada `-CredentialTransport` testa chave ausente e tag de
+autenticação adulterada em `RPCRDD.Query` pelos listeners TCP e HTTP em
+loopback. Ambos retornam o contrato sanitizado `CONNECTION_FAILED`. Um Echo
+é concluído após cada erro. A fixture verifica os dados de resposta e o
+estado de conexão ODBC. O executor procura marcadores de credenciais
+sintéticas na saída capturada. [Scripts de validação](../scripts/README.pt-BR.md).
+
 A versão 1 usa XChaCha20-Poly1305. O provedor lê uma chave binária de 32 bytes
 do caminho configurado fora do INI. O valor após `enc:v1:` usa Base64 padrão
 com preenchimento para o nonce de 24 bytes, o texto cifrado e a tag de 16 bytes,

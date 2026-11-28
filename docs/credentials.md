@@ -181,6 +181,13 @@ opening the key or connecting; missing keys, malformed envelopes and wrong
 keys fail closed when a connection is attempted. `--config-info` is therefore
 not a credential or database connection test.
 
+The focused `-CredentialTransport` fixture exercises a missing key and an
+altered authentication tag through `RPCRDD.Query` on the TCP and HTTP
+loopback listeners. Both return the sanitized `CONNECTION_FAILED` contract.
+An Echo succeeds after each failure. The fixture checks the response data
+and the ODBC connection state, and the runner checks the captured output
+for synthetic credential markers. [Validation scripts](../scripts/README.md).
+
 Version 1 uses XChaCha20-Poly1305. The file provider reads a 32-byte binary key
 from the configured path outside the INI. The value after `enc:v1:` is padded
 standard Base64 of the 24-byte nonce, ciphertext and 16-byte tag, in that order.

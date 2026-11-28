@@ -5,7 +5,7 @@
 STATIC s_hAddonGate
 
 // Build hbbridgeservertest.hbp or run scripts/test-hbbridge.ps1 from the project root.
-PROCEDURE MTTests()
+PROCEDURE MTTests( cMode )
 
     LOCAL hServer
 
@@ -14,6 +14,13 @@ PROCEDURE MTTests()
     MTAssert( hb_mtvm(), "Harbour MT VM enabled", @nFailures, @nChecks )
     IF ! hb_mtvm()
         ErrorLevel( 1 )
+        RETURN
+    ENDIF
+
+    HBBridgeCredentialTransportTests( @nFailures, @nChecks )
+    IF cMode == "--credential-transport"
+        OutStd( hb_eol() + "Credential transport checks=" + hb_ntos( nChecks ) + "; failures=" + hb_ntos( nFailures ) + hb_eol() )
+        ErrorLevel( iif( nFailures == 0, 0, 1 ) )
         RETURN
     ENDIF
 
@@ -374,18 +381,19 @@ STATIC FUNCTION MTAddonArrive( nIndex )
     s_hAddonGate[ "participants" ][ hb_ntos( nIndex ) ] := .T.
 RETURN Len( s_hAddonGate[ "participants" ] )
 
-FUNCTION MTRequest( nPort, cJson, cSignature )
+FUNCTION MTRequest( nPort, cJson, cSignature, cPlain )
 
     LOCAL hSocket := MTConnect( nPort ), hResponse := NIL
 
+    cPlain := NIL
     IF ! Empty( hSocket )
-        hResponse := MTExchange( hSocket, cJson, cSignature )
+        hResponse := MTExchange( hSocket, cJson, cSignature, @cPlain )
         hb_socketClose( hSocket )
     ENDIF
 
 RETURN hResponse
 
-STATIC FUNCTION MTExchange( hSocket, cJson, cSignature )
+STATIC FUNCTION MTExchange( hSocket, cJson, cSignature, cPlain )
 
     LOCAL aHeader
 
@@ -441,6 +449,7 @@ STATIC FUNCTION MTExchange( hSocket, cJson, cSignature )
     IF HBBridgeJSONDecode( cBody, @hResponse ) != hb_BLen( cBody )
         RETURN NIL
     ENDIF
+    cPlain := cBody
 
 RETURN hResponse
 

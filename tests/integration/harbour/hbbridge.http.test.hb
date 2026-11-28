@@ -51,7 +51,7 @@ PROCEDURE HTTPTests( nFailures, nChecks )
     hConfig[ "httpPort" ] := hConfig[ "netioPort" ]
     HTTPAssert( ! HBBridgeConfigValid( hConfig, @cError ), ;
         "HTTP configuration detects endpoint port collisions", @nFailures, @nChecks )
-    hConfig[ "httpPort" ] := HTTPFreePort()
+    hConfig[ "httpPort" ] := HBBridgeHTTPTestFreePort()
     hConfig[ "httpHost" ] := "0.0.0.0"
     HTTPAssert( HBBridgeConfigValid( hConfig, @cError ), ;
         "HTTP permits an explicit wildcard bind for deployment", @nFailures, @nChecks )
@@ -79,8 +79,8 @@ PROCEDURE HTTPTests( nFailures, nChecks )
     hConfig[ "protheusHost" ] := "127.0.0.1"
     hConfig[ "protheusPort" ] := 0
     hConfig[ "netioHost" ] := "127.0.0.1"
-    hConfig[ "netioPort" ] := HTTPFreePort()
-    hConfig[ "adminPort" ] := HTTPFreePort()
+    hConfig[ "netioPort" ] := HBBridgeHTTPTestFreePort()
+    hConfig[ "adminPort" ] := HBBridgeHTTPTestFreePort()
     hConfig[ "netioRoot" ] := HBBridgeAbsolutePath( "http-netio-data", hb_cwd() )
     hConfig[ "netioPassword" ] := "http-native-test-only"
     hConfig[ "sqlProfiles" ] := { "memory/HTTP" => { "driver" => "sqlite", "database" => ":memory:" }, ;
@@ -392,7 +392,7 @@ STATIC PROCEDURE M6HTTPSQLFailures( nPort, cAuthorization, nFailures, nChecks )
         cBody := hb_jsonEncode( { "service" => "RPCRDD.Query", "params" => hCase[ "params" ] } )
         hResponse := HBBridgeHTTPTestRequest( nPort, "POST", "/api/v1/rpc", cBody, cAuthorization )
         hResult := hResponse[ "json" ]
-        HTTPAssert( hResponse[ "status" ] == 500 .AND. M6HTTPSQLSafeFailure( hResult, hCase ), ;
+        HTTPAssert( hResponse[ "status" ] == 500 .AND. HBBridgeTestSQLSafeFailure( hResult, hCase ), ;
             "HTTP RPC SQL failure has a safe envelope without partial data: " + cName, @nFailures, @nChecks )
         hResponse := HBBridgeHTTPTestRequest( nPort, "POST", "/api/v1/rpc", ;
             hb_jsonEncode( { "service" => "RPCRDD.Query", "params" => hRecovery } ), cAuthorization )
@@ -401,7 +401,7 @@ STATIC PROCEDURE M6HTTPSQLFailures( nPort, cAuthorization, nFailures, nChecks )
         hResponse := HBBridgeHTTPTestRequest( nPort, "POST", "/api/v1/services/RPCRDD.Query", ;
             hb_jsonEncode( hCase[ "params" ] ), cAuthorization )
         HTTPAssert( hResponse[ "status" ] == 500 .AND. ;
-            M6HTTPSQLSafeFailure( hResponse[ "json" ], hCase ), ;
+            HBBridgeTestSQLSafeFailure( hResponse[ "json" ], hCase ), ;
             "HTTP REST SQL failure matches the RPC envelope: " + cName, @nFailures, @nChecks )
         hResponse := HBBridgeHTTPTestRequest( nPort, "POST", "/api/v1/services/RPCRDD.Query", ;
             hb_jsonEncode( hRecovery ), cAuthorization )
@@ -411,7 +411,7 @@ STATIC PROCEDURE M6HTTPSQLFailures( nPort, cAuthorization, nFailures, nChecks )
 
 RETURN
 
-STATIC FUNCTION M6HTTPSQLSafeFailure( hResult, hCase )
+FUNCTION HBBridgeTestSQLSafeFailure( hResult, hCase )
     IF ! HB_ISHASH( hResult )
         RETURN .F.
     ENDIF
@@ -458,7 +458,7 @@ STATIC PROCEDURE HTTPAssert( lCondition, cMessage, nFailures, nChecks )
     ENDIF
 RETURN
 
-STATIC FUNCTION HTTPFreePort()
+FUNCTION HBBridgeHTTPTestFreePort()
     LOCAL hSocket := hb_socketOpen()
 
     LOCAL nPort

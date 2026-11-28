@@ -5,6 +5,10 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Organize bilingual documentation and prepare the Wiki portal)"
  */
 
+2026-11-28 09:33 UTC naldodj (Exercise protected SQL credential failures on TCP and HTTP)
+  + Verify missing-key and altered-envelope failures over both native loopback
+    listeners, including sanitized responses, Echo and no ODBC connection.
+
 2026-11-27 08:36 UTC naldodj (Record the Windows SACL inspection result)
   ; Confirm the protected audit ACE round trip and cleanup under a
     temporary local account on NTFS.
