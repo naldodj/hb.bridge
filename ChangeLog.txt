@@ -5,6 +5,11 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Organize bilingual documentation and prepare the Wiki portal)"
  */
 
+2026-11-28 09:39 UTC naldodj (Probe protected SACL preservation through NTFS replacement)
+  ! Reserve the UTF-16 terminator in the NTFS rename probe path buffer.
+  + Exercise synthetic replacement with scoped audit privilege and descriptor
+    comparisons before and after FileRenameInfoEx.
+
 2026-11-28 09:33 UTC naldodj (Exercise protected SQL credential failures on TCP and HTTP)
   + Verify missing-key and altered-envelope failures over both native loopback
     listeners, including sanitized responses, Echo and no ODBC connection.

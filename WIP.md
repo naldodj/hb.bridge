@@ -147,8 +147,14 @@ its own acceptance. See [credential review](docs/credentials.md).
   temporary local test account passed all 21 checks, including reading and
   comparing a protected SACL with a nonempty audit ACE and refusing to
   overwrite an existing fixture. The right, account, profile and synthetic
-  file directory were removed. Preservation through an atomic replacement
-  remains open.
+  file directory were removed.
+  The existing rename probe now terminates the UTF-16 path passed to
+  `FileRenameInfoEx`. Five repeated runs passed six checks each on NTFS,
+  including both renames and fixture cleanup. The optional replacement
+  fixture compares the staged and final owner, group, DACL and nonempty
+  SACL, checks the reopened file and verifies the existing reader. The
+  21-case unprivileged suite passed, including refusal before creating
+  files. The replacement case with an authorized audit token awaits a run.
   Production-safe atomic publication, metadata preservation, Linux integration,
   interactive command, deployment and full acceptance remain open.
 - [ ] C05: validate tampering, wrong/missing key, unavailable provider, Unicode,

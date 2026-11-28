@@ -6,6 +6,11 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Adicionar cobertura de integridade para JSON UTF-8 e MSSQL)"
  */
 
+2026-11-28 09:39 UTC naldodj (Exercitar a preservação da SACL durante a substituição em NTFS)
+  ! Reservar o terminador UTF-16 no buffer de renomeação da prova de NTFS.
+  + Exercitar a substituição sintética com privilégio de auditoria restrito e
+    comparar os descritores antes e depois de FileRenameInfoEx.
+
 2026-11-28 09:33 UTC naldodj (Exercitar falhas de credenciais SQL protegidas por TCP e HTTP)
   + Verificar chave ausente e envelope adulterado pelos listeners nativos
     em loopback, com respostas sanitizadas, Echo e sem conexão ODBC.

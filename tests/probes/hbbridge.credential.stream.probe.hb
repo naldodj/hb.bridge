@@ -3,8 +3,8 @@ PROCEDURE HBBridgeCredentialStreamProbeMain( cPathHex, cMode )
     LOCAL cStage
     LOCAL nCode, nStatus
 
-    IF cMode == "audit-fixture"
-        nStatus := HBBridgeCredentialAuditFixture( hb_HexToStr( cPathHex ), @cStage, @nCode )
+    IF cMode == "audit-fixture" .OR. cMode == "audit-replace-fixture"
+        nStatus := HBBridgeCredentialAuditFixture( hb_HexToStr( cPathHex ), @cStage, @nCode, cMode == "audit-replace-fixture" )
         OutStd( "AUDIT_STATUS=" + hb_ntos( nStatus ) + hb_eol() )
         IF nStatus != 0
             OutErr( "AUDIT_STAGE=" + cStage + " WIN32=" + hb_ntos( nCode ) + hb_eol() )

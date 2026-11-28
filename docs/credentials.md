@@ -537,6 +537,15 @@ to overwrite the existing fixture. Cleanup confirmed that the test right,
 account, profile and directory of synthetic inputs were removed.
 [Privilege activation and restoration](https://learn.microsoft.com/en-us/windows/win32/api/securitybaseapi/nf-securitybaseapi-adjusttokenprivileges).
 
+The optional `--require-audit-replace` fixture exercises the next NTFS step.
+The probe uses fixed synthetic content and reserved, newly created files.
+It checks the replacement security descriptor before renaming, then
+reopens the destination to check the result. The fixture uses
+`FileRenameInfoEx` and keeps the scoped audit privilege inside the test
+thread. Status 10 indicates the rename succeeded and a subsequent check
+failed. The fixture does not attempt rollback or retry. Production
+publication has its own conflict and metadata requirements. [Windows rename semantics](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntifs/ns-ntifs-_file_rename_information).
+
 On the tested NTFS volume, an open guard that denies write sharing blocked
 another process from opening the file for writing and allowed compatible readers.
 If the guard permits delete sharing, another process can still replace the path.

@@ -548,6 +548,15 @@ existente foi recusada. Confirmada a remoção do direito, da conta, do
 perfil e do diretório de arquivos sintéticos.
 [Ativação e restauração do privilégio](https://learn.microsoft.com/pt-br/windows/win32/api/securitybaseapi/nf-securitybaseapi-adjusttokenprivileges).
 
+A fixture opcional `--require-audit-replace` exercita a substituição em
+NTFS. A prova usa conteúdo sintético fixo e arquivos novos com nomes
+reservados. Ela confere o descritor de segurança do substituto antes da
+renomeação e reabre o destino para conferir o resultado. A fixture usa
+`FileRenameInfoEx` e mantém o privilégio de auditoria restrito à thread de
+teste. O status 10 indica que a renomeação ocorreu e uma verificação
+posterior falhou. A prova não tenta reverter ou repetir. A publicação em
+produção tem requisitos próprios de conflitos e metadados. [Semântica de renomeação no Windows](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntifs/ns-ntifs-_file_rename_information).
+
 No volume NTFS testado, um identificador que impede compartilhamento de escrita
 bloqueou a abertura para gravação por outro processo e permitiu leitores compatíveis.
 Quando permite compartilhamento de exclusão, outro processo ainda consegue

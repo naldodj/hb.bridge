@@ -151,7 +151,14 @@ aceites separados. Veja a [análise de credenciais](docs/credentials.pt-BR.md).
   passou nas 21 verificações, incluindo leitura e comparação da SACL
   protegida com uma ACE de auditoria e recusa de sobrescrever uma fixture.
   O direito, a conta, o perfil e o diretório de arquivos sintéticos foram
-  removidos. Falta validar a preservação durante a substituição atômica.
+  removidos.
+  A prova anterior de renomeação agora termina o caminho UTF-16 entregue a
+  `FileRenameInfoEx`. Cinco rodadas passaram em seis verificações cada em
+  NTFS, incluindo as duas renomeações e a limpeza da fixture. A nova prova
+  opcional compara proprietário, grupo, DACL e SACL não vazia na preparação
+  e após reabrir o destino, e confere o leitor que já estava aberto. A suíte
+  sem privilégio passou em 21 verificações, incluindo a recusa antes de
+  criar arquivos. Falta executar a substituição com token de auditoria autorizado.
   Publicação atômica segura em produção, preservação de metadados, integração
   Linux, comando interativo, implantação e aceite completo permanecem pendentes.
 - [ ] C05: testar adulteração, chave errada/ausente, provedor indisponível,

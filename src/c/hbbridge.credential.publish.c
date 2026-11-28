@@ -564,9 +564,154 @@ HB_FUNC( HBBRIDGECREDENTIALMETADATAPROBE )
 #define HB_AUDIT_REQUIRE( condition, stageName, errorCode ) \
     do { if( !( condition ) ) { HBBridgeAuditDiagnostic( detail, stageName, errorCode ); goto cleanup; } } while( 0 )
 
-static int HBBridgeCheckAuditFixture( WCHAR * path, HB_AUDIT_DIAGNOSTIC * detail )
+/* Only this test mode returns 10: a rename completed but verification or
+ * restoration failed. No retry may interpret this result as non-publication. */
+#define HB_AUDIT_PUBLISHED_UNVERIFIED 10
+
+/* The fixture owns the parent directory. NTFS renames a directory entry,
+ * so a preflight identity check cannot exclude a non-cooperating rename. */
+static PSECURITY_DESCRIPTOR HBBridgeAuditDescriptor( HANDLE file, DWORD * size )
 {
-    const char contents[] = "synthetic audit fixture";
+    const SECURITY_INFORMATION parts = OWNER_SECURITY_INFORMATION | GROUP_SECURITY_INFORMATION |
+        DACL_SECURITY_INFORMATION | SACL_SECURITY_INFORMATION;
+    PSECURITY_DESCRIPTOR descriptor;
+    DWORD needed = 0, used = 0;
+    if( GetKernelObjectSecurity( file, parts, NULL, 0, &needed ) ||
+        GetLastError() != ERROR_INSUFFICIENT_BUFFER || ! needed || needed > 262144 ) return NULL;
+    descriptor = ( PSECURITY_DESCRIPTOR ) hb_xgrabz( needed );
+    if( ! GetKernelObjectSecurity( file, parts, descriptor, needed, &used ) || used != needed ||
+        ! IsValidSecurityDescriptor( descriptor ) )
+    {
+        hb_xfree( descriptor );
+        return NULL;
+    }
+    *size = used;
+    return descriptor;
+}
+
+static HB_BOOL HBBridgeAuditSameFile( const BY_HANDLE_FILE_INFORMATION * a, const BY_HANDLE_FILE_INFORMATION * b )
+{
+    return a->dwVolumeSerialNumber == b->dwVolumeSerialNumber &&
+        a->nFileIndexHigh == b->nFileIndexHigh && a->nFileIndexLow == b->nFileIndexLow;
+}
+
+static HB_BOOL HBBridgeAuditHasBytes( HANDLE file, const char * expected )
+{
+    BYTE buffer[ 64 ];
+    DWORD count;
+    LARGE_INTEGER zero;
+    size_t length = strlen( expected );
+    zero.QuadPart = 0;
+    return length < sizeof( buffer ) && SetFilePointerEx( file, zero, NULL, FILE_BEGIN ) &&
+        ReadFile( file, buffer, sizeof( buffer ), &count, NULL ) && count == length &&
+        memcmp( buffer, expected, length ) == 0;
+}
+
+static int HBBridgeReplaceAuditFixture( WCHAR * path, HANDLE original, const char * originalBytes,
+    HB_AUDIT_DIAGNOSTIC * detail )
+{
+    /* FileRenameInfoEx is value 22; older SDK target levels hide its enum
+     * and DWORD Flags member. The remaining layout matches FILE_RENAME_INFO. */
+    typedef struct { DWORD flags; HANDLE root; DWORD nameBytes; WCHAR name[ 1 ]; } HB_RENAME_EX;
+    const DWORD share = FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE;
+    const DWORD access = GENERIC_READ | READ_CONTROL | ACCESS_SYSTEM_SECURITY;
+    const char replacement[] = "[fixture]\r\nrevision=2\r\n";
+    SECURITY_ATTRIBUTES attributes = { sizeof( SECURITY_ATTRIBUTES ), NULL, FALSE };
+    FILE_DISPOSITION_INFO disposition = { TRUE };
+    BY_HANDLE_FILE_INFORMATION prior, staged, observed;
+    PSECURITY_DESCRIPTOR source = NULL, stageSD = NULL, finalSD = NULL;
+    DWORD sourceSize = 0, stageSize = 0, finalSize = 0, count = 0, revision;
+    SECURITY_DESCRIPTOR_CONTROL control;
+    WCHAR filesystem[ 32 ];
+    HANDLE stage = INVALID_HANDLE_VALUE, check = INVALID_HANDLE_VALUE;
+    size_t chars = wcslen( path ), bytes = chars * sizeof( WCHAR );
+    WCHAR * stagePath = NULL;
+    HB_RENAME_EX * rename = NULL;
+    DWORD renameSize;
+    HB_BOOL published = HB_FALSE;
+    int status = HB_PUBLISH_IO;
+
+    HB_AUDIT_REQUIRE( chars < 32760, "replace.pathLength", 0 );
+    HB_AUDIT_REQUIRE( GetVolumeInformationByHandleW( original, NULL, 0, NULL, NULL, NULL, filesystem, 32 ),
+        "replace.volumeInfo", GetLastError() );
+    HB_AUDIT_REQUIRE( wcscmp( filesystem, L"NTFS" ) == 0, "replace.requiresNTFS", 0 );
+    HB_AUDIT_REQUIRE( HBBridgeInspectStreams( original, ~( FILE_ATTRIBUTE_NORMAL | FILE_ATTRIBUTE_ARCHIVE ), detail )
+        == HB_PUBLISH_OK, "replace.sourceStreams", 0 );
+    HB_AUDIT_REQUIRE( GetFileInformationByHandle( original, &prior ), "replace.sourceInfo", GetLastError() );
+    HB_AUDIT_REQUIRE( prior.nFileIndexHigh || prior.nFileIndexLow, "replace.sourceIdentity", 0 );
+    source = HBBridgeAuditDescriptor( original, &sourceSize );
+    HB_AUDIT_REQUIRE( source, "replace.sourceDescriptor", GetLastError() );
+    HB_AUDIT_REQUIRE( GetSecurityDescriptorControl( source, &control, &revision ), "replace.getControl", GetLastError() );
+    HB_AUDIT_REQUIRE( ( control & SE_DACL_PROTECTED ) && ( control & SE_SACL_PROTECTED ), "replace.protectedACLs", 0 );
+    attributes.lpSecurityDescriptor = source;
+    stagePath = ( WCHAR * ) hb_xgrab( bytes + sizeof( L".stage" ) );
+    memcpy( stagePath, path, bytes );
+    memcpy( stagePath + chars, L".stage", sizeof( L".stage" ) );
+    stage = CreateFileW( stagePath, access | GENERIC_WRITE | DELETE, FILE_SHARE_READ, &attributes, CREATE_NEW,
+        FILE_FLAG_OPEN_REPARSE_POINT | FILE_ATTRIBUTE_NORMAL, NULL );
+    HB_AUDIT_REQUIRE( stage != INVALID_HANDLE_VALUE, "replace.createStage", GetLastError() );
+    stageSD = HBBridgeAuditDescriptor( stage, &stageSize );
+    HB_AUDIT_REQUIRE( stageSD, "replace.stageDescriptor", GetLastError() );
+    HB_AUDIT_REQUIRE( sourceSize == stageSize && memcmp( source, stageSD, sourceSize ) == 0,
+        "replace.stageDescriptorMismatch", 0 );
+    HB_AUDIT_REQUIRE( WriteFile( stage, replacement, sizeof( replacement ) - 1, &count, NULL ) &&
+        count == sizeof( replacement ) - 1, "replace.writeStage", GetLastError() );
+    HB_AUDIT_REQUIRE( FlushFileBuffers( stage ), "replace.flushStage", GetLastError() );
+    HB_AUDIT_REQUIRE( HBBridgeInspectStreams( stage, ~( FILE_ATTRIBUTE_NORMAL | FILE_ATTRIBUTE_ARCHIVE ), detail )
+        == HB_PUBLISH_OK, "replace.stageStreams", 0 );
+    HB_AUDIT_REQUIRE( GetFileInformationByHandle( stage, &staged ), "replace.stageInfo", GetLastError() );
+    HB_AUDIT_REQUIRE( ( staged.nFileIndexHigh || staged.nFileIndexLow ) &&
+        ! HBBridgeAuditSameFile( &prior, &staged ), "replace.stageIdentity", 0 );
+    check = CreateFileW( path, GENERIC_READ, share, NULL, OPEN_EXISTING, FILE_FLAG_OPEN_REPARSE_POINT, NULL );
+    HB_AUDIT_REQUIRE( check != INVALID_HANDLE_VALUE, "replace.preflightOpen", GetLastError() );
+    HB_AUDIT_REQUIRE( GetFileInformationByHandle( check, &observed ) && HBBridgeAuditSameFile( &prior, &observed ) &&
+        HBBridgeAuditHasBytes( check, originalBytes ), "replace.preflightSnapshot", 0 );
+    CloseHandle( check );
+    check = INVALID_HANDLE_VALUE;
+
+    renameSize = ( DWORD ) ( offsetof( HB_RENAME_EX, name ) + bytes + sizeof( WCHAR ) );
+    rename = ( HB_RENAME_EX * ) hb_xgrabz( renameSize );
+    rename->flags = 0x1 | 0x2; /* REPLACE_IF_EXISTS | POSIX_SEMANTICS */
+    rename->nameBytes = ( DWORD ) bytes;
+    memcpy( rename->name, path, bytes );
+    HB_AUDIT_REQUIRE( SetFileInformationByHandle( stage, ( FILE_INFO_BY_HANDLE_CLASS ) 22,
+        rename, renameSize ), "replace.FileRenameInfoEx", GetLastError() );
+    published = HB_TRUE;
+    HB_AUDIT_REQUIRE( HBBridgeAuditHasBytes( original, originalBytes ), "published.originalReader", 0 );
+    check = CreateFileW( path, access, share, NULL, OPEN_EXISTING, FILE_FLAG_OPEN_REPARSE_POINT, NULL );
+    HB_AUDIT_REQUIRE( check != INVALID_HANDLE_VALUE, "published.open", GetLastError() );
+    HB_AUDIT_REQUIRE( GetFileInformationByHandle( check, &observed ) && HBBridgeAuditSameFile( &staged, &observed ) &&
+        HBBridgeAuditHasBytes( check, replacement ), "published.identityAndBytes", 0 );
+    finalSD = HBBridgeAuditDescriptor( check, &finalSize );
+    HB_AUDIT_REQUIRE( finalSD, "published.descriptor", GetLastError() );
+    HB_AUDIT_REQUIRE( finalSize == sourceSize && memcmp( finalSD, source, sourceSize ) == 0,
+        "published.descriptorMismatch", 0 );
+    HBBridgeAuditDiagnostic( detail, "complete", 0 );
+    status = HB_PUBLISH_OK;
+cleanup:
+    if( check != INVALID_HANDLE_VALUE ) CloseHandle( check );
+    if( stage != INVALID_HANDLE_VALUE )
+    {
+        if( ! published && ! SetFileInformationByHandle( stage, FileDispositionInfo, &disposition, sizeof( disposition ) ) )
+        {
+            HBBridgeAuditDiagnostic( detail, "cleanup.stage", GetLastError() );
+            status = HB_PUBLISH_CLEANUP;
+        }
+        CloseHandle( stage );
+    }
+    if( rename ) hb_xfree( rename );
+    if( stagePath ) hb_xfree( stagePath );
+    if( finalSD ) hb_xfree( finalSD );
+    if( stageSD ) hb_xfree( stageSD );
+    if( source ) hb_xfree( source );
+    return published && status != HB_PUBLISH_OK ? HB_AUDIT_PUBLISHED_UNVERIFIED : status;
+}
+
+static int HBBridgeCheckAuditFixture( WCHAR * path, HB_BOOL replace, HB_AUDIT_DIAGNOSTIC * detail )
+{
+    const char * contents = replace ? "[fixture]\r\nrevision=1\r\n" : "synthetic audit fixture";
+    DWORD length = ( DWORD ) strlen( contents );
+    SECURITY_ATTRIBUTES attributes = { sizeof( SECURITY_ATTRIBUTES ), NULL, FALSE };
     const DWORD security = SACL_SECURITY_INFORMATION | PROTECTED_SACL_SECURITY_INFORMATION;
     PSECURITY_DESCRIPTOR supplied = NULL, first = NULL, last = NULL;
     PACL source = NULL, before = NULL, after = NULL;
@@ -577,17 +722,19 @@ static int HBBridgeCheckAuditFixture( WCHAR * path, HB_AUDIT_DIAGNOSTIC * detail
     HANDLE file = INVALID_HANDLE_VALUE;
     int status = HB_PUBLISH_IO;
 
-    HB_AUDIT_REQUIRE( ConvertStringSecurityDescriptorToSecurityDescriptorW( L"S:P(AU;SA;0x1;;;WD)",
+    HB_AUDIT_REQUIRE( ConvertStringSecurityDescriptorToSecurityDescriptorW(
+        replace ? L"D:P(A;;FA;;;OW)(A;;FA;;;SY)S:P(AU;SA;0x1;;;WD)" : L"S:P(AU;SA;0x1;;;WD)",
         SDDL_REVISION_1, &supplied, NULL ), "fixture.parseSDDL", GetLastError() );
     HB_AUDIT_REQUIRE( GetSecurityDescriptorSacl( supplied, &present, &source, &defaulted ),
         "fixture.GetSecurityDescriptorSacl", GetLastError() );
     HB_AUDIT_REQUIRE( present && source, "fixture.sourceSACL", 0 );
-    file = CreateFileW( path, GENERIC_WRITE | READ_CONTROL | ACCESS_SYSTEM_SECURITY, 0, NULL,
-        CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL );
+    attributes.lpSecurityDescriptor = supplied;
+    file = CreateFileW( path, GENERIC_WRITE | READ_CONTROL | ACCESS_SYSTEM_SECURITY | ( replace ? GENERIC_READ : 0 ),
+        replace ? FILE_SHARE_READ | FILE_SHARE_DELETE : 0, replace ? &attributes : NULL, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL );
     HB_AUDIT_REQUIRE( file != INVALID_HANDLE_VALUE, "fixture.CreateFileW", GetLastError() );
-    HB_AUDIT_REQUIRE( WriteFile( file, contents, sizeof( contents ) - 1, &written, NULL ),
+    HB_AUDIT_REQUIRE( WriteFile( file, contents, length, &written, NULL ),
         "fixture.WriteFile", GetLastError() );
-    HB_AUDIT_REQUIRE( written == sizeof( contents ) - 1, "fixture.shortWrite", 0 );
+    HB_AUDIT_REQUIRE( written == length, "fixture.shortWrite", 0 );
     result = SetSecurityInfo( file, SE_FILE_OBJECT, security, NULL, NULL, NULL, source );
     HB_AUDIT_REQUIRE( result == ERROR_SUCCESS, "fixture.SetSecurityInfo", result );
     result = GetSecurityInfo( file, SE_FILE_OBJECT, SACL_SECURITY_INFORMATION, NULL, NULL, NULL, &before, &first );
@@ -601,6 +748,11 @@ static int HBBridgeCheckAuditFixture( WCHAR * path, HB_AUDIT_DIAGNOSTIC * detail
     HB_AUDIT_REQUIRE( ace->Header.AceFlags == SUCCESSFUL_ACCESS_ACE_FLAG, "before.auditFlags", 0 );
     HB_AUDIT_REQUIRE( ace->Mask == FILE_READ_DATA, "before.auditMask", 0 );
     HB_AUDIT_REQUIRE( IsWellKnownSid( &ace->SidStart, WinWorldSid ), "before.auditTrustee", 0 );
+    if( replace )
+    {
+        status = HBBridgeReplaceAuditFixture( path, file, contents, detail );
+        goto cleanup;
+    }
     CloseHandle( file );
     file = INVALID_HANDLE_VALUE;
     HBBridgeAuditDiagnostic( detail, "inspect.metadata", 0 );
@@ -637,11 +789,13 @@ HB_FUNC( HBBRIDGECREDENTIALAUDITFIXTURE )
     TOKEN_PRIVILEGES requested, previous;
     DWORD size, error;
     BOOL adjusted = FALSE, impersonated = FALSE;
+    HB_BOOL replace = hb_parl( 4 ), published = HB_FALSE;
     int status = HB_PUBLISH_INVALID;
 
     if( ! path || ! HBBridgeDrivePath( path ) ) goto cleanup;
     base = wcsrchr( path, L'\\' );
-    if( ! base || wcscmp( base + 1, L"hbbridge-audit-fixture.ini" ) != 0 ) goto cleanup;
+    if( ! base || wcscmp( base + 1,
+        replace ? L"hbbridge-audit-replace.ini" : L"hbbridge-audit-fixture.ini" ) != 0 ) goto cleanup;
     status = HB_PUBLISH_IO;
     /* Use a private thread token in this standalone probe; preserve a caller
      * that is already impersonating by refusing to change its token. */
@@ -666,7 +820,8 @@ HB_FUNC( HBBRIDGECREDENTIALAUDITFIXTURE )
     HB_AUDIT_REQUIRE( adjusted, "token.AdjustTokenPrivileges", error );
     if( error == ERROR_NOT_ALL_ASSIGNED ) status = HB_PUBLISH_PRIVILEGE_REQUIRED;
     HB_AUDIT_REQUIRE( error == ERROR_SUCCESS, "token.enablePrivilege", error );
-    status = HBBridgeCheckAuditFixture( path, detail );
+    status = HBBridgeCheckAuditFixture( path, replace, detail );
+    published = replace && ( status == HB_PUBLISH_OK || status == HB_AUDIT_PUBLISHED_UNVERIFIED );
 cleanup:
     if( adjusted && previous.PrivilegeCount > 0 )
     {
@@ -674,14 +829,14 @@ cleanup:
         if( ! AdjustTokenPrivileges( token, FALSE, &previous, 0, NULL, NULL ) || GetLastError() != ERROR_SUCCESS )
         {
             HBBridgeAuditDiagnostic( detail, "token.restorePrivilege", GetLastError() );
-            status = HB_PUBLISH_IO;
+            status = published ? HB_AUDIT_PUBLISHED_UNVERIFIED : HB_PUBLISH_IO;
         }
     }
     if( token ) CloseHandle( token );
     if( impersonated && ! RevertToSelf() )
     {
         HBBridgeAuditDiagnostic( detail, "token.RevertToSelf", GetLastError() );
-        status = HB_PUBLISH_IO;
+        status = published ? HB_AUDIT_PUBLISHED_UNVERIFIED : HB_PUBLISH_IO;
     }
     if( path ) hb_xfree( path );
     hb_storc( diagnostic.stage, 2 );

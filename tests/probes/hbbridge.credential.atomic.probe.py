@@ -180,7 +180,7 @@ def replace_file(target, staged, use_move=False, use_posix=False):
         kernel.CloseHandle.argtypes = [wintypes.HANDLE]
         kernel.CloseHandle.restype = wintypes.BOOL
         name = str(target).encode("utf-16-le")
-        buffer = ctypes.create_string_buffer(RenameInfo.name.offset + len(name))
+        buffer = ctypes.create_string_buffer(RenameInfo.name.offset + len(name) + ctypes.sizeof(wintypes.WCHAR))
         info = RenameInfo.from_buffer(buffer)
         info.flags = 0x1 | 0x2
         info.root = None
